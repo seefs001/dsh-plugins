@@ -1,0 +1,6 @@
+# Bundle patch layer: the Host half is a no-op; the `dsh.client` declaration
+# makes the web app load lib/client.js, which adds the composer entry.
+# Needs the forge panel (@deepseek-ai/dsh-experimental-forge-bundle).
+- insert:
+    - id: git-changes
+      name: dsh-git-changes

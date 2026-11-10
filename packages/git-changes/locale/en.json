@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Git changes",
+    "description": "Shows the branch and changed lines below the composer; click to open the diff in the right Sidebar. Needs Change requests & worktrees."
+  }
+}
