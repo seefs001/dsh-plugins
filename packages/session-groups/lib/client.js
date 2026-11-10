@@ -54,6 +54,7 @@ window.__ModuleLoader__.load({
       collapse: 'Collapse',
       expand: 'Expand',
       sessions: '{n} sessions',
+      dropNew: 'Drop here to create a new group',
     }
     const ZH = {
       panel: '会话分组',
@@ -90,6 +91,7 @@ window.__ModuleLoader__.load({
       collapse: '收起',
       expand: '展开',
       sessions: '{n} 个会话',
+      dropNew: '拖到这里新建分组',
     }
 
     // ---------------------------------------------------------------- store
@@ -239,6 +241,11 @@ window.__ModuleLoader__.load({
 .sg-hint kbd{display:inline-block;min-width:16px;margin-right:4px;padding:0 3px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-xs);font:inherit;font-size:10px;line-height:14px;text-align:center;color:var(--dsw-alias-label-secondary)}
 .sg-textbtn{flex:none;height:24px;padding:0 10px;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}
 .sg-textbtn:hover{background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
+.sg-group{transition:box-shadow .12s var(--sg-ease),background-color .12s var(--sg-ease)}
+.sg-group.sg-dropping{background:var(--sg-hover);box-shadow:inset 0 0 0 1.5px var(--sg-focus)}
+.sg-row[draggable=true]{cursor:grab}
+.sg-dropzone{display:flex;align-items:center;justify-content:center;gap:8px;height:56px;margin-top:12px;border:1px dashed var(--sg-border);border-radius:var(--sg-r-lg);color:var(--sg-tertiary);font-size:13px;line-height:18px;transition:border-color .12s var(--sg-ease),background-color .12s var(--sg-ease),color .12s var(--sg-ease)}
+.sg-dropzone.sg-dropping{border-color:var(--sg-focus);background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
 @media (hover:none){.sg-gactions{opacity:1}.sg-ractions{display:flex}.sg-time,.sg-hint{display:none}}
 @media (pointer:coarse){.sg-search-input,.sg-rename{font-size:16px}}
 @media (prefers-reduced-motion:reduce){.sg-sp{animation:none}.sg-page *{transition:none!important}}
@@ -344,6 +351,65 @@ window.__ModuleLoader__.load({
           fn => ctx.sessions.list.subscribe(fn),
           () => ctx.sessions.list.getSnapshot(),
         )
+
+        // -------------------------------------------------------------- drag
+        // Sidebar session rows drag with `text/plain` = session id; rows on this
+        // page do the same, so one drop path serves both sources.
+        const carriesText = e => Array.from(e.dataTransfer?.types ?? []).includes('text/plain')
+
+        /** True while any document drag is in progress (reveals the new-group zone). */
+        function useDocumentDragging() {
+          const [dragging, setDragging] = React.useState(false)
+          React.useEffect(() => {
+            const on = e => { if (carriesText(e)) setDragging(true) }
+            const off = () => setDragging(false)
+            document.addEventListener('dragstart', on)
+            document.addEventListener('dragend', off)
+            document.addEventListener('drop', off)
+            return () => {
+              document.removeEventListener('dragstart', on)
+              document.removeEventListener('dragend', off)
+              document.removeEventListener('drop', off)
+            }
+          }, [])
+          return dragging
+        }
+
+        /** Drop-target props that accept a known session id; `over` drives the highlight. */
+        function useSessionDrop(list, onSession) {
+          const [over, setOver] = React.useState(false)
+          const depth = React.useRef(0)
+          const latest = React.useRef({ list, onSession })
+          latest.current = { list, onSession }
+          const props = {
+            onDragEnter: e => {
+              if (!carriesText(e)) return
+              e.preventDefault()
+              depth.current += 1
+              setOver(true)
+            },
+            onDragOver: e => {
+              if (!carriesText(e)) return
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+            },
+            onDragLeave: () => {
+              depth.current = Math.max(0, depth.current - 1)
+              if (depth.current === 0) setOver(false)
+            },
+            onDrop: e => {
+              depth.current = 0
+              setOver(false)
+              const id = e.dataTransfer?.getData('text/plain')?.trim()
+              const summary = id ? latest.current.list.byId[id] : undefined
+              if (!summary || summary.blank) return
+              e.preventDefault()
+              e.stopPropagation()
+              latest.current.onSession(id)
+            },
+          }
+          return { over, props }
+        }
 
         // -------------------------------------------------------- components
         function GroupName({ group, editing }) {
@@ -453,6 +519,11 @@ window.__ModuleLoader__.load({
           const stop = fn => e => { e.stopPropagation(); fn() }
           return h('div', {
             className: 'sg-row', role: 'button', tabIndex: 0, title: title ?? id,
+            draggable: Boolean(summary),
+            onDragStart: summary ? e => {
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('text/plain', id)
+            } : undefined,
             onClick: open,
             onKeyDown: e => { if (e.key === 'Enter' && e.target === e.currentTarget) open() },
           },
@@ -480,13 +551,18 @@ window.__ModuleLoader__.load({
             if (collapsed) next.delete(group.id); else next.add(group.id)
             store.setView({ collapsed: next })
           }
+          const drop = useSessionDrop(list, sessionId => {
+            if (group.sessionIds.includes(sessionId)) return
+            if (collapsed) toggle()
+            void op({ action: 'add', groupId: group.id, sessionId }).catch(() => {})
+          })
           const members = orderedMembers(group, list.byId)
           const pinned = new Set(group.pinned)
           const iconBtn = (label, icon, onClick, extra = {}) => h('button', {
             type: 'button', className: `sg-icon${extra.danger ? ' sg-danger' : ''}`, title: label, 'aria-label': label,
             disabled: extra.disabled, 'aria-pressed': extra.pressed, onClick,
           }, icon)
-          return h('section', { className: 'sg-group' },
+          return h('section', { className: `sg-group${drop.over ? ' sg-dropping' : ''}`, ...drop.props },
             h('div', { className: 'sg-ghead' },
               iconBtn(collapsed ? t('expand') : t('collapse'), h(IconChevron, { open: !collapsed }), toggle),
               editing
@@ -513,29 +589,37 @@ window.__ModuleLoader__.load({
           const { groups, status, error } = useGroups()
           const list = useSessions()
           const view = store.view()
-          const create = async () => {
+          const create = async sessionId => {
             try {
-              const { groupId } = await op({ action: 'create', name: t('defaultName') })
+              const { groupId } = await op(sessionId
+                ? { action: 'create', name: t('defaultName'), sessionId }
+                : { action: 'create', name: t('defaultName') })
               store.setView({ editing: groupId })
             } catch {}
           }
+          const dragging = useDocumentDragging()
+          const newDrop = useSessionDrop(list, sessionId => void create(sessionId))
           return h('div', { className: 'sg-page' },
             h('style', null, CSS),
             h('div', { className: 'sg-inner' },
               h('div', { className: 'sg-head' },
                 h('h1', { className: 'sg-title' }, t('panel')),
-                h('button', { type: 'button', className: 'sg-btn sg-primary', onClick: create }, h(IconPlus, { size: 14 }), t('newGroup'))),
+                h('button', { type: 'button', className: 'sg-btn sg-primary', onClick: () => void create() }, h(IconPlus, { size: 14 }), t('newGroup'))),
               status === 'error'
                 ? h('div', { className: 'sg-error' }, `${t('loadFailed')}: ${error}`,
                   h('button', { type: 'button', className: 'sg-btn', onClick: () => void load() }, t('retry')))
                 : null,
               status === 'ready' && groups.length === 0
                 ? h('div', { className: 'sg-emptystate' }, h(IconGroups, { size: 32 }),
-                  h('div', null, t('empty'), ' ', h('button', { type: 'button', className: 'sg-link', onClick: create }, t('newGroup'))))
+                  h('div', null, t('empty'), ' ', h('button', { type: 'button', className: 'sg-link', onClick: () => void create() }, t('newGroup'))))
                 : null,
               groups.map((group, index) => h(Group, {
                 key: group.id, group, index, count: groups.length, groups, list, locale: loc.active, view,
-              }))))
+              })),
+              status === 'ready' && (dragging || newDrop.over)
+                ? h('div', { className: `sg-dropzone${newDrop.over ? ' sg-dropping' : ''}`, ...newDrop.props },
+                  h(IconPlus, { size: 14 }), t('dropNew'))
+                : null))
         }
 
         ctx.slots.inject('main', () => ctx.slots.register({
