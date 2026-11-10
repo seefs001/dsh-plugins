@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "error", "suspicious": "warn" },
+  "env": { "browser": true, "node": true, "es2024": true },
+  "rules": {
+    "no-unused-vars": "error",
+    "no-empty": ["error", { "allowEmptyCatch": true }],
+    "no-underscore-dangle": "off",
+    "unicorn/consistent-function-scoping": "off"
+  }
+}

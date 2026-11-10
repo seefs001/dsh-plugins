@@ -1,0 +1,63 @@
+{
+  "name": "dsh-recent-sessions",
+  "version": "1.0.0",
+  "description": "Lists sessions in the dsh @ reference menu by last activity, newest first.",
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "deepseek-harness",
+    "sessions",
+    "reference",
+    "mention",
+    "sort"
+  ],
+  "license": "MIT",
+  "author": "seefs001",
+  "homepage": "https://github.com/seefs001/dsh-plugins/tree/main/packages/recent-sessions#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seefs001/dsh-plugins.git",
+    "directory": "packages/recent-sessions"
+  },
+  "bugs": {
+    "url": "https://github.com/seefs001/dsh-plugins/issues"
+  },
+  "type": "module",
+  "icon": "icon.svg",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.2.2-rc.1 <0.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-input-trigger",
+        "@deepseek-ai/dsh-client-ui-reference",
+        "@deepseek-ai/dsh-api-session-controller"
+      ]
+    }
+  }
+}

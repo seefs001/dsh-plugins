@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Recent sessions first",
+    "description": "Lists sessions in the @ reference menu by last activity, newest first."
+  }
+}

@@ -1,0 +1,9 @@
+# Bundle patch layer: the row loads lib/index.js as the Host half; the
+# `dsh.client` declaration makes the web app load lib/client.js as the
+# browser half.
+- insert:
+    - id: service-tier
+      name: dsh-service-tier
+      config:
+        # provider/model -> "priority", toggled from the ⚡ button.
+        tiers: {}

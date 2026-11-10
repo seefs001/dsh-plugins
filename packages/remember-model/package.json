@@ -1,0 +1,52 @@
+{
+  "name": "dsh-remember-model",
+  "version": "1.2.0",
+  "description": "Saves the model and reasoning effort picked in a dsh session as the default for new sessions.",
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "deepseek-harness",
+    "model",
+    "default-model",
+    "reasoning-effort"
+  ],
+  "license": "MIT",
+  "author": "seefs001",
+  "homepage": "https://github.com/seefs001/dsh-plugins/tree/main/packages/remember-model#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seefs001/dsh-plugins.git",
+    "directory": "packages/remember-model"
+  },
+  "bugs": {
+    "url": "https://github.com/seefs001/dsh-plugins/issues"
+  },
+  "type": "module",
+  "icon": "icon.svg",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.2.2-rc.1 <0.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

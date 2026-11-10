@@ -1,0 +1,64 @@
+{
+  "name": "dsh-service-tier",
+  "version": "1.2.0",
+  "description": "A ⚡ fast-mode toggle beside the dsh model picker that sends service_tier \"priority\" for OpenAI Responses models.",
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "deepseek-harness",
+    "service-tier",
+    "priority",
+    "fast-mode",
+    "openai",
+    "responses"
+  ],
+  "license": "MIT",
+  "author": "seefs001",
+  "homepage": "https://github.com/seefs001/dsh-plugins/tree/main/packages/service-tier#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seefs001/dsh-plugins.git",
+    "directory": "packages/service-tier"
+  },
+  "bugs": {
+    "url": "https://github.com/seefs001/dsh-plugins/issues"
+  },
+  "type": "module",
+  "icon": "icon.svg",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.2.2-rc.1 <0.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-model-selection",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  }
+}

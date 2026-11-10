@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Fast mode (service tier)",
+    "description": "Adds a ⚡ toggle beside the model picker for OpenAI Responses models. When it is on, requests for that model use service_tier \"priority\"."
+  }
+}

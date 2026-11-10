@@ -1,0 +1,5 @@
+# Bundle patch layer: the Host half is a no-op; the `dsh.client` declaration
+# makes the web app load lib/client.js, which does the work.
+- insert:
+    - id: recent-sessions
+      name: dsh-recent-sessions

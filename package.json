@@ -1,0 +1,26 @@
+{
+  "name": "dsh-plugins",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Community plugins for DeepSeek Harness (dsh): # model references, fast mode, remembered models and recent-first @ sessions.",
+  "license": "MIT",
+  "author": "seefs001",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seefs001/dsh-plugins.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "check": "pnpm run lint && pnpm run validate && pnpm run test",
+    "lint": "oxlint --deny-warnings packages scripts test-utils",
+    "validate": "node scripts/validate.mjs",
+    "test": "node --test \"packages/*/test/*.test.js\"",
+    "pack:dry": "pnpm -r exec npm pack --dry-run"
+  },
+  "devDependencies": {
+    "oxlint": "^1.93.0"
+  }
+}
