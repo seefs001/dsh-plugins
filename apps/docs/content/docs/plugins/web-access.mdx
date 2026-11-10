@@ -1,0 +1,73 @@
+---
+title: 联网搜索
+description: 用现有 Responses 模型搜索网页与 X，向 Agent 返回带引用的回答。
+---
+
+`dsh-web-access` 注册 `grok_search` 和 `openai_search`。在 Plugins 页选择本地模型和搜索类型，工具调用该模型的托管搜索。**Host + Web**。
+
+## 安装
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
+```
+
+## 配置
+
+打开 **Plugins → dsh-web-access**，分别设置两个工具：
+
+- **Enabled**：关闭后移除工具。
+- **Model**：选择 `llm-pi-ai` 中使用 `openai-responses` 的 provider 下的模型。
+- **Search type**：Grok 可以选择网页、X 或两者；OpenAI 使用网页搜索。
+
+endpoint、API Key 和额外 headers 复用 provider 的 `baseURL`、`apiKeyEnv` 与 `headers`，不需要重复填写。
+
+保存会重启插件并重新注册工具。只有 provider 路由存在且 key 可以解析时，工具才提供给模型。页面显示 **Ready** 或具体不可用原因。
+
+## 配置示例
+
+这里的 `responses` 和模型 ID 都是示例，请替换为 Host 实际配置的路由与模型。
+
+```yaml
+- id: web-access
+  config:
+    timeoutMs: 120000
+    grok:
+      enabled: true
+      provider: responses
+      model: grok-4.7-build-fast
+      tools: [web_search, x_search]
+    openai:
+      enabled: true
+      provider: responses
+      model: gpt-6.1-sol
+      tools: [web_search]
+```
+
+## 工具参数
+
+| 工具 | 托管搜索类型 | 可选筛选 |
+| --- | --- | --- |
+| `grok_search` | `web_search`、`x_search` 或两者 | 网页域名；X 账号和日期范围 |
+| `openai_search` | `web_search` | 允许域名、上下文长度、地理位置 |
+
+只有 `query` 必填。工具 schema 只包含已启用搜索类型对应的参数。
+
+可选字段既可省略，也可以传 `null`，地理位置的子字段也一样。这是为了兼容严格的 Responses 客户端，不需要编造占位日期或位置：
+
+- Grok 只搜网页时，X 筛选传 `null`。
+- OpenAI 不做本地化搜索时，`user_location` 传 `null`。
+- 空字符串不能替代 `null`；矛盾或格式错误的筛选仍会报错。
+
+## 返回结果
+
+模型收到回答文本和最多 10 个来源。优先提取回答中的 `url_citation`、response `citations` 或 Markdown 引用链接，只有回答没有引用时才使用原始搜索结果。
+
+Chat 复用原生搜索工具行，显示 Grok/OpenAI、查询、搜索渠道和来源数量。展开可读格式化回答与来源链接；运行、停止和失败状态仍使用原生指示器，Inspect 打开原始工具调用。
+
+## 限制
+
+<Callout type="warn" title="Responses 兼容不等于支持托管搜索">
+网关是否转发 `web_search` / `x_search` 取决于网关实现和上游账号。不支持时会返回 endpoint 的 HTTP 错误。
+</Callout>
+
+`allowed_x_handles` / `excluded_x_handles` 使用 xAI 文档中的字段，部分网关可能忽略。插件只提供搜索，不影响内置 `web_fetch`。

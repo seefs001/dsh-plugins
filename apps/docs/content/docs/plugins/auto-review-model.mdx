@@ -1,0 +1,56 @@
+---
+title: 自动审查模型
+description: 为 Auto review 单独设置审查模型、推理强度和提示词。
+---
+
+`dsh-auto-review-model` 只重定向 `purpose: "auto-review"` 的审查请求，主对话模型不受影响。**Host + Web**。
+
+<Callout type="warn" title="先启用 Auto review">
+需要启用 `@deepseek-ai/dsh-experimental-auto-review`。这个插件只扩展审查配置，不会自行启用实验性审查功能。
+</Callout>
+
+## 安装与设置
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
+```
+
+1. 打开 **Plugins → dsh-auto-review-model**。
+2. 从 Host 实时模型目录中选择模型，可选推理强度。
+3. 点击 **Save**。选择 **Same as session** 恢复内置行为。
+
+## 配置项
+
+| 字段 | 含义 |
+| --- | --- |
+| `provider` | provider 路由 ID，留空沿用会话模型 |
+| `model` | 模型 ID，必须与 `provider` 一起设置或清空 |
+| `reasoningEffort` | 推理强度 ID，留空使用该模型默认值 |
+| `promptMode` | `default`、`append` 或 `replace` |
+| `prompt` | 追加规则或完整的替代审查策略 |
+
+## 审查提示词
+
+- **Default**：保留内置策略。
+- **Append**：在内置策略后，以 `ADDITIONAL USER POLICY` 标题追加规则。保留内置风险等级和输出格式，通常优先选这个。
+- **Replace**：把你的文本作为审查模型的完整 system prompt。
+
+<Callout type="warn" title="Replace 必须保留严格输出约束">
+Auto review 仍然严格解析结果。提示词必须要求只返回一个 JSON 对象，且 `risk` / `decision` 只能是下面列出的组合。无效输出会使审查失败并阻止工具调用。
+</Callout>
+
+允许的组合：`low + allow`、`medium + allow`、`medium + deny` 或 `high + deny`。只有拒绝时可以附带可选的 `reason`，例如：
+
+```json
+{"risk":"medium","decision":"deny","reason":"该操作需要用户确认"}
+```
+
+**Load built-in prompt** 会填入最近一次审查请求里观察到的策略。Host 启动后至少运行一次 Auto review，该按钮才有内容可加载。
+
+## 实现与限制
+
+插件前置监听 `llm/stream`，复制冻结的审查请求，替换模型路由和 system prompt，再调用 `llm.stream()`。其他监听器仍会看到一次重定向后的请求。
+
+- 指定 provider 未加载时，回退到会话模型并记录警告。
+- 审查模型必须稳定返回严格 JSON。审查失败会阻止调用，错误为 `AUTO_REVIEW_FAILED`。
+- Auto review 是实验性功能。若上游改变 `purpose` 标签或请求结构，插件需要随之更新。

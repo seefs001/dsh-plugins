@@ -5,7 +5,7 @@
 seefs's plugin collection for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): faster model picking and switching, plus a few Web UI improvements.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[Documentation](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 English | [中文](README.zh.md)
 
@@ -60,7 +60,19 @@ dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
 
 ## Configuration
 
-Plugins that keep state (`model-reference` efforts, `service-tier` fast models, `session-groups` groups, `auto-review-model` model and prompt) save it into your profile's `cordis.patch.yml` through dsh's config editor, so it survives restarts and upgrades. See each package's README for its keys.
+Plugin settings (`model-reference` efforts, `service-tier` fast models, `auto-review-model` model and prompt, and `web-access` search settings) are saved to your profile's `cordis.patch.yml` through dsh's config editor. Session groups use the Host's `session_groups` storage domain instead. See each package's README for details.
+
+## Documentation
+
+The [documentation site](https://seefs001.github.io/dsh-plugins/) uses Fumadocs and includes a GitHub Pages deployment workflow. It covers installation, all nine plugins, configuration, and development.
+
+```bash
+pnpm run docs:dev        # local preview
+pnpm run docs:typecheck  # documentation types
+pnpm run docs:build      # static export to apps/docs/out
+```
+
+See [apps/docs/README.md](apps/docs/README.md) for the first Pages deployment.
 
 ## Development
 

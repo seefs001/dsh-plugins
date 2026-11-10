@@ -1,0 +1,86 @@
+---
+title: 快速开始
+description: 从 GitHub 安装插件，几分钟内开始使用。
+---
+
+## 环境要求
+
+| 依赖 | 要求 |
+| --- | --- |
+| DeepSeek Harness | `>=0.2.2-rc.1 <0.3.0` |
+| Node.js | `^22.19.0` 或 `>=24` |
+| 浏览器界面 | Web 插件需要 `dsh web` |
+
+以下命令以 `web` profile 为例。请替换成你实际使用的 profile，安装和启动时保持一致。
+
+## 安装第一个插件
+
+以模型引用为例：
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/model-reference"
+```
+
+`path:` 指向这个仓库内的一个包。**不需要安装整个插件集，也不需要构建插件。**
+
+也可以打开 Web 界面的 **Plugins** 页，粘贴下面的地址安装：
+
+```text
+github:seefs001/dsh-plugins#main&path:/packages/model-reference
+```
+
+安装 bundle 后会自动选中启用。开启 `patchReload: live` 时无需重启；否则重启对应 profile 的 dsh。浏览器端的更新刷新页面后生效。
+
+## 试一下
+
+1. 打开使用同一 profile 的 Web 界面。
+2. 在对话输入框里输入 `#`，再输入模型名称或 provider。
+3. 用方向键选中模型，按 `Enter` 或 `Tab` 插入模型标签。
+
+标签会带上这个模型上次使用的推理强度。再安装 [快速模式](/docs/plugins/service-tier) 后，启用了快速模式的模型也会带上 ⚡。
+
+<Callout>
+模型标签是提示词里的模型引用，不是切换当前会话模型的命令。参见 [模型引用](/docs/plugins/model-reference#模型看到什么)。
+</Callout>
+
+## 安装其他插件
+
+根据需要复制对应命令：
+
+```bash title="模型工作流"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/service-tier"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
+```
+
+```bash title="会话与阅读"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
+```
+
+```bash title="联网搜索"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
+```
+
+<Callout type="warn" title="额外依赖">
+自动审查模型需要先启用 `@deepseek-ai/dsh-experimental-auto-review`。会话分组需要 `@deepseek-ai/dsh-storage-domain`，默认 profiles 已包含。联网搜索需要支持托管搜索的 Responses provider。
+</Callout>
+
+## 从本地源码安装
+
+```bash
+git clone https://github.com/seefs001/dsh-plugins.git
+dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
+```
+
+插件使用原生 ES 模块，无需编译。修改源码后如何加载，见 [本地开发](/docs/development)。
+
+## 安装后没有变化？
+
+- 确认安装的 profile 与当前运行的 profile 相同，并在 Plugins 页确认 bundle 已启用。
+- Web 插件只作用于浏览器界面，刷新页面后再试。
+- 没有开启 `patchReload: live` 时，重启 dsh 加载 Host 变更。
+- ⚡ 只在 `openai-responses` 模型旁出现；联网搜索还需到 Plugins 页选模型并保存。
+- 若 dsh 超出支持范围，先核对对应插件的兼容性说明。

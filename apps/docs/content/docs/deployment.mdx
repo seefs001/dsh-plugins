@@ -1,0 +1,57 @@
+---
+title: GitHub Pages
+description: 通过 GitHub Actions 将 Fumadocs 导出为纯静态站点。
+---
+
+文档使用 Next.js `output: 'export'`，不需要 Node.js 线上服务。构建产物位于 `apps/docs/out`。
+
+目标地址为：
+
+```text
+https://seefs001.github.io/dsh-plugins/
+```
+
+## 首次启用
+
+1. 将文档改动合入仓库的 `main` 分支。
+2. 打开仓库 **Settings → Pages**。
+3. 在 **Build and deployment → Source** 选择 **GitHub Actions**。
+4. 在 **Actions → Documentation** 里手动运行工作流，或通过后续文档变更触发。
+
+工作流使用 GitHub 内置 `GITHUB_TOKEN` 和 Pages OIDC，不需要配置部署密钥，也不维护 `gh-pages` 分支。
+
+<Callout>
+配置文件本身不会启用 Pages。仓库管理员完成 Source 设置，并且部署工作流成功后，站点才会公开可用。
+</Callout>
+
+## 工作流行为
+
+`.github/workflows/docs.yml` 在以下情况执行：
+
+- `main` 上的文档、依赖或工作流变化：类型检查、静态构建、上传并部署。
+- PR 中相同范围的变化：只检查和构建，不部署。
+- 在 `main` 上手动运行：检查、构建并部署。
+
+只有部署 job 拥有 `pages: write` 和 `id-token: write`。构建 job 只需要仓库读取权限。
+
+## 仓库子路径
+
+GitHub Pages 的项目站点使用 `/dsh-plugins/` 前缀。工作流在构建时设置：
+
+```text
+NEXT_PUBLIC_BASE_PATH=/dsh-plugins
+```
+
+Next.js 会给站内导航与资源添加 base path。favicon 与静态搜索索引的请求也使用同一个前缀。
+
+本地开发默认不设置前缀，直接访问 `http://localhost:3000`。要验证 Pages 构建，在仓库根目录运行：
+
+```bash
+NEXT_PUBLIC_BASE_PATH=/dsh-plugins pnpm run docs:build
+```
+
+预览时，将 `apps/docs/out` 挂载在 `/dsh-plugins/`，而不是站点根目录。搜索索引由 `/dsh-plugins/search-index.json` 对应的静态文件提供，不是运行时 API。
+
+## 自定义域名
+
+如果以后改成域名根路径部署，移除工作流的 `NEXT_PUBLIC_BASE_PATH` 前缀后重新构建，并在仓库 Pages 设置里配置自定义域名。不要只改页面链接，base path 在构建时就已写入资源和客户端代码。

@@ -1,0 +1,48 @@
+---
+title: 配置与数据
+description: 区分插件设置、默认模型与会话分组的存储位置。
+---
+
+优先使用 Web 界面配置插件。模型引用与快速模式会在你操作时自动保存；自动审查模型和联网搜索在各自的 **Plugins** 页面配置。
+
+## 设置保存在哪里？
+
+| 插件 | 保存内容 | 位置 |
+| --- | --- | --- |
+| `model-reference` | 每个 `provider/model` 上次的推理强度 | profile 的 `cordis.patch.yml`，插件 `efforts` 配置 |
+| `service-tier` | 启用快速模式的 `provider/model` | profile 的 `cordis.patch.yml`，插件 `tiers` 配置 |
+| `remember-model` | 新会话的默认模型和推理强度 | dsh 的 `agent-default-model` 配置 |
+| `auto-review-model` | 审查模型、推理强度与审查提示词 | profile 的 `cordis.patch.yml`，该插件配置 |
+| `web-access` | 搜索模型、搜索类型与超时 | profile 的 `cordis.patch.yml`，该插件配置 |
+| `session-groups` | 分组、成员、排序与置顶 | Host 的 `session_groups` storage domain |
+
+`recent-sessions`、`quote-jump` 和 `tool-lens` 没有需要手动设置的插件配置。
+
+<Callout>
+会话分组不是保存在 `cordis.patch.yml` 里。默认 JSON 存储后端使用 `~/.dsh/storages/session_groups.json`，实际位置取决于 Host 的 storage domain 配置。
+</Callout>
+
+## 配置片段怎么读？
+
+插件页中的 YAML 展示对应插件行的 `id` 和 `config`，例如：
+
+```yaml
+- id: service-tier
+  config:
+    tiers:
+      responses/gpt-6.1-sol: priority
+```
+
+这用于说明配置结构，不是让你重复插入一份插件。安装 bundle 已经创建了对应的加载行。通常直接点击界面即可，插件会通过 dsh 的 config editor 把修改写入 profile 的 patch，重启和升级后保留。
+
+## 搜索凭据
+
+[联网搜索](/docs/plugins/web-access) 复用 `llm-pi-ai` provider 的 `baseURL`、`apiKeyEnv` 和额外 `headers`。插件只保存 provider、模型和搜索选项，不需要再填写一份 API Key。
+
+不要把密钥写进文档、仓库或示例配置。provider 的 key 必须在运行 Host 的环境中可以解析。
+
+## 浏览器之间如何同步？
+
+模型默认值保存后，`remember-model` 会发出模型列表更新事件，让已连接的浏览器刷新默认值。会话分组由 Host 统一保存，并通过 SSE 向打开的页面推送完整状态。
+
+更具体的行为和限制以各插件页面为准。

@@ -1,0 +1,44 @@
+---
+title: 快速模式
+description: 在模型选择器旁切换 Responses 请求的优先处理。
+---
+
+`dsh-service-tier` 在模型选择器旁增加 ⚡。开启后，该模型请求携带 `service_tier: "priority"`。**Host + Web**。
+
+## 安装
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/service-tier"
+```
+
+## 使用条件
+
+只有 provider 在 `llm-pi-ai` 中使用 **OpenAI Responses API**（`api: openai-responses`）时，按钮才会出现。
+
+点击 ⚡ 立即生效，然后通过 config editor 保存到 profile 的 `cordis.patch.yml`。状态按 `provider/model` 分别保存。
+
+<Callout type="warn" title="费用与支持">
+优先处理可能采用不同计费。先确认 provider 的定价和支持情况；发送这个字段不代表每个兼容网关都提供加速。
+</Callout>
+
+## 配置
+
+```yaml
+- id: service-tier
+  config:
+    tiers:
+      responses/gpt-6.1-sol: priority
+```
+
+`tiers` 由按钮管理。[模型引用](./model-reference.mdx) 会读取这份状态，为标签附上 ⚡。
+
+## 实现与 HTTP
+
+Host 在 `llm-pi-ai/model-defaults` waterfall 中为 Responses 路由的快速模型增加 `serviceTier: 'priority'`。
+
+| 方法 | 路由 | 作用 |
+| --- | --- | --- |
+| GET | `/service-tier/state` | 读取状态 |
+| POST | `/service-tier/set` | 切换状态 |
+
+POST 接受 `{ "provider": string, "model": string, "fast": boolean }`，请求体上限为 16 KiB。两条路由使用 Web API 的正常认证。

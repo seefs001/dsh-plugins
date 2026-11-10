@@ -1,0 +1,32 @@
+---
+title: 引用跳转
+description: 点击用户消息里的引用块，回到原文并短暂高亮。
+---
+
+`dsh-quote-jump` 将用户消息里的引用胶囊替换为引用块。点击引用块，或聚焦后按 `Enter`，会向上定位引用原文并高亮约两秒。**仅 Web**，没有配置项。
+
+## 安装
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
+```
+
+## 匹配与显示
+
+- 匹配忽略空白，减少 Markdown 排版差异的影响。
+- 多处匹配时，优先选择引用上方最近的一处。
+- 长引用无法完整匹配时，回退到前 48 个字符。
+- 滚动前会展开 `hidden="until-found"` 或 `<details>` 折叠行。
+- 高亮优先使用 CSS Custom Highlight API，不支持时回退到轮廓框。
+
+## 限制
+
+<Callout>
+只能查找已经加载到页面中的原文。若提示未找到，先向上滚动加载历史，再点击引用块。
+</Callout>
+
+代码块和表格依赖渲染后的文本匹配。渲染文字与复制内容不一致时，可能无法定位。
+
+## 实现
+
+在 `conversation.user.text.node` 的 `quote` 键上以优先级 50 注册渲染器，覆盖 `dsh-message-quotes` 的内置渲染器（优先级 100）。禁用插件会恢复原来的引用胶囊。

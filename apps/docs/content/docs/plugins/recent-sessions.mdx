@@ -1,0 +1,24 @@
+---
+title: 最近会话
+description: 让 @ 引用菜单优先显示最近活动的会话。
+---
+
+`dsh-recent-sessions` 将 `@` 引用菜单里的会话按最后活动时间倒序排列。**仅 Web**，没有配置项。
+
+## 安装
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
+```
+
+## 行为
+
+- 只排序同一分区内连续的会话行，文件行和其他分区不变。
+- 按会话的 `updatedAt` 排序，相同时间保留原顺序。
+- 禁用插件会恢复原来的候选生成函数。
+
+## 兼容性
+
+插件包装内置 `dsh-client-ui-reference` 的 `reference` source 的 `candidates()`。source 异步注册时，每 500 ms 查找一次，最多等待 30 秒。
+
+它依赖 source 名称、`icon: 'session'` 行结构和 `dsh-session:` 引用编码。若 dsh 改变这些内部约定，插件会保持无操作，而不是让引用菜单报错。

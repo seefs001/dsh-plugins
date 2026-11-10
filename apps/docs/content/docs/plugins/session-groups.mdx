@@ -1,0 +1,58 @@
+---
+title: 会话分组
+description: 给会话分组、排序、组内置顶，并让 Agent 操作同一份分组。
+---
+
+`dsh-session-groups` 为 Web 侧边栏增加自定义会话分组。**Host + Web**。需要 `@deepseek-ai/dsh-storage-domain`，默认 profiles 已包含。
+
+## 安装
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
+```
+
+## 使用
+
+1. 在侧边栏面板列表中点击 **Session groups**。
+2. 用 **New group** 创建分组；双击名称或点击铅笔重命名。
+3. 悬停分组标题，可以添加会话、重命名、调整顺序或删除分组。
+4. 悬停会话行，可以在组内置顶或移出分组。
+
+也可以右键侧边栏里的会话，使用 **Add to group** / **Move to group**、**Pin in group** 和 **Remove from group**。
+
+## 分组规则
+
+- 一个会话最多属于一个分组，加到另一个组会将它移过去。
+- 组内置顶的会话在前，最近置顶的更靠前；其余会话按最近活动排列。
+- 删除分组不会删除会话。
+- 不修改内置 workspace 列表及其置顶状态。
+
+## 存储与同步
+
+Host 在 `session_groups` storage domain 保存状态。默认 JSON 后端的文件为 `~/.dsh/storages/session_groups.json`。
+
+连接同一 dsh 的浏览器和 Agent 共用分组。Host 通过 SSE 把变更推送到打开的页面。
+
+## Agent 工具
+
+Host 注册 `session_groups` 工具，支持：
+
+| 操作 | 用途 |
+| --- | --- |
+| `list` | 读取全部分组 |
+| `create` / `rename` / `delete` | 创建、重命名或删除组 |
+| `move_group` | 调整分组顺序 |
+| `add` / `remove` | 将会话移入或移出组 |
+| `pin` | 设置会话的组内置顶状态 |
+
+每次调用都返回操作后的完整分组。
+
+## HTTP
+
+| 方法 | 路由 | 作用 |
+| --- | --- | --- |
+| GET | `/session-groups/state` | 当前完整状态 |
+| POST | `/session-groups/op` | 执行操作，参数结构与工具相同 |
+| GET | `/session-groups/events` | 每次变更后的完整状态，SSE |
+
+所有路由使用 Host 的正常连接检查。

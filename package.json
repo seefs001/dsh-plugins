@@ -18,9 +18,13 @@
     "lint": "oxlint --deny-warnings packages scripts test-utils",
     "validate": "node scripts/validate.mjs",
     "test": "node --test \"packages/*/test/*.test.js\"",
-    "pack:dry": "pnpm -r exec npm pack --dry-run"
+    "pack:dry": "pnpm --filter './packages/*' -r exec npm pack --dry-run",
+    "docs:dev": "pnpm --filter @dsh-plugins/docs dev",
+    "docs:build": "pnpm --filter @dsh-plugins/docs build",
+    "docs:typecheck": "pnpm --filter @dsh-plugins/docs typecheck"
   },
   "devDependencies": {
     "oxlint": "^1.93.0"
-  }
+  },
+  "packageManager": "pnpm@10.34.9"
 }

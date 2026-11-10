@@ -1,0 +1,31 @@
+---
+title: 简介
+description: 给 DeepSeek Harness 加一点顺手的小功能。
+---
+
+dsh-plugins 是 seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）社区插件集。插件覆盖模型选择、会话管理、消息阅读与联网搜索，每个都可以独立安装。
+
+<Cards>
+  <Card title="快速开始" href="/docs/quick-start" description="检查环境，安装并启用第一个插件。" />
+  <Card title="插件目录" href="/docs/plugins" description="了解 9 个插件的用途、配置和使用限制。" />
+  <Card title="配置与数据" href="/docs/configuration" description="了解设置写在哪里，哪些数据由插件保存。" />
+  <Card title="本地开发" href="/docs/development" description="链接源码、运行检查，或参与文档维护。" />
+</Cards>
+
+## 先装哪个？
+
+- **经常切换模型**：[模型引用](/docs/plugins/model-reference) + [快速模式](/docs/plugins/service-tier) + [记住模型](/docs/plugins/remember-model)。
+- **同时处理很多会话**：[会话分组](/docs/plugins/session-groups) + [最近会话](/docs/plugins/recent-sessions)。
+- **需要快速回看上下文**：[引用跳转](/docs/plugins/quote-jump) + [工具透镜](/docs/plugins/tool-lens)。
+- **为 Agent 加搜索能力**：[联网搜索](/docs/plugins/web-access)。
+- **想为工具审查单独选模型**：[自动审查模型](/docs/plugins/auto-review-model)。
+
+## Host 与 Web 是什么？
+
+**Host** 运行在 dsh 服务进程里，负责配置、状态、工具与模型请求。**Web** 运行在 `dsh web` 的浏览器页面里，负责输入框、侧边栏和消息显示。
+
+仅包含 Web 功能的插件也有一个供 Loader 加载的空 Host 入口。它们不会给终端界面添加同样的交互。
+
+<Callout>
+这是社区项目，不是 DeepSeek 官方插件。当前支持的 dsh 范围为 `>=0.2.2-rc.1 <0.3.0`。
+</Callout>

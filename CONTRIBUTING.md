@@ -38,6 +38,12 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 
 Restart dsh, or rely on `patchReload: live`, to pick up Host changes. Browser bundles reload with the page.
 
+## Documentation
+
+The Fumadocs site lives in `apps/docs`, separate from the plugin packages. Run `pnpm run docs:dev` from the root to preview it. Content and sidebar order live in `apps/docs/content/docs`; keep plugin pages in sync with package READMEs.
+
+Before changing the site, see [apps/docs/README.md](apps/docs/README.md). Validate with `pnpm run docs:typecheck` and `NEXT_PUBLIC_BASE_PATH=/dsh-plugins pnpm run docs:build`. Pull requests build the site without deploying; `main` changes deploy via the Documentation workflow after Pages is enabled.
+
 ## Release
 
 1. Bump `version` in the package's `package.json` and add an entry to `CHANGELOG.md`.

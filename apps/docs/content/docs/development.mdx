@@ -1,0 +1,70 @@
+---
+title: 本地开发
+description: 插件无需构建，文档站独立运行在 apps/docs。
+---
+
+## 安装依赖
+
+在仓库根目录执行，使用项目指定的 pnpm 10：
+
+```bash
+pnpm install
+```
+
+Node.js 要求 `^22.19.0` 或 `>=24`。
+
+## 插件目录
+
+```text
+packages/<name>/
+├── package.json        # dsh.bundle，以及可选的 dsh.client
+├── cordis.patch.yml    # bundle patch，插入对应插件行
+├── lib/index.js        # Host 入口，原生 ES 模块
+├── lib/client.js       # 可选的浏览器入口
+├── locale/{en,zh}.json # Plugins 页标题和描述
+├── icon.svg
+├── test/*.test.js      # 已有的 node:test 测试
+└── README.md
+```
+
+插件源码不依赖 Next.js 或文档构建。文档站位于 `apps/docs`，不参与插件打包。
+
+## 链接本地插件
+
+在仓库根目录执行：
+
+```bash
+dsh plugin --profile web add link:$PWD/packages/model-reference
+```
+
+在 Plugins 页确认 bundle 已启用。Host 修改通过重启 dsh 或 `patchReload: live` 加载；浏览器 bundle 修改通过刷新页面加载。
+
+## 现有检查
+
+```bash
+pnpm run check     # oxlint + manifest 校验 + node:test
+pnpm run pack:dry  # 仅检查 packages/* 的 npm 打包内容
+```
+
+manifest 校验检查包名、patch 行名称、浏览器 bundle ID、导出文件、`dsh-plugin` 关键词、dsh 引擎范围，以及中英文 locale 的 `meta` 键一致性。
+
+## 维护文档
+
+```bash
+pnpm run docs:dev        # http://localhost:3000
+pnpm run docs:typecheck # 生成内容与路由类型，并运行 TypeScript 检查
+pnpm run docs:build     # 静态导出到 apps/docs/out
+```
+
+- `apps/docs/content/docs/**/*.mdx`：页面正文，frontmatter 必须包含 `title`，建议填写 `description`。
+- `meta.json`：侧边栏排序和分组。
+- `apps/docs/components/mdx.tsx`：可用的 MDX 组件。
+- `apps/docs/app/page.tsx`：首页与插件卡片。
+
+Fumadocs 提供代码高亮、复制按钮、目录、上一页 / 下一页导航和明暗主题。搜索索引随站点导出，在浏览器本地查询，不需要在线搜索服务。
+
+修改插件行为时，同步更新对应包的 README 与站点插件页。涉及目录或插件数量变化时，也更新首页卡片与导航。
+
+## 发布插件
+
+按 [CONTRIBUTING.md](https://github.com/seefs001/dsh-plugins/blob/main/CONTRIBUTING.md) 的流程更新版本和 CHANGELOG，通过检查后，在对应包目录发布。文档部署是独立工作流，见 [GitHub Pages](/docs/deployment)。

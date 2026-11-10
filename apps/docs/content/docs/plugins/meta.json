@@ -1,0 +1,5 @@
+{
+  "title": "插件",
+  "defaultOpen": true,
+  "pages": ["index", "model-reference", "service-tier", "remember-model", "recent-sessions", "session-groups", "auto-review-model", "quote-jump", "tool-lens", "web-access"]
+}

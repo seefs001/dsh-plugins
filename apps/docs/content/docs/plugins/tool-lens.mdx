@@ -1,0 +1,38 @@
+---
+title: 工具透镜
+description: 在工具调用行里直接打开技能、完整输出、文件和子会话。
+---
+
+`dsh-tool-lens` 为部分工具调用行增加快捷操作。禁用后恢复内置显示。**仅 Web**，没有配置项。
+
+## 安装
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
+```
+
+## 支持的透镜
+
+| 工具 / 结果 | 增加的操作 |
+| --- | --- |
+| `skill` | 点击技能名称，在右侧边栏打开 `SKILL.md`；展开卡片的标题也提供同样入口 |
+| 带截断落盘提示的输出 | **Full output** 打开保存的完整输出文件 |
+| `subagent`、`send_message`、`interrupt_agent` | **Conversation** 打开子代理会话 |
+| `grep`、`glob` | 单文件显示文件标签并定位首个匹配行；多文件通过 **N files** 列表打开 |
+| `web_search`、`web_fetch` | **N sources** / **Browse** 在右侧浏览器打开网页，Cmd/Ctrl 点击在新标签页打开 |
+
+完整输出支持带落盘提示的 `bash`、`job_output`、`terminal_read`、`cordis_inspect_*`、`session_*`、`workflow`、`lsp` 和网页工具结果。没有落盘提示时不会添加入口。
+
+## 实现
+
+透镜在 `tool.call.toolview` 按工具名称注册，优先级 -10，高于内置视图的优先级 0。技能透镜自绘工具行，其他透镜保留内置行，在悬停或聚焦时叠加快捷操作。
+
+技能文件先通过当前 Session 的 `skills/list` 目录解析，也支持单文件技能。技能已卸载时，尝试使用历史输出中的 `<base directory>/SKILL.md`。
+
+## 限制
+
+- 已移除的技能若没有记录 base directory，就无法再打开，工具行会显示提示。
+- 增强透镜依赖 `ctx.slots.entries()`；不可用时保留原始工具行。
+- 只有符合内置视图约定的工具键会启用增强。MCP 工具及其他通用工具行不在覆盖范围内。
+- 许多网站禁止 iframe 嵌入。右侧浏览器空白时，用 Cmd/Ctrl 点击在新标签页打开。
+- 透镜出错时，slot runtime 会移除它并回退到内置显示。

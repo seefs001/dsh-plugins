@@ -1,0 +1,26 @@
+---
+title: 记住模型
+description: 新会话使用你上次选择的模型和推理强度。
+---
+
+`dsh-remember-model` 把最近一次模型选择保存为新会话的默认值。**仅 Host**，没有浏览器入口，也没有插件配置项。
+
+## 安装
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
+```
+
+## 使用
+
+在顶层会话中选择模型和推理强度。此后创建的新会话会使用这份选择，不用到 Plugins 页额外配置。
+
+子代理会话不会改写默认值，因为子代理有自己的模型选择。
+
+## 实现
+
+1. 监听顶层会话的 `model/selection` 事件。
+2. 调用 `agentDefaultModel.saveSelection()` 保存默认值。
+3. 保存后延迟 400 ms 发出 `llm/models-updated`，让所有已连接浏览器重新加载包含默认值的模型目录。
+
+默认值保存在 dsh 正常使用的 `agent-default-model` 配置中，仍可手动修改。

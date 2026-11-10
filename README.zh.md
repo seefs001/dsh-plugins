@@ -5,7 +5,7 @@
 seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）插件集：让选模型、切模型更顺手，并改进 Web 界面的几处细节。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [English](README.md) | 中文
 
@@ -60,7 +60,19 @@ dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
 
 ## 配置
 
-有状态的插件（`model-reference` 的推理强度、`service-tier` 的快速模型、`session-groups` 的分组、`auto-review-model` 的模型和提示词）通过 dsh 的 config editor 写入 profile 的 `cordis.patch.yml`，重启和升级后都会保留。各配置项见对应包的 README。
+插件设置（`model-reference` 的推理强度、`service-tier` 的快速模型、`auto-review-model` 的模型和提示词，以及 `web-access` 的搜索设置）通过 dsh 的 config editor 写入 profile 的 `cordis.patch.yml`。会话分组另存于 Host 的 `session_groups` storage domain。具体配置见对应包的 README。
+
+## 文档
+
+[文档站](https://seefs001.github.io/dsh-plugins/)使用 Fumadocs，已配置 GitHub Pages 部署工作流，包含安装指南、全部 9 个插件、配置与开发说明。
+
+```bash
+pnpm run docs:dev        # 本地预览
+pnpm run docs:typecheck  # 文档类型检查
+pnpm run docs:build      # 静态导出到 apps/docs/out
+```
+
+首次启用 Pages 的步骤见 [apps/docs/README.md](apps/docs/README.md)。
 
 ## 开发
 

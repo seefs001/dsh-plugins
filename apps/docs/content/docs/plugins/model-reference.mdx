@@ -1,0 +1,52 @@
+---
+title: 模型引用
+description: 输入 # 插入模型标签，把模型、推理强度和快速模式传入提示词。
+---
+
+`dsh-model-reference` 在输入框增加 `#` 模型选择菜单，交互类似 `@` 文件和会话引用。**Host + Web**，无需手动配置。
+
+## 安装
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/model-reference"
+```
+
+## 使用
+
+| 操作 | 作用 |
+| --- | --- |
+| 输入 `#` 和文本 | 按模型名称、模型 ID、provider 名称或 ID 筛选 |
+| `↑` / `↓` | 移动选中项 |
+| `Enter` / `Tab` | 插入选中的模型 |
+| `Esc` | 关闭当前查询的菜单 |
+
+空格和 `/` 都会拆分查询词，所有查询词都必须匹配。标签携带该模型上次使用的推理强度；安装 [快速模式](./service-tier.mdx) 后，也会携带该模型的 ⚡ 状态。
+
+## 模型看到什么
+
+标签在提示词中序列化为：
+
+```text
+#model(provider=responses, model=gpt-6.1-sol, reasoning_effort=xhigh, service_tier=priority)
+```
+
+例如，可以写「让这个模型在子代理中审查 diff」。标签提供模型信息，本身不会自动启动子代理，也不会切换当前会话模型。
+
+复制标签时，剪贴板中是 `#provider/model`。
+
+## 配置
+
+```yaml
+- id: model-reference
+  config:
+    efforts:
+      responses/gpt-6.1-sol: xhigh
+```
+
+`efforts` 由顶层会话的 `model/selection` 事件自动更新，通常不用手动编辑。
+
+## 实现
+
+Host 保存每个 `provider/model` 的推理强度，并通过 `GET /model-reference/state` 提供状态。路由使用 Web API 的正常认证。
+
+浏览器在 `conversation.input.overlay` 渲染菜单，并在输入触发管线中注册标签编解码器。

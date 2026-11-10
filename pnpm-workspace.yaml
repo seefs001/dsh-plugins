@@ -1,5 +1,6 @@
 packages:
   - packages/*
+  - apps/*
 minimumReleaseAgeExclude:
   - '@oxlint/binding-android-arm-eabi@1.93.0'
   - '@oxlint/binding-android-arm64@1.93.0'
