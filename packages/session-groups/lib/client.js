@@ -23,11 +23,19 @@ window.__ModuleLoader__.load({
       panel: 'Session groups',
       newGroup: 'New group',
       defaultName: 'New group',
-      empty: 'No groups yet. Create one here, or right-click a session and choose Add to group.',
-      emptyGroup: 'No sessions. Use Add session, or right-click a session in the sidebar.',
+      empty: 'No groups yet. Right-click a session in the sidebar and choose Add to group, or',
+      emptyGroup: 'No sessions yet.',
       addSession: 'Add session',
       searchPlaceholder: 'Search sessions',
-      noMatches: 'No matching sessions',
+      noMatches: 'No sessions match "{q}"',
+      noCandidates: 'Every session is already in this group',
+      moreResults: 'Showing the first {n}. Keep typing to narrow down.',
+      inGroup: 'In {name}',
+      clear: 'Clear search',
+      done: 'Done',
+      hintMove: 'Select',
+      hintAdd: 'Add',
+      hintClose: 'Close',
       rename: 'Rename',
       delete: 'Delete group',
       deleteConfirm: 'Delete group "{name}"? Its sessions are not deleted.',
@@ -51,11 +59,19 @@ window.__ModuleLoader__.load({
       panel: '会话分组',
       newGroup: '新建分组',
       defaultName: '新分组',
-      empty: '还没有分组。在这里新建，或在会话上右键选“加入分组”。',
-      emptyGroup: '暂无会话。点“添加会话”，或在侧边栏会话上右键加入。',
+      empty: '还没有分组。在侧边栏会话上右键选“加入分组”，或者',
+      emptyGroup: '还没有会话。',
       addSession: '添加会话',
       searchPlaceholder: '搜索会话',
-      noMatches: '没有匹配的会话',
+      noMatches: '没有匹配“{q}”的会话',
+      noCandidates: '所有会话都已在这个分组里',
+      moreResults: '只显示前 {n} 条，继续输入可缩小范围',
+      inGroup: '在“{name}”中',
+      clear: '清除搜索',
+      done: '完成',
+      hintMove: '选择',
+      hintAdd: '添加',
+      hintClose: '关闭',
       rename: '重命名',
       delete: '删除分组',
       deleteConfirm: '删除分组“{name}”？其中的会话不会被删除。',
@@ -143,6 +159,10 @@ window.__ModuleLoader__.load({
       h('path', { key: 'a', d: 'M6 2.5h4l-.6 3.6 2.1 2.2v1H4.5v-1l2.1-2.2z', fill: filled ? 'currentColor' : 'none' }),
       h('path', { key: 'b', d: 'M8 9.3V13.5' }),
     ])
+    const IconSearch = ({ size = 16 }) => svg(size, [
+      h('circle', { key: 'a', cx: 7, cy: 7, r: 4.25 }),
+      h('path', { key: 'b', d: 'M10.2 10.2 13.5 13.5' }),
+    ])
     const IconPlus = ({ size = 14 }) => svg(size, h('path', { d: 'M8 3v10M3 8h10' }))
     const IconChevron = ({ size = 12, open }) => svg(size, h('path', { d: 'M6 4l4 4-4 4' }),
       { style: { transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' } })
@@ -153,46 +173,72 @@ window.__ModuleLoader__.load({
     const IconTrash = ({ size = 14 }) => svg(size, h('path', { d: 'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5' }))
 
     const CSS = `
-.sg-page{height:100%;overflow:auto;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}
-.sg-inner{max-width:760px;margin:0 auto;padding:32px 24px 48px}
+.sg-page{--sg-hover:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));--sg-tertiary:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));--sg-caption:var(--dsw-alias-label-caption,var(--sg-tertiary));--sg-border:var(--dsw-alias-border-l4,var(--dsw-alias-border-l2));--sg-ease:var(--ds-ease-in-out,ease);--sg-r-xs:var(--dsw-radius-xs,4px);--sg-r-sm:var(--dsw-radius-sm,6px);--sg-r-md:var(--dsw-radius-md,8px);--sg-r-lg:var(--dsw-radius-lg,12px);--sg-focus:var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary));height:100%;overflow:auto;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}
+.sg-page button:focus-visible{outline:2px solid var(--sg-focus);outline-offset:-2px}
+.sg-inner{max-width:720px;margin:0 auto;padding:40px 24px 64px}
 .sg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
-.sg-title{font-size:20px;font-weight:600;margin:0}
-.sg-btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;cursor:pointer}
-.sg-btn:hover{background:var(--dsw-alias-bg-layer-2)}
-.sg-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none}
-.sg-icon:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
-.sg-icon[aria-pressed=true]{color:var(--dsw-alias-brand-primary)}
+.sg-title{margin:0;font-size:20px;line-height:28px;font-weight:600}
+.sg-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 10px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:18px;cursor:pointer;transition:background-color .15s var(--sg-ease)}
+.sg-btn:hover{background:var(--sg-hover)}
+.sg-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--sg-tertiary);cursor:pointer;flex:none;transition:background-color .15s var(--sg-ease),color .15s var(--sg-ease)}
+.sg-icon:hover:not(:disabled){background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
+.sg-icon:disabled{opacity:.35;cursor:default}
+.sg-icon[aria-pressed=true]{background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
 .sg-icon.sg-danger:hover{color:var(--dsw-alias-state-error-primary)}
-.sg-empty{padding:28px 16px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:13px;border:1px dashed var(--dsw-alias-border-l2);border-radius:12px}
-.sg-error{display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:16px;border-radius:10px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-state-error-primary);font-size:13px}
-.sg-group{border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);margin-bottom:12px}
-.sg-ghead{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 6px;min-height:40px}
-.sg-gname{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;cursor:pointer;user-select:none}
-.sg-gname b{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sg-count{font-size:12px;color:var(--dsw-alias-label-secondary);white-space:nowrap}
-.sg-gactions{display:flex;gap:2px;opacity:0;transition:opacity 100ms}
-.sg-ghead:hover .sg-gactions,.sg-ghead:focus-within .sg-gactions{opacity:1}
-.sg-input{flex:1;min-width:0;height:28px;padding:0 8px;border:1px solid var(--dsw-alias-brand-primary);border-radius:6px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;outline:none}
-.sg-list{padding:0 6px 6px}
-.sg-row{display:flex;align-items:center;gap:8px;height:34px;padding:0 6px 0 10px;border-radius:8px;cursor:pointer}
-.sg-row:hover{background:var(--dsw-alias-bg-layer-2)}
-.sg-row .sg-pinmark{color:var(--dsw-alias-brand-primary);display:inline-flex;flex:none}
-.sg-row .sg-dot{width:14px;flex:none}
-.sg-rtitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
-.sg-rtitle.sg-missing{color:var(--dsw-alias-label-secondary);font-style:italic}
-.sg-time{font-size:12px;color:var(--dsw-alias-label-secondary);white-space:nowrap}
-.sg-ractions{display:none;gap:2px}
+.sg-emptystate{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:96px;padding:0 24px;text-align:center;color:var(--sg-tertiary);font-size:13px;line-height:20px}
+.sg-emptystate>svg{color:var(--sg-caption);margin-bottom:4px}
+.sg-link{padding:0;border:0;background:none;color:var(--dsw-alias-link,var(--dsw-alias-brand-primary));font:inherit;cursor:pointer}
+.sg-error{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 8px 8px 14px;margin-bottom:16px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-md);color:var(--dsw-alias-state-error-primary);font-size:13px;line-height:18px}
+.sg-group{padding:4px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-lg)}
+.sg-group+.sg-group{margin-top:12px}
+.sg-ghead{display:flex;align-items:center;gap:4px;height:36px;padding:0 4px 0 2px;border-radius:var(--sg-r-md)}
+.sg-gname{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;height:100%;align-items:center;cursor:pointer;user-select:none}
+.sg-gname b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px;font-weight:600}
+.sg-count{flex:none;font-size:12px;line-height:20px;color:var(--sg-tertiary)}
+.sg-gactions{display:flex;gap:2px;opacity:0;transition:opacity .12s var(--sg-ease)}
+.sg-ghead:hover .sg-gactions,.sg-ghead:focus-within .sg-gactions,.sg-gactions:has([aria-pressed=true]){opacity:1}
+.sg-rename{flex:1;min-width:0;height:28px;padding:0 6px;border:.5px solid var(--sg-focus);border-radius:var(--sg-r-sm);background:var(--dsw-alias-button-elevated-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:20px;font-weight:600;outline:none}
+.sg-list>*+*{margin-top:2px}
+.sg-row{display:flex;align-items:center;gap:8px;height:32px;padding:0 6px 0 10px;border-radius:var(--sg-r-md);cursor:pointer;transition:background-color .12s var(--sg-ease)}
+.sg-row:hover,.sg-row:focus-visible{background:var(--sg-hover);outline:none}
+.sg-lead{display:inline-flex;align-items:center;justify-content:center;width:16px;flex:none;color:var(--sg-caption)}
+.sg-rtitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px}
+.sg-rtitle.sg-missing{color:var(--sg-caption)}
+.sg-time{flex:none;font-size:10px;line-height:16px;color:var(--sg-tertiary)}
+.sg-ractions{display:none;gap:2px;margin-right:-2px}
+.sg-ractions .sg-icon{width:24px;height:24px}
 .sg-row:hover .sg-ractions,.sg-row:focus-within .sg-ractions{display:flex}
 .sg-row:hover .sg-time,.sg-row:focus-within .sg-time{display:none}
-.sg-gempty{padding:8px 12px 10px;font-size:12px;color:var(--dsw-alias-label-secondary)}
-.sg-picker{margin:4px 6px 8px;padding:6px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-overlay)}
-.sg-picker .sg-input{width:100%;box-sizing:border-box;border-color:var(--dsw-alias-border-l2);font-size:13px}
-.sg-picker .sg-input:focus{border-color:var(--dsw-alias-brand-primary)}
-.sg-pick{display:flex;align-items:center;gap:8px;width:100%;height:30px;padding:0 8px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;text-align:left;cursor:pointer}
-.sg-pick:hover,.sg-pick:focus{background:var(--dsw-alias-bg-layer-2);outline:none}
-.sg-pick span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sg-pick small{color:var(--dsw-alias-label-secondary);font-size:11px}
-.sg-picklist{max-height:260px;overflow:auto;margin-top:4px}
+.sg-gempty{padding:6px 10px 10px 34px;font-size:12px;line-height:18px;color:var(--sg-tertiary)}
+.sg-sp{margin:2px 0 6px;padding:6px;border-radius:var(--sg-r-lg);background:var(--dsw-alias-bg-layer-1);box-shadow:inset 0 0 0 .5px var(--sg-border);animation:sg-in .16s var(--sg-ease)}
+@keyframes sg-in{from{opacity:0;transform:translateY(-3px)}}
+.sg-search{display:flex;align-items:center;height:32px;padding-right:4px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-md);background:var(--dsw-alias-bg-base);color:var(--sg-tertiary);transition:border-color .15s var(--sg-ease)}
+.sg-search:focus-within{border-color:var(--sg-focus)}
+.sg-search-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;flex:none}
+.sg-search-input{flex:1;min-width:0;height:100%;padding:0;border:0;outline:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:18px}
+.sg-search-input::placeholder{color:var(--sg-tertiary)}
+.sg-search-input::-webkit-search-cancel-button{display:none}
+.sg-clear{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none}
+.sg-clear:hover{background:var(--sg-hover)}
+.sg-results{max-height:288px;overflow-y:auto;margin-top:4px;scrollbar-width:thin}
+.sg-results>*+*{margin-top:2px}
+.sg-result{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 6px 0 10px;border:0;border-radius:var(--sg-r-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;cursor:pointer}
+.sg-result[aria-selected=true]{background:var(--sg-hover)}
+.sg-result-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px;color:var(--dsw-alias-label-secondary)}
+.sg-result-title mark{background:none;color:var(--dsw-alias-label-primary);font-weight:600}
+.sg-result-title.sg-plain{color:var(--dsw-alias-label-primary)}
+.sg-result-meta{flex:none;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:17px;color:var(--sg-tertiary)}
+.sg-result-add{display:inline-flex;flex:none;color:var(--sg-tertiary);opacity:0;transition:opacity .12s var(--sg-ease)}
+.sg-result[aria-selected=true] .sg-result-add{opacity:1}
+.sg-status{padding:10px 10px;font-size:12px;line-height:18px;color:var(--sg-tertiary)}
+.sg-spfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;padding:6px 0 0 10px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.sg-hint{display:flex;gap:12px;font-size:11px;line-height:16px;color:var(--sg-tertiary);white-space:nowrap;overflow:hidden}
+.sg-hint kbd{display:inline-block;min-width:16px;margin-right:4px;padding:0 3px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-xs);font:inherit;font-size:10px;line-height:14px;text-align:center;color:var(--dsw-alias-label-secondary)}
+.sg-textbtn{flex:none;height:24px;padding:0 10px;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}
+.sg-textbtn:hover{background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
+@media (hover:none){.sg-gactions{opacity:1}.sg-ractions{display:flex}.sg-time,.sg-hint{display:none}}
+@media (pointer:coarse){.sg-search-input,.sg-rename{font-size:16px}}
+@media (prefers-reduced-motion:reduce){.sg-sp{animation:none}.sg-page *{transition:none!important}}
 `
 
     return {
@@ -310,7 +356,7 @@ window.__ModuleLoader__.load({
             if (name && name !== group.name) void op({ action: 'rename', groupId: group.id, name }).catch(() => {})
           }
           return h('input', {
-            ref, className: 'sg-input', value, maxLength: 80, 'aria-label': t('rename'),
+            ref, className: 'sg-rename', value, maxLength: 80, 'aria-label': t('rename'),
             onChange: e => setValue(e.target.value),
             onBlur: commit,
             onKeyDown: e => {
@@ -320,36 +366,82 @@ window.__ModuleLoader__.load({
           })
         }
 
+        /** Wrap the first case-insensitive match of `q` in <mark>. */
+        function highlight(text, q) {
+          if (!q) return text
+          const at = text.toLowerCase().indexOf(q)
+          if (at < 0) return text
+          return [text.slice(0, at), h('mark', { key: 'm' }, text.slice(at, at + q.length)), text.slice(at + q.length)]
+        }
+
+        const PICK_LIMIT = 50
+        const dirName = cwd => (cwd ?? '').split(/[\\/]/).filter(Boolean).pop() ?? ''
+
         function Picker({ group, groups, list, onClose }) {
           const [query, setQuery] = React.useState('')
-          const ref = React.useRef(null)
-          React.useEffect(() => { ref.current?.focus() }, [])
-          const grouped = new Map()
-          for (const g of groups) for (const id of g.sessionIds) grouped.set(id, g)
+          const [active, setActive] = React.useState(0)
+          const inputRef = React.useRef(null)
+          const listRef = React.useRef(null)
+          React.useEffect(() => { inputRef.current?.focus() }, [])
           const q = query.trim().toLowerCase()
-          const candidates = list.ids
-            .map(id => list.byId[id])
-            .filter(s => s && !s.blank && s.origin !== 'subagent' && grouped.get(s.id) !== group)
-            .filter(s => !q || (s.displayTitle ?? '').toLowerCase().includes(q) || s.id.includes(q))
-            .toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
-            .slice(0, 50)
-          return h('div', {
-            className: 'sg-picker',
-            onKeyDown: e => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } },
-          },
-          h('input', {
-            ref, className: 'sg-input', value: query, placeholder: t('searchPlaceholder'),
-            onChange: e => setQuery(e.target.value),
-          }),
-          h('div', { className: 'sg-picklist', role: 'listbox' },
-            candidates.length === 0
-              ? h('div', { className: 'sg-gempty' }, t('noMatches'))
-              : candidates.map(s => h('button', {
-                key: s.id, type: 'button', className: 'sg-pick', role: 'option',
-                onClick: () => { void op({ action: 'add', groupId: group.id, sessionId: s.id }).catch(() => {}) },
+          const { items, total } = React.useMemo(() => {
+            const owner = new Map()
+            for (const g of groups) for (const id of g.sessionIds) owner.set(id, g)
+            const all = list.ids
+              .map(id => list.byId[id])
+              .filter(s => s && !s.blank && s.origin !== 'subagent' && owner.get(s.id) !== group)
+              .filter(s => !q || (s.displayTitle ?? '').toLowerCase().includes(q) || s.id.startsWith(q))
+              .toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+            return { items: all.slice(0, PICK_LIMIT).map(s => ({ s, owner: owner.get(s.id) })), total: all.length }
+          }, [list, groups, group, q])
+          const current = Math.min(active, Math.max(items.length - 1, 0))
+          React.useEffect(() => {
+            listRef.current?.querySelector('[aria-selected=true]')?.scrollIntoView({ block: 'nearest' })
+          }, [current, items])
+          const add = item => { if (item) void op({ action: 'add', groupId: group.id, sessionId: item.s.id }).catch(() => {}) }
+          const onKeyDown = e => {
+            if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(current + 1, items.length - 1)) }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(current - 1, 0)) }
+            else if (e.key === 'Enter') { e.preventDefault(); add(items[current]) }
+            else if (e.key === 'Escape') {
+              e.preventDefault(); e.stopPropagation()
+              if (query) { setQuery(''); setActive(0) } else onClose()
+            }
+          }
+          const status = items.length === 0
+            ? (q ? tf('noMatches', { q: query.trim() }) : t('noCandidates'))
+            : total > PICK_LIMIT ? tf('moreResults', { n: PICK_LIMIT }) : null
+          const kbd = (key, label) => h('span', null, h('kbd', null, key), label)
+          return h('div', { className: 'sg-sp' },
+            h('div', { className: 'sg-search' },
+              h('span', { className: 'sg-search-icon' }, h(IconSearch)),
+              h('input', {
+                ref: inputRef, className: 'sg-search-input', type: 'search', value: query,
+                placeholder: t('searchPlaceholder'), 'aria-label': t('searchPlaceholder'),
+                role: 'combobox', 'aria-expanded': true, 'aria-controls': `sg-results-${group.id}`,
+                'aria-activedescendant': items[current] ? `sg-opt-${group.id}-${items[current].s.id}` : undefined,
+                onChange: e => { setQuery(e.target.value); setActive(0) },
+                onKeyDown,
+              }),
+              query ? h('button', {
+                type: 'button', className: 'sg-clear', title: t('clear'), 'aria-label': t('clear'),
+                onClick: () => { setQuery(''); setActive(0); inputRef.current?.focus() },
+              }, h(IconX, { size: 14 })) : null),
+            items.length > 0 ? h('div', { ref: listRef, id: `sg-results-${group.id}`, className: 'sg-results', role: 'listbox' },
+              items.map((item, i) => h('button', {
+                key: item.s.id, id: `sg-opt-${group.id}-${item.s.id}`, type: 'button', tabIndex: -1,
+                className: 'sg-result', role: 'option', 'aria-selected': i === current,
+                onMouseMove: () => { if (i !== current) setActive(i) },
+                onMouseDown: e => e.preventDefault(),
+                onClick: () => { add(item); inputRef.current?.focus() },
               },
-              h('span', null, s.displayTitle || s.id),
-              grouped.get(s.id) ? h('small', null, grouped.get(s.id).name) : null))))
+              h('span', { className: `sg-result-title${q ? '' : ' sg-plain'}` }, highlight(item.s.displayTitle || item.s.id, q)),
+              h('span', { className: 'sg-result-meta' }, item.owner ? tf('inGroup', { name: item.owner.name }) : dirName(item.s.cwd)),
+              h('span', { className: 'sg-result-add' }, h(IconPlus, { size: 14 }))))) : null,
+            status ? h('div', { className: 'sg-status' }, status) : null,
+            h('div', { className: 'sg-spfoot' },
+              h('div', { className: 'sg-hint' }, kbd('↑↓', t('hintMove')), kbd('↵', t('hintAdd')), kbd('Esc', t('hintClose'))),
+              h('button', { type: 'button', className: 'sg-textbtn', onClick: onClose }, t('done'))))
         }
 
         function SessionRow({ id, summary, pinned, locale }) {
@@ -361,7 +453,7 @@ window.__ModuleLoader__.load({
             onClick: open,
             onKeyDown: e => { if (e.key === 'Enter' && e.target === e.currentTarget) open() },
           },
-          pinned ? h('span', { className: 'sg-pinmark' }, h(IconPin, { size: 13, filled: true })) : h('span', { className: 'sg-dot' }),
+          h('span', { className: 'sg-lead' }, pinned ? h(IconPin, { size: 14, filled: true }) : null),
           h('span', { className: `sg-rtitle${summary ? '' : ' sg-missing'}` }, title ?? `${t('unknownSession')} · ${id.slice(0, 8)}`),
           h('span', { className: 'sg-time' }, relativeTime(summary?.updatedAt, locale)),
           h('span', { className: 'sg-ractions' },
@@ -369,7 +461,7 @@ window.__ModuleLoader__.load({
               type: 'button', className: 'sg-icon', 'aria-pressed': pinned,
               title: pinned ? t('unpin') : t('pin'), 'aria-label': pinned ? t('unpin') : t('pin'),
               onClick: stop(() => void op({ action: 'pin', sessionId: id, pinned: !pinned }).catch(() => {})),
-            }, h(IconPin, { filled: pinned })),
+            }, h(IconPin, { size: 15, filled: pinned })),
             h('button', {
               type: 'button', className: 'sg-icon sg-danger', title: t('remove'), 'aria-label': t('remove'),
               onClick: stop(() => void op({ action: 'remove', sessionId: id }).catch(() => {})),
@@ -389,7 +481,7 @@ window.__ModuleLoader__.load({
           const pinned = new Set(group.pinned)
           const iconBtn = (label, icon, onClick, extra = {}) => h('button', {
             type: 'button', className: `sg-icon${extra.danger ? ' sg-danger' : ''}`, title: label, 'aria-label': label,
-            disabled: extra.disabled, style: extra.disabled ? { opacity: 0.35, cursor: 'default' } : undefined, onClick,
+            disabled: extra.disabled, 'aria-pressed': extra.pressed, onClick,
           }, icon)
           return h('section', { className: 'sg-group' },
             h('div', { className: 'sg-ghead' },
@@ -400,7 +492,7 @@ window.__ModuleLoader__.load({
                   h('b', null, group.name),
                   h('span', { className: 'sg-count' }, tf('sessions', { n: group.sessionIds.length }))),
               h('div', { className: 'sg-gactions' },
-                iconBtn(t('addSession'), h(IconPlus), () => { setPicking(p => !p); if (collapsed) toggle() }),
+                iconBtn(t('addSession'), h(IconPlus, { size: 15 }), () => { setPicking(p => !p); if (collapsed) toggle() }, { pressed: picking }),
                 iconBtn(t('rename'), h(IconEdit), () => store.setView({ editing: group.id })),
                 iconBtn(t('moveUp'), h(IconUp), () => void op({ action: 'move_group', groupId: group.id, beforeGroupId: groups[index - 1]?.id }).catch(() => {}), { disabled: index === 0 }),
                 iconBtn(t('moveDown'), h(IconDown), () => void op({ action: 'move_group', groupId: group.id, beforeGroupId: groups[index + 2]?.id }).catch(() => {}), { disabled: index === count - 1 }),
@@ -429,12 +521,15 @@ window.__ModuleLoader__.load({
             h('div', { className: 'sg-inner' },
               h('div', { className: 'sg-head' },
                 h('h1', { className: 'sg-title' }, t('panel')),
-                h('button', { type: 'button', className: 'sg-btn', onClick: create }, h(IconPlus), t('newGroup'))),
+                h('button', { type: 'button', className: 'sg-btn', onClick: create }, h(IconPlus, { size: 15 }), t('newGroup'))),
               status === 'error'
                 ? h('div', { className: 'sg-error' }, `${t('loadFailed')}: ${error}`,
                   h('button', { type: 'button', className: 'sg-btn', onClick: () => void load() }, t('retry')))
                 : null,
-              status === 'ready' && groups.length === 0 ? h('div', { className: 'sg-empty' }, t('empty')) : null,
+              status === 'ready' && groups.length === 0
+                ? h('div', { className: 'sg-emptystate' }, h(IconGroups, { size: 32 }),
+                  h('div', null, t('empty'), ' ', h('button', { type: 'button', className: 'sg-link', onClick: create }, t('newGroup'))))
+                : null,
               groups.map((group, index) => h(Group, {
                 key: group.id, group, index, count: groups.length, groups, list, locale: loc.active, view,
               }))))
