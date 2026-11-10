@@ -1,0 +1,6 @@
+# Bundle patch layer: the row loads lib/index.js as the Host half (group
+# storage, HTTP routes, the session_groups agent tool); the `dsh.client`
+# declaration makes the web app load lib/client.js as the browser half.
+- insert:
+    - id: session-groups
+      name: dsh-session-groups
