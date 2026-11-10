@@ -1,0 +1,15 @@
+# Bundle patch layer: the row loads lib/index.js as the Host half; the
+# `dsh.client` declaration makes the web app load lib/client.js as the
+# browser half (the settings on this bundle's Plugins page).
+- insert:
+    - id: auto-review-model
+      name: dsh-auto-review-model
+      config:
+        # Empty provider/model keeps Auto review on the session's own model.
+        provider: ''
+        model: ''
+        # Empty uses the target model's default effort.
+        reasoningEffort: ''
+        # default | append | replace — how `prompt` changes the built-in review policy.
+        promptMode: default
+        prompt: ''
