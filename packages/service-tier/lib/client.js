@@ -50,9 +50,10 @@ window.__ModuleLoader__.load({
     const useTiers = () => React.useSyncExternalStore(store.subscribe, store.get)
 
     const CSS = `
-.st-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
-.st-btn:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
-.st-btn[aria-pressed=true]{color:var(--dsw-alias-state-warn-primary)}
+.st-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;transition:background-color .15s,color .15s}
+.st-btn:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}
+.st-btn:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:-2px}
+.st-btn[aria-pressed=true],.st-btn[aria-pressed=true]:hover{color:var(--dsw-alias-state-warn-primary)}
 `
 
     function Bolt({ on }) {

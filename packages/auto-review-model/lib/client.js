@@ -74,21 +74,25 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
-.arm{display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px}
-.arm-title{font-size:14px;font-weight:600}
-.arm-hint,.arm-note{color:var(--dsw-alias-label-secondary);line-height:1.5}
-.arm-note.warn{color:var(--dsw-alias-state-warn-primary)}
+.arm{--arm-line:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);--arm-r:var(--dsw-radius-sm,8px);display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.arm-title{margin:0;font-size:14px;line-height:20px;font-weight:500}
+.arm-hint,.arm-note{color:var(--dsw-alias-label-secondary);line-height:20px}
+.arm-note.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
 .arm-note.err{color:var(--dsw-alias-state-error-primary)}
 .arm-note.ok{color:var(--dsw-alias-state-success-primary)}
-.arm-row{display:grid;grid-template-columns:120px minmax(0,1fr);gap:8px;align-items:center}
-.arm select{height:32px;min-width:0;padding:0 8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit}
-.arm select:disabled,.arm textarea:disabled{opacity:.6}
-.arm textarea{min-height:160px;padding:8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
-.arm-section{display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid var(--dsw-alias-border-l1)}
-.arm-actions{display:flex;gap:8px;align-items:center}
-.arm-btn{height:30px;padding:0 14px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit}
-.arm-btn.primary{background:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary);color:#fff}
-.arm-btn:disabled{opacity:.5;cursor:default}
+.arm-row{display:grid;grid-template-columns:120px minmax(0,360px);gap:8px;align-items:center}
+.arm-row>span{color:var(--dsw-alias-label-secondary)}
+.arm select{height:32px;min-width:0;padding:0 8px;border:var(--arm-line);border-radius:var(--arm-r);background:var(--dsw-alias-button-elevated-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer}
+.arm select:disabled,.arm textarea:disabled{opacity:.6;cursor:default}
+.arm textarea{min-height:160px;padding:8px 10px;border:var(--arm-line);border-radius:var(--arm-r);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:12px/1.6 "SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+.arm select:focus-visible,.arm textarea:focus-visible,.arm-btn:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:1px}
+.arm-section{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l1)}
+.arm-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.arm-btn{height:30px;padding:0 14px;border:var(--arm-line);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit;transition:background-color .15s}
+.arm-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
+.arm-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-inverted,var(--dsw-alias-bg-base))}
+.arm-btn.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary)))}
+.arm-btn:disabled{opacity:.4;cursor:default}
 @media (max-width:560px){.arm-row{grid-template-columns:1fr}}
 `
 
@@ -211,7 +215,7 @@ window.__ModuleLoader__.load({
           const busy = status.kind === 'saving' || saved === null
           return h('div', { className: 'arm' },
             h('style', null, CSS),
-            h('div', { className: 'arm-title' }, t('title')),
+            h('h4', { className: 'arm-title' }, t('title')),
             h('div', { className: 'arm-hint' }, t('hint')),
             h('label', { className: 'arm-row' },
               h('span', null, t('model')),
@@ -225,7 +229,7 @@ window.__ModuleLoader__.load({
             catalog.partial ? h('div', { className: 'arm-note warn' }, t('partial')) : null,
             value.provider === '' ? null : h('div', { className: 'arm-note warn' }, t('warning')),
             h('div', { className: 'arm-section' },
-              h('div', { className: 'arm-title' }, t('promptTitle')),
+              h('h4', { className: 'arm-title' }, t('promptTitle')),
               saved?.legacy ? h('div', { className: 'arm-note warn' }, t('restartNeeded')) : null,
               h('label', { className: 'arm-row' },
                 h('span', null, t('promptMode')),

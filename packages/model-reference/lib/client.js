@@ -83,16 +83,20 @@ window.__ModuleLoader__.load({
       return { ...item, effort, effortName, fast, ref: qs ? `${key}?${qs}` : key }
     }
 
+    // Same glyph as dsh-service-tier's toggle, filled.
+    const Bolt = () => h('svg', { viewBox: '0 0 16 16', width: 12, height: 12, 'aria-hidden': true },
+      h('path', { d: 'M9.2 1.5 3.5 9h4l-.8 5.5L12.5 7h-4z', fill: 'currentColor', stroke: 'currentColor', strokeWidth: 1.3, strokeLinejoin: 'round' }))
+
     const CSS = `
 .mh-anchor{display:none}
 .mh-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:100;box-sizing:border-box;display:flex;flex-direction:column;max-height:320px;overflow-y:auto;padding:4px;border-radius:12px;background:var(--dsw-specific-menu);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);backdrop-filter:var(--dsw-menu-backdrop-filter);box-shadow:var(--dsw-elevation-prominent);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1)}
-.mh-title{padding:6px 8px;font-size:11px;line-height:15px;color:var(--dsw-alias-label-tertiary)}
+.mh-title{padding:5px 8px 2px;font-size:11px;line-height:15px;color:var(--dsw-alias-label-tertiary)}
 .mh-item{display:flex;align-items:center;gap:6px;width:100%;min-height:34px;padding:6px 8px;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-align:left;cursor:pointer}
 .mh-item[aria-selected=true]{background:var(--dsw-alias-interactive-bg-hover)}
 .mh-hash{flex:none;width:14px;text-align:center;color:var(--dsw-alias-menu-icon)}
 .mh-name{flex:none;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mh-meta{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--dsw-alias-label-secondary)}
-.mh-bolt{color:var(--dsw-alias-state-warn-primary)}
+.mh-meta{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.mh-bolt{display:inline-flex;color:var(--dsw-alias-state-warn-primary)}
 .mh-desc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font-size:12px;color:var(--dsw-alias-label-tertiary)}
 [data-composer-card] span[title^="#"]>span[aria-hidden="true"]{display:none}
 `
@@ -213,7 +217,7 @@ window.__ModuleLoader__.load({
               h('span', { className: 'mh-name' }, it.name),
               it.effortName || it.fast ? h('span', { className: 'mh-meta' },
                 it.effortName ? h('span', null, it.effortName) : null,
-                it.fast ? h('span', { className: 'mh-bolt', 'aria-label': 'fast' }, '⚡') : null) : null,
+                it.fast ? h('span', { className: 'mh-bolt', role: 'img', 'aria-label': 'fast' }, h(Bolt)) : null) : null,
               h('span', { className: 'mh-desc' }, it.providerName)))) : null)
         }
 

@@ -175,11 +175,14 @@ window.__ModuleLoader__.load({
     const CSS = `
 .sg-page{--sg-hover:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));--sg-tertiary:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));--sg-caption:var(--dsw-alias-label-caption,var(--sg-tertiary));--sg-border:var(--dsw-alias-border-l4,var(--dsw-alias-border-l2));--sg-ease:var(--ds-ease-in-out,ease);--sg-r-xs:var(--dsw-radius-xs,4px);--sg-r-sm:var(--dsw-radius-sm,6px);--sg-r-md:var(--dsw-radius-md,8px);--sg-r-lg:var(--dsw-radius-lg,12px);--sg-focus:var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary));height:100%;overflow:auto;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}
 .sg-page button:focus-visible{outline:2px solid var(--sg-focus);outline-offset:-2px}
-.sg-inner{max-width:720px;margin:0 auto;padding:40px 24px 64px}
+.sg-inner{max-width:1008px;margin:0 auto;padding:30px 24px 64px}
 .sg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
-.sg-title{margin:0;font-size:20px;line-height:28px;font-weight:600}
+.sg-title{margin:0;font-size:20px;line-height:28px;font-weight:500}
 .sg-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 10px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:18px;cursor:pointer;transition:background-color .15s var(--sg-ease)}
 .sg-btn:hover{background:var(--sg-hover)}
+.sg-btn.sg-primary{padding:0 14px 0 12px;border:0;border-radius:999px;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-inverted,var(--dsw-alias-bg-base))}
+.sg-btn.sg-primary:hover{background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary)))}
+.sg-page .sg-btn.sg-primary:focus-visible{outline-offset:2px}
 .sg-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--sg-tertiary);cursor:pointer;flex:none;transition:background-color .15s var(--sg-ease),color .15s var(--sg-ease)}
 .sg-icon:hover:not(:disabled){background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
 .sg-icon:disabled{opacity:.35;cursor:default}
@@ -192,12 +195,12 @@ window.__ModuleLoader__.load({
 .sg-group{padding:4px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-lg)}
 .sg-group+.sg-group{margin-top:12px}
 .sg-ghead{display:flex;align-items:center;gap:4px;height:36px;padding:0 4px 0 2px;border-radius:var(--sg-r-md)}
-.sg-gname{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;height:100%;align-items:center;cursor:pointer;user-select:none}
-.sg-gname b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px;font-weight:600}
+.sg-gname{flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:100%;cursor:pointer;user-select:none}
+.sg-gname b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px;font-weight:500}
 .sg-count{flex:none;font-size:12px;line-height:20px;color:var(--sg-tertiary)}
 .sg-gactions{display:flex;gap:2px;opacity:0;transition:opacity .12s var(--sg-ease)}
 .sg-ghead:hover .sg-gactions,.sg-ghead:focus-within .sg-gactions,.sg-gactions:has([aria-pressed=true]){opacity:1}
-.sg-rename{flex:1;min-width:0;height:28px;padding:0 6px;border:.5px solid var(--sg-focus);border-radius:var(--sg-r-sm);background:var(--dsw-alias-button-elevated-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:20px;font-weight:600;outline:none}
+.sg-rename{flex:1;min-width:0;height:28px;padding:0 6px;border:.5px solid var(--sg-focus);border-radius:var(--sg-r-sm);background:var(--dsw-alias-button-elevated-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:20px;font-weight:500;outline:none}
 .sg-list>*+*{margin-top:2px}
 .sg-row{display:flex;align-items:center;gap:8px;height:32px;padding:0 6px 0 10px;border-radius:var(--sg-r-md);cursor:pointer;transition:background-color .12s var(--sg-ease)}
 .sg-row:hover,.sg-row:focus-visible{background:var(--sg-hover);outline:none}
@@ -521,7 +524,7 @@ window.__ModuleLoader__.load({
             h('div', { className: 'sg-inner' },
               h('div', { className: 'sg-head' },
                 h('h1', { className: 'sg-title' }, t('panel')),
-                h('button', { type: 'button', className: 'sg-btn', onClick: create }, h(IconPlus, { size: 15 }), t('newGroup'))),
+                h('button', { type: 'button', className: 'sg-btn sg-primary', onClick: create }, h(IconPlus, { size: 14 }), t('newGroup'))),
               status === 'error'
                 ? h('div', { className: 'sg-error' }, `${t('loadFailed')}: ${error}`,
                   h('button', { type: 'button', className: 'sg-btn', onClick: () => void load() }, t('retry')))
