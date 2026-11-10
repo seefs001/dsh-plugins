@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）插件集，让选模型、切模型更顺手。
+seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）插件集：让选模型、切模型更顺手，并改进 Web 界面的几处细节。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -19,6 +19,10 @@ seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（
 | [`dsh-service-tier`](packages/service-tier) | 在模型选择器旁加 ⚡ 开关，为 OpenAI Responses 模型发送 `service_tier: "priority"`。 | Host + Web |
 | [`dsh-remember-model`](packages/remember-model) | 新会话沿用你上次选择的模型和推理强度。 | Host |
 | [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序，最新的在前。 | Web |
+| [`dsh-session-groups`](packages/session-groups) | 在侧边栏面板里自定义会话分组，组内置顶的会话排在前面。 | Host + Web |
+| [`dsh-auto-review-model`](packages/auto-review-model) | 指定自动审查判断工具调用时用的模型和审查提示词。需要启用 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
+| [`dsh-quote-jump`](packages/quote-jump) | 用户消息里的引用显示为引用块，点击后滚动到原文并高亮。 | Web |
+| [`dsh-tool-lens`](packages/tool-lens) | 更好用的工具调用行。技能行可在右侧边栏打开该技能的 `SKILL.md`。 | Web |
 
 每个插件都能单独使用。`dsh-model-reference` 和 `dsh-service-tier` 一起装时，`#` 标签会带上 ⚡。
 
@@ -37,6 +41,10 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/mo
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/service-tier"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
 ```
 
 也可以在 Web 界面的 **Plugins** 页粘贴同样的地址安装。安装后 bundle 会自动启用；开启 `patchReload: live` 时无需重启。
@@ -50,7 +58,7 @@ dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
 
 ## 配置
 
-有状态的插件（`model-reference` 的推理强度、`service-tier` 的快速模型）通过 dsh 的 config editor 写入 profile 的 `cordis.patch.yml`，重启和升级后都会保留。各配置项见对应包的 README。
+有状态的插件（`model-reference` 的推理强度、`service-tier` 的快速模型、`session-groups` 的分组、`auto-review-model` 的模型和提示词）通过 dsh 的 config editor 写入 profile 的 `cordis.patch.yml`，重启和升级后都会保留。各配置项见对应包的 README。
 
 ## 开发
 
