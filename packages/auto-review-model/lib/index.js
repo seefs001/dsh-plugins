@@ -147,7 +147,7 @@ export async function* observeReview(stream, report) {
       outcome = { status: 'error', error: `${finish.kind} ${finish.failure?.code ?? ''}: ${finish.failure?.message ?? ''}`.trim() }
     } else if (finish.kind !== 'stop') outcome = { status: 'error', error: `reviewer ended with ${finish.kind}` }
     else {
-      const last = [...texts.entries()].sort((a, b) => a[0] - b[0]).at(-1)?.[1]
+      const last = [...texts.entries()].toSorted((a, b) => a[0] - b[0]).at(-1)?.[1]
       outcome = verdictOf(last)
     }
     try { report(outcome) } catch {}
@@ -270,7 +270,7 @@ export function apply(ctx, config) {
     await table.put(sessionId, next)
     notify(sessionId, next)
     if (table.size > MAX_SESSIONS) {
-      const stale = [...table.entries()].sort((a, b) => a[1].updatedAt - b[1].updatedAt)
+      const stale = [...table.entries()].toSorted((a, b) => a[1].updatedAt - b[1].updatedAt)
         .slice(0, table.size - MAX_SESSIONS).map(([key]) => key).filter(key => key !== sessionId)
       if (stale.length > 0) await table.deleteMany(stale)
     }

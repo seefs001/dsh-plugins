@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Subagent model",
+    "description": "Shows an addressed subagent's recorded model and reasoning effort in the composer. The label is read-only; the main agent's model picker is unchanged."
+  }
+}

@@ -20,6 +20,13 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/se
 
 也可以右键侧边栏里的会话，使用 **Add to group** / **Move to group**、**Pin in group** 和 **Remove from group**。
 
+### 拖拽会话
+
+- 从原生侧边栏或分组页拖动会话，放到已有分组即可加入或移动过去；目标组会自动展开。
+- 拖动期间，分组页底部会出现 **Drop here to create a new group** 区域。放下后创建含该会话的新组，并进入重命名。
+- 已在目标组内的会话不会重复添加。无法识别的会话或空白会话会被忽略。
+- 拖拽只用于改变会话归属。分组顺序仍通过上移 / 下移调整，组内顺序由置顶与最近活动决定。
+
 ## 分组规则
 
 - 一个会话最多属于一个分组，加到另一个组会将它移过去。

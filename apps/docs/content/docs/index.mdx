@@ -3,7 +3,7 @@ title: 简介
 description: 给 DeepSeek Harness 加一点顺手的小功能。
 ---
 
-dsh-plugins 是 seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）社区插件集。插件覆盖模型选择、会话管理、消息阅读与联网搜索，每个都可以独立安装。
+dsh-plugins 是 seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）社区插件集。插件覆盖模型选择、会话管理、消息阅读、联网搜索、Git 改动与对话小伙伴。按需安装，额外依赖见对应插件页。
 
 <Cards>
   <Card title="快速开始" href="/docs/quick-start" description="检查环境，安装并启用第一个插件。" />
@@ -15,11 +15,14 @@ dsh-plugins 是 seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-a
 ## 先装哪个？
 
 - **经常切换模型**：[模型引用](/docs/plugins/model-reference) + [快速模式](/docs/plugins/service-tier) + [记住模型](/docs/plugins/remember-model)。
+- **想看子代理使用的模型**：[子代理模型](</docs/plugins/subagent-model>)，在输入框右下角显示只读模型名和推理强度。
 - **同时处理很多会话**：[会话分组](/docs/plugins/session-groups) + [最近会话](/docs/plugins/recent-sessions)。
 - **想知道是不是在等上下文压缩**：[压缩状态](/docs/plugins/compaction-status)，在输入框上方显示状态和已等待时间。
 - **需要快速回看上下文**：[引用跳转](/docs/plugins/quote-jump) + [工具透镜](/docs/plugins/tool-lens)。
 - **为 Agent 加搜索能力**：[联网搜索](/docs/plugins/web-access)。
-- **想为工具审查单独选模型**：[自动审查模型](/docs/plugins/auto-review-model)。
+- **想为工具审查单独选模型并回看结果**：[自动审查模型](/docs/plugins/auto-review-model)。
+- **需要快速查看工作区 diff**：[Git 改动](/docs/plugins/git-changes)，需启用 Change requests & worktrees。
+- **想看当前对话的活动状态**：[AI 小伙伴](/docs/plugins/ai-mascot)，支持 GPT / Claude。
 
 ## Host 与 Web 是什么？
 

@@ -10,6 +10,8 @@ Custom session groups for the [DeepSeek Harness](https://github.com/deepseek-ai/
 - Hover a session row to pin it in its group or remove it. Pinned sessions lead the group, newest pin first; the rest follow by last activity.
 - Right-click a session in the sidebar for **Add to group** / **Move to group**, **Pin in group**, and **Remove from group**.
 
+Drag a session from the native sidebar or groups page onto a group to add or move it there; a collapsed target opens automatically. While dragging, the groups page also shows **Drop here to create a new group** at the bottom: drop to create a group with that session and rename it inline. Unknown or blank sessions are ignored, and dropping onto the current group is a no-op. Dragging changes membership, not group order or pin order; use the group controls to reorder groups.
+
 A session belongs to at most one group. Adding it to another group moves it there. The built-in workspace list and its own pins are not changed.
 
 ## Storage

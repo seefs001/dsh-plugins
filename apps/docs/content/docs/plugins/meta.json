@@ -1,5 +1,5 @@
 {
   "title": "插件",
   "defaultOpen": true,
-  "pages": ["index", "model-reference", "service-tier", "remember-model", "recent-sessions", "session-groups", "compaction-status", "auto-review-model", "quote-jump", "tool-lens", "web-access"]
+  "pages": ["index", "model-reference", "service-tier", "subagent-model", "remember-model", "recent-sessions", "session-groups", "compaction-status", "auto-review-model", "quote-jump", "tool-lens", "web-access", "git-changes", "ai-mascot"]
 }

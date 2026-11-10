@@ -268,16 +268,16 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
           React.useEffect(() => {
             if (!enabled || !sessionId) return undefined
             const es = new EventSource(`auto-review-model/log/events?session=${encodeURIComponent(sessionId)}`)
-            es.onmessage = e => {
+            es.addEventListener('message', e => {
               let data = null
               try { data = JSON.parse(e.data) } catch {}
               if (data && Array.isArray(data.entries)) setLog({ status: 'ready', entries: data.entries })
-            }
+            })
             // An older Host has no log route; the browser keeps retrying, so stop after the first failure before any data.
-            es.onerror = () => setLog(l => {
+            es.addEventListener('error', () => setLog(l => {
               if (l.status === 'loading') { es.close(); return { status: 'unavailable', entries: [] } }
               return l
-            })
+            }))
             return () => es.close()
           }, [sessionId, enabled])
           return log
@@ -400,7 +400,7 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
           }, [anchor, onClose])
           const nav = ctx.get('pluginNavigation')
           const [shown, setShown] = React.useState(PAGE_SIZE)
-          const entries = log.entries.slice().reverse()
+          const entries = log.entries.toReversed()
           const visible = entries.slice(0, shown)
           const hidden = entries.length - visible.length
           const counts = { allow: 0, deny: 0, fail: 0 }

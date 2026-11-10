@@ -1,0 +1,968 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-10T11:44:42.165Z",
+  "root": "/Users/seefs/work/dsh-plugins",
+  "repository": {
+    "name": "dsh-plugins",
+    "branch": "main",
+    "head": "e4e9192",
+    "dirty": true,
+    "changedFiles": [
+      {
+        "path": "CHANGELOG.md",
+        "status": " M"
+      },
+      {
+        "path": "README.md",
+        "status": " M"
+      },
+      {
+        "path": "README.zh.md",
+        "status": " M"
+      },
+      {
+        "path": "apps/docs/content/docs/plugins/agent-team.mdx",
+        "status": "??"
+      },
+      {
+        "path": "apps/docs/content/docs/plugins/index.mdx",
+        "status": " M"
+      },
+      {
+        "path": "apps/docs/content/docs/plugins/meta.json",
+        "status": " M"
+      },
+      {
+        "path": "packages/agent-team/LICENSE",
+        "status": "??"
+      },
+      {
+        "path": "packages/agent-team/README.md",
+        "status": "??"
+      },
+      {
+        "path": "packages/agent-team/cordis.patch.yml",
+        "status": "??"
+      },
+      {
+        "path": "packages/agent-team/icon.svg",
+        "status": "??"
+      },
+      {
+        "path": "packages/agent-team/lib/index.js",
+        "status": "??"
+      },
+      {
+        "path": "packages/agent-team/locale/en.json",
+        "status": "??"
+      },
+      {
+        "path": "packages/agent-team/locale/zh.json",
+        "status": "??"
+      },
+      {
+        "path": "packages/agent-team/package.json",
+        "status": "??"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "status": " M"
+      },
+      {
+        "path": "reports/plugin-inspector-review.md",
+        "status": "??"
+      },
+      {
+        "path": "reports/plugin-inspector-validation.md",
+        "status": "??"
+      },
+      {
+        "path": "scripts/inspect-plugins.mjs",
+        "status": "??"
+      },
+      {
+        "path": "scripts/plugin-inspector/README.md",
+        "status": "??"
+      },
+      {
+        "path": "scripts/plugin-inspector/contract.md",
+        "status": "??"
+      },
+      {
+        "path": "scripts/plugin-inspector/format-markdown.mjs",
+        "status": "??"
+      },
+      {
+        "path": "scripts/plugin-inspector/render-html.mjs",
+        "status": "??"
+      },
+      {
+        "path": "scripts/plugin-inspector/scan.mjs",
+        "status": "??"
+      }
+    ]
+  },
+  "summary": {
+    "packages": 11,
+    "errors": 0,
+    "warnings": 1,
+    "host": 11,
+    "web": 9,
+    "documented": 10,
+    "changed": 1
+  },
+  "plugins": [
+    {
+      "id": "agent-team",
+      "name": "dsh-agent-team",
+      "version": "0.1.0",
+      "description": "An opt-in Agent Team preset with named teammates, peer messaging, and a shared task board.",
+      "directory": "packages/agent-team",
+      "capabilities": [
+        "host"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "Agent Team",
+          "description": "Adds a selectable Agent Team preset with named teammates, direct messages, and a shared task board. Other presets and the default selection stay unchanged.",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "Agent Team 团队模式",
+          "description": "新增可选的 Agent Team 预设，支持具名队友、直接通信和共享任务板。不修改其他预设或默认模式。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": true
+      },
+      "docsPath": "apps/docs/content/docs/plugins/agent-team.mdx",
+      "dependencies": [
+        {
+          "name": "@deepseek-ai/dsh-experimental-tool-agent-team",
+          "range": "0.2.2-rc.1",
+          "kind": "dependency",
+          "internal": false
+        }
+      ],
+      "sourceFiles": 1,
+      "sourceBytes": 665,
+      "testFiles": 0,
+      "changed": true,
+      "status": "ok",
+      "findings": []
+    },
+    {
+      "id": "auto-review-model",
+      "name": "dsh-auto-review-model",
+      "version": "1.0.0",
+      "description": "Routes dsh Auto review requests to a model you pick from the locally available models, instead of the session's own model.",
+      "directory": "packages/auto-review-model",
+      "capabilities": [
+        "host",
+        "web"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./client",
+          "target": "./lib/client.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "Auto review model",
+          "description": "Lets Auto review judge tool calls with a model you pick from the locally available models, and add your own rules to its review prompt or replace it.",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "自动审查模型",
+          "description": "让自动审查（Auto review）用你从本地可用模型中挑选的模型判断工具调用，并可在审查提示词后追加自己的规则或整段替换。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": true
+      },
+      "docsPath": "apps/docs/content/docs/plugins/auto-review-model.mdx",
+      "dependencies": [],
+      "sourceFiles": 2,
+      "sourceBytes": 60242,
+      "testFiles": 0,
+      "changed": false,
+      "status": "ok",
+      "findings": []
+    },
+    {
+      "id": "git-changes",
+      "name": "dsh-git-changes",
+      "version": "0.1.0",
+      "description": "A Git changes entry below the dsh composer: branch, added and deleted lines, and changed files; click to open the diff in the right Sidebar.",
+      "directory": "packages/git-changes",
+      "capabilities": [
+        "host",
+        "web"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./client",
+          "target": "./lib/client.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "Git changes",
+          "description": "Shows the branch and changed lines below the composer; click to open the diff in the right Sidebar. Needs Change requests & worktrees.",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "Git 变更",
+          "description": "在输入框下方显示分支和改动行数，点击在右侧打开 diff。需要启用“变更请求和工作树”。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": false
+      },
+      "docsPath": null,
+      "dependencies": [],
+      "sourceFiles": 2,
+      "sourceBytes": 12578,
+      "testFiles": 0,
+      "changed": false,
+      "status": "warning",
+      "findings": [
+        {
+          "severity": "warning",
+          "code": "docs-missing",
+          "message": "Add the conventional documentation page: apps/docs/content/docs/plugins/git-changes.mdx",
+          "path": "apps/docs/content/docs/plugins/git-changes.mdx"
+        }
+      ]
+    },
+    {
+      "id": "model-reference",
+      "name": "dsh-model-reference",
+      "version": "1.3.0",
+      "description": "Type # in the dsh composer to insert a model chip carrying that model's last reasoning effort and fast mode.",
+      "directory": "packages/model-reference",
+      "capabilities": [
+        "host",
+        "web"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./client",
+          "target": "./lib/client.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "# Model reference",
+          "description": "Type # in the composer to insert a model chip, like an @ reference. The chip carries that model's last reasoning effort and fast mode, so you can ask the agent to run a subagent on a specific model.",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "# 引用模型",
+          "description": "在输入框输入 # 选择模型，像 @ 引用一样插入模型标签，并带上该模型上次使用的推理强度和快速模式，可让 agent 按指定模型开子 agent。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": true
+      },
+      "docsPath": "apps/docs/content/docs/plugins/model-reference.mdx",
+      "dependencies": [],
+      "sourceFiles": 2,
+      "sourceBytes": 16152,
+      "testFiles": 2,
+      "changed": false,
+      "status": "ok",
+      "findings": []
+    },
+    {
+      "id": "quote-jump",
+      "name": "dsh-quote-jump",
+      "version": "1.0.0",
+      "description": "Shows quotes in dsh user messages as blocks; clicking one scrolls to the quoted text and highlights it.",
+      "directory": "packages/quote-jump",
+      "capabilities": [
+        "host",
+        "web"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./client",
+          "target": "./lib/client.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "Quote jump",
+          "description": "Shows quotes in your messages as blocks. Click one to scroll to the quoted text and highlight it.",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "引用跳转",
+          "description": "消息里的引用显示为引用块，点击后滚动到原文并高亮。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": true
+      },
+      "docsPath": "apps/docs/content/docs/plugins/quote-jump.mdx",
+      "dependencies": [],
+      "sourceFiles": 2,
+      "sourceBytes": 12010,
+      "testFiles": 0,
+      "changed": false,
+      "status": "ok",
+      "findings": []
+    },
+    {
+      "id": "recent-sessions",
+      "name": "dsh-recent-sessions",
+      "version": "1.0.0",
+      "description": "Lists sessions in the dsh @ reference menu by last activity, newest first.",
+      "directory": "packages/recent-sessions",
+      "capabilities": [
+        "host",
+        "web"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./client",
+          "target": "./lib/client.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "Recent sessions first",
+          "description": "Lists sessions in the @ reference menu by last activity, newest first.",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "最近会话优先",
+          "description": "@ 引用菜单里的会话按最近活动时间排序，最新的排在最前。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": true
+      },
+      "docsPath": "apps/docs/content/docs/plugins/recent-sessions.mdx",
+      "dependencies": [],
+      "sourceFiles": 2,
+      "sourceBytes": 3522,
+      "testFiles": 1,
+      "changed": false,
+      "status": "ok",
+      "findings": []
+    },
+    {
+      "id": "remember-model",
+      "name": "dsh-remember-model",
+      "version": "1.2.0",
+      "description": "Saves the model and reasoning effort picked in a dsh session as the default for new sessions.",
+      "directory": "packages/remember-model",
+      "capabilities": [
+        "host"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "Remember last model",
+          "description": "Saves the model and reasoning effort you pick in a session as the default, so new sessions start on it.",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "记住上次模型",
+          "description": "把你在会话里选择的模型和推理强度存为默认，新会话直接沿用。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": true
+      },
+      "docsPath": "apps/docs/content/docs/plugins/remember-model.mdx",
+      "dependencies": [],
+      "sourceFiles": 1,
+      "sourceBytes": 2638,
+      "testFiles": 1,
+      "changed": false,
+      "status": "ok",
+      "findings": []
+    },
+    {
+      "id": "service-tier",
+      "name": "dsh-service-tier",
+      "version": "1.2.0",
+      "description": "A ⚡ fast-mode toggle beside the dsh model picker that sends service_tier \"priority\" for OpenAI Responses models.",
+      "directory": "packages/service-tier",
+      "capabilities": [
+        "host",
+        "web"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./client",
+          "target": "./lib/client.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "Fast mode (service tier)",
+          "description": "Adds a ⚡ toggle beside the model picker for OpenAI Responses models. When it is on, requests for that model use service_tier \"priority\".",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "快速模式（service tier）",
+          "description": "为 OpenAI Responses 接口的模型在模型选择器旁加一个 ⚡ 开关，开启后该模型的请求使用 service_tier \"priority\"。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": true
+      },
+      "docsPath": "apps/docs/content/docs/plugins/service-tier.mdx",
+      "dependencies": [],
+      "sourceFiles": 2,
+      "sourceBytes": 9537,
+      "testFiles": 2,
+      "changed": false,
+      "status": "ok",
+      "findings": []
+    },
+    {
+      "id": "session-groups",
+      "name": "dsh-session-groups",
+      "version": "1.0.0",
+      "description": "Custom session groups for the dsh Web UI, stored on the Host, with pinned sessions leading each group.",
+      "directory": "packages/session-groups",
+      "capabilities": [
+        "host",
+        "web"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./client",
+          "target": "./lib/client.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "Session groups",
+          "description": "Organize sessions into your own groups, pin sessions inside each group, and keep the groups on the Host for every browser and the agent.",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "会话分组",
+          "description": "把会话放进自定义分组，每个分组内可置顶会话；分组保存在 Host，所有浏览器和 agent 共享。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": true
+      },
+      "docsPath": "apps/docs/content/docs/plugins/session-groups.mdx",
+      "dependencies": [],
+      "sourceFiles": 2,
+      "sourceBytes": 50956,
+      "testFiles": 0,
+      "changed": false,
+      "status": "ok",
+      "findings": []
+    },
+    {
+      "id": "tool-lens",
+      "name": "dsh-tool-lens",
+      "version": "0.1.0",
+      "description": "Richer tool-call rows for the dsh Chat. First lens: the skill row opens the skill's SKILL.md in the right Sidebar.",
+      "directory": "packages/tool-lens",
+      "capabilities": [
+        "host",
+        "web"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./client",
+          "target": "./lib/client.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "Tool lens",
+          "description": "Richer tool-call rows in the Chat. Click a skill row's name to open its SKILL.md in the right sidebar.",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "工具透镜",
+          "description": "增强对话里的工具调用展示。点击技能行的名称，在右侧栏打开对应的 SKILL.md。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": true
+      },
+      "docsPath": "apps/docs/content/docs/plugins/tool-lens.mdx",
+      "dependencies": [],
+      "sourceFiles": 2,
+      "sourceBytes": 34021,
+      "testFiles": 0,
+      "changed": false,
+      "status": "ok",
+      "findings": []
+    },
+    {
+      "id": "web-access",
+      "name": "dsh-web-access",
+      "version": "0.1.0",
+      "description": "Web search tools for dsh: pick a local Responses model and hosted web_search / x_search per backend, configured from the Plugins page.",
+      "directory": "packages/web-access",
+      "capabilities": [
+        "host",
+        "web"
+      ],
+      "engines": {
+        "node": "^22.19.0 || >=24.0.0",
+        "dsh": ">=0.2.2-rc.1 <0.3.0"
+      },
+      "exports": [
+        {
+          "name": ".",
+          "target": "./lib/index.js",
+          "exists": true
+        },
+        {
+          "name": "./client",
+          "target": "./lib/client.js",
+          "exists": true
+        },
+        {
+          "name": "./icon",
+          "target": "./icon.svg",
+          "exists": true
+        },
+        {
+          "name": "./locale/*.json",
+          "target": "./locale/*.json",
+          "exists": null
+        },
+        {
+          "name": "./package.json",
+          "target": "./package.json",
+          "exists": true
+        }
+      ],
+      "locales": [
+        {
+          "language": "en",
+          "title": "Web access",
+          "description": "Adds grok_search (web + X) and openai_search tools. Pick a local Responses model and search type for each on this page.",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        },
+        {
+          "language": "zh",
+          "title": "联网搜索",
+          "description": "新增 grok_search（网页 + X）和 openai_search 工具。在本页为每个工具选择本地 Responses 模型和搜索类型。",
+          "metaKeys": [
+            "description",
+            "title"
+          ]
+        }
+      ],
+      "files": {
+        "readme": true,
+        "icon": true,
+        "bundle": true,
+        "docs": true
+      },
+      "docsPath": "apps/docs/content/docs/plugins/web-access.mdx",
+      "dependencies": [],
+      "sourceFiles": 2,
+      "sourceBytes": 43196,
+      "testFiles": 0,
+      "changed": false,
+      "status": "ok",
+      "findings": []
+    }
+  ],
+  "dependencies": {
+    "edges": [],
+    "external": [
+      {
+        "name": "@deepseek-ai/dsh-experimental-tool-agent-team",
+        "range": "0.2.2-rc.1",
+        "kind": "dependency",
+        "usedBy": [
+          "agent-team"
+        ]
+      }
+    ]
+  },
+  "findings": []
+}

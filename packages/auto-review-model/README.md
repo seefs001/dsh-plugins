@@ -14,6 +14,8 @@ Pick which model, and optionally which review prompt, Auto review (`@deepseek-ai
 
 Every Auto review request carries its Session id. The Host half passes the reviewer stream through unchanged and, when it ends, appends one entry to the `auto_review_log` storage domain (one JSON document per session, `per-record` layout under `~/.dsh/storages` with the json backend). It keeps the latest 200 reviews per session and the 300 most recently reviewed sessions. Arguments are cut to 4,000 characters and reasons to 2,000. Arguments can contain sensitive values; they stay on this machine, and **Clear** removes them. The verdict shown mirrors Auto review's own parser; a review that fails before or after the reviewer answers (for example, an abort) is recorded as failed.
 
+Click a log entry to reveal its reviewed tool call, scroll it into view, and briefly highlight it. For a PTC inner call, the jump may target the outer tool card. If the target is not in the loaded history, the UI shows a hint; it does not fetch older messages automatically.
+
 ## Config
 
 | Field | Meaning |

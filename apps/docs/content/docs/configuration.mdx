@@ -1,6 +1,6 @@
 ---
 title: 配置与数据
-description: 区分插件设置、默认模型与会话分组的存储位置。
+description: 区分 profile 设置、Host 存储与浏览器本地偏好。
 ---
 
 优先使用 Web 界面配置插件。模型引用与快速模式会在你操作时自动保存；自动审查模型和联网搜索在各自的 **Plugins** 页面配置。
@@ -13,14 +13,26 @@ description: 区分插件设置、默认模型与会话分组的存储位置。
 | `service-tier` | 启用快速模式的 `provider/model` | profile 的 `cordis.patch.yml`，插件 `tiers` 配置 |
 | `remember-model` | 新会话的默认模型和推理强度 | dsh 的 `agent-default-model` 配置 |
 | `auto-review-model` | 审查模型、推理强度与审查提示词 | profile 的 `cordis.patch.yml`，该插件配置 |
+| `auto-review-model` 日志 | 会话审查结果、模型、工具参数与原因 | Host 的 `auto_review_log` storage domain，按会话保存 |
 | `web-access` | 搜索模型、搜索类型与超时 | profile 的 `cordis.patch.yml`，该插件配置 |
 | `session-groups` | 分组、成员、排序与置顶 | Host 的 `session_groups` storage domain |
+| `ai-mascot` | 位置、尺寸、收起状态与动画偏好 | 浏览器 localStorage 的 `dsh-ai-mascot:preferences` |
 
-`recent-sessions`、`quote-jump`、`tool-lens` 和 `compaction-status` 没有需要手动设置的插件配置。压缩状态从原生会话事件派生 projection，不另存自定义会话记录或浏览器偏好，详见[压缩状态](/docs/plugins/compaction-status)。
+`recent-sessions`、`quote-jump`、`tool-lens`、`git-changes`、`compaction-status` 和 `subagent-model` 没有需要手动设置的插件配置。[子代理模型](</docs/plugins/subagent-model>) 只订阅子代理已有的模型投影与共享模型目录，不另存模型选择、浏览器偏好，也不增加模型请求。Git 改动只读取 forge 面板状态，不另存 Git 数据。压缩状态从原生会话事件派生 projection，不另存自定义会话记录或浏览器偏好，详见[压缩状态](/docs/plugins/compaction-status)。
 
 <Callout>
 会话分组不是保存在 `cordis.patch.yml` 里。默认 JSON 存储后端使用 `~/.dsh/storages/session_groups.json`，实际位置取决于 Host 的 storage domain 配置。
 </Callout>
+
+## 审查日志与隐私
+
+`auto_review_log` 使用 per-record 布局，默认 JSON 后端在 `~/.dsh/storages` 下按会话保存记录。每个会话最多保留最近 200 条审查，最多保留最近 300 个有记录的会话。实际路径取决于 Host 的 storage domain 配置。
+
+日志可能包含工具参数等敏感内容，不应直接对外分享。参数和原因会截断，不是完整审计档案。点击 Review 日志中的 **Clear** 可清除当前会话记录。详见[自动审查模型](/docs/plugins/auto-review-model)。
+
+## 浏览器本地偏好
+
+AI 小伙伴的显示偏好不写入 profile，也不在浏览器、设备间同步；清除站点数据后会丢失。角色图片来自外部站点，请求不携带对话内容，切图结果只在内存中缓存。素材授权与访问限制见 [AI 小伙伴](/docs/plugins/ai-mascot)。
 
 ## 配置片段怎么读？
 

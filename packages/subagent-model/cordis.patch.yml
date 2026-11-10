@@ -1,0 +1,4 @@
+- insert:
+    - id: subagent-model
+      name: dsh-subagent-model
+      config: {}

@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）插件集：让选模型、切模型更顺手，并改进 Web 界面的几处细节。
+seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）插件集，涵盖模型选择、会话管理、联网搜索、Git diff 与对话小伙伴。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -17,16 +17,19 @@ seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（
 |---|---|---|
 | [`dsh-model-reference`](packages/model-reference) | 在输入框输入 `#` 插入模型标签，带上该模型上次的推理强度和快速模式。 | Host + Web |
 | [`dsh-service-tier`](packages/service-tier) | 在模型选择器旁加 ⚡ 开关，为 OpenAI Responses 模型发送 `service_tier: "priority"`。 | Host + Web |
+| [`dsh-subagent-model`](<packages/subagent-model/README.md>) | 在子代理输入框右下角显示只读模型名和推理强度，主代理的选择器保持不变。 | Web |
 | [`dsh-remember-model`](packages/remember-model) | 新会话沿用你上次选择的模型和推理强度。 | Host |
 | [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序，最新的在前。 | Web |
-| [`dsh-session-groups`](packages/session-groups) | 在侧边栏面板里自定义会话分组，组内置顶的会话排在前面。 | Host + Web |
+| [`dsh-session-groups`](packages/session-groups) | 拖拽会话加入自定义分组，调整分组顺序并在组内置顶。 | Host + Web |
 | [`dsh-compaction-status`](packages/compaction-status) | 自动压缩或 `/compact` 时，在输入框上方显示紧凑的状态与已等待时间。 | Host + Web |
-| [`dsh-auto-review-model`](packages/auto-review-model) | 指定自动审查判断工具调用时用的模型和审查提示词。需要启用 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
+| [`dsh-auto-review-model`](packages/auto-review-model) | 指定 Auto review 模型与提示词，查看会话审查日志并跳转到工具调用。需要启用 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 用户消息里的引用显示为引用块，点击后滚动到原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 更好用的工具调用行。技能行可在右侧边栏打开该技能的 `SKILL.md`。 | Web |
 | [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页 + X）和 `openai_search` 工具，在 Plugins 页选择本地 Responses 模型和搜索类型。 | Host + Web |
+| [`dsh-git-changes`](packages/git-changes) | 在输入框下方显示分支与未提交改动统计，点击打开右侧 diff。需要 Change requests & worktrees。 | Web |
+| [`dsh-ai-mascot`](packages/ai-mascot) | 可拖动的 GPT / Claude 小伙伴，跟随当前显示的对话活动。 | Web |
 
-每个插件都能单独使用。`dsh-model-reference` 和 `dsh-service-tier` 一起装时，`#` 标签会带上 ⚡。
+按需安装即可。部分插件需要先启用 dsh 实验 bundle 或配置 provider，具体条件见各包说明。`dsh-model-reference` 和 `dsh-service-tier` 一起装时，`#` 标签会带上 ⚡。
 
 ## 环境要求
 
@@ -41,6 +44,7 @@ seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（
 ```bash
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/model-reference"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/service-tier"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/subagent-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
@@ -49,6 +53,8 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/au
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/git-changes"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/ai-mascot"
 ```
 
 也可以在 Web 界面的 **Plugins** 页粘贴同样的地址安装。安装后 bundle 会自动启用；开启 `patchReload: live` 时无需重启。
@@ -62,7 +68,7 @@ dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
 
 ## 配置
 
-插件设置（`model-reference` 的推理强度、`service-tier` 的快速模型、`auto-review-model` 的模型和提示词，以及 `web-access` 的搜索设置）通过 dsh 的 config editor 写入 profile 的 `cordis.patch.yml`。会话分组另存于 Host 的 `session_groups` storage domain。具体配置见对应包的 README。
+插件设置（`model-reference` 的推理强度、`service-tier` 的快速模型、`auto-review-model` 的模型和提示词，以及 `web-access` 的搜索设置）通过 dsh 的 config editor 写入 profile 的 `cordis.patch.yml`。会话分组和审查日志分别保存在 Host 的 `session_groups`、`auto_review_log` storage domain。AI 小伙伴的位置、尺寸、收起状态与动画偏好保存在浏览器 localStorage，不写入 profile。存储上限和隐私说明见各包 README。
 
 ## 文档
 
@@ -87,4 +93,4 @@ pnpm run check   # oxlint + manifest 校验 + node:test
 
 ## 许可证
 
-[MIT](LICENSE)
+插件代码采用 [MIT](LICENSE)。AI 小伙伴引用的角色素材另有非商业使用条款，不属于 MIT 授权范围，见[素材与署名说明](packages/ai-mascot/README.md#artwork-and-rights)。

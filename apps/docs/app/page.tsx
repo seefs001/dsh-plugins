@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { HomeLayout } from 'fumadocs-ui/layouts/home'
 import {
-  ArrowRight, Brain, FolderTree, Globe, Hash, History, LoaderCircle, Quote, ScanEye, ShieldCheck, Terminal, Zap,
+  ArrowRight, Brain, FolderTree, GitBranch, Globe, Hash, History, LoaderCircle, Quote, ScanEye, ShieldCheck, Sparkles, Terminal, Zap,
 } from 'lucide-react'
 import { baseOptions } from '@/lib/layout.shared'
 import { repository } from '@/lib/site'
@@ -9,14 +9,17 @@ import { repository } from '@/lib/site'
 const plugins = [
   { slug: 'model-reference', icon: Hash, title: '模型引用', tag: 'Host + Web', description: '输入 # 插入模型标签，把推理强度和快速模式一起带进提示词。' },
   { slug: 'service-tier', icon: Zap, title: '快速模式', tag: 'Host + Web', description: '模型选择器旁的一键 ⚡，为 Responses 模型开启优先处理。' },
+  { slug: 'subagent-model', icon: Brain, title: '子代理模型', tag: 'Web', description: '在子代理输入框右下角显示模型与推理强度，主代理选择器保持不变。' },
   { slug: 'remember-model', icon: Brain, title: '记住模型', tag: 'Host', description: '新会话沿用上次选择的模型和推理强度，不用反复切换。' },
   { slug: 'recent-sessions', icon: History, title: '最近会话', tag: 'Web', description: '@ 菜单按最近活动排列会话，更快找到刚才的上下文。' },
-  { slug: 'session-groups', icon: FolderTree, title: '会话分组', tag: 'Host + Web', description: '给会话分组、排序和置顶，浏览器和 Agent 共享同一份状态。' },
+  { slug: 'session-groups', icon: FolderTree, title: '会话分组', tag: 'Host + Web', description: '拖拽会话加入分组，调整组序并在组内置顶，浏览器和 Agent 共享状态。' },
   { slug: 'compaction-status', icon: LoaderCircle, title: '压缩状态', tag: 'Host + Web', description: '输入框上方的一行压缩状态与计时，不必展开过程详情。' },
-  { slug: 'auto-review-model', icon: ShieldCheck, title: '自动审查模型', tag: 'Host + Web', description: '为 Auto review 单独选择模型与审查策略，不影响主对话。' },
+  { slug: 'auto-review-model', icon: ShieldCheck, title: '自动审查模型', tag: 'Host + Web', description: '单独选择审查模型与策略，查看审查日志并跳转到工具调用。' },
   { slug: 'quote-jump', icon: Quote, title: '引用跳转', tag: 'Web', description: '点击引用块回到对话中的原文，让上下文触手可及。' },
   { slug: 'tool-lens', icon: ScanEye, title: '工具透镜', tag: 'Web', description: '直接从工具调用打开技能、完整输出、文件和子会话。' },
   { slug: 'web-access', icon: Globe, title: '联网搜索', tag: 'Host + Web', description: '通过已有 Responses 模型搜索网页与 X，返回带来源的回答。' },
+  { slug: 'git-changes', icon: GitBranch, title: 'Git 改动', tag: 'Web', description: '在输入框下方查看分支与未提交统计，点击打开右侧 diff。' },
+  { slug: 'ai-mascot', icon: Sparkles, title: 'AI 小伙伴', tag: 'Web', description: '可拖动的 GPT / Claude 小伙伴，跟随当前对话的真实活动。' },
 ]
 
 export default function HomePage() {

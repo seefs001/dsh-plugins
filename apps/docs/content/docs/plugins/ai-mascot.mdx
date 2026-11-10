@@ -1,0 +1,63 @@
+---
+title: AI 小伙伴
+description: 跟随当前对话真实活动的 GPT / Claude 小伙伴，可拖动、收起和关闭动画。
+---
+
+`dsh-ai-mascot` 在 Web 界面右下角显示 GPT 或 Claude Q 版角色，跟随当前正在显示的对话切换动作、提示和小道具。它不会被其他后台会话的活动带跑。**仅 Web**。
+
+## 安装
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/ai-mascot"
+```
+
+安装后刷新 Web GUI，打开使用受支持模型的对话。
+
+## 哪些模型会显示？
+
+插件按模型 ID 识别角色，不按 provider 名称识别：
+
+- GPT、ChatGPT、Codex 和 OpenAI o1/o3/o4 模型显示 GPT 角色。
+- Claude 模型显示 Claude 角色。
+- 其他模型不显示角色。OpenAI 兼容 provider 下的其他模型也不会因此被当作 GPT。
+
+切换到全局面板或离开当前对话时，角色隐藏。
+
+## 活动与动作
+
+| 当前对话的活动 | 显示 |
+| --- | --- |
+| 待机 | 安静呼吸，不显示状态气泡或徽标 |
+| 思考 | 轻微歪头和思考点 |
+| 读取文件、图片、技能或网页 | 翻书与轻微点头 |
+| 搜索、grep、glob | 左右观察与搜索标记 |
+| 写入、编辑 | 打字动作和代码道具 |
+| 撰写回复 | 纸张和铅笔，与写代码区分 |
+| Shell、终端或后台任务工具 | 终端道具与闪动提示符 |
+| 子代理或团队协作 | 连接徽标与轻微摇摆 |
+| 等待审批或用户回答 | 稳定的提示，不闪烁催促 |
+| 正常完成回复 | 短暂跳跃和闪光，随后回到待机 |
+| 对话报错 | 短暂轻摇，提示查看对话 |
+
+工具仍在准备时保持“思考”，派发后才按工具类型显示；多个工具并行时，取最近活跃的调用，也包含嵌套调用。停止或报错不会触发完成庆祝。
+
+当前版本用静态正面参考图配合 CSS 和道具动画，不是逐帧精灵图或 Live2D。
+
+## 移动与设置
+
+- 拖动角色调整位置；收起后的 40px 状态按钮也可以拖动，单击可展开。
+- 聚焦角色或收起按钮后，用方向键微调，按住 `Shift` 增大步长。位置会限制在当前视口内。
+- 齿轮菜单提供小 / 标准两种尺寸和动画开关，也可查看角色来源。按 `Escape` 关闭设置。
+- 尊重系统 `prefers-reduced-motion`，没有声音；状态文字不拦截点击。
+
+位置、尺寸、收起状态和动画偏好保存在当前浏览器的 localStorage，键名为 `dsh-ai-mascot:preferences`，不写入 profile，也不在浏览器之间同步。
+
+## 网络、数据与素材
+
+插件只读取当前 Session / Chat 的活动投影，不上传对话，不额外保留 Session，不轮询，也不切换模型或执行工具。
+
+角色参考图从 `selinlee.github.io` 加载，首次使用需要能够访问该站点，并会发送普通图片请求。请求不带对话数据或 referrer。背景透明化只在浏览器内存中完成，不打包或上传处理后的图片；图片加载失败时保留角色名称和活动提示。
+
+<Callout type="warn" title="素材不属于插件的 MIT 授权">
+角色原设为 [ZipZipPipe](https://www.pixiv.net/users/18604994)，Q 版参考来自 [AI Moe Atlas](https://selinlee.github.io/ai-moe-atlas/zh/chibi/)。[素材权利声明](https://github.com/SelinLee/ai-moe-atlas/blob/main/RIGHTS.md)要求署名并禁止商业使用。代码的 MIT 许可证不授予角色素材的使用权，远程引用和署名也不能代替授权。用于商业、素材再分发或更广泛发布前，应取得许可或更换为已授权素材。角色和插件均非 OpenAI / Anthropic 官方产品。
+</Callout>

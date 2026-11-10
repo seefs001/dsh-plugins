@@ -64,6 +64,8 @@ importers:
 
   packages/compaction-status: {}
 
+  packages/git-changes: {}
+
   packages/model-reference: {}
 
   packages/quote-jump: {}
@@ -75,6 +77,8 @@ importers:
   packages/service-tier: {}
 
   packages/session-groups: {}
+
+  packages/subagent-model: {}
 
   packages/tool-lens: {}
 

@@ -49,6 +49,7 @@ github:seefs001/dsh-plugins#main&path:/packages/model-reference
 
 ```bash title="模型工作流"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/service-tier"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/subagent-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
 ```
@@ -61,13 +62,20 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/qu
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
 ```
 
-```bash title="联网搜索"
+```bash title="联网搜索、Git 改动与对话小伙伴"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/git-changes"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/ai-mascot"
 ```
 
 <Callout type="warn" title="额外依赖">
-自动审查模型需要先启用 `@deepseek-ai/dsh-experimental-auto-review`。会话分组需要 `@deepseek-ai/dsh-storage-domain`，默认 profiles 已包含。联网搜索需要支持托管搜索的 Responses provider。
+- 自动审查模型需要先启用 `@deepseek-ai/dsh-experimental-auto-review`。
+- 会话分组和审查日志使用 `@deepseek-ai/dsh-storage-domain`，默认 profiles 已包含。
+- 联网搜索需要支持托管搜索的 Responses provider，并在 Plugins 页选好搜索模型。
+- Git 改动需要先启用 **Change requests & worktrees**（`@deepseek-ai/dsh-experimental-forge-bundle`）。
 </Callout>
+
+[AI 小伙伴](/docs/plugins/ai-mascot) 只在当前显示的模型匹配 GPT / Claude 时出现，需要从外部站点加载角色图。素材另有非商业使用条款，不属于插件代码的 MIT 授权。
 
 ## 从本地源码安装
 
@@ -84,4 +92,7 @@ dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
 - Web 插件只作用于浏览器界面，刷新页面后再试。
 - 没有开启 `patchReload: live` 时，重启 dsh 加载 Host 变更。
 - ⚡ 只在 `openai-responses` 模型旁出现；联网搜索还需到 Plugins 页选模型并保存。
+- [子代理模型](</docs/plugins/subagent-model>) 只在子代理会话显示，不提供选模入口；“尚无模型记录”表示子代理还没有记录模型选择。
+- Git 改动入口没有出现时，确认 Change requests & worktrees 已启用，且当前会话位于 Git 仓库中。
+- AI 小伙伴在其他模型、全局面板中不会显示；图片加载还取决于浏览器能否访问素材站点。
 - 若 dsh 超出支持范围，先核对对应插件的兼容性说明。

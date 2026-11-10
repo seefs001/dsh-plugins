@@ -2,7 +2,7 @@
   "name": "dsh-plugins",
   "version": "0.0.0",
   "private": true,
-  "description": "seefs's plugin collection for DeepSeek Harness (dsh): # model references, fast mode, remembered models and recent-first @ sessions.",
+  "description": "seefs's plugin collection for DeepSeek Harness (dsh): model selection, session management, web search, Git diffs, and conversation companions.",
   "license": "MIT",
   "author": "seefs001",
   "repository": {
