@@ -23,6 +23,8 @@ endpoint、API Key 和额外 headers 复用 provider 的 `baseURL`、`apiKeyEnv`
 
 保存会重启插件并重新注册工具。只有 provider 路由存在且 key 可以解析时，工具才提供给模型。页面显示 **Ready** 或具体不可用原因。
 
+每个模型步骤开始前，只要有可用的自定义网页搜索，就为该 Agent 隐藏原生 `web_search`。全部关闭、路由或密钥不可用，或停用插件后，会解除限制，让原生搜索按原有可用性规则恢复。Grok 仅开启 X 搜索时不会替代网页搜索。`web_fetch` 和原生 provider 保持不变。可用性检查不探测上游是否支持搜索，也不会在 HTTP 报错后自动切回原生搜索。
+
 ## 配置示例
 
 这里的 `responses` 和模型 ID 都是示例，请替换为 Host 实际配置的路由与模型。

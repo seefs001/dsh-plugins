@@ -523,13 +523,47 @@ export function parseSettings(body) {
 
 export function apply(ctx, config) {
   const settings = settingsOf(config)
+  const webSearchTools = []
   for (const kind of Object.keys(KINDS)) {
     const b = settings[kind]
     const reason = unusable(b)
     if (reason !== undefined) continue
     // Offered only while the route resolves and its key is present.
-    ctx.tools.register(toolOf(ctx, b, settings.timeoutMs), { when: () => ready(ctx, b) })
+    const definition = toolOf(ctx, b, settings.timeoutMs)
+    ctx.tools.register(definition, { when: () => ready(ctx, b) })
+    if (b.tools.includes('web_search')) webSearchTools.push({ backend: b, definition })
   }
+
+  // Mask only the redundant search tool, never web_fetch or its providers.
+  // Agent scope owns each restriction; plugin unload also lifts every mask.
+  const restrictions = new Map()
+  let disposed = false
+  const restore = agent => {
+    restrictions.get(agent)?.()
+    restrictions.delete(agent)
+  }
+  ctx.effect(() => () => {
+    disposed = true
+    for (const release of restrictions.values()) release()
+    restrictions.clear()
+  }, 'web-access: restore native search')
+  ctx.on('agent/disposed', ({ agent }) => restore(agent))
+  ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
+    let replacesSearch = false
+    for (const { backend, definition } of webSearchTools) {
+      if (ctx.tools.get(definition.name, agent) === definition && await ready(ctx, backend)) {
+        replacesSearch = true
+        break
+      }
+    }
+    signal.throwIfAborted()
+    if (disposed) return next()
+    if (!replacesSearch) restore(agent)
+    else if (!restrictions.has(agent) && ctx.tools.get('web_search', agent) !== undefined) {
+      restrictions.set(agent, agent.ctx.tools.restrict({ deny: ['web_search'] }))
+    }
+    return next()
+  })
 
   const rejected = (req, res) => {
     const rejection = ctx.connection.requestRejection(req)
