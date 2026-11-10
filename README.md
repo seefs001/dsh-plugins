@@ -20,6 +20,7 @@ English | [中文](README.zh.md)
 | [`dsh-remember-model`](packages/remember-model) | New sessions start on the model and reasoning effort you picked last. | Host |
 | [`dsh-recent-sessions`](packages/recent-sessions) | Sessions in the `@` menu are listed by last activity, newest first. | Web |
 | [`dsh-session-groups`](packages/session-groups) | Custom session groups in a sidebar panel, with pinned sessions leading each group. | Host + Web |
+| [`dsh-compaction-status`](packages/compaction-status) | A compact status and elapsed timer above the composer during automatic compaction or `/compact`. | Host + Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | Pick the model and review prompt that Auto review uses to judge tool calls. Needs `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Quotes in user messages become blocks; clicking one scrolls to the quoted text and highlights it. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Richer tool-call rows. The skill row opens the skill's `SKILL.md` in the right sidebar. | Web |
@@ -43,6 +44,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/se
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/compaction-status"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
@@ -64,7 +66,7 @@ Plugin settings (`model-reference` efforts, `service-tier` fast models, `auto-re
 
 ## Documentation
 
-The [documentation site](https://seefs001.github.io/dsh-plugins/) uses Fumadocs and includes a GitHub Pages deployment workflow. It covers installation, all nine plugins, configuration, and development.
+The [documentation site](https://seefs001.github.io/dsh-plugins/) uses Fumadocs and includes a GitHub Pages deployment workflow. It covers installation, all plugins, configuration, and development.
 
 ```bash
 pnpm run docs:dev        # local preview

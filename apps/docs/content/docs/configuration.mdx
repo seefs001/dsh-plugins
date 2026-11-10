@@ -16,7 +16,7 @@ description: 区分插件设置、默认模型与会话分组的存储位置。
 | `web-access` | 搜索模型、搜索类型与超时 | profile 的 `cordis.patch.yml`，该插件配置 |
 | `session-groups` | 分组、成员、排序与置顶 | Host 的 `session_groups` storage domain |
 
-`recent-sessions`、`quote-jump` 和 `tool-lens` 没有需要手动设置的插件配置。
+`recent-sessions`、`quote-jump`、`tool-lens` 和 `compaction-status` 没有需要手动设置的插件配置。压缩状态从原生会话事件派生 projection，不另存自定义会话记录或浏览器偏好，详见[压缩状态](/docs/plugins/compaction-status)。
 
 <Callout>
 会话分组不是保存在 `cordis.patch.yml` 里。默认 JSON 存储后端使用 `~/.dsh/storages/session_groups.json`，实际位置取决于 Host 的 storage domain 配置。

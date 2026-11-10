@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Compaction status",
+    "description": "Shows ongoing context compaction and elapsed time above the composer, outside folded process details."
+  }
+}

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `dsh-compaction-status` 0.1.0: a compact, single-line compaction indicator above the composer, aligned with the native task dock. Shows elapsed time for automatic compaction and `/compact` without changing compaction behavior.
 - `dsh-session-groups` 1.0.0: custom session groups in a sidebar panel, with pinned sessions leading each group and a searchable add-session picker.
 - `dsh-auto-review-model` 1.0.0: pick the model, reasoning effort and review prompt that Auto review uses to judge tool calls. A composer chip shows the review model in Auto mode and opens a per-session review log that jumps to each reviewed tool call.
 - `dsh-quote-jump` 1.0.0: quotes in user messages become blocks that scroll to the quoted text and highlight it.

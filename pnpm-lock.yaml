@@ -62,6 +62,8 @@ importers:
 
   packages/auto-review-model: {}
 
+  packages/compaction-status: {}
+
   packages/model-reference: {}
 
   packages/quote-jump: {}

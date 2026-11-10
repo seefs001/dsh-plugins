@@ -20,6 +20,7 @@ seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（
 | [`dsh-remember-model`](packages/remember-model) | 新会话沿用你上次选择的模型和推理强度。 | Host |
 | [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序，最新的在前。 | Web |
 | [`dsh-session-groups`](packages/session-groups) | 在侧边栏面板里自定义会话分组，组内置顶的会话排在前面。 | Host + Web |
+| [`dsh-compaction-status`](packages/compaction-status) | 自动压缩或 `/compact` 时，在输入框上方显示紧凑的状态与已等待时间。 | Host + Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | 指定自动审查判断工具调用时用的模型和审查提示词。需要启用 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 用户消息里的引用显示为引用块，点击后滚动到原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 更好用的工具调用行。技能行可在右侧边栏打开该技能的 `SKILL.md`。 | Web |
@@ -43,6 +44,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/se
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/compaction-status"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
@@ -64,7 +66,7 @@ dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
 
 ## 文档
 
-[文档站](https://seefs001.github.io/dsh-plugins/)使用 Fumadocs，已配置 GitHub Pages 部署工作流，包含安装指南、全部 9 个插件、配置与开发说明。
+[文档站](https://seefs001.github.io/dsh-plugins/)使用 Fumadocs，已配置 GitHub Pages 部署工作流，包含安装指南、全部插件、配置与开发说明。
 
 ```bash
 pnpm run docs:dev        # 本地预览

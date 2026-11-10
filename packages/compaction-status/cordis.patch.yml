@@ -1,0 +1,3 @@
+- insert:
+    - id: compaction-status
+      name: dsh-compaction-status
