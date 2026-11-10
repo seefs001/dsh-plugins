@@ -7,6 +7,12 @@ Pick which model, and optionally which review prompt, Auto review (`@deepseek-ai
 1. Enable `@deepseek-ai/dsh-experimental-auto-review` and install this bundle.
 2. Open **Plugins → dsh-auto-review-model**. The model list is the Host's live model catalog, the same as the composer's model picker.
 3. Choose a model and, optionally, a reasoning effort, then **Save**. "Same as session" restores the built-in behavior.
+4. While a session's permission mode is Auto review, the composer tool row shows a **Review: <model>** chip with a count of this session's reviews (red `denied/total` when any review denied or failed). Hover it for the provider, effort, and prompt mode. The chip turns amber when the configured provider is not loaded and reviews fall back to the session model.
+5. Click the chip to open this session's review log: time, tool, verdict and risk, the deny reason or failure, and on expand the reviewer model, latency, and the reviewed arguments. **Review settings** in its header opens this plugin's settings; **Clear** deletes the session's records.
+
+## Review log
+
+Every Auto review request carries its Session id. The Host half passes the reviewer stream through unchanged and, when it ends, appends one entry to the `auto_review_log` storage domain (one JSON document per session, `per-record` layout under `~/.dsh/storages` with the json backend). It keeps the latest 200 reviews per session and the 300 most recently reviewed sessions. Arguments are cut to 4,000 characters and reasons to 2,000. Arguments can contain sensitive values; they stay on this machine, and **Clear** removes them. The verdict shown mirrors Auto review's own parser; a review that fails before or after the reviewer answers (for example, an abort) is recorded as failed.
 
 ## Config
 
@@ -26,7 +32,7 @@ Pick which model, and optionally which review prompt, Auto review (`@deepseek-ai
 
 ## How it works
 
-A prepended `llm/stream` listener matches `purpose === "auto-review"`, copies the frozen request with the configured route and system prompt, and starts a new `llm.stream()` for the copy. Every other `llm/stream` listener still sees the rerouted request once. If the configured provider is not loaded, the review keeps the session model and a warning is logged.
+A prepended `llm/stream` listener matches `purpose === "auto-review"`, copies the frozen request with the configured route and system prompt, and starts a new `llm.stream()` for the copy. The copy drops `temperature`: Auto review pins it to 0, and reasoning models reject any sampling temperature. Every other `llm/stream` listener still sees the rerouted request once. If the configured provider is not loaded, the review keeps the session model and a warning is logged.
 
 ## Caveats
 

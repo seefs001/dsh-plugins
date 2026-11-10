@@ -9,9 +9,16 @@ window.__ModuleLoader__.load({
   id: 'dsh-auto-review-model',
   factory(require) {
     const React = require('react')
+    const ReactDOM = require('react-dom')
     const h = React.createElement
+    // Mirrors MAX_ENTRIES in the Host half.
+    const MAX_LOG = 200
+    // The panel shows this many newest reviews at a time and never grows taller than PANEL_MAX_HEIGHT.
+    const PAGE_SIZE = 20
+    const PANEL_MAX_HEIGHT = 360
     const NS = 'auto-review-model'
     const KEY = 'dsh-auto-review-model'
+    const PACKAGE = 'dsh-auto-review-model'
     const SEP = '\u0000'
 
     const en = {
@@ -42,6 +49,36 @@ window.__ModuleLoader__.load({
       loadDefault: 'Load built-in prompt',
       defaultUnknown: 'The built-in prompt becomes available after Auto review runs once.',
       restartNeeded: 'The Host is still running an older version of this plugin. Restart dsh to enable review prompt settings.',
+      chipPrefix: 'Review',
+      chipSession: 'Same as session',
+      chipTitle: 'Auto review model: {model}',
+      chipTitleSession: 'Auto review uses this session\'s model (the composer model picker).',
+      chipMissing: 'Provider "{provider}" is not available; Auto review falls back to the session model.',
+      chipPrompt: 'Review prompt: {mode}',
+      chipOpen: 'Click to change the review model.',
+      chipOpenLog: 'Click to see this session\'s reviews.',
+      logTitle: 'Auto reviews in this session',
+      logSummary: '{allow} allowed · {deny} denied · {fail} failed',
+      logSettings: 'Review settings',
+      logClear: 'Clear',
+      logClearConfirm: 'Delete the stored review records of this session?',
+      logLoading: 'Loading…',
+      logEmpty: 'No reviews yet. Each tool call reviewed in Auto mode appears here.',
+      logUnavailable: 'The Host is still running an older version of this plugin. Restart dsh to record reviews.',
+      logLimit: 'Keeps the latest {n} reviews per session, stored on this machine.',
+      logAllow: 'Allowed',
+      logDeny: 'Denied',
+      logFailed: 'Review failed',
+      logInvalid: 'Invalid answer',
+      logRaw: 'Reviewer said:',
+      logSessionModel: 'session model',
+      logMore: 'Show older ({n} more)',
+      logJump: 'Jump to this tool call',
+      logJumpPtc: 'Jump to the run_code call that made this call',
+      logJumpMissing: 'This call is not in the loaded conversation. Scroll up to load older messages, then try again.',
+      risk_low: 'low',
+      risk_medium: 'medium',
+      risk_high: 'high',
     }
     const zh = {
       title: '自动审查模型',
@@ -71,6 +108,36 @@ window.__ModuleLoader__.load({
       loadDefault: '载入内置提示词',
       defaultUnknown: '内置提示词要在自动审查运行过一次后才能载入。',
       restartNeeded: 'Host 仍在运行旧版插件，重启 dsh 后才能使用审查提示词设置。',
+      chipPrefix: '审查',
+      chipSession: '跟随会话',
+      chipTitle: '自动审查模型：{model}',
+      chipTitleSession: '自动审查使用当前会话的模型（即输入框模型选择器里的模型）。',
+      chipMissing: 'Provider「{provider}」当前不可用，自动审查会回退到会话模型。',
+      chipPrompt: '审查提示词：{mode}',
+      chipOpen: '点击修改审查模型。',
+      chipOpenLog: '点击查看本会话的审查记录。',
+      logTitle: '本会话的自动审查',
+      logSummary: '放行 {allow} · 拒绝 {deny} · 失败 {fail}',
+      logSettings: '审查设置',
+      logClear: '清空',
+      logClearConfirm: '删除本会话已保存的审查记录？',
+      logLoading: '加载中…',
+      logEmpty: '还没有审查记录。自动审查模式下每次工具调用都会出现在这里。',
+      logUnavailable: 'Host 仍在运行旧版插件，重启 dsh 后才会记录审查。',
+      logLimit: '每个会话保留最近 {n} 条，存储在本机。',
+      logAllow: '放行',
+      logDeny: '拒绝',
+      logFailed: '审查失败',
+      logInvalid: '回复不合规',
+      logRaw: '审查模型回复：',
+      logSessionModel: '会话模型',
+      logMore: '显示更早的（还有 {n} 条）',
+      logJump: '跳转到这次工具调用',
+      logJumpPtc: '跳转到发起这次调用的 run_code',
+      logJumpMissing: '这次调用不在已加载的对话里。往上滚动加载更早的消息后再试。',
+      risk_low: '低风险',
+      risk_medium: '中风险',
+      risk_high: '高风险',
     }
 
     const CSS = `
@@ -120,11 +187,295 @@ window.__ModuleLoader__.load({
       }
     }
 
+    const CHIP_CSS = `
+.arm-chip{display:inline-flex;align-items:center;gap:4px;max-width:220px;height:24px;padding:0 8px;border:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);border-radius:999px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:22px;white-space:nowrap;cursor:default;user-select:none}
+button.arm-chip{background:transparent;font:inherit;font-size:12px;cursor:pointer;transition:background-color .15s}
+button.arm-chip:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
+button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:1px}
+.arm-chip b{font-weight:500;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis}
+.arm-chip.warn{border-color:var(--dsw-alias-state-warn-primary);color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.arm-chip.warn b{color:inherit}
+.arm-chip-count{min-width:16px;padding:0 5px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.15));font-size:11px;line-height:16px;text-align:center}
+.arm-chip-count.err{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-label-primary-inverted,#fff)}
+.arm-pop{position:fixed;z-index:1000;display:flex;flex-direction:column;border:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-elevated,var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base)));box-shadow:0 8px 28px rgba(0,0,0,.18);color:var(--dsw-alias-label-primary);font-size:12px;line-height:18px;overflow:hidden}
+.arm-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 12px;border-bottom:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l1)}
+.arm-pop-title{font-size:13px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arm-pop-actions{display:flex;gap:4px;flex:none}
+.arm-pop-btn{height:24px;padding:0 10px;border:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}
+.arm-pop-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
+.arm-pop-btn:disabled{opacity:.4;cursor:default}
+.arm-pop-empty{padding:16px 12px;color:var(--dsw-alias-label-secondary)}
+.arm-pop-foot{padding:6px 12px;border-top:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));font-size:11px}
+.arm-log{margin:0;padding:4px 0;list-style:none;overflow-y:auto;min-height:0;flex:1}
+.arm-log-row{padding:0 4px}
+.arm-log-line{display:flex;align-items:center;gap:2px}
+.arm-log-more{display:flex;justify-content:center;padding:6px 0 4px}
+.arm-log-detail .arm-log-args{max-height:96px}
+.arm-log-line>.arm-log-head{flex:1;min-width:0}
+.arm-log-jump{flex:none;width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer}
+.arm-log-jump:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}
+.arm-log-jump:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary))}
+.arm-log-reason.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+[data-arm-flash]{border-radius:8px;animation:arm-flash 1600ms ease-out forwards}
+@keyframes arm-flash{0%,40%{box-shadow:0 0 0 2px var(--dsw-alias-link,var(--dsw-alias-brand-primary))}100%{box-shadow:0 0 0 2px transparent}}
+.arm-log-head{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:5px 8px;border:0;border-radius:6px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.arm-log-head:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
+.arm-log-time,.arm-log-dim{color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
+.arm-log-tool{font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arm-log-verdict{white-space:nowrap}
+.arm-log-verdict.ok{color:var(--dsw-alias-state-success-primary)}
+.arm-log-verdict.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.arm-log-verdict.err{color:var(--dsw-alias-state-error-primary)}
+.arm-log-reason{padding:0 8px 4px 74px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arm-log-reason.full{padding:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.arm-log-detail{display:flex;flex-direction:column;gap:4px;padding:2px 8px 8px 74px}
+.arm-log-meta{color:var(--dsw-alias-label-secondary)}
+.arm-log-args{margin:0;max-height:160px;overflow:auto;padding:6px 8px;border-radius:6px;background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-layer-2));font:11px/1.5 "SF Mono","JetBrains Mono",ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+`
+
     return {
       inject: ['slots', 'locale', 'remote', 'remote.session'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'auto-review-model: dictionaries')
         const t = ctx.locale.bind(NS)
+
+        // Shared snapshot of the saved review route and the model catalog, read by every composer chip.
+        let shared = { config: null, groups: [] }
+        const listeners = new Set()
+        const publish = next => { shared = { ...shared, ...next }; listeners.forEach(fn => fn()) }
+        const refreshConfig = () => getJson('auto-review-model/state').then(raw => publish({ config: normalize(raw) })).catch(() => {})
+        const refreshCatalog = () => ctx.remote.session.modelCatalog()
+          .then(res => { if (res.ok) publish({ groups: res.value.groups }) }).catch(() => {})
+        const refreshAll = () => { refreshConfig(); refreshCatalog() }
+        const subscribe = fn => {
+          if (listeners.size === 0) refreshAll()
+          listeners.add(fn)
+          return () => listeners.delete(fn)
+        }
+        ctx.effect(() => {
+          const offs = [
+            ctx.remote.$on('llm/adapters-updated', refreshCatalog),
+            ctx.remote.$on('settings/document-updated', refreshAll),
+          ]
+          // Saving restarts the Host half; refresh when the user comes back to the tab.
+          window.addEventListener('focus', refreshConfig)
+          return () => { offs.forEach(off => { try { off() } catch {} }); window.removeEventListener('focus', refreshConfig) }
+        }, 'auto-review-model: chip data')
+
+        /** Follow one session's stored review log over SSE while mounted. */
+        function useReviewLog(sessionId, enabled) {
+          const [log, setLog] = React.useState({ status: 'loading', entries: [] })
+          React.useEffect(() => {
+            if (!enabled || !sessionId) return undefined
+            const es = new EventSource(`auto-review-model/log/events?session=${encodeURIComponent(sessionId)}`)
+            es.onmessage = e => {
+              let data = null
+              try { data = JSON.parse(e.data) } catch {}
+              if (data && Array.isArray(data.entries)) setLog({ status: 'ready', entries: data.entries })
+            }
+            // An older Host has no log route; the browser keeps retrying, so stop after the first failure before any data.
+            es.onerror = () => setLog(l => {
+              if (l.status === 'loading') { es.close(); return { status: 'unavailable', entries: [] } }
+              return l
+            })
+            return () => es.close()
+          }, [sessionId, enabled])
+          return log
+        }
+
+        const fmtTime = at => {
+          const d = new Date(at)
+          const p = n => String(n).padStart(2, '0')
+          return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+        }
+        const fmtMs = ms => (ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`)
+
+        /** Verdict label and tone for one entry. */
+        function verdictOf(e) {
+          if (e.status === 'error') return { tone: 'err', text: t('logFailed') }
+          if (e.status === 'invalid') return { tone: 'err', text: t('logInvalid') }
+          return { tone: e.decision === 'allow' ? (e.risk === 'low' ? 'ok' : 'warn') : 'err', text: `${t(e.decision === 'allow' ? 'logAllow' : 'logDeny')} · ${t(`risk_${e.risk}`)}` }
+        }
+
+        /** Open folded ancestors: `hidden="until-found"` rows listen for beforematch, details open directly. */
+        function reveal(el) {
+          let changed = false
+          for (let p = el.parentElement; p !== null; p = p.parentElement) {
+            if (p.hidden || p.getAttribute('hidden') === 'until-found') { p.dispatchEvent(new Event('beforematch', { bubbles: true })); changed = true }
+            if (p.tagName === 'DETAILS' && !p.open) { p.open = true; changed = true }
+          }
+          return changed
+        }
+
+        const findCard = id => document.querySelector(`[data-chat-call-id="${CSS.escape(id)}"]`)
+
+        /** Scroll instantly: a smooth scroll lasts long enough for the Chat's tail-follow to undo it. */
+        function land(card) {
+          const scroller = card.closest('[data-conversation-scroll]')
+          if (scroller !== null) {
+            const rect = card.getBoundingClientRect()
+            const box = scroller.getBoundingClientRect()
+            scroller.scrollTop += rect.height > box.height * 0.6
+              ? rect.top - box.top - 80
+              : rect.top + rect.height / 2 - (box.top + box.height / 2)
+          } else card.scrollIntoView({ block: 'center', behavior: 'instant' })
+        }
+
+        let flashed = null
+        let flashTimer = null
+        /** Scroll the tool card of one reviewed call into view and flash it; `false` when it is not loaded. */
+        function jumpToCall(id) {
+          let card = findCard(id)
+          if (card === null) return false
+          if (reveal(card)) card = findCard(id) ?? card
+          land(card)
+          // Re-land once if the Chat's own scroll logic moved the view back.
+          setTimeout(() => { const again = findCard(id); if (again !== null) land(again) }, 150)
+          if (flashed !== null) flashed.removeAttribute('data-arm-flash')
+          if (flashTimer !== null) clearTimeout(flashTimer)
+          flashed = card
+          card.removeAttribute('data-arm-flash')
+          void card.offsetWidth
+          card.setAttribute('data-arm-flash', '')
+          flashTimer = setTimeout(() => { card.removeAttribute('data-arm-flash'); flashed = null; flashTimer = null }, 1600)
+          return true
+        }
+
+        function ReviewRow({ entry, onJump }) {
+          const [open, setOpen] = React.useState(false)
+          const [missing, setMissing] = React.useState(false)
+          const v = verdictOf(entry)
+          const detail = entry.reason ?? entry.error ?? (entry.raw !== undefined ? `${t('logRaw')} ${entry.raw}` : undefined)
+          const target = entry.rootCallId || entry.callId
+          const jump = () => {
+            if (onJump(target)) setMissing(false)
+            else setMissing(true)
+          }
+          return h('li', { className: 'arm-log-row' },
+            h('div', { className: 'arm-log-line' },
+              h('button', { type: 'button', className: 'arm-log-head', onClick: () => setOpen(!open), 'aria-expanded': open },
+                h('span', { className: 'arm-log-time' }, fmtTime(entry.at)),
+                h('span', { className: 'arm-log-tool' }, entry.tool || '?', entry.mode === 'ptc-inner' ? h('span', { className: 'arm-log-dim' }, ' (PTC)') : null),
+                h('span', { className: `arm-log-verdict ${v.tone}` }, v.text)),
+              target ? h('button', {
+                type: 'button', className: 'arm-log-jump', onClick: jump,
+                title: t(entry.mode === 'ptc-inner' ? 'logJumpPtc' : 'logJump'), 'aria-label': t('logJump'),
+              }, '↗') : null),
+            missing ? h('div', { className: 'arm-log-reason warn' }, t('logJumpMissing')) : null,
+            detail === undefined || open ? null : h('div', { className: 'arm-log-reason' }, detail),
+            open ? h('div', { className: 'arm-log-detail' },
+              detail === undefined ? null : h('div', { className: 'arm-log-reason full' }, detail),
+              h('div', { className: 'arm-log-meta' },
+                `${entry.provider}/${entry.model}${entry.effort ? ` (${entry.effort})` : ''}`,
+                entry.routed ? '' : ` · ${t('logSessionModel')}`,
+                ` · ${fmtMs(entry.ms)}`),
+              entry.args ? h('pre', { className: 'arm-log-args' }, entry.args) : null) : null)
+        }
+
+        function ReviewPanel({ anchor, log, sessionId, onClose }) {
+          const ref = React.useRef(null)
+          const [pos, setPos] = React.useState(null)
+          const [clearing, setClearing] = React.useState(false)
+          React.useLayoutEffect(() => {
+            const place = () => {
+              const r = anchor.current?.getBoundingClientRect()
+              if (!r) return
+              const width = Math.min(440, window.innerWidth - 16)
+              // Cap the height so a long log scrolls inside the panel instead of growing up the page.
+              setPos({ left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)), bottom: window.innerHeight - r.top + 6, width, maxHeight: Math.min(PANEL_MAX_HEIGHT, Math.max(160, r.top - 16)) })
+            }
+            place()
+            window.addEventListener('resize', place)
+            return () => window.removeEventListener('resize', place)
+          }, [anchor])
+          React.useEffect(() => {
+            const onDown = e => {
+              if (ref.current?.contains(e.target) || anchor.current?.contains(e.target)) return
+              onClose()
+            }
+            const onKey = e => { if (e.key === 'Escape') onClose() }
+            document.addEventListener('pointerdown', onDown, true)
+            document.addEventListener('keydown', onKey)
+            return () => { document.removeEventListener('pointerdown', onDown, true); document.removeEventListener('keydown', onKey) }
+          }, [anchor, onClose])
+          const nav = ctx.get('pluginNavigation')
+          const [shown, setShown] = React.useState(PAGE_SIZE)
+          const entries = log.entries.slice().reverse()
+          const visible = entries.slice(0, shown)
+          const hidden = entries.length - visible.length
+          const counts = { allow: 0, deny: 0, fail: 0 }
+          for (const e of log.entries) {
+            if (e.status !== 'ok') counts.fail++
+            else if (e.decision === 'allow') counts.allow++
+            else counts.deny++
+          }
+          const clear = async () => {
+            if (!window.confirm(t('logClearConfirm'))) return
+            setClearing(true)
+            try { await getJson(`auto-review-model/log/clear?session=${encodeURIComponent(sessionId)}`, { method: 'POST', body: '{}' }) } catch {}
+            setClearing(false)
+          }
+          if (pos === null) return null
+          return ReactDOM.createPortal(h('div', {
+            ref, className: 'arm-pop', role: 'dialog', 'aria-label': t('logTitle'),
+            style: { left: pos.left, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight },
+          },
+            h('style', null, CHIP_CSS),
+            h('div', { className: 'arm-pop-head' },
+              h('div', { className: 'arm-pop-title' }, t('logTitle'),
+                log.status === 'ready' ? h('span', { className: 'arm-log-dim' }, ` ${t('logSummary', { allow: counts.allow, deny: counts.deny, fail: counts.fail })}`) : null),
+              h('div', { className: 'arm-pop-actions' },
+                nav === undefined ? null : h('button', { type: 'button', className: 'arm-pop-btn', onClick: () => { onClose(); nav.openBundle(PACKAGE) } }, t('logSettings')),
+                entries.length === 0 ? null : h('button', { type: 'button', className: 'arm-pop-btn', disabled: clearing, onClick: clear }, t('logClear')))),
+            log.status === 'loading' ? h('div', { className: 'arm-pop-empty' }, t('logLoading'))
+              : log.status === 'unavailable' ? h('div', { className: 'arm-pop-empty' }, t('logUnavailable'))
+              : entries.length === 0 ? h('div', { className: 'arm-pop-empty' }, t('logEmpty'))
+              : h('ul', { className: 'arm-log' },
+                visible.map(e => h(ReviewRow, { key: e.id, entry: e, onJump: id => { const ok = jumpToCall(id); if (ok) onClose(); return ok } })),
+                hidden === 0 ? null : h('li', { className: 'arm-log-more' },
+                  h('button', { type: 'button', className: 'arm-pop-btn', onClick: () => setShown(n => n + PAGE_SIZE) }, t('logMore', { n: hidden })))),
+            h('div', { className: 'arm-pop-foot' }, t('logLimit', { n: MAX_LOG }))), document.body)
+        }
+
+        function ReviewChip({ useProjection, sessionId }) {
+          React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
+          const data = React.useSyncExternalStore(subscribe, () => shared)
+          const permissions = useProjection('permissions')
+          const auto = permissions?.currentValue === 'auto'
+          const log = useReviewLog(sessionId, auto)
+          const [open, setOpen] = React.useState(false)
+          const anchor = React.useRef(null)
+          const close = React.useCallback(() => setOpen(false), [])
+          if (!auto || data.config === null) return null
+          const { provider, model, reasoningEffort, promptMode } = data.config
+          const group = data.groups.find(g => g.id === provider)
+          const found = group?.models.find(m => m.id === model)
+          const missing = provider !== '' && data.groups.length > 0 && group === undefined
+          const name = provider === '' ? t('chipSession') : (found?.name ?? model) + (reasoningEffort ? ` · ${reasoningEffort}` : '')
+          const lines = [provider === '' ? t('chipTitleSession') : t('chipTitle', { model: `${group?.name ?? provider} / ${found?.name ?? model}${reasoningEffort ? ` (${reasoningEffort})` : ''}` })]
+          if (missing) lines.push(t('chipMissing', { provider }))
+          if (promptMode !== 'default') lines.push(t('chipPrompt', { mode: t(promptMode === 'append' ? 'modeAppend' : 'modeReplace') }))
+          lines.push(t('chipOpenLog'))
+          const total = log.entries.length
+          const denied = log.entries.filter(e => e.status !== 'ok' || e.decision === 'deny').length
+          return h(React.Fragment, null,
+            h('button', {
+              ref: anchor, type: 'button', onClick: () => setOpen(!open), 'aria-expanded': open, 'aria-haspopup': 'dialog',
+              className: missing ? 'arm-chip warn' : 'arm-chip', title: lines.join('\n'), 'aria-label': lines.join(' '),
+            },
+              h('style', null, CHIP_CSS),
+              h('span', null, t('chipPrefix')),
+              h('b', null, name),
+              total === 0 ? null : h('span', { className: denied > 0 ? 'arm-chip-count err' : 'arm-chip-count' }, denied > 0 ? `${denied}/${total}` : String(total))),
+            open ? h(ReviewPanel, { anchor, log, sessionId, onClose: close }) : null)
+        }
+
+        ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
+          name: 'conversation.input.left',
+          id: 'auto-review-model.chip',
+          order: 100,
+          locale: NS,
+        }, ReviewChip))
 
         function Settings() {
           React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
@@ -192,6 +543,7 @@ window.__ModuleLoader__.load({
               const s = normalize(await getJson('auto-review-model/set', { method: 'POST', body: JSON.stringify(body) }))
               setSaved(s)
               setDraft(s)
+              publish({ config: s })
               setStatus({ kind: 'ok' })
             } catch (e) {
               setStatus({ kind: 'err', message: e.message })
