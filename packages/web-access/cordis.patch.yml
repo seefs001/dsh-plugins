@@ -1,0 +1,21 @@
+# Bundle patch layer: the row loads lib/index.js as the Host half (the
+# grok_search / openai_search tools and the settings routes); the `dsh.client`
+# declaration makes the web app load lib/client.js, the settings on this
+# bundle's Plugins page.
+- insert:
+    - id: web-access
+      name: dsh-web-access
+      config:
+        timeoutMs: 120000
+        # provider/model: a local llm-pi-ai route with api openai-responses.
+        # Endpoint and key come from that route. Empty = tool not offered.
+        grok:
+          enabled: true
+          provider: ''
+          model: ''
+          tools: [web_search, x_search]
+        openai:
+          enabled: true
+          provider: ''
+          model: ''
+          tools: [web_search]

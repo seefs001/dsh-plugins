@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Web access",
+    "description": "Adds grok_search (web + X) and openai_search tools. Pick a local Responses model and search type for each on this page."
+  }
+}

@@ -23,6 +23,7 @@ English | [中文](README.zh.md)
 | [`dsh-auto-review-model`](packages/auto-review-model) | Pick the model and review prompt that Auto review uses to judge tool calls. Needs `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Quotes in user messages become blocks; clicking one scrolls to the quoted text and highlights it. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Richer tool-call rows. The skill row opens the skill's `SKILL.md` in the right sidebar. | Web |
+| [`dsh-web-access`](packages/web-access) | `grok_search` (web + X) and `openai_search` tools. Pick a local Responses model and search type on the Plugins page. | Host + Web |
 
 Each plugin works on its own. `dsh-model-reference` and `dsh-service-tier` work well together: with both installed, `#` chips also carry ⚡.
 
@@ -45,6 +46,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/se
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
 ```
 
 You can also use the **Plugins** page in the Web GUI and paste the same spec. Installing a bundle selects it, and with `patchReload: live` it takes effect without a restart.

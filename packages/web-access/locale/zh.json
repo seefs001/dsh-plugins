@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "联网搜索",
+    "description": "新增 grok_search（网页 + X）和 openai_search 工具。在本页为每个工具选择本地 Responses 模型和搜索类型。"
+  }
+}

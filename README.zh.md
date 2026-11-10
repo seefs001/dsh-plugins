@@ -23,6 +23,7 @@ seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（
 | [`dsh-auto-review-model`](packages/auto-review-model) | 指定自动审查判断工具调用时用的模型和审查提示词。需要启用 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 用户消息里的引用显示为引用块，点击后滚动到原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 更好用的工具调用行。技能行可在右侧边栏打开该技能的 `SKILL.md`。 | Web |
+| [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页 + X）和 `openai_search` 工具，在 Plugins 页选择本地 Responses 模型和搜索类型。 | Host + Web |
 
 每个插件都能单独使用。`dsh-model-reference` 和 `dsh-service-tier` 一起装时，`#` 标签会带上 ⚡。
 
@@ -45,6 +46,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/se
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
 ```
 
 也可以在 Web 界面的 **Plugins** 页粘贴同样的地址安装。安装后 bundle 会自动启用；开启 `patchReload: live` 时无需重启。
