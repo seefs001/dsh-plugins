@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-Plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) that make picking and switching models faster.
+seefs's plugin collection for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`), making it faster to pick and switch models.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -51,16 +51,6 @@ dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
 ## Configuration
 
 Plugins that keep state (`model-reference` efforts, `service-tier` fast models) save it into your profile's `cordis.patch.yml` through dsh's config editor, so it survives restarts and upgrades. See each package's README for its keys.
-
-## Upgrading from `@local/dsh-*`
-
-The earlier private builds used `@local/dsh-*` names. To move to the published packages:
-
-1. Remove the old `link:` dependencies and their entries in `dsh.profile.bundles`.
-2. Install the new packages as shown above.
-3. In `cordis.patch.yml`, rename `name: "@local/dsh-service-tier"` to `name: dsh-service-tier`. Rows with `id: model-hash` become `id: model-reference`.
-
-See the [changelog](CHANGELOG.md) for details.
 
 ## Development
 

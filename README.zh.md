@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）插件集，让选模型、切模型更顺手。
+seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）插件集，让选模型、切模型更顺手。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -51,16 +51,6 @@ dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
 ## 配置
 
 有状态的插件（`model-reference` 的推理强度、`service-tier` 的快速模型）通过 dsh 的 config editor 写入 profile 的 `cordis.patch.yml`，重启和升级后都会保留。各配置项见对应包的 README。
-
-## 从 `@local/dsh-*` 迁移
-
-早期私有版本使用 `@local/dsh-*` 包名。迁移步骤：
-
-1. 删除旧的 `link:` 依赖以及 `dsh.profile.bundles` 中的对应项。
-2. 按上面的方式安装新包。
-3. 在 `cordis.patch.yml` 中把 `name: "@local/dsh-service-tier"` 改成 `name: dsh-service-tier`；`id: model-hash` 的行改成 `id: model-reference`。
-
-详见 [CHANGELOG](CHANGELOG.md)。
 
 ## 开发
 

@@ -44,7 +44,6 @@ for (const dir of readdirSync(PACKAGES).toSorted()) {
     const patch = readFileSync(join(base, patchRel), 'utf8')
     const names = [...patch.matchAll(/^\s+name:\s*['"]?([^'"\s#]+)/gm)].map(m => m[1])
     if (!names.includes(pkg.name)) fail(id, `${patchRel} inserts ${JSON.stringify(names)}, expected "${pkg.name}"`)
-    if (names.some(n => n.startsWith('@local/'))) fail(id, `${patchRel} still references an @local/ package`)
   }
 
   // Browser half: declared, exported, and registered under the package name.
