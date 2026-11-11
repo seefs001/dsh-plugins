@@ -19,3 +19,8 @@
           workspace-write: workspace-write
         # race: relay and GUI both answer approvals; exclusive: relay only.
         approvalMode: race
+        # Serve `isolation: untrusted` runs (tool gate: read-only workspace
+        # tools only). false = advertise no support and reject such runs.
+        untrustedIsolation: true
+        # Artifact payloads (git bundles) awaiting upload. Default: $DSH_HOME/switchboard.
+        dataDir: ''

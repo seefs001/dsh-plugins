@@ -28,6 +28,8 @@ Restart dsh (or rely on `patchReload: live`) after editing the config.
           readonly: read-only
           workspace-write: workspace-write
         approvalMode: race         # race | exclusive
+        untrustedIsolation: true   # serve isolation: untrusted runs (see below)
+        dataDir: ''                # default $DSH_HOME/switchboard (artifact payloads)
 ```
 
 | Field | Default | Meaning |
@@ -38,6 +40,8 @@ Restart dsh (or rely on `patchReload: live`) after editing the config.
 | `workspaces` | `{}` | Alias to absolute path. Paths are `realpath`-ed; missing ones are skipped. |
 | `profiles` | see above | dsh preset applied for each relay profile. |
 | `approvalMode` | `race` | `race`: relay and GUI both see bound-session approvals, first answer wins. `exclusive`: only the relay answers. |
+| `untrustedIsolation` | `true` | Advertise and serve `isolation: untrusted` runs. `false` rejects them with `isolation-unsupported`. |
+| `dataDir` | `$DSH_HOME/switchboard` | Artifact payloads waiting for upload (`blobs/`), kept out of the storage-domain document. |
 
 ### Permissions
 
@@ -67,12 +71,14 @@ A mapped preset with approval `never`, or a sandbox wider than the profile allow
 
 ## Behavior
 
-- **Runs.** A dispatch creates a session in the workspace, or resumes the bound one, then prompts it with `requestId = runId` through the same queue the GUI uses. Text deltas, final text, tool calls, todo plans and reasoning stream back. The run ends at its own turn's `turn/end` and carries the summed token usage.
+- **Protocol.** Speaks Switchboard protocol v2. `hello` advertises dsh capabilities: `steer`, `loadSession`, `resume`, `close`, and `untrustedIsolation` (from config).
+- **Runs.** A dispatch creates a session in the workspace or worktree, or resumes the bound one, then prompts it with `requestId = runId` through the same queue the GUI uses. Text deltas, final text, tool calls (with ACP tool kind and file locations), todo plans and reasoning stream back. The run ends at its own turn's `turn/end` with summed token usage and an ACP `stopReason` (`end_turn`, `max_tokens`, `cancelled`).
 - **GUI turns.** A message typed in the GUI on a bound session is announced to the relay (`run.open`, origin `gui`) and streamed to the same chat.
-- **Approvals.** Only bound sessions are intercepted. In `race` mode the GUI card is removed when the relay answers first; when the GUI answers first the relay is told the approval was withdrawn. Cancelling a run cancels its pending approvals.
+- **Approvals.** Only bound sessions are intercepted. Each request carries ACP options (`allow-once`/`allow_once`, `reject-once`/`reject_once`), a title, tool kind, file locations and a display-safe summary: control, zero-width, bidi and Unicode-tag characters removed, truncation marked. Relay selections map to `allowed-once` or `rejected`, and `cancelled` stays `cancelled`. In `race` mode the GUI card is removed when the relay answers first. When the GUI answers first, the relay gets `approval.withdrawn` with that selection. When dsh cancels the request, it gets `{outcome: cancelled}` from `harness`.
+- **Untrusted isolation** (`binding.isolation: untrusted`). The run gets a fresh session. A standard session is never reused, and a tainted session never serves a standard run (`isolation-mismatch`). The profile is forced to `readonly`. A `tools/pre-execute` gate allows only `read`, `read_image`, `grep`, `glob` and `todo_write`, with every path resolved (symlinks followed) inside the session's directory. `bash`, terminals, `run_code`, web tools, MCP tools and subagents are denied, so tool execution has no network path. Approval requests from tainted sessions are rejected without asking anyone. The taint survives `session.close` and restarts.
 - **Cancel / steer / close.** Cancel stops the running turn, or removes a still-queued prompt. Steer uses dsh's steer delivery. `session.close` only forgets the binding; the dsh session stays.
-- **Worktrees.** When the relay asks for a worktree, the session runs in `<workspace>/.switchboard/worktrees/<runId>` on the requested branch, with the commit author set in that worktree only. When the run ends, any new commits are uploaded as a git bundle (`base..branch`, with commit list and diffstat). Worktrees are not removed automatically.
-- **State.** Unacked frames and session bindings live in the `switchboard_connector` storage domain, so a restart resends what the relay has not stored. Runs that were in flight are reported as `failed` (`connector-restart`).
+- **Worktrees** (`binding.worktree`). The plugin first fetches the requested refspecs from `origin` with your own git credentials; a refspec without a destination lands under `refs/switchboard/fetched/`. The worktree starts at the exact `start` commit. With a `branch`, one worktree per branch (`.switchboard/worktrees/<branch>`) is reused and reset to `start` on each run. An existing local branch is only taken over when it starts with `switchboard/`. Without a branch, the worktree is detached at `.switchboard/worktrees/<runId>`. `restorePaths` (entries ending in `*` are prefixes) are restored to their `restoreFrom` version, or deleted when absent there, and marked skip-worktree so agent commits never carry the substitution. The commit author is set in that worktree only. At run end, commits since `start` upload as a chunked git bundle, awaited before `run.end`. Worktrees are not removed automatically.
+- **State.** Unacked frames, session bindings and tainted sessions live in the `switchboard_connector` storage domain. Artifact payloads live as files under `dataDir/blobs`, so an unfinished upload resumes after a restart. Runs in flight at a restart are reported as `failed` (`connector-restart`).
 
 ## Development
 

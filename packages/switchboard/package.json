@@ -1,6 +1,6 @@
 {
   "name": "dsh-switchboard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Connect dsh to a Switchboard relay: run IM and GitHub requests in dsh sessions, stream replies back, and answer approvals remotely or in the GUI.",
   "keywords": [
     "dsh-plugin",
