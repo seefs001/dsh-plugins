@@ -220,7 +220,7 @@ export function toolTitle(tool, args) {
   return tool
 }
 
-// Control, zero-width, bidi and Unicode-tag characters hidden from the owner's eye (spec A6).
+// Control, zero-width, bidi and Unicode-tag characters hidden from the owner's eye.
 const isHidden = cp => (cp < 0x20 && cp !== 0x09 && cp !== 0x0A && cp !== 0x0D) || cp === 0x7F
   || (cp >= 0x200B && cp <= 0x200F) || (cp >= 0x202A && cp <= 0x202E) || (cp >= 0x2060 && cp <= 0x2064)
   || cp === 0xFEFF || (cp >= 0xE0000 && cp <= 0xE007F)
