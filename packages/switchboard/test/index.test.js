@@ -185,10 +185,9 @@ before(async () => {
   await connector.start()
   const hello = await relay.next('hello')
   assert.equal(hello.hostId, 'mac')
-  assert.deepEqual(hello.protocols, [2])
   assert.deepEqual(hello.capabilities.dsh, { steer: true, loadSession: true, resume: true, close: true, modes: [], untrustedIsolation: true })
   assert.equal(relay.auth, 'Bearer tok')
-  relay.send({ type: 'welcome', protocol: 2, serverTime: Date.now(), approvalTimeoutMs: 60_000, ackedSeqs: {}, artifactOffsets: {} })
+  relay.send({ type: 'welcome', serverTime: Date.now(), approvalTimeoutMs: 60_000, ackedSeqs: {}, artifactOffsets: {} })
 })
 
 after(async () => {
@@ -336,7 +335,7 @@ test('GUI turn on a bound session -> run.open and streamed run', async () => {
   assert.equal(end.status, 'succeeded')
 })
 
-test('worktree v2: fetch, exact start, restore config, chunked bundle before run.end, reuse per branch', async () => {
+test('worktree: fetch, exact start, restore config, chunked bundle before run.end, reuse per branch', async () => {
   const wt = {
     fetch: ['refs/pull/1/head'], start: 'refs/pull/1/head', branch: 'switchboard/pr-1',
     restoreFrom: 'origin/main', restorePaths: ['AGENTS.md', '.mcp.json', '.env*'],
@@ -354,7 +353,7 @@ test('worktree v2: fetch, exact start, restore config, chunked bundle before run
   const start = sh(workspace, 'git rev-parse refs/switchboard/fetched/pull/1/head')
 
   // The agent commits with `commit -a`; restored files must not be included.
-  await writeFile(join(cwd, 'app.txt'), 'v2\n')
+  await writeFile(join(cwd, 'app.txt'), 'fixed\n')
   shAgent(cwd, 'git commit -qam fix')
   assert.equal(sh(cwd, 'git log -1 --format=%an'), 'Owner')
   assert.equal(sh(cwd, `git diff --name-only ${start} HEAD`), 'app.txt')

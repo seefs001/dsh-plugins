@@ -2,7 +2,7 @@
  * dsh-switchboard — Host-only plugin.
  *
  * Connects this DSH Host to a Switchboard relay as the `dsh` harness
- * connector (switchboard spec §14.1, protocol v2). The relay dispatches runs;
+ * connector (switchboard spec §14.1). The relay dispatches runs;
  * each run becomes one prompt in a bound DSH session, and that turn's events
  * stream back as `run.event` frames until its `turn/end` produces `run.end`.
  *
@@ -28,12 +28,12 @@ import { homedir, hostname } from 'node:os'
 import { join } from 'node:path'
 import { bundleWorktree, prepareWorktree } from './git.js'
 import { UNTRUSTED_TOOLS, untrustedDenial } from './isolation.js'
-import { Connector, DEFAULT_APPROVAL_OPTIONS, decisionOf, frame, ulid } from './vendor/switchboard-kit.js'
+import { Connector, DEFAULT_APPROVAL_OPTIONS, decisionOf, emptyState, frame, ulid } from './vendor/switchboard-kit.js'
 
 export const name = 'switchboard'
 export const inject = ['sessionController', 'storageDomain', 'approval']
 
-export const VERSION = '0.2.0'
+export const VERSION = '0.1.0'
 export const HARNESS = 'dsh'
 export const DOMAIN_NAME = 'switchboard_connector'
 
@@ -79,7 +79,7 @@ export function normalizeConfig(raw) {
   }
 }
 
-/** Capabilities advertised for the dsh harness in hello (protocol v2). */
+/** Capabilities advertised for the dsh harness in hello. */
 export function capabilitiesFor(config) {
   return { steer: true, loadSession: true, resume: true, close: true, modes: [], untrustedIsolation: config.untrustedIsolation }
 }
@@ -96,15 +96,13 @@ export async function resolveToken(ctx, ref) {
 
 // ---------- storage ----------
 
+/** `connector` is null until the Connector first saves its state. */
 const DOMAIN_STATE = {
   parse(raw) {
-    if (!isRecord(raw)) throw new TypeError('switchboard state must be an object')
-    return {
-      version: 1,
-      connector: isRecord(raw.connector) ? raw.connector : null,
-      bindings: isRecord(raw.bindings) ? raw.bindings : {},
-      tainted: isRecord(raw.tainted) ? raw.tainted : {},
+    if (!isRecord(raw) || !(raw.connector === null || isRecord(raw.connector)) || !isRecord(raw.bindings) || !isRecord(raw.tainted)) {
+      throw new TypeError('switchboard state must be { connector, bindings, tainted }')
     }
+    return { connector: raw.connector, bindings: raw.bindings, tainted: raw.tainted }
   },
   safeParse(value) {
     try { return { success: true, data: DOMAIN_STATE.parse(value) } } catch (error) { return { success: false, error } }
@@ -113,7 +111,7 @@ const DOMAIN_STATE = {
 export const DOMAIN_SPEC = {
   name: DOMAIN_NAME,
   version: 1,
-  global: { schema: DOMAIN_STATE, initial: { version: 1, connector: null, bindings: {}, tainted: {} } },
+  global: { schema: DOMAIN_STATE, initial: { connector: null, bindings: {}, tainted: {} } },
   tables: {},
 }
 
@@ -166,10 +164,7 @@ export function domainStore(domain, blobs) {
   })
   return {
     connectorStore: {
-      async load() {
-        const s = domain.global.get().connector
-        return { processed: [], runs: {}, pendingFrames: [], artifacts: {}, ...s }
-      },
+      load: async () => domain.global.get().connector ?? emptyState(),
       save: state => update(() => ({ connector: state })),
       ...blobs,
     },
@@ -614,7 +609,7 @@ export function createBridge(ctx, config, store, getConnector) {
     return next()
   }
 
-  // --- approvals (spike S1, protocol v2) ---
+  // --- approvals (spike S1) ---
   const onApproval = (req, next) => {
     const sessionId = sessionIdOf(req?.agent?.session)
     // Tainted sessions never escalate: deny without asking the owner (spec §11.5, S7).

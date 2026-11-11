@@ -1,5 +1,5 @@
 /**
- * Worktree handling for relay runs (switchboard spec §9.4, binding.worktree v2):
+ * Worktree handling for relay runs (switchboard spec §9.4, binding.worktree):
  * fetch origin refspecs, start at an exact commit, optional branch (one worktree
  * per branch, reused), restore agent-config paths to a trusted version, and
  * bundle the commits produced since `start`.

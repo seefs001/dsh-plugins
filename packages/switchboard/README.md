@@ -71,7 +71,7 @@ A mapped preset with approval `never`, or a sandbox wider than the profile allow
 
 ## Behavior
 
-- **Protocol.** Speaks Switchboard protocol v2. `hello` advertises dsh capabilities: `steer`, `loadSession`, `resume`, `close`, and `untrustedIsolation` (from config).
+- **Protocol.** Speaks the Switchboard connector protocol. `hello` advertises dsh capabilities: `steer`, `loadSession`, `resume`, `close`, and `untrustedIsolation` (from config).
 - **Runs.** A dispatch creates a session in the workspace or worktree, or resumes the bound one, then prompts it with `requestId = runId` through the same queue the GUI uses. Text deltas, final text, tool calls (with ACP tool kind and file locations), todo plans and reasoning stream back. The run ends at its own turn's `turn/end` with summed token usage and an ACP `stopReason` (`end_turn`, `max_tokens`, `cancelled`).
 - **GUI turns.** A message typed in the GUI on a bound session is announced to the relay (`run.open`, origin `gui`) and streamed to the same chat.
 - **Approvals.** Only bound sessions are intercepted. Each request carries ACP options (`allow-once`/`allow_once`, `reject-once`/`reject_once`), a title, tool kind, file locations and a display-safe summary: control, zero-width, bidi and Unicode-tag characters removed, truncation marked. Relay selections map to `allowed-once` or `rejected`, and `cancelled` stays `cancelled`. In `race` mode the GUI card is removed when the relay answers first. When the GUI answers first, the relay gets `approval.withdrawn` with that selection. When dsh cancels the request, it gets `{outcome: cancelled}` from `harness`.
