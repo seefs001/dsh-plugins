@@ -1,0 +1,21 @@
+# Bundle patch layer: a Host-only plugin. lib/index.js opens the relay
+# connection; fill in relayUrl and workspaces before enabling it.
+- insert:
+    - id: switchboard
+      name: dsh-switchboard
+      config:
+        # wss://<relay>/connect. Empty disables the connector.
+        relayUrl: ''
+        # Defaults to the machine hostname; must match the relay's hosts entry.
+        hostId: ''
+        # Credential reference holding the host token (dsh credentials, then env).
+        tokenRef: SWITCHBOARD_TOKEN
+        # Workspace aliases the relay may use -> absolute paths on this machine.
+        workspaces: {}
+        # Switchboard profile -> dsh permission preset. Missing presets fall back
+        # to writing sandbox + approval directly; approval is always `ask`.
+        profiles:
+          readonly: read-only
+          workspace-write: workspace-write
+        # race: relay and GUI both answer approvals; exclusive: relay only.
+        approvalMode: race

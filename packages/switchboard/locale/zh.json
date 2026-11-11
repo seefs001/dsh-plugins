@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Switchboard",
+    "description": "把 dsh 接入 Switchboard relay：IM 和 GitHub 的请求在 dsh 会话里执行，回复流式回传，审批可远程处理。"
+  }
+}

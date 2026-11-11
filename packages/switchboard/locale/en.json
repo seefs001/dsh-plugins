@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Switchboard",
+    "description": "Connects dsh to a Switchboard relay so IM and GitHub requests run in dsh sessions, with streamed replies and remote approvals."
+  }
+}
