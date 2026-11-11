@@ -60,9 +60,16 @@ window.__ModuleLoader__.load({
       get: () => prefs.state,
       subscribe(fn) { prefs.listeners.add(fn); return () => prefs.listeners.delete(fn) },
       set(patch) { prefs.state = { ...prefs.state, ...patch }; prefs.listeners.forEach(fn => fn()) },
+      async loadEfforts() {
+        try {
+          const r = await fetch('model-reference/state', { headers: { accept: 'application/json' } })
+          if (r.ok) prefs.set({ efforts: (await r.json()).efforts ?? {} })
+        } catch {}
+        return prefs.state.efforts
+      },
       refresh() {
         const json = path => fetch(path, { headers: { accept: 'application/json' } }).then(r => r.ok ? r.json() : null).catch(() => null)
-        json('model-reference/state').then(d => { if (d) prefs.set({ efforts: d.efforts ?? {} }) })
+        prefs.loadEfforts()
         json('service-tier/state').then(d => { if (d) prefs.set({ tiers: d.tiers ?? {}, fastProviders: d.responsesProviders ?? [] }) })
       },
     }
@@ -81,6 +88,34 @@ window.__ModuleLoader__.load({
       if (fast) params.set('fast', '1')
       const qs = params.toString()
       return { ...item, effort, effortName, fast, ref: qs ? `${key}?${qs}` : key }
+    }
+
+    function restoreEffort(selection, state, efforts) {
+      const current = state.current
+      // A same-model selection is an explicit effort change, including Default.
+      if (current?.provider === selection.provider && current.model === selection.model) return selection
+      const model = state.groups.find(g => g.id === selection.provider)?.models.find(m => m.id === selection.model)
+      const reasoning = model?.reasoning
+      if (selection.reasoningEffort !== undefined && selection.reasoningEffort !== reasoning?.defaultEffort) return selection
+      const effort = efforts[`${selection.provider}/${selection.model}`]
+      if (!reasoning?.efforts.some(e => e.id === effort)) return selection
+      return { ...selection, reasoningEffort: effort }
+    }
+
+    // Both the composer picker and /model call this shared controller. DSH does
+    // not expose a selection transform; keep the adapter scoped to this plugin.
+    function installEffortMemory(ModelDirectory) {
+      const original = ModelDirectory.prototype.select
+      async function select(selection) {
+        const state = this.store.getSnapshot()
+        const sameModel = state.current?.provider === selection.provider && state.current.model === selection.model
+        const efforts = sameModel ? prefs.state.efforts : await prefs.loadEfforts()
+        return original.call(this, restoreEffort(selection, state, efforts))
+      }
+      ModelDirectory.prototype.select = select
+      return () => {
+        if (ModelDirectory.prototype.select === select) ModelDirectory.prototype.select = original
+      }
     }
 
     // Same glyph as dsh-service-tier's toggle, filled.
@@ -104,6 +139,8 @@ window.__ModuleLoader__.load({
     return {
       inject: ['slots', 'locale', 'modelDirectories', 'inputTriggers', 'sessions'],
       apply(ctx) {
+        const { ModelDirectory } = require('@deepseek-ai/dsh-client-ui-model-selection')
+        ctx.effect(() => installEffortMemory(ModelDirectory), 'model-reference: restore model efforts')
         ctx.effect(() => ctx.locale.register(NS, 'en', { title: 'Reference a model', aria: 'Models' }), 'model-reference: en')
         ctx.effect(() => ctx.locale.register(NS, 'zh', { title: '引用模型', aria: '模型' }), 'model-reference: zh')
         const t = ctx.locale.bind(NS)
@@ -231,8 +268,8 @@ window.__ModuleLoader__.load({
           },
         }, HashMenu))
       },
-      // Pure helpers, exposed for tests.
-      _internal: { parseRef, serialize, match, decorate },
+      // Helpers exposed for offline checks.
+      _internal: { parseRef, serialize, match, decorate, restoreEffort, installEffortMemory },
     }
   },
 })

@@ -4,6 +4,8 @@ Type `#` in the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 
 The chip carries the reasoning effort that model was last used with, plus fast mode when [`dsh-service-tier`](../service-tier) has it switched on. That lets you write things like *"ask #GPT-6.1 Sol · xhigh ⚡ to review this diff in a subagent"*.
 
+Switching models in the composer picker or `/model` also restores the selected model's saved effort. Choosing Default explicitly clears that model's saved effort. Unsupported saved efforts fall back to the model's normal default.
+
 ## What the model sees
 
 A chip serializes into the prompt as:

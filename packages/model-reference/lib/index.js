@@ -33,12 +33,15 @@ export function apply(ctx, config) {
   ctx.on('session/event', (session, event) => {
     if (event?.type !== 'model/selection') return
     const { provider, model, reasoningEffort } = event.data ?? {}
-    if (typeof provider !== 'string' || typeof model !== 'string' || typeof reasoningEffort !== 'string') return
+    if (typeof provider !== 'string' || typeof model !== 'string') return
+    if (reasoningEffort !== undefined && (typeof reasoningEffort !== 'string' || reasoningEffort === '')) return
     // Subagents pick their own models; only what the person picks counts.
     if (!isTopLevelSession(ctx.get('agents'), session.id)) return
     const key = `${provider}/${model}`
     if (efforts[key] === reasoningEffort) return
-    efforts = { ...efforts, [key]: reasoningEffort }
+    efforts = { ...efforts }
+    if (reasoningEffort === undefined) delete efforts[key]
+    else efforts[key] = reasoningEffort
 
     const entry = ctx.fiber.entry
     const editor = ctx.get('configEditor')
