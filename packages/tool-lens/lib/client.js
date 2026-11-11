@@ -286,16 +286,55 @@ window.__ModuleLoader__.load({
       return /^(?:\/|[A-Za-z]:[\\/])/.test(path) ? path : undefined
     }
 
-    /** Child session id addressed by a subagent tool call. */
+    /** Session id (rc.1) or model-facing agent name (rc.2) in a settled call. */
     function subagentChild(toolName, block) {
       if (!('kind' in block) || block.isError) return undefined
       if (toolName === 'subagent') {
-        const fromMeta = metaOf(block)?.subagentId
-        if (typeof fromMeta === 'string' && fromMeta !== '') return fromMeta
+        const meta = metaOf(block)
+        const reference = meta?.subagentId ?? meta?.name
+        if (typeof reference === 'string' && reference !== '') return reference
         return /started subagent (\S+)/.exec(settledText(block) ?? '')?.[1]
       }
-      const id = parseArgs(block).args?.agent_id
-      return typeof id === 'string' && id !== '' ? id : undefined
+      if (toolName !== 'send_message' && toolName !== 'interrupt_agent') return undefined
+      const args = parseArgs(block).args
+      const reference = args?.agent_id ?? args?.agent
+      return typeof reference === 'string' && reference !== '' ? reference : undefined
+    }
+
+    /** Resolve names through durable catalogs, never use a name as a Session id. */
+    async function resolveSubagentAddress(sessions, parent, reference) {
+      if (reference === 'lead') return undefined
+      const retained = sessions.subagentAddress?.(reference)
+      if (retained !== undefined) return retained
+      const state = sessions.list.getSnapshot()
+      for (const [parentId, projection] of Object.entries(state.projectionsBySession ?? {})) {
+        const entry = projection.values?.subagentCatalog?.find(item => item.id === reference)
+        if (entry !== undefined) return entry.mode === 'external' ? undefined : {
+          parentSessionId: parentId, childSessionId: entry.id, mode: entry.mode,
+        }
+      }
+
+      // Names are absolute paths from the subagent tree root, also in child chats.
+      let current = parent
+      const visited = new Set()
+      for (let address = sessions.subagentAddress?.(current); address !== undefined; address = sessions.subagentAddress?.(current)) {
+        if (visited.has(current)) return undefined
+        visited.add(current)
+        current = address.parentSessionId
+      }
+      let target
+      for (const name of reference.split('/')) {
+        const catalog = () => sessions.list.getSnapshot().projectionsBySession?.[current]?.values?.subagentCatalog ?? []
+        let entry = catalog().find(item => item.name === name)
+        if (entry === undefined) {
+          await sessions.refreshProjections(current)
+          entry = catalog().find(item => item.name === name)
+        }
+        if (entry === undefined || entry.mode === 'external') return undefined
+        target = { parentSessionId: current, childSessionId: entry.id, mode: entry.mode }
+        current = entry.id
+      }
+      return target
     }
 
     /** grep/glob result files from the recorded metadata. */
@@ -363,22 +402,12 @@ window.__ModuleLoader__.load({
         }
       }
 
-      const subagentMode = (parent, child) => {
-        const address = ctx.sessions.subagentAddress?.(child)
-        if (address?.mode) return address.mode
-        const state = ctx.sessions.list.getSnapshot()
-        const entry = state.projectionsBySession?.[parent]?.values?.subagentCatalog?.find?.(item => item.id === child)
-        return entry?.mode ?? 'unknown'
-      }
-
-      const openSubagent = (parent, child) => {
-        const address = ctx.sessions.subagentAddress?.(child)
-        const parentId = address?.parentSessionId ?? parent
-        const mode = subagentMode(parent, child)
-        if (mode === 'external') return
-        const query = new URLSearchParams({ parent: parentId, mode })
+      const openSubagent = async (parent, reference) => {
         try {
-          ctx.sidebarRight.openResource(`dsh-resource://subagentchat/session/${encodeURIComponent(child)}?${query}`, {
+          const address = await resolveSubagentAddress(ctx.sessions, parent, reference)
+          if (address === undefined || address.mode === 'external') return
+          const query = new URLSearchParams({ parent: address.parentSessionId, mode: address.mode })
+          ctx.sidebarRight.openResource(`dsh-resource://subagentchat/session/${encodeURIComponent(address.childSessionId)}?${query}`, {
             kind: 'subagentchat',
             preferNewPane: true,
           })
@@ -425,7 +454,7 @@ window.__ModuleLoader__.load({
         if (spill !== undefined) {
           actions.push(h(Action, { key: 'spill', icon: IconOutput, label: tt('lens.spill'), title: tt('lens.spillTitle'), onClick: () => openFile(spill) }))
         }
-        if (child !== undefined && sessionId !== undefined) {
+        if (child !== undefined && child !== 'lead' && sessionId !== undefined) {
           actions.push(h(Action, { key: 'sub', icon: IconChat, label: tt('lens.subagent'), title: tt('lens.subagentTitle'), onClick: () => openSubagent(sessionId, child) }))
         }
         if (files.length === 1) {
@@ -595,7 +624,7 @@ window.__ModuleLoader__.load({
           }, AugmentedRow))
         }
       },
-      _internal: { baseDirectory, fileAddressFor, spillPath, subagentChild, searchFiles, webLinks },
+      _internal: { baseDirectory, fileAddressFor, spillPath, subagentChild, resolveSubagentAddress, searchFiles, webLinks },
     }
 
     // ---- file addresses (mirrors @deepseek-ai/dsh-util-workspace-path) --------

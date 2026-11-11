@@ -31,10 +31,12 @@ export function sameSelection(a, b) {
     && (a?.reasoningEffort ?? undefined) === (b?.reasoningEffort ?? undefined)
 }
 
-/** True when `sessionId` belongs to a top-level agent (or no agent registry is mounted). */
-export function isTopLevelSession(agents, sessionId) {
+/** Keep subagent selections out of user defaults on both rc.1 and rc.2. */
+export function isTopLevelSession(agents, sessionId, subagents) {
   const agent = agents?.get?.(sessionId)
-  return agent === undefined || agents.roots().includes(agent)
+  if (agent === undefined) return true
+  if (typeof agents.roots === 'function') return agents.roots().includes(agent)
+  return subagents === undefined || subagents.rootOf(agent) === agent
 }
 
 export function apply(ctx) {
@@ -45,7 +47,7 @@ export function apply(ctx) {
     const next = selectionOf(event.data)
     if (next === undefined) return
     // Subagent sessions select their own models; only top-level sessions count.
-    if (!isTopLevelSession(ctx.get('agents'), session.id)) return
+    if (!isTopLevelSession(ctx.get('agents'), session.id, ctx.get('subagents'))) return
 
     const save = sameSelection(ctx.agentDefaultModel.currentSelection(), next)
       ? Promise.resolve()

@@ -21,10 +21,12 @@ export function normalizeEfforts(raw) {
   return out
 }
 
-/** True when `sessionId` belongs to a top-level agent (or no agent registry is mounted). */
-export function isTopLevelSession(agents, sessionId) {
+/** Keep subagent selections out of user preferences on both rc.1 and rc.2. */
+export function isTopLevelSession(agents, sessionId, subagents) {
   const agent = agents?.get?.(sessionId)
-  return agent === undefined || agents.roots().includes(agent)
+  if (agent === undefined) return true
+  if (typeof agents.roots === 'function') return agents.roots().includes(agent)
+  return subagents === undefined || subagents.rootOf(agent) === agent
 }
 
 export function apply(ctx, config) {
@@ -36,7 +38,7 @@ export function apply(ctx, config) {
     if (typeof provider !== 'string' || typeof model !== 'string') return
     if (reasoningEffort !== undefined && (typeof reasoningEffort !== 'string' || reasoningEffort === '')) return
     // Subagents pick their own models; only what the person picks counts.
-    if (!isTopLevelSession(ctx.get('agents'), session.id)) return
+    if (!isTopLevelSession(ctx.get('agents'), session.id, ctx.get('subagents'))) return
     const key = `${provider}/${model}`
     if (efforts[key] === reasoningEffort) return
     efforts = { ...efforts }
