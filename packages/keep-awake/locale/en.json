@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Keep awake",
+    "description": "Prevents macOS from automatically sleeping while the DSH Host runs. Enable this plugin in Plugins; disable it or quit the Host to release it. Display sleep and screen locking stay unchanged. Closing the browser does not stop the Host. Applies to the Host computer, not the browser device. No configuration, administrator privileges, or permanent power-setting changes. Does not prevent lid-close or manual sleep; inactive on other operating systems. Keeping the computer awake uses more battery."
+  }
+}

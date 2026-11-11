@@ -19,6 +19,7 @@ seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（
 | [`dsh-service-tier`](packages/service-tier) | 在模型选择器旁加 ⚡ 开关，为 OpenAI Responses 模型发送 `service_tier: "priority"`。 | Host + Web |
 | [`dsh-subagent-model`](<packages/subagent-model/README.md>) | 在子代理输入框右下角显示只读模型名和推理强度，主代理的选择器保持不变。 | Web |
 | [`dsh-remember-model`](packages/remember-model) | 新会话沿用你上次选择的模型和推理强度。 | Host |
+| [`dsh-keep-awake`](<packages/keep-awake/README.md>) | DSH 运行期间防止 macOS 自动休眠，仍可正常息屏和锁屏。需要 DSH rc.2 或更新版本。 | Host |
 | [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序，最新的在前。 | Web |
 | [`dsh-session-groups`](packages/session-groups) | 拖拽会话加入自定义分组，调整分组顺序并在组内置顶。 | Host + Web |
 | [`dsh-compaction-status`](packages/compaction-status) | 自动压缩或 `/compact` 时，在输入框上方显示紧凑的状态与已等待时间。 | Host + Web |

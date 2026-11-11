@@ -1,0 +1,51 @@
+---
+title: 保持唤醒
+description: DSH Host 运行期间防止 macOS 自动休眠，仍可正常息屏和锁屏。
+---
+
+`dsh-keep-awake` 在插件启用期间，让运行 DSH Host 的 Mac 保持唤醒。**仅 Host**，无浏览器入口、配置项或第三方依赖，不需要管理员权限，也不修改系统永久电源设置。
+
+## 安装
+
+需要 macOS、系统自带的 `/usr/bin/caffeinate`，以及 DSH `>=0.2.2-rc.2 <0.3.0`。
+
+在 **Plugins → Add plugin** 选择本地插件目录，或在仓库根目录执行：
+
+```bash
+dsh plugin --profile web add "link:$PWD/packages/keep-awake"
+```
+
+提交推送到 GitHub 后，也可以使用：
+
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/keep-awake"
+```
+
+## 使用
+
+在 **Plugins** 页启用 **保持唤醒 / Keep awake**，启用即生效。禁用插件或退出 DSH Host 后，插件持有的防休眠断言会释放。没有额外设置。
+
+**作用于运行 Host 的电脑，不是打开网页的设备。** 关闭浏览器页面不等于退出后台 Host；只要后台 Host 和插件仍在运行，就会持续防休眠，包括 DSH 没有任务时。
+
+## 生命周期
+
+插件启动 `/usr/bin/caffeinate -i -w <host-pid>`：
+
+- `-i` 防止因闲置而自动休眠，接电和电池供电时均适用，不阻止息屏或锁屏。
+- `-w` 绑定 Host 进程。Host 正常退出、崩溃或被强制终止后，辅助进程会释放断言。
+- 禁用插件时，Cordis 清理钩子终止并等待辅助进程退出。重新启用会启动新的辅助进程。
+- 辅助进程不会反过来让本应退出的 Host 一直运行。
+- 启动失败会让插件激活失败。运行中意外退出会记录警告，不自动重试；禁用后重新启用即可重试。
+- 其他操作系统只记录提示，不执行防休眠。
+
+## 检查与限制
+
+在 macOS 运行：
+
+```bash
+pmset -g assertions
+```
+
+启用期间，应看到 `caffeinate` 持有 `PreventUserIdleSystemSleep`，而不是 `PreventUserIdleDisplaySleep`。禁用后，属于这个插件的断言会消失。其他应用或 DSH 进程可能仍独立阻止休眠。
+
+不阻止合盖、手动休眠、关机或低电量保护。不更改息屏、锁屏、磁盘或系统电源配置。持续保持唤醒会增加耗电，不需要时请禁用。

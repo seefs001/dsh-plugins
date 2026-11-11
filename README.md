@@ -19,6 +19,7 @@ English | [中文](README.zh.md)
 | [`dsh-service-tier`](packages/service-tier) | A ⚡ toggle beside the model picker that sends `service_tier: "priority"` for OpenAI Responses models. | Host + Web |
 | [`dsh-subagent-model`](<packages/subagent-model/README.md>) | A read-only model and reasoning-effort label in subagent composers; the main agent's picker stays unchanged. | Web |
 | [`dsh-remember-model`](packages/remember-model) | New sessions start on the model and reasoning effort you picked last. | Host |
+| [`dsh-keep-awake`](<packages/keep-awake/README.md>) | Prevents macOS idle sleep while DSH runs; the display can still sleep and the screen can lock. Requires DSH rc.2 or newer. | Host |
 | [`dsh-recent-sessions`](packages/recent-sessions) | Sessions in the `@` menu are listed by last activity, newest first. | Web |
 | [`dsh-session-groups`](packages/session-groups) | Drag sessions into custom groups, reorder groups, and pin sessions within a group. | Host + Web |
 | [`dsh-compaction-status`](packages/compaction-status) | A compact status and elapsed timer above the composer during automatic compaction or `/compact`. | Host + Web |

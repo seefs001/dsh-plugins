@@ -1,0 +1,4 @@
+# Host-only: keep macOS awake until this plugin unloads or the Host exits.
+- insert:
+    - id: keep-awake
+      name: dsh-keep-awake

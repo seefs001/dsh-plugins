@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `dsh-keep-awake` 0.1.0: a macOS Host-only plugin that prevents automatic idle sleep using the built-in `caffeinate` utility. Keeps display sleep and screen locking unchanged; releases its assertion on plugin disposal or Host exit, including crashes. Includes English and Chinese metadata, an original icon, and usage documentation.
 - `dsh-subagent-model` 1.0.0: a read-only model and reasoning-effort label in subagent composers, sourced from the child session's recorded selection. Keeps the main agent's model picker unchanged; includes English and Chinese labels and plugin metadata.
 - `dsh-compaction-status` 0.1.0: a compact, single-line compaction indicator above the composer, aligned with the native task dock. Shows elapsed time for automatic compaction and `/compact` without changing compaction behavior.
 - `dsh-git-changes` 0.1.0: a composer entry showing the branch and uncommitted changes, including untracked files, with a shortcut to the forge panel. Requires the Change requests & worktrees bundle.
