@@ -1,0 +1,39 @@
+{
+  "name": "dsh-pi-tools",
+  "version": "0.3.0",
+  "description": "An isolated Pi preset with coding tools, original QuickJS codemode and existing DSH MCP connections.",
+  "keywords": ["dsh-plugin", "dsh", "deepseek-harness", "pi", "tools", "preset"],
+  "license": "MIT",
+  "author": "seefs001",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seefs001/dsh-plugins.git",
+    "directory": "packages/pi-tools"
+  },
+  "type": "module",
+  "icon": "icon.svg",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": ["lib", "client.js", "locale", "icon.svg", "cordis.patch.yml", "README.md"],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.2.2-rc.2 <0.3.0"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "1.5.0",
+    "@earendil-works/pi-coding-agent": "1.5.0"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "inject": ["@deepseek-ai/dsh-client-ui-tool", "@deepseek-ai/dsh-client-ui-agent-preset", "@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-resources", "@deepseek-ai/dsh-api-remotes"]
+    }
+  }
+}

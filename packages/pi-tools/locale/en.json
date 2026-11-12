@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Pi tools",
+    "description": "Adds an isolated pi preset with Pi coding tools, original QuickJS codemode and on-demand MCP behind DSH permissions."
+  }
+}

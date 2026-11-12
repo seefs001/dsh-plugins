@@ -1,0 +1,32 @@
+- insert:
+    - id: pi-tool-presentation
+      name: dsh-pi-tools
+      config:
+        presentationOnly: true
+    - id: preset-pi
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: pi
+        name: pi
+        description: Pi 编程工具、QuickJS codemode 与按需 MCP，保留 DSH 会话和权限边界。
+        order: 5
+        plugins:
+          - id: pi-tools
+            name: dsh-pi-tools
+            config:
+              mcpServers: [nowledge_mem]
+              mcpExposure: codemode
+          - id: pi-project-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: pi-compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+            config:
+              - id: pi-compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: pi-command-compact
+                name: '@deepseek-ai/dsh-command-compact'

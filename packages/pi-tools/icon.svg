@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Pi tools</title>
+  <rect x="3" y="3" width="58" height="58" rx="15" fill="#172b36"/>
+  <path d="M15 22h34M24 22v23M40 22v18q0 5 7 5" fill="none" stroke="#69e0be" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
