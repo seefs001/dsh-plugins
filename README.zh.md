@@ -21,6 +21,7 @@ seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（
 | [`dsh-remember-model`](packages/remember-model) | 新会话沿用你上次选择的模型和推理强度。 | Host |
 | [`dsh-keep-awake`](<packages/keep-awake/README.md>) | DSH 运行期间防止 macOS 自动休眠，仍可正常息屏和锁屏。需要 DSH rc.2 或更新版本。 | Host |
 | [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序，最新的在前。 | Web |
+| [`dsh-workspace-manager`](packages/workspace-manager) | 移除已保存的工作区，检查并批量清理失效目录记录，不删除文件或会话。需要 DSH rc.2 或更新版本。 | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | 拖拽会话加入自定义分组，调整分组顺序并在组内置顶。 | Host + Web |
 | [`dsh-compaction-status`](packages/compaction-status) | 自动压缩或 `/compact` 时，在输入框上方显示紧凑的状态与已等待时间。 | Host + Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | 指定 Auto review 模型与提示词，查看会话审查日志并跳转到工具调用。需要启用 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
@@ -48,6 +49,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/se
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/subagent-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/workspace-manager"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/compaction-status"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"

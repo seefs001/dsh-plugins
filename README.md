@@ -21,6 +21,7 @@ English | [中文](README.zh.md)
 | [`dsh-remember-model`](packages/remember-model) | New sessions start on the model and reasoning effort you picked last. | Host |
 | [`dsh-keep-awake`](<packages/keep-awake/README.md>) | Prevents macOS idle sleep while DSH runs; the display can still sleep and the screen can lock. Requires DSH rc.2 or newer. | Host |
 | [`dsh-recent-sessions`](packages/recent-sessions) | Sessions in the `@` menu are listed by last activity, newest first. | Web |
+| [`dsh-workspace-manager`](packages/workspace-manager) | Remove saved workspaces and clean up invalid directory entries without deleting files or sessions. Requires DSH rc.2 or newer. | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | Drag sessions into custom groups, reorder groups, and pin sessions within a group. | Host + Web |
 | [`dsh-compaction-status`](packages/compaction-status) | A compact status and elapsed timer above the composer during automatic compaction or `/compact`. | Host + Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | Pick the Auto review model and prompt; inspect the session review log and jump to reviewed calls. Needs `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
@@ -48,6 +49,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/se
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/subagent-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/workspace-manager"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/compaction-status"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
