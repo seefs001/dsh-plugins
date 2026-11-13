@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { emptyState } from './state.js'
 import { prepareArguments, toToolExposure } from './pi.js'
-import { scopeOf } from './harness.js'
+import { scopeOf, scopeChainOf } from './harness.js'
 
 export const INTERNAL_PREFIX = 'pi_internal_'
 export const RESOURCE_TOOLS = new Set(['list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource'])
@@ -15,10 +15,11 @@ export class PiLoadout {
     this.config = config
     this.scope = scopeOf(ctx)
     this.scopedNames = new Set(config.scopedTools)
-    if (this.scopedNames.size && this.scope === undefined) throw new Error('Pi scoped tools require a preset scope')
-    for (const name of this.scopedNames) {
+    this.globalNames = new Set(config.globalTools)
+    if ((this.scopedNames.size || this.globalNames.size) && this.scope === undefined) throw new Error('Pi scoped tools require a preset scope')
+    for (const name of [...this.scopedNames, ...this.globalNames]) {
       if (PI_NAMES.has(name) || name.startsWith(INTERNAL_PREFIX) || this.isMcp(name)) {
-        throw new Error(`Pi scopedTools must name native DSH tools, not Pi or MCP tools: ${name}`)
+        throw new Error(`Pi native tool lists must name native DSH tools, not Pi or MCP tools: ${name}`)
       }
     }
     this.agentBindings = new Map()
@@ -42,14 +43,17 @@ export class PiLoadout {
     ctx.effect(() => () => {
       this.disposed = true
       this.releaseMask?.()
-      for (const record of this.bridges.values()) record.dispose()
+      for (const record of this.bridges.values()) record.dispose?.()
       this.bridges.clear()
       this.internal.clear()
       for (const agent of this.agentBindings.keys()) this.releaseAgent(agent)
     })
-    if (this.scopedNames.size) {
-      ctx.on('agent/created', ({ agent }) => this.bindAgent(agent))
+    if (this.scopedNames.size || this.globalNames.size) {
+      ctx.on('agent/created', ({ agent }) => { this.bindAgent(agent); this.sync() })
       ctx.on('agent/disposed', ({ agent }) => this.releaseAgent(agent))
+      ctx.on('session/event', (_session, event) => {
+        if (event.type === 'agent-preset/options' || event.type === 'agent-preset/selected') this.sync()
+      }, { global: true })
     }
     this.sync()
     ctx.on('tools/change', () => this.sync())
@@ -74,7 +78,7 @@ export class PiLoadout {
       }
       return selected.tools.includes(name)
     }
-    return this.ownNames.has(name) || this.bridges.get(name)?.sourceScope !== undefined
+    return this.ownNames.has(name) || this.bridges.get(name)?.sourceScope !== undefined || this.bridges.get(name)?.passthrough === true
       || (this.isMcp(name) && this.accepts(name))
   }
 
@@ -120,24 +124,34 @@ export class PiLoadout {
     if (this.updating || this.disposed) return
     this.updating = true
     try {
+      for (const agent of this.agentBindings.keys()) {
+        if (!this.contains(agent)) this.releaseAgent(agent)
+      }
       const globals = this.ctx.tools.definitions()
       // Reserve scoped names even before their provider arrives. A global
       // shadow at this scope would collide with the native plugin's registration.
       const available = new Map(globals.filter(tool => this.accepts(tool.name) && !this.scopedNames.has(tool.name)
-        && this.ctx.tools.executable(tool.name) === tool).map(tool => [tool.name, { original: tool }]))
+        && (this.globalNames.has(tool.name) || this.ctx.tools.executable(tool.name) === tool))
+        .map(tool => [tool.name, { original: tool, passthrough: this.globalNames.has(tool.name) }]))
       for (const name of this.scopedNames) {
         const original = this.ctx.tools.executable(name, this.scope)
         if (original && this.ctx.tools.get(name) !== original) available.set(name, { original, sourceScope: this.scope })
       }
       for (const [name, record] of this.bridges) {
         const current = available.get(name)
-        if (current?.original === record.original && current.sourceScope === record.sourceScope) continue
-        record.dispose()
+        if (current?.original === record.original && current.sourceScope === record.sourceScope && current.passthrough === record.passthrough) continue
+        record.dispose?.()
         this.internal.delete(record.alias)
         this.bridges.delete(name)
       }
-      for (const [name, { original, sourceScope }] of available) {
+      for (const [name, { original, sourceScope, passthrough }] of available) {
         if (this.bridges.has(name)) continue
+        if (passthrough) {
+          // Keep the global registration, including its native step-time condition.
+          // Per-Agent restrictions supply selection without creating a bypass alias.
+          this.bridges.set(name, { original, direct: original, passthrough })
+          continue
+        }
         const alias = INTERNAL_PREFIX + createHash('sha256').update(name).digest('hex').slice(0, 24)
         const execute = async (input, exec) => {
           if (this.ctx.tools.executable(name, sourceScope) !== original) throw new Error(`Tool is no longer available: ${name}`)
@@ -158,18 +172,22 @@ export class PiLoadout {
           when: ({ agent }) => this.enabled(name, agent) && (!this.isMcp(name)
             || this.config.mcpExposure === 'direct' || this.stateOf(agent).loaded.includes(name)),
         }) : () => {
-          for (const bindings of this.agentBindings.values()) {
+          for (const { bindings } of this.agentBindings.values()) {
             const dispose = bindings.get(name)
             bindings.delete(name)
             dispose?.()
           }
         }
-        const record = { alias, original, sourceScope, direct, nested, dispose: () => { releaseDirect(); releaseInternal() } }
+        const record = { alias, original, sourceScope, passthrough, direct, nested, dispose: () => { releaseDirect(); releaseInternal() } }
         this.bridges.set(name, record)
         this.internal.set(alias, name)
         if (sourceScope !== undefined) {
           for (const agent of this.agentBindings.keys()) this.bindScopedTool(agent, record)
         }
+      }
+      if (this.scopedNames.size || this.globalNames.size) {
+        for (const agent of this.ctx.get('agents')?.list() ?? []) this.bindAgent(agent)
+        for (const agent of this.agentBindings.keys()) this.syncAgentMask(agent)
       }
       // An Agent inherits this preset's registrations, so name restrictions
       // would hide its shadows too. Keep conditional shadows and mask only
@@ -189,9 +207,13 @@ export class PiLoadout {
     }
   }
 
+  contains(agent) {
+    return this.scope !== undefined && scopeChainOf(scopeOf(agent.ctx)).includes(this.scope)
+  }
+
   bindAgent(agent) {
-    if (this.disposed || this.agentBindings.has(agent)) return
-    this.agentBindings.set(agent, new Map())
+    if (this.disposed || this.agentBindings.has(agent) || !this.contains(agent)) return
+    this.agentBindings.set(agent, { bindings: new Map() })
     for (const record of this.bridges.values()) {
       if (record.sourceScope !== undefined) this.bindScopedTool(agent, record)
     }
@@ -204,14 +226,28 @@ export class PiLoadout {
     const dispose = agent.ctx.tools.register(record.direct, {
       when: ({ agent: caller }) => this.enabled(name, caller),
     })
-    this.agentBindings.get(agent).set(name, dispose)
+    this.agentBindings.get(agent).bindings.set(name, dispose)
+  }
+
+  syncAgentMask(agent) {
+    const record = this.agentBindings.get(agent)
+    const deny = [...this.bridges].filter(([name, bridge]) => bridge.passthrough && !this.enabled(name, agent))
+      .map(([name]) => name).toSorted()
+    const key = JSON.stringify(deny)
+    if (record.maskKey === key) return
+    const next = deny.length ? agent.ctx.tools.restrict({ deny }) : undefined
+    const previous = record.releaseMask
+    record.releaseMask = next
+    record.maskKey = key
+    previous?.()
   }
 
   releaseAgent(agent) {
-    const bindings = this.agentBindings.get(agent)
-    if (!bindings) return
+    const record = this.agentBindings.get(agent)
+    if (!record) return
     this.agentBindings.delete(agent)
-    for (const dispose of bindings.values()) dispose()
+    for (const dispose of record.bindings.values()) dispose()
+    record.releaseMask?.()
   }
 
   delegationPrompt(scope) {
@@ -223,6 +259,10 @@ export class PiLoadout {
     if (name.startsWith(INTERNAL_PREFIX) || name === 'codemode' || name === 'tool_search') return undefined
     const record = this.bridges.get(name)
     if (!record) return this.ownNames.has(name) ? this.ctx.tools.executable(name, scope, toolSet) : undefined
+    if (record.passthrough) {
+      if (this.ctx.tools.get(name) !== record.original) return undefined
+      return this.ctx.tools.executable(name, scope, toolSet) === record.original ? record.original : undefined
+    }
     if (this.ctx.tools.executable(name, record.sourceScope) !== record.original) return undefined
     if (this.ctx.tools.get(name, scope) !== record.direct) return undefined
     return this.ctx.tools.executable(record.alias, scope, toolSet)
@@ -258,7 +298,7 @@ export class PiLoadout {
     for (const definition of definitions) {
       if (definition.name === 'codemode' || definition.name === 'tool_search') continue
       const name = this.internal.get(definition.name) ?? definition.name
-      if (this.bridges.has(name) && !this.internal.has(definition.name)) continue
+      if (this.bridges.has(name) && !this.bridges.get(name).passthrough && !this.internal.has(definition.name)) continue
       if (!this.bridges.has(name) && !this.ownNames.has(name)) continue
       const structured = this.bridges.has(name) ? definition.output.schema : this.outputs.get(name)
       result.set(name, {

@@ -17,14 +17,14 @@ const [tools, pipeline, schema] = await Promise.all([
   load('@deepseek-ai/schemastery'),
 ])
 const toolsRequire = createRequire(require.resolve('@deepseek-ai/dsh-tools'))
-const { scopeOf } = await import(pathToFileURL(toolsRequire.resolve('@deepseek-ai/dsh-scope')).href)
+const { scopeOf, scopeChainOf } = await import(pathToFileURL(toolsRequire.resolve('@deepseek-ai/dsh-scope')).href)
 const projectionRequire = createRequire(require.resolve('@deepseek-ai/dsh-session-projection'))
 const { z } = await import(pathToFileURL(projectionRequire.resolve('zod')).href)
 
 export const { ToolExecutionPipeline, executeToolBatch } = pipeline
 export const { ToolNotFoundError, projectToolSchema } = tools
 export const Schema = schema.default
-export { z, scopeOf }
+export { z, scopeOf, scopeChainOf }
 
 export const Config = Schema.object({
   presentationOnly: Schema.boolean().default(false).description('Mount only the Web presentation companion; do not register tools, prompts, or state.'),
@@ -34,6 +34,8 @@ export const Config = Schema.object({
   toolSearch: Schema.boolean().default(true),
   scopedTools: Schema.array(Schema.string().min(1)).default([])
     .description('Native DSH tool names mounted in this preset, enabled by default unless the session has an explicit selection.'),
+  globalTools: Schema.array(Schema.string().min(1)).default([])
+    .description('Native global tools enabled by default, retaining their original registration and activation conditions.'),
   mcpServers: Schema.array(Schema.string()).default([]),
   mcpExposure: Schema.union(['direct', 'codemode', 'deferred', 'hidden']).default('codemode'),
   maxParallel: Schema.natural().min(1).default(10),
@@ -45,6 +47,8 @@ export function normalizeConfig(raw = {}) {
   const config = Config(raw)
   if (new Set(config.tools).size !== config.tools.length) throw new Error('Pi tool names must be unique')
   if (new Set(config.scopedTools).size !== config.scopedTools.length) throw new Error('Pi scoped tool names must be unique')
+  const nativeNames = [...config.scopedTools, ...config.globalTools]
+  if (new Set(nativeNames).size !== nativeNames.length) throw new Error('Pi native tool names must be unique across scopedTools and globalTools')
   for (const server of config.mcpServers) {
     if (!/^[A-Za-z0-9_-]{1,32}$/.test(server)) throw new Error(`Invalid MCP server name: ${server}`)
   }

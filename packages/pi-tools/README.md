@@ -8,6 +8,7 @@ An isolated **pi** Agent preset for DeepSeek Harness. It does not change the def
 - The original Pi `codemode` extension and its QuickJS worker sandbox. Scripts can call tools, use `Promise.allSettled`, curate output, emit images, and use `store`/`load`, `ALL_TOOLS`, `searchTools`, `describeTool`, and `describeNamespace`.
 - The original BM25 `tool_search`. A successful search makes matching tools directly available from the next model call.
 - DSH's native `subagent`, `subagent_fork`, `list_subagent_models`, `send_message`, `list_agents`, and `wait_agent`, both directly and through codemode. The Host's existing `spawn`/`fork` providers own creation, conversation inheritance, depth/model policy, messages, completion notices, and cleanup.
+- The Host's existing `grok_search` and `openai_search`, when configured and ready, plus DSH's native `ask_user_question`. Search routes, credentials, question delivery, and cancellation remain with their original providers.
 - Selected **existing DSH MCP connections**, including resource helpers. The supplied preset selects the `nowledge_mem` tool namespace. It does not start a second MCP client or read/copy MCP credentials.
 
 The plugin depends on `@earendil-works/pi-coding-agent@1.5.0` without a range and checks that version when loading. No global Pi CLI, Pi login, or Pi model configuration is needed. The plugin imports fixed private modules, so upgrading Pi requires a compatibility review.
@@ -18,7 +19,7 @@ Most tool bodies are original Pi code. `ls` and `find` use Pi's operation-inject
 
 Select **pi** on the new-conversation screen, then open **Tools**. The dialog lists Pi tools, additional eligible DSH tools, and tools from the configured MCP connections. Filter by name or description, select individual tools, clear the selection, or restore the preset defaults. **Cancel** discards dialog edits; **Save** applies them to this conversation only. Starting the first turn locks the selection.
 
-The original Pi tools, configured MCP tools, and available native subagent companions are selected by default. Other DSH tools remain opt-in. Existing explicit Session selections are not expanded when new tools become available. Pi keeps ownership of its nine tool names, so deselecting a Pi tool never exposes a same-name DSH fallback. Global bridges require unconditional registrations. `scopedTools` additionally admits explicitly named unconditional native tools mounted in this preset; other presets' private tools are not imported. Selecting tools does not enable another MCP connection or change permissions.
+The original Pi tools, configured MCP tools, and available native companions (subagents, searches, and user questions) are selected by default. Other DSH tools remain opt-in. Existing explicit Session selections are not expanded when new tools become available. Pi keeps ownership of its nine tool names, so deselecting a Pi tool never exposes a same-name DSH fallback. Ordinary global bridges require unconditional registrations. `globalTools` explicitly opts named globals into native passthrough, preserving their own activation conditions. `scopedTools` additionally admits explicitly named unconditional native tools mounted in this preset; other presets' private tools are not imported. Selecting tools does not enable another MCP connection or change permissions.
 
 Selections are stored as `agent-preset/options` in an existing blank Session. Refresh and replay restore the committed selection, and forks inherit the log. Before a Session is bound, the choice is only an in-memory draft for the next new conversation. Switching presets resets that draft. Disabled tools are excluded from direct declarations, native QuickJS discovery, and dispatch. Extra DSH tools are directly available and also callable from codemode. Deferred MCP tools still need codemode or tool_search; the dialog warns when both gateways are deselected.
 
@@ -31,7 +32,8 @@ The bundle supplies this configuration in its preset:
 ```yaml
 mcpServers: [nowledge_mem]
 mcpExposure: codemode
-scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent]
+scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent, ask_user_question]
+globalTools: [grok_search, openai_search]
 ```
 
 Other options:
@@ -42,6 +44,7 @@ Other options:
 | `codemode` | `true` | Enable original QuickJS scripts. |
 | `toolSearch` | `true` | Enable deferred-tool discovery and loading. |
 | `scopedTools` | `[]` in the plugin | Native DSH tools mounted in this preset to bridge and select by default; cannot name Pi or MCP tools. |
+| `globalTools` | `[]` (bundle selects the two searches) | Named global native tools, including conditional registrations, enabled by default without replacing their native admission. |
 | `mcpServers` | `[]` in the plugin | Global DSH MCP tool namespaces to bridge. |
 | `mcpExposure` | `codemode` | `direct`, `codemode`, `deferred`, or `hidden`. |
 | `maxParallel` | `10` | Limit for concurrent safe root calls and script subcalls. |
@@ -54,11 +57,15 @@ Exposure follows Pi's native MCP mapping: both `codemode` and `deferred` become 
 
 Namespace aliases use the selected DSH server names. Descriptions and full instructions come from the selected server's public `mcp:<server>` prompt section, observed during successful scoped prompt assembly without changing that assembly. Each scope has its own replaceable snapshot; removed sections clear old metadata. Instructions remain discoverable through `describeNamespace` instead of being inserted into every prompt.
 
-The bridge selects configured unconditional global MCP registrations by namespace and offers other eligible global DSH tools as opt-in conversation choices. Conditional global registrations are not imported. Resource calls must name a selected server. A disconnected or replaced MCP registration cannot be used through an old binding.
+The bridge selects configured unconditional global MCP registrations by namespace and offers other eligible global DSH tools as opt-in conversation choices. Other conditional global registrations are not imported. Resource calls must name a selected server. A disconnected or replaced MCP registration cannot be used through an old binding.
 
 The bundle also mounts DSH's native subagent and control plugins inside the Pi preset. `scopedTools` reserves their names and bridges only this preset's native registrations, never a same-name global fallback. Public per-Agent conditional registrations retain the original definition identity, so native identity/depth context still recognizes the tools. Private aliases use the same Session selection and execution pipeline. Removing a provider removes its bindings, and Agent/plugin disposal releases the associated registrations. No scope ancestry is rewritten. The existing Host must provide `spawn` and `fork`; no second backend, profile, or model client is created. Updating this local bundle does not apply its new preset entries to an already installed profile.
 
 Subagent creation returns `{ kind: 'activation', name }`, not the final result. Codemode may start children and return their names; it should not stay alive polling for completion. DSH delivers native completion notices and handles follow-up messages. Model-route and depth decisions remain with DSH, including its normal rejection paths.
+
+The named `globalTools` remain their original global registrations. Pi adds per-Agent selection restrictions rather than copying the tools or their `when` conditions into unconditional aliases. A new step still resolves the original route/key availability; removal or replacement invalidates old admissions. Selection restrictions and scoped bindings follow preset switches and are released on Agent/plugin disposal. This does not configure a search backend or copy credentials: the Host's existing web-access plugin must already supply the configured search tools.
+
+`ask_user_question` uses the native schema and answer service directly or from codemode. Root sessions can wait for the existing UI provider, including skip and cancellation. Native DSH rejects delegated subagents asking the human directly; children should send their question to the parent with `send_message`. Explicit codemode timeout options also bound any wait inside a script; call the question tool directly when no script orchestration is needed.
 
 ## Session state and execution
 

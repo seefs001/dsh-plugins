@@ -27,12 +27,15 @@
             config:
               provider: fork
               toolName: subagent_fork
+          - id: pi-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
           - id: pi-tools
             name: dsh-pi-tools
             config:
               mcpServers: [nowledge_mem]
               mcpExposure: codemode
-              scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent]
+              scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent, ask_user_question]
+              globalTools: [grok_search, openai_search]
           - id: pi-project-instructions
             name: '@deepseek-ai/dsh-agent-instructions'
             config:
