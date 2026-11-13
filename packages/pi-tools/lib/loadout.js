@@ -223,7 +223,11 @@ export class PiLoadout {
       bindings.delete(name)
       previous?.()
     } else if (!previous) {
-      bindings.set(name, agent.ctx.tools.register(record.direct, { when: () => false }))
+      // register() emits tools/change synchronously; reserve the slot first so
+      // a re-entrant sync does not register the same shadow twice.
+      let dispose
+      bindings.set(name, () => dispose?.())
+      dispose = agent.ctx.tools.register(record.direct, { when: () => false })
     }
   }
 
