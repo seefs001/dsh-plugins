@@ -1,0 +1,40 @@
+---
+title: 分支切换
+description: 新建会话时点击分支名，搜索并切换已有本地分支，保留原生工作树功能。
+---
+
+`dsh-branch-switcher` 把新建会话右侧、“新建工作树”旁的只读分支名变成可点击入口。不必先勾选工作树，就能搜索并切换已有本地分支。**Host + Web**，无需配置。
+
+## 环境与安装
+
+需要 DSH `>=0.2.2-rc.2 <0.3.0`，并启用 **Change requests & worktrees**（`@deepseek-ai/dsh-experimental-forge-bundle`）。插件不会自动启用依赖。
+
+从本地仓库安装：
+
+```bash
+dsh plugin --profile web add link:$PWD/packages/branch-switcher
+```
+
+也可以在 **插件 → 添加插件** 选择本插件目录。以插件管理器的应用结果为准；如果提示需要重启，先重启 DSH，再刷新现有 Web GUI。仅刷新页面不能激活等待中的 Host 变更，不需要重建 DSH。
+
+## 使用
+
+1. 新建会话，选择 Git 工作区。
+2. 发送首条消息前，点击右侧的分支名。
+3. 搜索已有本地分支，选择目标，再点击 **切换分支**。
+4. 成功后分支名更新，开始对话即可使用当前 checkout。
+
+菜单支持键盘方向键、Escape、点击外部关闭、加载反馈和 Git 失败重试。只读模式禁用切换，游离 HEAD 单独标注。勾选 **新建工作树** 后，继续使用 DSH 原生的基准分支选择与独立工作目录创建流程。
+
+<Callout type="warn" title="切换的是共享目录，不是会话私有分支">
+共用这个工作目录的其他会话和终端也会看到新分支。未提交改动按 `git switch` 原生规则保留，可能覆盖改动时会拒绝。插件不会拉取、创建分支、暂存、重置或强制覆盖。需要会话隔离时，请使用原生“新建工作树”。
+</Callout>
+
+## 操作与限制
+
+- 只支持已有本地分支。目标已被其他 worktree 占用时，Git 会报错。
+- 只在首条消息前切换。切换期间通过 Session maintenance 暂停首条消息的执行，完成后再继续。
+- 通过 Session 命令 API 调用统一 Host 操作，遵守当前工作目录和沙箱权限，不请求提权。Git 命令使用参数数组，禁用 checkout hooks，保留 Git 内容过滤器的正常行为。
+- 提供 `/branch-switcher` 命令及 `branch_switcher` Agent 工具。Agent 可列出分支；运行中的会话不能通过该工具切换自身分支。切换参数必须带上列表返回的 `root` 和 `current`，过期选择会被拒绝。
+- 分支列表最多读取 1 MiB，每条 Git 命令限时 15 秒。不增加插件持久化存储。
+- 只覆盖 `conversation.hero.options` 中原生的 `forge-panel.worktree` 注册项。原生工作树请求一旦启用，直接交回原生组件渲染。未来 Forge 契约变化可能需要升级插件。

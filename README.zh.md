@@ -28,6 +28,7 @@ seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（
 | [`dsh-quote-jump`](packages/quote-jump) | 用户消息里的引用显示为引用块，点击后滚动到原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 更好用的工具调用行。技能行可在右侧边栏打开该技能的 `SKILL.md`。 | Web |
 | [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页 + X）和 `openai_search` 工具，在 Plugins 页选择本地 Responses 模型和搜索类型。 | Host + Web |
+| [`dsh-branch-switcher`](<packages/branch-switcher/README.md>) | 在新建会话右侧分支名处搜索并切换本地分支，保留原生工作树功能。需要 DSH rc.2 和 Change requests & worktrees。 | Host + Web |
 | [`dsh-git-changes`](packages/git-changes) | 在输入框下方显示分支与未提交改动统计，点击打开右侧 diff。需要 Change requests & worktrees。 | Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | 可拖动的 GPT / Claude 小伙伴，跟随当前显示的对话活动。 | Web |
 

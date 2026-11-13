@@ -28,6 +28,7 @@ English | [中文](README.zh.md)
 | [`dsh-quote-jump`](packages/quote-jump) | Quotes in user messages become blocks; clicking one scrolls to the quoted text and highlights it. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Richer tool-call rows. The skill row opens the skill's `SKILL.md` in the right sidebar. | Web |
 | [`dsh-web-access`](packages/web-access) | `grok_search` (web + X) and `openai_search` tools. Pick a local Responses model and search type on the Plugins page. | Host + Web |
+| [`dsh-branch-switcher`](<packages/branch-switcher/README.md>) | Switch local branches from the New Session branch chip, with the native worktree option preserved. Requires DSH rc.2 and Change requests & worktrees. | Host + Web |
 | [`dsh-git-changes`](packages/git-changes) | Branch and uncommitted-change counts below the composer; click to open the right-sidebar diff. Requires Change requests & worktrees. | Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | Draggable GPT / Claude companions that follow the displayed conversation's activity. | Web |
 

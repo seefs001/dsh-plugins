@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Branch switcher",
+    "description": "Click the branch beside New worktree before the first message, search existing local branches, and confirm a switch. Keeps the native worktree base selector. Switching changes the shared checkout; Git refuses overwritten changes. No fetch, branch creation, stash, or force. Requires Change requests & worktrees and DSH rc.2 or newer."
+  }
+}

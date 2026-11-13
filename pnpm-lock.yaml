@@ -62,6 +62,8 @@ importers:
 
   packages/auto-review-model: {}
 
+  packages/branch-switcher: {}
+
   packages/compaction-status: {}
 
   packages/git-changes: {}
