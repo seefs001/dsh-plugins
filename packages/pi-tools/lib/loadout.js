@@ -110,7 +110,20 @@ export class PiLoadout {
     return { tools: [...new Set(value.tools)].toSorted() }
   }
 
+  get allServers() {
+    return this.config.mcpServers.includes('*')
+  }
+
+  serverEnabled(server) {
+    return this.allServers || this.config.mcpServers.includes(server)
+  }
+
   serverOf(name) {
+    if (this.allServers) {
+      // Public names are `mcp__<server>__<tool>` with non-name characters replaced by `_`.
+      const end = name.startsWith('mcp__') ? name.indexOf('__', 5) : -1
+      return end > 5 ? name.slice(5, end) : undefined
+    }
     return this.config.mcpServers.find(server => name.startsWith(`mcp__${server}__`))
   }
 
@@ -163,7 +176,7 @@ export class PiLoadout {
         const execute = async (input, exec) => {
           if (this.ctx.tools.executable(name, sourceScope) !== original) throw new Error(`Tool is no longer available: ${name}`)
           const args = prepareArguments(original, input, exec)
-          if (RESOURCE_TOOLS.has(name) && !this.config.mcpServers.includes(args.server)) {
+          if (RESOURCE_TOOLS.has(name) && !this.serverEnabled(args.server)) {
             throw new Error(`MCP server is not enabled in this preset: ${args.server}`)
           }
           return original.execute(args, exec)
@@ -283,13 +296,18 @@ export class PiLoadout {
 
   captureNamespaces(scope, sections) {
     const snapshot = new Map()
-    for (const server of this.config.mcpServers) {
+    const servers = this.allServers
+      ? sections.filter(section => section.name.startsWith('mcp:')).map(section => section.name.slice(4))
+      : this.config.mcpServers
+    for (const server of servers) {
       const text = sections.find(section => section.name === `mcp:${server}`)?.text.trim()
       if (!text) continue
       const prefix = `### MCP server: ${server}\n\n`
       const instructions = text.startsWith(prefix) ? text.slice(prefix.length) : text
       const description = instructions.split('\n').find(line => line.trim())?.replace(/^#+\s*/, '').trim()
-      snapshot.set(server, { description: description || `MCP server ${server}`, instructions })
+      // Wildcard serverOf() returns the tool-name form, where "-" becomes "_".
+      const key = this.allServers ? server.replace(/[^A-Za-z0-9_]/g, '_') : server
+      snapshot.set(key, { description: description || `MCP server ${server}`, instructions })
     }
     this.namespaces.set(scope, snapshot)
   }

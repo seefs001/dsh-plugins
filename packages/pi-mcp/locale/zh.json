@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Pi MCP 服务器",
+    "description": "在 DSH 中使用 Pi 的 ~/.pi/agent/mcp.json 里的 MCP 服务器，一份文件同时配置两边。服务器注册到 DSH MCP 管理器，修改文件后无需重启即生效。${VAR} 引用从 DSH 凭据或启动环境解析。不支持 OAuth、!command 值、项目级 .pi/mcp.json 和按服务器的 exposure 设置；使用这些特性的服务器会被跳过并记录警告。"
+  }
+}

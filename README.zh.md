@@ -52,6 +52,7 @@ seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 |---|---|---|
 | [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页和 X）与 `openai_search`，使用已有 Responses provider 的托管搜索。 | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 1.5.0 原版编程工具、QuickJS codemode，以及按会话选择的 DSH 和 MCP 工具。rc.2，且需要预设选项相关的 DSH 改动，见其 README。 | Host + Web |
+| [`dsh-pi-mcp`](packages/pi-mcp) | 把 Pi 的 `~/.pi/agent/mcp.json` 里的 MCP 服务器注册到 DSH MCP 管理器，改文件即时生效。 | Host |
 | [`dsh-switchboard`](packages/switchboard) | 把 DSH 接入 Switchboard 中继，让 Telegram、Discord 和 GitHub 的请求在 DSH 会话里运行。 | Host |
 
 按需安装即可。同时装了 `dsh-model-reference` 和 `dsh-service-tier` 时，`#` 标签会带上 ⚡。

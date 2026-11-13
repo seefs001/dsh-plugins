@@ -52,7 +52,7 @@ export function normalizeConfig(raw = {}) {
   const nativeNames = [...config.scopedTools, ...config.globalTools]
   if (new Set(nativeNames).size !== nativeNames.length) throw new Error('Pi native tool names must be unique across scopedTools and globalTools')
   for (const server of config.mcpServers) {
-    if (!/^[A-Za-z0-9_-]{1,32}$/.test(server)) throw new Error(`Invalid MCP server name: ${server}`)
+    if (server !== '*' && !/^[A-Za-z0-9_-]{1,32}$/.test(server)) throw new Error(`Invalid MCP server name: ${server}`)
   }
   if (!config.codemode && config.mcpExposure === 'codemode' && config.mcpServers.length) {
     throw new Error('MCP codemode exposure requires codemode')

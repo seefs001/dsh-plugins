@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Pi MCP servers",
+    "description": "Uses the MCP servers in Pi's ~/.pi/agent/mcp.json in DSH, so one file configures both. Servers are registered with the DSH MCP manager and follow file edits without a restart. ${VAR} references resolve from DSH credentials or the launch environment. OAuth, !command values, project .pi/mcp.json files, and per-server exposure settings are not supported; servers using them are skipped with a log warning."
+  }
+}

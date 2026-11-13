@@ -60,7 +60,7 @@ The picker shows the catalog the Host actually returns, so the count varies by e
 
 ### MCP
 
-Selected existing DSH MCP connections are bridged, including resource helpers. The supplied preset selects the `nowledge_mem` namespace. The plugin does not start a second MCP client or read or copy MCP credentials. Remote MCP access is not limited by the local filesystem sandbox.
+Selected existing DSH MCP connections are bridged, including resource helpers. The supplied preset selects every global namespace with `'*'`, so servers added later through the DSH MCP manager, such as those `dsh-pi-mcp` reads from Pi's `mcp.json`, appear without a config change. The plugin does not start a second MCP client or read or copy MCP credentials. Remote MCP access is not limited by the local filesystem sandbox.
 
 ## Choosing tools for a session
 
@@ -90,7 +90,7 @@ The defaults are the Pi tools, the configured MCP tools, the native tools mounte
 The bundle supplies this configuration in its preset:
 
 ```yaml
-mcpServers: [nowledge_mem]
+mcpServers: ['*']
 mcpExposure: codemode
 scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent,
   ask_user_question, skill, job_list, job_output, job_kill, schedule_create, schedule_list,
@@ -110,7 +110,7 @@ optInTools: [present, office_render, office_convert, office_recalculate,
 | `scopedTools` | `[]` | Native DSH tools mounted in this preset. Selected by default, keeping their native registration and conditions. Cannot name Pi or MCP tools. |
 | `globalTools` | `[]` | Named global native tools enabled by default through passthrough, keeping their own admission conditions. |
 | `optInTools` | `[]` | Names from `scopedTools` or `globalTools` that stay in the picker but are off by default. |
-| `mcpServers` | `[]` | Global DSH MCP tool namespaces to bridge. |
+| `mcpServers` | `[]` | Global DSH MCP tool namespaces to bridge. `'*'` bridges every namespace, including ones registered later. |
 | `mcpExposure` | `codemode` | `direct`, `codemode`, `deferred`, or `hidden`. |
 | `maxParallel` | `10` | Limit for concurrent safe root calls and script subcalls. |
 | `rgCommand` | `rg` | Executable name or absolute path in DSH's execution environment. |

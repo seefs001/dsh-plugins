@@ -123,8 +123,10 @@ export async function apply(ctx, rawConfig = {}) {
     complete: true,
     text: ({ scope }) => {
       const selected = definitions.filter(tool => loadout.enabled(tool.name, scope))
-      const servers = config.mcpServers.filter(server => [...loadout.bridges.keys()]
-        .some(toolName => toolName.startsWith(`mcp__${server}__`) && loadout.enabled(toolName, scope)))
+      const servers = [...new Set([...loadout.bridges.keys()]
+        .filter(toolName => loadout.enabled(toolName, scope))
+        .map(toolName => loadout.serverOf(toolName))
+        .filter(server => server !== undefined))].toSorted()
       return toolPrompt(selected) + loadout.delegationPrompt(scope) + (servers.length && config.mcpExposure !== 'hidden'
         ? `\n\nMCP tool namespaces enabled in this session: ${servers.map(server => `mcp__${server}`).join(', ')}.\n`
           + (selected.some(tool => tool.name === 'codemode') ? 'Use codemode searchTools()/describeTool() to discover callable tools. ' : '')

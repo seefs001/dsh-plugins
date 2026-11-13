@@ -67,7 +67,7 @@ description: 独立的 pi 预设：Pi 1.5.0 原版编程工具、QuickJS codemod
 
 ### MCP
 
-预设通过已有的 DSH MCP 连接桥接选中的 MCP 服务，自带配置选择 `nowledge_mem` 命名空间，包括资源辅助工具。插件不启动第二个 MCP 客户端，也不读取或复制 MCP 凭据。远程 MCP 的访问不受本地文件系统沙箱限制。
+预设通过已有的 DSH MCP 连接桥接选中的 MCP 服务，自带配置用 `'*'` 选择全部全局命名空间，之后通过 DSH MCP 管理器新增的服务器（例如 `dsh-pi-mcp` 从 Pi 的 `mcp.json` 读到的）无需改配置即可出现，包括资源辅助工具。插件不启动第二个 MCP 客户端，也不读取或复制 MCP 凭据。远程 MCP 的访问不受本地文件系统沙箱限制。
 
 ## 为会话选择工具
 
@@ -97,7 +97,7 @@ description: 独立的 pi 预设：Pi 1.5.0 原版编程工具、QuickJS codemod
 bundle 在预设里提供的配置：
 
 ```yaml
-mcpServers: [nowledge_mem]
+mcpServers: ['*']
 mcpExposure: codemode
 scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent,
   ask_user_question, skill, job_list, job_output, job_kill, schedule_create, schedule_list,
@@ -117,7 +117,7 @@ optInTools: [present, office_render, office_convert, office_recalculate,
 | `scopedTools` | `[]` | 预设作用域里挂载的原生 DSH 工具，默认勾选，保留原生注册和条件；不能写 Pi 或 MCP 工具名 |
 | `globalTools` | `[]` | 以透传方式默认启用的全局原生工具，保留原有的准入条件 |
 | `optInTools` | `[]` | 出现在工具面板但默认不勾选的工具，必须同时写在 `scopedTools` 或 `globalTools` 里 |
-| `mcpServers` | `[]` | 要桥接的全局 DSH MCP 命名空间 |
+| `mcpServers` | `[]` | 要桥接的全局 DSH MCP 命名空间；`'*'` 表示全部，包括之后注册的 |
 | `mcpExposure` | `codemode` | `direct`、`codemode`、`deferred` 或 `hidden` |
 | `maxParallel` | `10` | 并发安全的根调用和脚本子调用的上限 |
 | `rgCommand` | `rg` | DSH 执行环境里的可执行文件名或绝对路径 |

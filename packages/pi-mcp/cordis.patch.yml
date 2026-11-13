@@ -1,0 +1,4 @@
+# Host-only: mirror Pi's user-level MCP servers into the DSH MCP manager.
+- insert:
+    - id: pi-mcp
+      name: dsh-pi-mcp

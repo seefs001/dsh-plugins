@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `dsh-pi-mcp` 0.1.0: a Host-only plugin that registers each server in Pi's `~/.pi/agent/mcp.json` with the DSH MCP manager, converts `${VAR}` to `${credential:VAR}`, and follows file edits without a restart. Skips OAuth, `!command`, and SSE entries with a log warning.
+- `dsh-pi-tools`: `mcpServers` accepts `'*'` to bridge every global MCP namespace, including ones registered later. The supplied `pi` preset now uses it.
 - `dsh-pi-tools`: the conversation tool picker groups Pi, DSH and MCP tools into collapsible sections with selection counts, section checkboxes (whole section, or only the visible matches while filtering), a selected-only view, and expand/collapse all. Filtering always shows matches regardless of fold state. Save, Cancel, Restore defaults and session locking are unchanged.
 - Documentation site: reorganized into install, configuration and data, versions and boundaries, and grouped plugin pages, with pages for `dsh-pi-tools` and `dsh-switchboard`. Plugin versions and DSH ranges are read from package manifests at build time. Replaced references to a nonexistent `patchReload: live` setting with Plugin Manager's `applied` / `restart-required` results.
 - `dsh-keep-awake` 0.1.0: a macOS Host-only plugin that prevents automatic idle sleep using the built-in `caffeinate` utility. Keeps display sleep and screen locking unchanged; releases its assertion on plugin disposal or Host exit, including crashes. Includes English and Chinese metadata, an original icon, and usage documentation.

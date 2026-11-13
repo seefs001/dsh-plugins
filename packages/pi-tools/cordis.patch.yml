@@ -109,7 +109,7 @@
           - id: pi-tools
             name: dsh-pi-tools
             config:
-              mcpServers: [nowledge_mem]
+              mcpServers: ['*']
               mcpExposure: codemode
               scopedTools:
                 - subagent
