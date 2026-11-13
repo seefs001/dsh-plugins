@@ -231,7 +231,7 @@ window.__ModuleLoader__.load({
       ['web', ['web_fetch', 'web_search', 'grok_search', 'openai_search']],
       ['files', ['present', 'office_render', 'office_convert', 'office_recalculate']],
       ['interaction', ['skill', 'ask_user_question']],
-      ['plugins', ['plugin_manager']],
+      ['plugins', ['plugin_manager', 'plugin_market', 'cordis_inspect_list', 'cordis_inspect_query']],
     ]
     const DSH_SECTION_OF = new Map(DSH_SECTIONS.flatMap(([id, names]) => names.map(name => [name, id])))
     const DSH_PREFIXES = [['job_', 'jobs'], ['schedule_', 'jobs'], ['office_', 'files'], ['subagent', 'agents']]

@@ -34,13 +34,14 @@ The bundle mounts these native DSH plugins inside the `pi` preset. Their tools k
 | Plans and todos | `todo_write`; an isolated plan mode with `exit_plan_mode` |
 | Web and presentation | `web_fetch`, `web_search`, `present` |
 | Office | `office_render`, `office_convert`, `office_recalculate` |
-| Other | `workflow` (isolated workflow engine), `plugin_manager`, time context, project instructions (up to 64 KiB), compaction and `/compact` |
+| Plugin development | `plugin_manager`, `plugin_market`, `cordis_inspect_list`, `cordis_inspect_query` (the creator preset's runtime inspection; the Host side comes from the web-app bundle), the `dsh-doc` skill |
+| Other | `workflow` (isolated workflow engine), time context, project instructions (up to 64 KiB), compaction and `/compact` |
 
 The bundled skill directory is located through `DSH_INSTALL_DIR`, or the process entry point when that variable is unset, never through an external bundle's base URL.
 
 `workflow` is DSH's native tool and runs on DSH's PTC runtime. It is separate from Pi's `codemode`, which stays on QuickJS with `{ code: string }`.
 
-Plan mode reuses the standard preset's plan prompt. The preset does not copy the standard preset's same-name file and terminal tools, its persona, or its extra tool-result pruner, and it does not enable the plugin market, which the standard preset also leaves disabled.
+Plan mode reuses the standard preset's plan prompt. The preset does not copy the standard preset's same-name file and terminal tools, its persona, or its extra tool-result pruner. Like the creator preset, it enables the read-only plugin market tool and runtime inspection.
 
 The global `grok_search` and `openai_search` from [`dsh-web-access`](../web-access) pass through unchanged when configured and ready.
 
@@ -49,7 +50,8 @@ The global `grok_search` and `openai_search` from [`dsh-web-access`](../web-acce
 A tool that appears in the picker is not necessarily callable right now:
 
 - `schedule_*` tools register only when the Host provides the schedule service.
-- `plugin_manager` loads only when a profile context exists.
+- `plugin_manager` and `plugin_market` load only when a profile context exists; `plugin_market` also needs the Host plugin market service.
+- `cordis_inspect_query` needs a connected page for Client providers.
 - Office tools become available on the step after the matching Office skill is loaded. Without the Office service they report unavailable, as in native DSH.
 - `exit_plan_mode` follows the native plan state.
 - `grok_search` and `openai_search` are callable only while their route and credentials are ready. `web_search` follows the native web provider's availability. Registered search tools can remain visible in the picker while they are unavailable to the model.
@@ -73,7 +75,7 @@ Select **pi** on the new-conversation screen, then open **Tools**. The dialog gr
 
 **Cancel** discards the dialog's edits. **Save** applies them to this conversation only. The selection locks when the first turn starts, and later saves are refused.
 
-The defaults are the Pi tools, the configured MCP tools, the native tools mounted in the preset, and the two passthrough searches. Other global DSH tools on the Host are opt-in. New tools are not added to an existing explicit selection; a new session or **Restore defaults** picks up the new defaults.
+The defaults are the Pi tools, the configured MCP tools, the native tools mounted in the preset except those listed in `optInTools`, and the two passthrough searches. The supplied preset lists `present`, the Office tools, and the plugin development tools (`plugin_manager`, `plugin_market`, `cordis_inspect_list`, `cordis_inspect_query`) as opt-in. Other global DSH tools on the Host are opt-in. New tools are not added to an existing explicit selection; a new session or **Restore defaults** picks up the new defaults.
 
 ## How the selection applies
 
@@ -94,8 +96,10 @@ scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_
   ask_user_question, skill, job_list, job_output, job_kill, schedule_create, schedule_list,
   schedule_view, schedule_edit, create_goal, get_goal, update_goal, todo_write, web_fetch,
   web_search, present, office_render, office_convert, office_recalculate, exit_plan_mode,
-  workflow, plugin_manager]
+  workflow, plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
 globalTools: [grok_search, openai_search]
+optInTools: [present, office_render, office_convert, office_recalculate,
+  plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
 ```
 
 | Option | Plugin default | Meaning |
@@ -105,6 +109,7 @@ globalTools: [grok_search, openai_search]
 | `toolSearch` | `true` | Enable deferred-tool discovery and loading. |
 | `scopedTools` | `[]` | Native DSH tools mounted in this preset. Selected by default, keeping their native registration and conditions. Cannot name Pi or MCP tools. |
 | `globalTools` | `[]` | Named global native tools enabled by default through passthrough, keeping their own admission conditions. |
+| `optInTools` | `[]` | Names from `scopedTools` or `globalTools` that stay in the picker but are off by default. |
 | `mcpServers` | `[]` | Global DSH MCP tool namespaces to bridge. |
 | `mcpExposure` | `codemode` | `direct`, `codemode`, `deferred`, or `hidden`. |
 | `maxParallel` | `10` | Limit for concurrent safe root calls and script subcalls. |

@@ -43,20 +43,22 @@ description: 独立的 pi 预设：Pi 1.5.0 原版编程工具、QuickJS codemod
 | 计划与待办 | `todo_write`；隔离的计划模式和 `exit_plan_mode` |
 | 网页与展示 | `web_fetch`、`web_search`、`present` |
 | Office | `office_render`、`office_convert`、`office_recalculate` |
-| 其他 | `workflow`（隔离的 workflow engine）、`plugin_manager`、时间上下文、项目说明（AGENTS.md 等，上限 64 KiB）、上下文压缩和 `/compact` |
+| 插件开发 | `plugin_manager`、`plugin_market`、`cordis_inspect_list`、`cordis_inspect_query`（来自创造模式的运行时检查，Host 端由 web-app bundle 提供）、`dsh-doc` skill |
+| 其他 | `workflow`（隔离的 workflow engine）、时间上下文、项目说明（AGENTS.md 等，上限 64 KiB）、上下文压缩和 `/compact` |
 
 全局的 `grok_search` 和 `openai_search` 由 [联网搜索](/docs/plugins/web-access) 提供。插件以原样透传的方式保留它们，配置好且 readiness 通过时才可用。
 
 `workflow` 是 DSH 原生的工具，运行在 DSH 的 PTC runtime 上，和 Pi 的 `codemode`（QuickJS、`{ code: string }`）是两套独立的机制。
 
-计划模式直接复用 DSH 标准预设的计划提示词。预设没有搬入标准模式的同名文件和终端工具、标准 persona、额外的工具结果裁剪器，也没有启用标准模式本来就禁用的插件市场。
+计划模式直接复用 DSH 标准预设的计划提示词。预设没有搬入标准模式的同名文件和终端工具、标准 persona、额外的工具结果裁剪器。和创造模式一样，预设启用了只读的插件市场工具和运行时检查。
 
 ### 原生条件仍然生效
 
 “在面板里可以选择”不等于“模型现在就能调用”。插件保留每个原生工具自己的条件：
 
 - `schedule_*` 只在 Host 提供 schedule 服务时注册。
-- `plugin_manager` 只在有 profile 上下文时加载。
+- `plugin_manager` 和 `plugin_market` 只在有 profile 上下文时加载；`plugin_market` 还需要 Host 提供插件市场服务。
+- `cordis_inspect_query` 查询 Client provider 时需要已连接的页面。
 - Office 工具要先加载对应的 Office 技能，下一步才可用；Office 服务不存在时按原生行为报 unavailable。
 - `exit_plan_mode` 跟随原生的计划模式状态启用。
 - `grok_search` 和 `openai_search` 需要路由和凭据就绪才能调用，`web_search` 则跟随原生网页搜索 provider 的可用性。已注册的搜索工具即使暂时不能供模型调用，也可能仍在选择面板中出现。
@@ -80,7 +82,7 @@ description: 独立的 pi 预设：Pi 1.5.0 原版编程工具、QuickJS codemod
 
 **取消** 丢弃面板里的修改，**保存** 只作用于这个会话。第一轮对话开始后选择就会锁定，保存会被拒绝。
 
-默认值包括 Pi 原版工具、配置的 MCP 工具、预设里挂载的原生工具，以及透传的两个搜索工具。Host 上其他全局 DSH 工具需要手动勾选，默认不开启。DSH 之后新增的工具不会加进已经保存过的显式选择；新会话或点 **恢复默认** 时才会采用新的默认值。
+默认值包括 Pi 原版工具、配置的 MCP 工具、预设里挂载的原生工具（`optInTools` 列出的除外），以及透传的两个搜索工具。随包预设把 `present`、Office 工具和插件开发工具（`plugin_manager`、`plugin_market`、`cordis_inspect_list`、`cordis_inspect_query`）设为非默认，需要时手动勾选。Host 上其他全局 DSH 工具需要手动勾选，默认不开启。DSH 之后新增的工具不会加进已经保存过的显式选择；新会话或点 **恢复默认** 时才会采用新的默认值。
 
 ## 选择怎样生效
 
@@ -101,8 +103,10 @@ scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_
   ask_user_question, skill, job_list, job_output, job_kill, schedule_create, schedule_list,
   schedule_view, schedule_edit, create_goal, get_goal, update_goal, todo_write, web_fetch,
   web_search, present, office_render, office_convert, office_recalculate, exit_plan_mode,
-  workflow, plugin_manager]
+  workflow, plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
 globalTools: [grok_search, openai_search]
+optInTools: [present, office_render, office_convert, office_recalculate,
+  plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
 ```
 
 | 选项 | 插件默认值 | 含义 |
@@ -112,6 +116,7 @@ globalTools: [grok_search, openai_search]
 | `toolSearch` | `true` | 启用延迟工具的发现和加载 |
 | `scopedTools` | `[]` | 预设作用域里挂载的原生 DSH 工具，默认勾选，保留原生注册和条件；不能写 Pi 或 MCP 工具名 |
 | `globalTools` | `[]` | 以透传方式默认启用的全局原生工具，保留原有的准入条件 |
+| `optInTools` | `[]` | 出现在工具面板但默认不勾选的工具，必须同时写在 `scopedTools` 或 `globalTools` 里 |
 | `mcpServers` | `[]` | 要桥接的全局 DSH MCP 命名空间 |
 | `mcpExposure` | `codemode` | `direct`、`codemode`、`deferred` 或 `hidden` |
 | `maxParallel` | `10` | 并发安全的根调用和脚本子调用的上限 |

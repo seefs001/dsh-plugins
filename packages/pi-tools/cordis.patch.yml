@@ -68,6 +68,11 @@
           - id: pi-plugin-manager
             name: '@deepseek-ai/dsh-plugin-manager/tools'
             disabled: !!js "!ctx.get('profileContext')"
+          - id: pi-plugin-market
+            name: '@deepseek-ai/dsh-plugin-market/tools'
+            disabled: !!js "!ctx.get('profileContext')"
+          - id: pi-tool-cordis
+            name: '@deepseek-ai/dsh-tool-cordis'
           - id: pi-planning
             name: cordis:group
             group: true
@@ -135,7 +140,20 @@
                 - exit_plan_mode
                 - workflow
                 - plugin_manager
+                - plugin_market
+                - cordis_inspect_list
+                - cordis_inspect_query
               globalTools: [grok_search, openai_search]
+              # Mounted and listed in the picker, but off until the session selects them.
+              optInTools:
+                - present
+                - office_render
+                - office_convert
+                - office_recalculate
+                - plugin_manager
+                - plugin_market
+                - cordis_inspect_list
+                - cordis_inspect_query
           - id: pi-project-instructions
             name: '@deepseek-ai/dsh-agent-instructions'
             config:

@@ -16,6 +16,10 @@ export class PiLoadout {
     this.scope = scopeOf(ctx)
     this.scopedNames = new Set(config.scopedTools)
     this.globalNames = new Set(config.globalTools)
+    this.optInNames = new Set(config.optInTools)
+    for (const name of this.optInNames) {
+      if (!this.scopedNames.has(name) && !this.globalNames.has(name)) throw new Error(`Pi opt-in tools must also be listed in scopedTools or globalTools: ${name}`)
+    }
     if ((this.scopedNames.size || this.globalNames.size) && this.scope === undefined) throw new Error('Pi scoped tools require a preset scope')
     for (const name of [...this.scopedNames, ...this.globalNames]) {
       if (PI_NAMES.has(name) || name.startsWith(INTERNAL_PREFIX) || this.isMcp(name)) {
@@ -78,6 +82,7 @@ export class PiLoadout {
       }
       return selected.tools.includes(name)
     }
+    if (this.optInNames.has(name)) return false
     return this.ownNames.has(name) || this.bridges.get(name)?.sourceScope !== undefined || this.bridges.get(name)?.passthrough === true
       || (this.isMcp(name) && this.accepts(name))
   }

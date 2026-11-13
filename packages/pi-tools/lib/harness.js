@@ -36,6 +36,8 @@ export const Config = Schema.object({
     .description('Native DSH tool names mounted in this preset, enabled by default unless the session has an explicit selection.'),
   globalTools: Schema.array(Schema.string().min(1)).default([])
     .description('Native global tools enabled by default, retaining their original registration and activation conditions.'),
+  optInTools: Schema.array(Schema.string().min(1)).default([])
+    .description('Names from scopedTools or globalTools that stay in the picker but are off until the session selects them.'),
   mcpServers: Schema.array(Schema.string()).default([]),
   mcpExposure: Schema.union(['direct', 'codemode', 'deferred', 'hidden']).default('codemode'),
   maxParallel: Schema.natural().min(1).default(10),
