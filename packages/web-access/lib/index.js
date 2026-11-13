@@ -548,7 +548,7 @@ export function apply(ctx, config) {
     restrictions.clear()
   }, 'web-access: restore native search')
   ctx.on('agent/disposed', ({ agent }) => restore(agent))
-  ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
+  const updateRestriction = async ({ agent, signal }) => {
     let replacesSearch = false
     for (const { backend, definition } of webSearchTools) {
       if (ctx.tools.get(definition.name, agent) === definition && await ready(ctx, backend)) {
@@ -556,12 +556,18 @@ export function apply(ctx, config) {
         break
       }
     }
-    signal.throwIfAborted()
-    if (disposed) return next()
+    signal?.throwIfAborted()
+    if (disposed) return
     if (!replacesSearch) restore(agent)
     else if (!restrictions.has(agent) && ctx.tools.get('web_search', agent) !== undefined) {
       restrictions.set(agent, agent.ctx.tools.restrict({ deny: ['web_search'] }))
     }
+  }
+  // pre-step runs after tool resolution and prompt assembly. Apply the initial
+  // mask during creation so the first request never advertises native search.
+  ctx.on('agent/created', updateRestriction)
+  ctx.on('agent/pre-step', async (payload, next) => {
+    await updateRestriction(payload)
     return next()
   })
 

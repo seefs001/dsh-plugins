@@ -25,7 +25,7 @@ Open **Plugins → dsh-web-access**. For each tool:
 
 Saving restarts the plugin and re-registers the tools. A tool is offered to the model only while its provider route exists and its key resolves; the page shows **Ready** or the reason it is not.
 
-At each model step, an available custom web search hides the built-in `web_search` for that agent. Disabling every custom web search, losing their route or key, or unloading this plugin lifts the restriction, and the built-in tool is available as usual. An X-only Grok search does not replace general web search. `web_fetch` and the built-in providers are unchanged. Readiness checks do not probe whether the upstream supports search, and a tool does not fall back after an HTTP error.
+When an agent is created or resumed, an available custom web search hides the built-in `web_search` before the first model step, so the tool timeline does not add it only to remove it on the next step. The plugin refreshes this restriction at each model step. Disabling every custom web search, losing their route or key, or unloading this plugin lifts the restriction, and the built-in tool is available as usual. An X-only Grok search does not replace general web search. `web_fetch` and the built-in providers are unchanged. Readiness checks do not probe whether the upstream supports search, and a tool does not fall back after an HTTP error.
 
 The same settings in `cordis.patch.yml`:
 
