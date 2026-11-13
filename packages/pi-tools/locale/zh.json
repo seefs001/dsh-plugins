@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Pi 工具",
-    "description": "新增独立 pi 预设，提供 Pi 编程工具、原版 QuickJS codemode 和按需 MCP，保留 DSH 权限与会话边界。"
+    "description": "新增独立的 pi 预设：Pi 1.5.0 编程工具、原版 QuickJS codemode、DSH 原生工具和按需 MCP，可按对话选择，保留 DSH 权限与会话边界。"
   }
 }

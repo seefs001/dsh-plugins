@@ -32,8 +32,8 @@ Open a subagent's conversation. Its composer shows the recorded model name and r
 
 - Model selection comes from the child session's durable `modelSelection` projection (`next`, falling back to `lastUsed`), not the parent or global default.
 - Catalog metadata supplies friendly model and effort names. Unlisted models and recorded efforts retain their IDs.
-- If no effort is explicitly recorded, the label uses the catalog's advertised default, matching the main picker. If reasoning is supported but no default is declared, it shows “Provider default”. An advertised default is display metadata, not proof of a provider's runtime choice.
-- Before a child has a recorded selection, it shows “Model not recorded yet” rather than guessing a route.
+- If no effort is explicitly recorded, the label uses the catalog's advertised default, matching the main picker. If reasoning is supported but no default is declared, it shows "Provider default". An advertised default is display metadata, not proof of a provider's runtime choice.
+- Before a child has a recorded selection, it shows "Model not recorded yet" and does not guess a route.
 - Font, height and theme colors follow the built-in label. Long text truncates; the composer's compact mode switches to a model icon. English and Chinese follow the active UI language.
 - Main-agent sessions keep their original picker. This plugin does not modify routing, reasoning effort, prompts or model settings, and does not issue model requests.
 
@@ -45,9 +45,9 @@ There is no plugin configuration, custom storage or browser preference. The Host
 
 ## Troubleshooting and removal
 
-- No new label in a main-agent conversation is expected. Open the subagent itself, not just its tool-call summary.
+- Main-agent conversations show no new label. Open the subagent's own conversation; its tool-call summary is not enough.
 - If the subagent label is missing, confirm the profile, enabled bundle and built-in UI services. Refresh the Web page after activation; if the plugin manager reports a pending restart, complete it first.
-- “Model not recorded yet” means the child's projection has no selection yet. It is not a provider error and is not filled with the parent's model.
+- "Model not recorded yet" means the child's projection has no selection yet. It is not a provider error and is not filled with the parent's model.
 - Raw IDs mean matching catalog metadata is unavailable; they do not switch the route or imply the recorded model is invalid.
 
 Disable or remove **Subagent model** (`dsh-subagent-model`) in the plugin manager to restore the original UI. Existing sessions and model settings remain unchanged.
@@ -58,7 +58,7 @@ Disable or remove **Subagent model** (`dsh-subagent-model`) in the plugin manage
 
 ### 安装与使用
 
-要求 dsh `>=0.2.2-rc.1 <0.3.0`、Node.js `^22.19.0` 或 `>=24`，以及内置对话、模型选择和语言服务。不需要额外 API Key、实验 bundle 或配套插件。
+要求 DSH `>=0.2.2-rc.1 <0.3.0`、Node.js `^22.19.0` 或 `>=24`，以及内置对话、模型选择和语言服务。不需要额外 API Key、实验 bundle 或配套插件。
 
 上面的 GitHub 命令适用于已合入 `main` 的版本。尚未发布时，在仓库根目录执行上面的本地 `link:` 命令。安装到 Web 正在使用的 profile；启用后影响该 profile 的所有会话。按插件管理器返回的结果处理待重启状态，再打开子代理会话查看右下角。悬停可查看 provider/model 标识及只读说明。
 

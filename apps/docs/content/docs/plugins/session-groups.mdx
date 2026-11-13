@@ -1,65 +1,44 @@
 ---
 title: 会话分组
-description: 给会话分组、排序、组内置顶，并让 Agent 操作同一份分组。
+description: 自定义会话分组和组内置顶，所有浏览器和 Agent 看到同一份分组。
 ---
 
-`dsh-session-groups` 为 Web 侧边栏增加自定义会话分组。**Host + Web**。需要 `@deepseek-ai/dsh-storage-domain`，默认 profiles 已包含。
+<PluginFacts slug="session-groups" />
+
+在侧边栏添加 **会话分组** 页面。每个分组有自己的置顶会话，置顶的会话排在组内最前面。分组保存在 Host 上，所有连到同一个 DSH 的浏览器和 Agent 看到的是同一份。
 
 ## 安装
 
-```bash
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
-```
+<InstallCommand slug="session-groups" />
+
+需要 `@deepseek-ai/dsh-storage-domain`，默认 profile 已包含。
 
 ## 使用
 
-1. 在侧边栏面板列表中点击 **Session groups**。
-2. 用 **New group** 创建分组；双击名称或点击铅笔重命名。
-3. 悬停分组标题，可以添加会话、重命名、调整顺序或删除分组。
-4. 悬停会话行，可以在组内置顶或移出分组。
+- 点侧边栏面板列表里的 **会话分组** 打开分组页。
+- **新建分组** 新建一个分组。双击名称或点铅笔图标重命名。
+- 悬停在分组标题上，可以添加会话、重命名、调整顺序或删除分组。删除分组不会删除其中的会话。
+- 悬停在会话行上，可以在组内置顶或移出分组。置顶的会话排在前面，最近置顶的最先；其余按最后活动时间排序。
+- 在侧边栏右键会话，可以选择 **加入分组** / **移到分组**、**组内置顶** 和 **移出分组**。
 
-也可以右键侧边栏里的会话，使用 **Add to group** / **Move to group**、**Pin in group** 和 **Remove from group**。
+把会话从原生侧边栏或分组页拖到某个分组上，就会加入或移到该分组；折叠的分组会自动展开。拖动时分组页底部会出现 **拖到这里新建分组**，松手即新建一个包含该会话的分组，并直接进入重命名。未知或空白的会话会被忽略，拖回当前分组不做任何事。拖动只改变成员，不改变组顺序或置顶顺序。
 
-### 拖拽会话
+一个会话最多属于一个分组，加入另一个分组就会移过去。内置的工作区列表和它自己的置顶不受影响。
 
-- 从原生侧边栏或分组页拖动会话，放到已有分组即可加入或移动过去；目标组会自动展开。
-- 拖动期间，分组页底部会出现 **Drop here to create a new group** 区域。放下后创建含该会话的新组，并进入重命名。
-- 已在目标组内的会话不会重复添加。无法识别的会话或空白会话会被忽略。
-- 拖拽只用于改变会话归属。分组顺序仍通过上移 / 下移调整，组内顺序由置顶与最近活动决定。
+## 数据
 
-## 分组规则
-
-- 一个会话最多属于一个分组，加到另一个组会将它移过去。
-- 组内置顶的会话在前，最近置顶的更靠前；其余会话按最近活动排列。
-- 删除分组不会删除会话。
-- 不修改内置 workspace 列表及其置顶状态。
-
-## 存储与同步
-
-Host 在 `session_groups` storage domain 保存状态。默认 JSON 后端的文件为 `~/.dsh/storages/session_groups.json`。
-
-连接同一 dsh 的浏览器和 Agent 共用分组。Host 通过 SSE 把变更推送到打开的页面。
+分组保存在 Host 的 `session_groups` storage domain。使用默认 `json` 后端时，文件是 `~/.dsh/storages/session_groups.json`。Host 通过 server-sent events 把改动推给打开的页面。
 
 ## Agent 工具
 
-Host 注册 `session_groups` 工具，支持：
-
-| 操作 | 用途 |
-| --- | --- |
-| `list` | 读取全部分组 |
-| `create` / `rename` / `delete` | 创建、重命名或删除组 |
-| `move_group` | 调整分组顺序 |
-| `add` / `remove` | 将会话移入或移出组 |
-| `pin` | 设置会话的组内置顶状态 |
-
-每次调用都返回操作后的完整分组。
+Host 注册 `session_groups` 工具，操作与界面相同：`list`、`create`、`rename`、`delete`、`move_group`、`add`、`remove`、`pin`。每次调用都返回完整的分组结果。
 
 ## HTTP
 
-| 方法 | 路由 | 作用 |
+| 路由 | 方法 | 用途 |
 | --- | --- | --- |
-| GET | `/session-groups/state` | 当前完整状态 |
-| POST | `/session-groups/op` | 执行操作，参数结构与工具相同 |
-| GET | `/session-groups/events` | 每次变更后的完整状态，SSE |
+| `/session-groups/state` | GET | 当前分组 |
+| `/session-groups/op` | POST | 执行一个操作，参数与工具相同 |
+| `/session-groups/events` | GET | 每次改动后推送完整状态的 SSE |
 
-所有路由使用 Host 的正常连接检查。
+所有路由都走 Host 的常规连接检查。

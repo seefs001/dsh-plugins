@@ -3,23 +3,444 @@
 @import 'fumadocs-ui/css/preset.css';
 
 @theme {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Consolas, 'Liberation Mono', monospace;
 }
 
+/* DeepSeek blue, matched to the DSH theme's brand tokens. */
 :root {
-  --color-fd-primary: hsl(234 78% 55%);
-  --color-fd-primary-foreground: hsl(0 0% 100%);
+  --color-fd-primary: rgb(65 118 230);
+  --color-fd-primary-foreground: rgb(255 255 255);
+  --dp-warn-bg: rgb(254 245 231);
+  --dp-warn-fg: rgb(138 84 10);
 }
 
 .dark {
-  --color-fd-primary: hsl(234 95% 78%);
-  --color-fd-primary-foreground: hsl(234 40% 12%);
+  --color-fd-primary: rgb(122 170 255);
+  --color-fd-primary-foreground: rgb(14 22 40);
+  --dp-warn-bg: rgb(56 42 20);
+  --dp-warn-fg: rgb(247 200 120);
 }
 
-.hero-grid {
-  background-image: linear-gradient(to right, var(--color-fd-border) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--color-fd-border) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: linear-gradient(to bottom, black, transparent);
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-fd-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Long commands and tables scroll inside their own box instead of the page. */
+.prose :where(pre) {
+  overflow-x: auto;
+}
+
+.prose :where(td, th) code {
+  overflow-wrap: anywhere;
+}
+
+.prose :where(table) {
+  font-size: 0.875rem;
+}
+
+/* Header logo */
+.dp-logo {
+  display: inline-flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: var(--color-fd-primary);
+  color: var(--color-fd-primary-foreground);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* Home */
+.dp-home {
+  padding-bottom: 2rem;
+}
+
+.dp-hero {
+  display: grid;
+  gap: 2.5rem;
+  padding: 3.5rem 0 2.5rem;
+  border-bottom: 1px solid var(--color-fd-border);
+}
+
+@media (min-width: 960px) {
+  .dp-hero {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+    padding: 5rem 0 3.5rem;
+  }
+}
+
+.dp-eyebrow {
+  margin-bottom: 0.75rem;
+  color: var(--color-fd-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.dp-hero h1 {
+  font-family: var(--font-mono);
+  font-size: clamp(2.25rem, 6vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.dp-lead {
+  max-width: 36rem;
+  margin-top: 1.25rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 1.0625rem;
+  line-height: 1.8;
+}
+
+.dp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.dp-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.5rem;
+  background: var(--color-fd-background);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 150ms;
+}
+
+.dp-button:hover {
+  background: var(--color-fd-accent);
+}
+
+.dp-button-primary {
+  border-color: transparent;
+  background: var(--color-fd-primary);
+  color: var(--color-fd-primary-foreground);
+}
+
+.dp-button-primary:hover {
+  background: var(--color-fd-primary);
+  opacity: 0.9;
+}
+
+.dp-meta {
+  margin-top: 1.5rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.dp-meta code,
+.dp-hero-note code {
+  font-size: 0.75rem;
+}
+
+.dp-hero-code {
+  min-width: 0;
+}
+
+.dp-hero-note {
+  margin-top: 0.75rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.dp-paths {
+  display: grid;
+  gap: 1px;
+  margin: 2.5rem 0;
+  overflow: hidden;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.75rem;
+  background: var(--color-fd-border);
+}
+
+@media (min-width: 640px) {
+  .dp-paths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1024px) {
+  .dp-paths { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.dp-path {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.625rem;
+  padding: 1.125rem 1.25rem;
+  background: var(--color-fd-background);
+  transition: background-color 150ms;
+}
+
+.dp-path:hover {
+  background: var(--color-fd-accent);
+}
+
+.dp-path-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.125rem;
+  color: var(--color-fd-primary);
+}
+
+.dp-path-title {
+  font-weight: 600;
+}
+
+.dp-path-text {
+  grid-column: 2;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.dp-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.dp-section-head h2 {
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.dp-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.875rem;
+}
+
+.dp-inline-link:hover {
+  color: var(--color-fd-primary);
+}
+
+.dp-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-fd-border);
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.dp-footer div {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.dp-footer a:hover {
+  color: var(--color-fd-primary);
+}
+
+/* Plugin directory, shared by the home page and docs pages */
+.dp-group {
+  margin-top: 2rem;
+}
+
+.dp-group-title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.dp-group-description {
+  margin-top: 0.25rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.875rem;
+}
+
+.dp-rows {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--color-fd-border);
+}
+
+.dp-row {
+  display: grid;
+  gap: 0.5rem 1.5rem;
+  padding: 0.875rem 0.25rem;
+  border-bottom: 1px solid var(--color-fd-border);
+}
+
+@media (min-width: 768px) {
+  .dp-row {
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, 18rem);
+    align-items: start;
+  }
+}
+
+.dp-row-main {
+  min-width: 0;
+}
+
+.dp-row-title {
+  margin-right: 0.5rem;
+  font-weight: 600;
+}
+
+.dp-row-title:hover {
+  color: var(--color-fd-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dp-row-name {
+  color: var(--color-fd-muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.dp-row-summary {
+  margin-top: 0.25rem;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.dp-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+@media (min-width: 768px) {
+  .dp-row-meta { justify-content: flex-end; }
+}
+
+.dp-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 999px;
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  white-space: nowrap;
+}
+
+.dp-tag-warn {
+  border-color: transparent;
+  background: var(--dp-warn-bg);
+  color: var(--dp-warn-fg);
+  white-space: normal;
+}
+
+/* Facts box at the top of each plugin page */
+.dp-facts {
+  margin: 0 0 1.75rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.75rem;
+  background: var(--color-fd-card);
+  font-size: 0.875rem;
+}
+
+.dp-facts dl {
+  display: grid;
+  gap: 0.75rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .dp-facts dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.dp-facts dt {
+  color: var(--color-fd-muted-foreground);
+  font-size: 0.75rem;
+}
+
+.dp-facts dd {
+  margin-top: 0.125rem;
+  overflow-wrap: anywhere;
+}
+
+.dp-facts code {
+  font-size: 0.8125rem;
+}
+
+.dp-facts-source {
+  margin-top: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-fd-border);
+}
+
+.dp-facts-source a {
+  color: var(--color-fd-primary);
+}
+
+/* Requirements table */
+.dp-table-wrap {
+  margin: 1.25rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.75rem;
+}
+
+.dp-table {
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.dp-table th,
+.dp-table td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--color-fd-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.dp-table thead th {
+  background: var(--color-fd-muted);
+  color: var(--color-fd-muted-foreground);
+  font-weight: 500;
+}
+
+.dp-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.dp-table tbody th {
+  font-weight: 600;
+}
+
+.dp-table tbody th a:hover {
+  color: var(--color-fd-primary);
+}
+
+.dp-table code {
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-button, .dp-path { transition: none; }
+}
+
+/* Code blocks built from plain strings have no Shiki line padding. */
+.dp-code pre > code {
+  display: block;
+  padding: 0 1rem;
 }

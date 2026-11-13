@@ -1,98 +1,82 @@
 ---
-title: 快速开始
-description: 从 GitHub 安装插件，几分钟内开始使用。
+title: 安装
+description: 从 GitHub 或本地仓库安装插件，并确认它已经生效。
 ---
 
 ## 环境要求
 
 | 依赖 | 要求 |
 | --- | --- |
-| DeepSeek Harness | `>=0.2.2-rc.1 <0.3.0` |
+| DeepSeek Harness | `>=0.2.2-rc.1 <0.3.0`，部分插件要求 rc.2，见 [版本与边界](/docs/compatibility) |
 | Node.js | `^22.19.0` 或 `>=24` |
-| 浏览器界面 | Web 插件需要 `dsh web` |
+| 浏览器界面 | 带 Web 部分的插件需要 `dsh web` |
 
-以下命令以 `web` profile 为例。请替换成你实际使用的 profile，安装和启动时保持一致。
+下文命令以 `web` profile 为例。安装时用的 profile 必须和你实际启动的 profile 一致。
 
-## 安装第一个插件
+## 从 GitHub 安装
 
-以模型引用为例：
+<Steps>
+<Step>
 
-```bash
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/model-reference"
-```
+### 选一个插件
 
-`path:` 指向这个仓库内的一个包。**不需要安装整个插件集，也不需要构建插件。**
+在 [插件目录](/docs/plugins) 里找到插件，记下目录名，例如 `model-reference`。
 
-也可以打开 Web 界面的 **Plugins** 页，粘贴下面的地址安装：
+</Step>
+<Step>
 
-```text
-github:seefs001/dsh-plugins#main&path:/packages/model-reference
-```
+### 安装
 
-安装 bundle 后会自动选中启用。开启 `patchReload: live` 时无需重启；否则重启对应 profile 的 dsh。浏览器端的更新刷新页面后生效。
+<InstallCommand slug="model-reference" />
 
-## 试一下
+`path:` 指向本仓库里的一个包，只会安装这一个插件，不需要构建。也可以打开 Web 界面的 **Plugins** 页，粘贴 `github:` 开头的地址。
 
-1. 打开使用同一 profile 的 Web 界面。
-2. 在对话输入框里输入 `#`，再输入模型名称或 provider。
-3. 用方向键选中模型，按 `Enter` 或 `Tab` 插入模型标签。
+</Step>
+<Step>
 
-标签会带上这个模型上次使用的推理强度。再安装 [快速模式](/docs/plugins/service-tier) 后，启用了快速模式的模型也会带上 ⚡。
+### 确认生效
 
-<Callout>
-模型标签是提示词里的模型引用，不是切换当前会话模型的命令。参见 [模型引用](/docs/plugins/model-reference#模型看到什么)。
-</Callout>
+安装成功后，Plugin Manager 会选中这个 bundle。profile 启用了 HMR 时，改动立即生效，结果显示 `applied`。结果是 `restart-required` 时，重启这个 profile 的 DSH。Web 部分的更新在刷新页面后加载。
 
-## 安装其他插件
+</Step>
+</Steps>
 
-根据需要复制对应命令：
+`#main` 安装的是 GitHub `main` 分支上已经推送的版本。要试本地还没推送的改动，用下面的 `link:` 方式。
 
-```bash title="模型工作流"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/service-tier"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/subagent-model"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
-```
-
-```bash title="会话与阅读"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/compaction-status"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
-```
-
-```bash title="联网搜索、Git 改动与对话小伙伴"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/git-changes"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/ai-mascot"
-```
-
-<Callout type="warn" title="额外依赖">
-- 自动审查模型需要先启用 `@deepseek-ai/dsh-experimental-auto-review`。
-- 会话分组和审查日志使用 `@deepseek-ai/dsh-storage-domain`，默认 profiles 已包含。
-- 联网搜索需要支持托管搜索的 Responses provider，并在 Plugins 页选好搜索模型。
-- Git 改动需要先启用 **Change requests & worktrees**（`@deepseek-ai/dsh-experimental-forge-bundle`）。
-</Callout>
-
-[AI 小伙伴](/docs/plugins/ai-mascot) 只在当前显示的模型匹配 GPT / Claude 时出现，需要从外部站点加载角色图。素材另有非商业使用条款，不属于插件代码的 MIT 授权。
-
-## 从本地源码安装
+## 从本地仓库安装
 
 ```bash
 git clone https://github.com/seefs001/dsh-plugins.git
-dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
+cd dsh-plugins
+dsh plugin --profile web add link:$PWD/packages/model-reference
 ```
 
-插件使用原生 ES 模块，无需编译。修改源码后如何加载，见 [本地开发](/docs/development)。
+`link:` 让 profile 直接使用仓库里的源码。修改后的加载方式见 [开发与发布](/docs/development)。
 
-## 安装后没有变化？
+## 一次装多个
 
-- 确认安装的 profile 与当前运行的 profile 相同，并在 Plugins 页确认 bundle 已启用。
-- Web 插件只作用于浏览器界面，刷新页面后再试。
-- 没有开启 `patchReload: live` 时，重启 dsh 加载 Host 变更。
-- ⚡ 只在 `openai-responses` 模型旁出现；联网搜索还需到 Plugins 页选模型并保存。
-- [子代理模型](</docs/plugins/subagent-model>) 只在子代理会话显示，不提供选模入口；“尚无模型记录”表示子代理还没有记录模型选择。
-- Git 改动入口没有出现时，确认 Change requests & worktrees 已启用，且当前会话位于 Git 仓库中。
-- AI 小伙伴在其他模型、全局面板中不会显示；图片加载还取决于浏览器能否访问素材站点。
-- 若 dsh 超出支持范围，先核对对应插件的兼容性说明。
+按用途分组的全部命令，可以只复制需要的行：
+
+<InstallAll />
+
+<Callout type="warn" title="先确认额外依赖">
+有些插件需要先启用别的 bundle 或准备外部条件，例如 Auto review、Change requests & worktrees、Responses provider、macOS 或特定的 DSH 构建。安装前看一下 [版本与边界](/docs/compatibility) 的表格。
+</Callout>
+
+## 安装后没有变化
+
+- 确认安装用的 profile 就是正在运行的 profile，并在 Plugins 页确认 bundle 已启用、没有报错。
+- Plugin Manager 返回 `restart-required` 时，重启后再看。
+- Web 部分在刷新页面后才会加载新代码。
+- 有些入口只在特定场景出现：⚡ 只出现在 `openai-responses` 模型旁；子代理模型只在子代理会话里显示；Git 变更需要 Git 仓库和 Change requests & worktrees；AI 吉祥物只在 GPT 或 Claude 模型的对话里出现。
+- 插件声明的 `engines.dsh` 不包含当前 DSH 版本时，Plugin Manager 会拒绝安装。
+
+## 移除
+
+在 Plugins 页停用或移除对应 bundle，或在命令行运行：
+
+```bash
+dsh plugin --profile web remove dsh-model-reference
+```
+
+移除插件不会删除它在 Host 存储里留下的数据，例如会话分组或审查日志。各插件页的“数据”一节写明了这些数据的位置。

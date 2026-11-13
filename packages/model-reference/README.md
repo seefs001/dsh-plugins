@@ -2,7 +2,7 @@
 
 Type `#` in the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) composer to pick a model and insert it as a chip, the same way `@` inserts a file or session reference.
 
-The chip carries the reasoning effort that model was last used with, plus fast mode when [`dsh-service-tier`](../service-tier) has it switched on. That lets you write things like *"ask #GPT-6.1 Sol · xhigh ⚡ to review this diff in a subagent"*.
+The chip carries the reasoning effort that model was last used with, plus fast mode when [`dsh-service-tier`](../service-tier) has it switched on. You can then write a prompt such as *"ask #GPT-6.1 Sol · xhigh ⚡ to review this diff in a subagent"*.
 
 Switching models in the composer picker or `/model` also restores the selected model's saved effort. Choosing Default explicitly clears that model's saved effort. Unsupported saved efforts fall back to the model's normal default.
 
@@ -14,7 +14,7 @@ A chip serializes into the prompt as:
 #model(provider=responses, model=gpt-6.1-sol, reasoning_effort=xhigh, service_tier=priority)
 ```
 
-Copying a chip puts `#provider/model` on the clipboard.
+This is text for the model. It does not switch the current session's model. Copying a chip puts `#provider/model` on the clipboard.
 
 ## Usage
 
@@ -29,7 +29,7 @@ Copying a chip puts `#provider/model` on the clipboard.
 
 | Half | File | Role |
 |---|---|---|
-| Host | `lib/index.js` | Listens for `model/selection` events in top-level sessions, saves the effort per `provider/model` in this plugin's config, and serves it at `GET /model-reference/state`. |
+| Host | `lib/index.js` | Listens for `model/selection` events in top-level sessions, saves the effort per `provider/model` in this plugin's config, and serves it at `GET /model-reference/state`. Subagent selections are ignored. |
 | Browser | `lib/client.js` | Renders the `#` menu in `conversation.input.overlay` and registers the chip codec on the input-trigger pipeline. |
 
 The state route requires the same authentication as the rest of the Web API.
@@ -49,4 +49,4 @@ You do not normally edit this by hand.
 ## Related
 
 - [`dsh-service-tier`](../service-tier): adds the ⚡ marker to chips.
-- [`dsh-recent-sessions`](../recent-sessions): sorts `@` session references newest first. This used to be part of this plugin.
+- [`dsh-recent-sessions`](../recent-sessions): sorts `@` session references newest first.

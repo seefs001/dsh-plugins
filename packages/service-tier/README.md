@@ -2,7 +2,7 @@
 
 Adds a ⚡ fast-mode toggle beside the model picker in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). When it is on for a model, requests for that model are sent with `service_tier: "priority"`.
 
-The toggle only shows up when the current model's provider uses the **OpenAI Responses API** (`api: openai-responses` in `llm-pi-ai`), because that is the only route that accepts the field.
+The toggle appears only when the current model's provider uses the OpenAI Responses API (`api: openai-responses` in `llm-pi-ai`), the only route that accepts the field.
 
 ## How it works
 

@@ -1,38 +1,38 @@
 ---
 title: 工具透镜
-description: 在工具调用行里直接打开技能、完整输出、文件和子会话。
+description: 工具调用行可直接打开技能文件、完整输出、结果文件和子代理对话。
 ---
 
-`dsh-tool-lens` 为部分工具调用行增加快捷操作。禁用后恢复内置显示。**仅 Web**，没有配置项。
+<PluginFacts slug="tool-lens" />
+
+让对话里的工具调用行多一些可点击的入口。每个透镜只替换一种工具的内置行，停用插件即恢复原样。
 
 ## 安装
 
-```bash
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
-```
+<InstallCommand slug="tool-lens" />
 
-## 支持的透镜
+## 透镜
 
-| 工具 / 结果 | 增加的操作 |
+| 工具 | 变化 |
 | --- | --- |
-| `skill` | 点击技能名称，在右侧边栏打开 `SKILL.md`；展开卡片的标题也提供同样入口 |
-| 带截断落盘提示的输出 | **Full output** 打开保存的完整输出文件 |
-| `subagent`、`send_message`、`interrupt_agent` | **Conversation** 打开子代理会话 |
-| `grep`、`glob` | 单文件显示文件标签并定位首个匹配行；多文件通过 **N files** 列表打开 |
-| `web_search`、`web_fetch` | **N sources** / **Browse** 在右侧浏览器打开网页，Cmd/Ctrl 点击在新标签页打开 |
+| `skill` | 技能名变成链接，点击在右侧边栏打开该技能的 `SKILL.md`。展开后的说明卡片标题栏也有同样的按钮 |
+| 输出被截断的工具（`bash`、`job_output`、`terminal_read`、`cordis_inspect_*`、`session_*`、`workflow`、`lsp`、网页工具） | 结果末尾带有落盘提示时，出现 **Full output** 按钮，在右侧边栏打开保存的文件 |
+| `subagent`、`send_message`、`interrupt_agent` | **Conversation** 按钮在右侧边栏打开子代理的对话 |
+| `grep`、`glob` | 只有一个结果文件时，标签直接打开它（定位到第一处匹配）；多个时显示 **N files**，点开列表再选 |
+| `web_search`、`web_fetch` | **N sources** / **Browse** 在右侧边栏浏览器里打开网页，Cmd/Ctrl 点击则在新标签页打开 |
 
-完整输出支持带落盘提示的 `bash`、`job_output`、`terminal_read`、`cordis_inspect_*`、`session_*`、`workflow`、`lsp` 和网页工具结果。没有落盘提示时不会添加入口。
+## 原理
 
-## 实现
+只有 Web 部分，Host 入口是空的。
 
-透镜在 `tool.call.toolview` 按工具名称注册，优先级 -10，高于内置视图的优先级 0。技能透镜自绘工具行，其他透镜保留内置行，在悬停或聚焦时叠加快捷操作。
-
-技能文件先通过当前 Session 的 `skills/list` 目录解析，也支持单文件技能。技能已卸载时，尝试使用历史输出中的 `<base directory>/SKILL.md`。
+- 每个透镜在带键的 `tool.call.toolview` slot 里以 priority -10 注册工具名，遮住内置视图（priority 0）。
+- skill 透镜自己绘制整行。其他透镜保留内置行：通过 `ctx.slots.entries()` 找到被遮住的条目，用相同的 props 渲染，再把按钮浮在行的右端（悬停或聚焦时显示）。它们只注册内置视图使用 `conversation` locale、且没有条目级 `inject` 的键，保证 props 一致。透镜崩溃时，slot 运行时会丢掉它，只渲染内置行。
+- skill 透镜通过会话的技能目录（`skills/list`）找文件，单文件技能也能打开。技能已经卸载时，退回到工具输出里记录的 `<base directory>/SKILL.md`。
+- 文件通过 `ctx.sidebarRight.openResource` 打开，和用户消息里 `/skill` 标签走同一条路径。
 
 ## 限制
 
-- 已移除的技能若没有记录 base directory，就无法再打开，工具行会显示提示。
-- 增强透镜依赖 `ctx.slots.entries()`；不可用时保留原始工具行。
-- 只有符合内置视图约定的工具键会启用增强。MCP 工具及其他通用工具行不在覆盖范围内。
-- 许多网站禁止 iframe 嵌入。右侧浏览器空白时，用 Cmd/Ctrl 点击在新标签页打开。
-- 透镜出错时，slot runtime 会移除它并回退到内置显示。
+- 调用之后被删除、且输出里没有记录基础目录的技能无法打开，行内会给出简短提示。
+- 增强型透镜依赖 `ctx.slots.entries()`。这是 slots 服务的公开方法，但 Client inspector 不列出它。没有这个方法时透镜不启用，内置行照常渲染。
+- 很多网站拒绝在框架里加载。侧边栏浏览器显示空白时，用 Cmd/Ctrl 点击。
+- 没有内置视图的工具（MCP 工具和其他通用行）不在覆盖范围内。

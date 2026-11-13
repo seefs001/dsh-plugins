@@ -18,5 +18,5 @@ Browser only (`lib/client.js`). The Host half is a no-op that the Loader needs f
 
 ## Limits
 
-- The tab default relies on the forge tab's internal store (`byTab[tab].scope` and its `scoped` action). If a dsh upgrade changes them, the tab opens on Branch again; the entry itself keeps working.
+- The tab default relies on the forge tab's internal store (`byTab[tab].scope` and its `scoped` action). If a DSH upgrade changes them, the tab opens on Branch again; the entry itself keeps working.
 - A diff over the forge panel's `maxDiffBytes` shows "No changes" in the entry.

@@ -1,6 +1,6 @@
 # dsh-web-access
 
-Web search tools for dsh. Pick a local Responses model and a search type on the Plugins page; the tool calls that model's hosted search and returns a cited answer.
+Web search tools for DSH. Pick a local Responses model and a search type on the Plugins page; the tool calls that model's hosted search and returns a cited answer.
 
 | Tool | Hosted search types | Parameters the model can pass |
 |---|---|---|
@@ -20,7 +20,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/we
 Open **Plugins → dsh-web-access**. For each tool:
 
 - **Enabled**: off removes the tool.
-- **Model**: any model on an `openai-responses` provider in llm-pi-ai. The endpoint (`baseURL`), key (`apiKeyEnv`), and extra `headers` come from that provider, so nothing is typed twice.
+- **Model**: any model on an `openai-responses` provider in llm-pi-ai. The endpoint (`baseURL`), key (`apiKeyEnv`), and extra `headers` come from that provider, so you do not enter them twice.
 - **Search type**: Grok can use web, X, or both. OpenAI uses web.
 
 Save restarts the plugin and re-registers the tools. A tool is offered to the model only while its provider route exists and its key resolves; the page shows **Ready** or the reason.
@@ -57,4 +57,4 @@ Only `query` is required. All optional fields accept `null` as well as omission,
 
 - Whether a gateway forwards hosted `web_search` / `x_search` depends on the gateway and the upstream account. An unsupported type comes back as the endpoint's HTTP error.
 - `allowed_x_handles` / `excluded_x_handles` follow xAI's documented `x_search` fields; a gateway may ignore them.
-- Search only; dsh's built-in `web_fetch` still works alongside it.
+- The plugin only adds search. DSH's built-in `web_fetch` keeps working alongside it.

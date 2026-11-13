@@ -16,7 +16,7 @@ A session belongs to at most one group. Adding it to another group moves it ther
 
 ## Storage
 
-Groups are stored on the Host in the `session_groups` storage domain, so every browser connected to the same dsh and the agent see the same groups. With the default `json` backend the file is `~/.dsh/storages/session_groups.json`. The Host pushes changes to open pages over server-sent events.
+Groups are stored on the Host in the `session_groups` storage domain, so every browser connected to the same DSH and the agent see the same groups. With the default `json` backend the file is `~/.dsh/storages/session_groups.json`. The Host pushes changes to open pages over server-sent events.
 
 Requires the `@deepseek-ai/dsh-storage-domain` row, which the default profiles include.
 

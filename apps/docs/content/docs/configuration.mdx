@@ -1,42 +1,45 @@
 ---
 title: 配置与数据
-description: 区分 profile 设置、Host 存储与浏览器本地偏好。
+description: 插件设置写在哪里，Host、profile、会话日志和浏览器各保存什么。
 ---
 
-优先使用 Web 界面配置插件。模型引用与快速模式会在你操作时自动保存；自动审查模型和联网搜索在各自的 **Plugins** 页面配置。
+大多数插件在界面里配置。你在界面上的操作由插件通过 DSH 的 config editor 写回 profile，重启和升级后保留，不需要手改 YAML。
 
-## 设置保存在哪里？
+## 每个插件保存什么
 
-| 插件 | 保存内容 | 位置 |
+| 插件 | 内容 | 位置 |
 | --- | --- | --- |
-| `model-reference` | 每个 `provider/model` 上次的推理强度 | profile 的 `cordis.patch.yml`，插件 `efforts` 配置 |
-| `service-tier` | 启用快速模式的 `provider/model` | profile 的 `cordis.patch.yml`，插件 `tiers` 配置 |
-| `remember-model` | 新会话的默认模型和推理强度 | dsh 的 `agent-default-model` 配置 |
-| `auto-review-model` | 审查模型、推理强度与审查提示词 | profile 的 `cordis.patch.yml`，该插件配置 |
-| `auto-review-model` 日志 | 会话审查结果、模型、工具参数与原因 | Host 的 `auto_review_log` storage domain，按会话保存 |
-| `web-access` | 搜索模型、搜索类型与超时 | profile 的 `cordis.patch.yml`，该插件配置 |
-| `session-groups` | 分组、成员、排序与置顶 | Host 的 `session_groups` storage domain |
-| `ai-mascot` | 位置、尺寸、收起状态与动画偏好 | 浏览器 localStorage 的 `dsh-ai-mascot:preferences` |
+| # 引用模型 | 每个 `provider/model` 上次的推理强度 | profile 中该插件的 `efforts` 配置 |
+| 快速模式 | 开启 ⚡ 的 `provider/model` | profile 中该插件的 `tiers` 配置 |
+| 记住上次模型 | 新会话的默认模型和推理强度 | DSH 自己的 `agent-default-model` 配置 |
+| 自动审查模型 | 审查模型、推理强度、提示词模式和提示词 | profile 中该插件的配置 |
+| 自动审查模型 | 每个会话的审查记录 | Host 的 `auto_review_log` storage domain |
+| 会话分组 | 分组、成员、组顺序和组内置顶 | Host 的 `session_groups` storage domain |
+| Wait, what? 回复解释 | 专用模型的 `provider`、`model`、`reasoningEffort` | profile 中该插件的配置 |
+| Wait, what? 回复解释 | 最近 200 份完整解释 | Host 的 `message_actions` storage domain |
+| 联网搜索 | 每个搜索工具的开关、模型、搜索类型和超时 | profile 中该插件的配置 |
+| Pi 工具 | 预设配置；每个会话选择的工具 | 预设随 bundle 提供；工具选择写入会话日志的 `agent-preset/options` 事件 |
+| Switchboard | 中继地址、工作区别名、权限映射等 | profile 中该插件的配置，需手动编辑 |
+| Switchboard | 未确认的帧、会话绑定、隔离标记；待上传的产物 | Host 的 `switchboard_connector` storage domain；`dataDir/blobs` 下的文件 |
+| AI 吉祥物 | 位置、尺寸、收起状态和动画偏好 | 浏览器 localStorage 的 `dsh-ai-mascot:preferences` |
 
-`recent-sessions`、`quote-jump`、`tool-lens`、`git-changes`、`compaction-status` 和 `subagent-model` 没有需要手动设置的插件配置。[子代理模型](</docs/plugins/subagent-model>) 只订阅子代理已有的模型投影与共享模型目录，不另存模型选择、浏览器偏好，也不增加模型请求。Git 改动只读取 forge 面板状态，不另存 Git 数据。压缩状态从原生会话事件派生 projection，不另存自定义会话记录或浏览器偏好，详见[压缩状态](/docs/plugins/compaction-status)。
+其余插件没有自己的配置或存储：最近会话优先、子代理模型、上下文压缩状态、引用跳转、工具透镜、Git 变更、分支切换、工作区管理和保持唤醒。上下文压缩状态从原生会话事件派生一个 projection，不另存记录。工作区管理和分支切换只调用 DSH 原生的工作区接口和 Git，不保存自己的状态。
 
-<Callout>
-会话分组不是保存在 `cordis.patch.yml` 里。默认 JSON 存储后端使用 `~/.dsh/storages/session_groups.json`，实际位置取决于 Host 的 storage domain 配置。
-</Callout>
+## storage domain 在哪里
+
+使用默认 JSON 后端时，storage domain 的文件在 `~/.dsh/storages` 下，例如 `session_groups.json`。审查日志使用 per-record 布局，每个会话一个 JSON 文档。实际位置取决于 Host 的 storage domain 配置。这些插件需要 `@deepseek-ai/dsh-storage-domain`，默认 profile 已经包含。
+
+移除插件不会清掉这些文件。
 
 ## 审查日志与隐私
 
-`auto_review_log` 使用 per-record 布局，默认 JSON 后端在 `~/.dsh/storages` 下按会话保存记录。每个会话最多保留最近 200 条审查，最多保留最近 300 个有记录的会话。实际路径取决于 Host 的 storage domain 配置。
+自动审查模型的日志每个会话最多保留最近 200 条，最多保留最近 300 个会话。工具参数截断到 4000 个字符，理由截断到 2000 个字符。参数里可能有敏感值。日志只存在这台 Host 上，在审查日志弹窗里点 **Clear** 可以删除当前会话的记录。
 
-日志可能包含工具参数等敏感内容，不应直接对外分享。参数和原因会截断，不是完整审计档案。点击 Review 日志中的 **Clear** 可清除当前会话记录。详见[自动审查模型](/docs/plugins/auto-review-model)。
+Wait, what? 回复解释的提示词和结果以明文保存在 Host。生成时，所选回复和它之前最近一条用户消息会发给所选的模型服务。
 
-## 浏览器本地偏好
+## 读懂配置片段
 
-AI 小伙伴的显示偏好不写入 profile，也不在浏览器、设备间同步；清除站点数据后会丢失。角色图片来自外部站点，请求不携带对话内容，切图结果只在内存中缓存。素材授权与访问限制见 [AI 小伙伴](/docs/plugins/ai-mascot)。
-
-## 配置片段怎么读？
-
-插件页中的 YAML 展示对应插件行的 `id` 和 `config`，例如：
+插件页里的 YAML 只展示插件行的 `id` 和 `config`，用来说明结构：
 
 ```yaml
 - id: service-tier
@@ -45,16 +48,17 @@ AI 小伙伴的显示偏好不写入 profile，也不在浏览器、设备间同
       responses/gpt-6.1-sol: priority
 ```
 
-这用于说明配置结构，不是让你重复插入一份插件。安装 bundle 已经创建了对应的加载行。通常直接点击界面即可，插件会通过 dsh 的 config editor 把修改写入 profile 的 patch，重启和升级后保留。
+安装 bundle 时已经插入了这一行，不要再手动插入一份。需要手改时，在 profile 的 `cordis.patch.yml` 里修改已有行的 `config`。
 
-## 搜索凭据
+## 凭据
 
-[联网搜索](/docs/plugins/web-access) 复用 `llm-pi-ai` provider 的 `baseURL`、`apiKeyEnv` 和额外 `headers`。插件只保存 provider、模型和搜索选项，不需要再填写一份 API Key。
+联网搜索复用 `llm-pi-ai` 中 Responses provider 的 `baseURL`、`apiKeyEnv` 和 `headers`，插件只保存 provider、模型和搜索选项。Switchboard 的 token 通过 `tokenRef` 引用，先查 DSH 凭据，再查同名环境变量。
 
-不要把密钥写进文档、仓库或示例配置。provider 的 key 必须在运行 Host 的环境中可以解析。
+不要把密钥写进文档、仓库或示例配置。provider 的 key 必须能在运行 Host 的环境里解析。
 
-## 浏览器之间如何同步？
+## 多个浏览器之间如何同步
 
-模型默认值保存后，`remember-model` 会发出模型列表更新事件，让已连接的浏览器刷新默认值。会话分组由 Host 统一保存，并通过 SSE 向打开的页面推送完整状态。
-
-更具体的行为和限制以各插件页面为准。
+- 记住上次模型保存默认值后，会发出模型列表更新事件，已连接的浏览器随后刷新默认模型。
+- 会话分组由 Host 保存，通过 SSE 把完整状态推给打开的页面。
+- Wait, what? 的缓存在 Host 上，多个浏览器共用。
+- AI 吉祥物的偏好只在当前浏览器里，不会同步。

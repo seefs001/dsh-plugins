@@ -1,70 +1,54 @@
 ---
 title: 自动审查模型
-description: 为 Auto review 单独设置审查模型、推理强度和提示词。
+description: 为 Auto review 单独选择审查模型和提示词，并查看每个会话的审查日志。
 ---
 
-`dsh-auto-review-model` 只重定向 `purpose: "auto-review"` 的审查请求，主对话模型不受影响。**Host + Web**。
+<PluginFacts slug="auto-review-model" />
 
-<Callout type="warn" title="先启用 Auto review">
-需要启用 `@deepseek-ai/dsh-experimental-auto-review`。这个插件只扩展审查配置，不会自行启用实验性审查功能。
-</Callout>
+Auto review（`@deepseek-ai/dsh-experimental-auto-review`）默认用会话自己的模型审查工具调用。这个插件把审查请求（`purpose: "auto-review"`）改道到你选的 provider 和模型，也可以追加或替换审查提示词。主对话不受影响。
 
-## 安装与设置
+## 安装
 
-```bash
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
-```
+<InstallCommand slug="auto-review-model" />
 
-1. 打开 **Plugins → dsh-auto-review-model**。
-2. 从 Host 实时模型目录中选择模型，可选推理强度。
-3. 点击 **Save**。选择 **Same as session** 恢复内置行为。
+先在 Plugins 页启用 `@deepseek-ai/dsh-experimental-auto-review`。
 
-## Review 标签与审查日志
+## 使用
 
-会话处于 Auto review 权限模式时，输入框工具行会显示 **Review: 模型** 标签和当前会话的审查次数。存在拒绝或失败时，计数以红色显示；配置的 provider 未加载、回退到会话模型时，标签呈琥珀色。悬停可查看 provider、推理强度和提示词模式。
+1. 打开 **Plugins → dsh-auto-review-model**。模型列表就是 Host 的实时模型目录，和输入框的模型选择器相同。
+2. 选择模型，按需选择推理强度，点 **Save**。选“Same as session”恢复内置行为。
+3. 会话的权限模式是 Auto review 时，输入框工具行会出现 **Review: 模型名** 标签，显示这个会话的审查次数。有审查拒绝或失败时，数字变红，显示为“拒绝数/总数”。配置的 provider 没有加载、审查退回会话模型时，标签变成琥珀色。
+4. 点标签打开审查日志：时间、工具、结论和风险、拒绝理由或失败原因；展开后可以看到审查模型、耗时和被审查的参数。标题栏的 **Review settings** 打开插件设置，**Clear** 删除这个会话的记录。
 
-点击标签打开当前会话的日志，可查看时间、工具、风险、判定和拒绝原因或错误。展开记录可查看审查模型、耗时及截断后的工具参数。面板顶部的 **Review settings** 打开插件设置，**Clear** 清除当前会话记录。
+点一条日志会滚动到对应的工具调用并短暂高亮。PTC 里的内层调用可能跳到外层工具卡片。目标不在已加载的历史里时，界面会提示，不会自动加载更早的消息。
 
-点击日志条目可定位审查对应的工具调用，展开、滚动并短暂高亮。PTC 内层调用可能定位到外层工具卡片。目标不在已加载历史中时会显示提示，不会自动加载更早消息。
-
-### 存储与隐私
-
-日志写入 Host 的 `auto_review_log` storage domain，使用 per-record 布局。默认 JSON 后端在 `~/.dsh/storages` 下按会话保存记录，保留每个会话最近 200 条审查，以及最近 300 个有审查记录的会话。
-
-工具参数截断到 4,000 字符，原因截断到 2,000 字符。参数可能包含敏感值，请按本机数据管理，不要直接分享日志。日志反映 Auto review 的解析结果，中止或流结束异常也会记为失败，不是完整审计档案。
-
-## 配置项
+## 配置
 
 | 字段 | 含义 |
 | --- | --- |
-| `provider` | provider 路由 ID，留空沿用会话模型 |
-| `model` | 模型 ID，必须与 `provider` 一起设置或清空 |
-| `reasoningEffort` | 推理强度 ID，留空使用该模型默认值 |
-| `promptMode` | `default`、`append` 或 `replace` |
-| `prompt` | 追加规则或完整的替代审查策略 |
+| `provider` | provider 路由 ID。留空沿用会话模型 |
+| `model` | 模型 ID，必须和 `provider` 一起设置 |
+| `reasoningEffort` | 该模型的推理强度 ID。留空用模型默认值 |
+| `promptMode` | `default` 使用内置审查策略；`append` 在内置策略后追加 `prompt`；`replace` 用 `prompt` 替换内置策略 |
+| `prompt` | 追加的规则，或替换用的完整策略 |
 
 ## 审查提示词
 
-- **Default**：保留内置策略。
-- **Append**：在内置策略后，以 `ADDITIONAL USER POLICY` 标题追加规则。保留内置风险等级和输出格式，通常优先选这个。
-- **Replace**：把你的文本作为审查模型的完整 system prompt。
+追加（append）更安全：你的规则放在内置策略之后，标题是 `ADDITIONAL USER POLICY`，风险等级和输出格式保持内置。
 
-<Callout type="warn" title="Replace 必须保留严格输出约束">
-Auto review 仍然严格解析结果。提示词必须要求只返回一个 JSON 对象，且 `risk` / `decision` 只能是下面列出的组合。无效输出会使审查失败并阻止工具调用。
-</Callout>
+替换（replace）会把你的文本作为审查者的完整系统提示词。Auto review 仍然严格解析回答，所以提示词必须让审查者只返回一个 JSON 对象，组合限于 `low+allow`、`medium+allow`、`medium+deny`、`high+deny`，只有 deny 时可以带 `reason`。其他输出都算审查失败，工具调用会被拦下。**Load built-in prompt** 会填入最近一次 Auto review 请求里的策略，Host 启动后至少要跑过一次 Auto review 才有内容。
 
-允许的组合：`low + allow`、`medium + allow`、`medium + deny` 或 `high + deny`。只有拒绝时可以附带可选的 `reason`，例如：
+## 数据
 
-```json
-{"risk":"medium","decision":"deny","reason":"该操作需要用户确认"}
-```
+每次审查结束后，Host 把一条记录追加到 `auto_review_log` storage domain，每个会话一个 JSON 文档。每个会话保留最近 200 条，最多保留最近 300 个会话。参数截断到 4000 个字符，理由截断到 2000 个字符。参数可能包含敏感值，只保存在这台机器上。
 
-**Load built-in prompt** 会填入最近一次审查请求里观察到的策略。Host 启动后至少运行一次 Auto review，该按钮才有内容可加载。
+日志里的结论按 Auto review 自己的解析规则得出。在审查者回答前后失败的审查（例如被中止）记为失败。
 
-## 实现与限制
+## 原理
 
-插件前置监听 `llm/stream`，复制冻结的审查请求，替换模型路由和 system prompt，再调用 `llm.stream()`。其他监听器仍会看到一次重定向后的请求。
+一个前置的 `llm/stream` 监听器匹配 `purpose === "auto-review"`，复制这个冻结的请求，换上配置的路由和系统提示词，再为副本发起新的 `llm.stream()`。副本去掉 `temperature`：Auto review 把它固定为 0，而推理模型不接受采样温度。其他 `llm/stream` 监听器仍然只看到一次改道后的请求。配置的 provider 没有加载时，审查沿用会话模型，并记录一条警告。
 
-- 指定 provider 未加载时，回退到会话模型并记录警告。
-- 审查模型必须稳定返回严格 JSON。审查失败会阻止调用，错误为 `AUTO_REVIEW_FAILED`。
-- Auto review 是实验性功能。若上游改变 `purpose` 标签或请求结构，插件需要随之更新。
+## 限制
+
+- 审查者必须返回严格的 JSON（`{"risk":…,"decision":…}`）。能力较弱的模型经常失败，失败的审查会拦下调用（`AUTO_REVIEW_FAILED`）。
+- Auto review 是实验功能。它改变 `purpose` 标记或请求结构时，这个插件需要更新。

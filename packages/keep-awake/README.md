@@ -6,7 +6,7 @@ Keep the macOS computer running the DSH Host awake while the plugin is enabled. 
 
 - macOS with the built-in `/usr/bin/caffeinate` utility.
 - DSH `>=0.2.2-rc.2 <0.3.0` and Node.js `^22.19.0 || >=24`.
-- Runs on the **Host computer**, not the device viewing the Web GUI. On other operating systems, it logs a warning and does nothing.
+- Runs on the computer that hosts DSH. The device viewing the Web GUI is unaffected. On other operating systems, it logs a warning and does nothing.
 
 ## Install
 

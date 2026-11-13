@@ -1,40 +1,23 @@
 ---
 title: 插件目录
-description: 独立插件，按需安装、自由组合。
+description: 全部插件按用途分组，每个都可以单独安装。
 ---
 
-所有插件的 GitHub 安装地址都使用下面的结构，把 `<name>` 换成目录名即可：
+所有插件的 GitHub 安装地址结构相同，把 `<name>` 换成目录名：
 
 ```text
 github:seefs001/dsh-plugins#main&path:/packages/<name>
 ```
 
-| 插件 | 作用 | 组成 |
-| --- | --- | --- |
-| [模型引用](./model-reference.mdx) | 输入 `#` 插入带推理强度和快速模式的模型标签 | Host + Web |
-| [快速模式](./service-tier.mdx) | 为 Responses 模型切换 `service_tier: "priority"` | Host + Web |
-| [子代理模型](</docs/plugins/subagent-model>) | 在子代理输入框右下角显示只读模型名与推理强度 | Web |
-| [记住模型](./remember-model.mdx) | 新会话沿用上次的模型与推理强度 | Host |
-| [保持唤醒](</docs/plugins/keep-awake>) | DSH 运行期间防止 macOS 自动休眠，仍可息屏和锁屏 | Host |
-| [最近会话](./recent-sessions.mdx) | `@` 菜单中的会话按最近活动排列 | Web |
-| [工作区管理](./workspace-manager.mdx) | 移除工作区、检查并清理失效目录记录，不删除文件或会话 | Host + Web |
-| [会话分组](./session-groups.mdx) | 拖拽会话分组、排序、组内置顶与 Agent 工具 | Host + Web |
-| [压缩状态](./compaction-status.mdx) | 在输入框上方显示上下文压缩状态与已等待时间 | Host + Web |
-| [自动审查模型](./auto-review-model.mdx) | 设置 Auto review 模型和提示词，查看日志并跳转到工具调用 | Host + Web |
-| [Wait, what? 回复解释](</docs/plugins/message-actions>) | 回复底部一键重新讲清楚，独立上下文与缓存，可指定专用模型 | Host + Web |
-| [引用跳转](./quote-jump.mdx) | 点击引用块定位并高亮原文 | Web |
-| [工具透镜](./tool-lens.mdx) | 从工具行打开技能、文件、完整输出与子会话 | Web |
-| [联网搜索](./web-access.mdx) | `grok_search` 和 `openai_search`，返回带引用的回答 | Host + Web |
-| [分支切换](</docs/plugins/branch-switcher>) | 在新建会话右侧搜索并切换已有本地分支，保留原生工作树功能 | Host + Web |
-| [Git 改动](./git-changes.mdx) | 查看分支与未提交改动统计，点击打开右侧 diff | Web |
-| [AI 小伙伴](./ai-mascot.mdx) | 可拖动的 GPT / Claude 角色，跟随当前对话活动 | Web |
+标签依次是运行位置、最低 DSH 版本和额外要求。完整的版本范围见 [版本与边界](/docs/compatibility)。
+
+<PluginDirectory />
 
 ## 插件之间的关系
 
-- 模型引用会读取快速模式的状态，让 `#` 标签带上 ⚡。不装快速模式时，模型引用仍然可用。
-- 子代理模型只补充子代理的只读显示，不提供选模入口，也不依赖模型引用、快速模式或记住模型。
-- 最近会话曾属于模型引用，现在是独立插件。
-- 自动审查模型是内置实验性 Auto review 的扩展，不会自行启动审查功能。
-- 联网搜索配置就绪且支持网页搜索时，会隐藏内置 `web_search`；只启用 X 搜索时不会替换。`web_fetch` 不受影响。
-- Git 改动依赖已启用的 Change requests & worktrees bundle，不会自行运行 Git。
-- AI 小伙伴只读取当前显示对话的活动；角色图需要访问外部站点，素材不属于插件代码的 MIT 授权。
+- # 引用模型会读取快速模式的状态，让 `#` 标签带上 ⚡。不装快速模式也能用。
+- 最近会话优先原来是 # 引用模型的一部分，现在是独立插件。
+- 子代理模型、# 引用模型和记住上次模型互不依赖。
+- 自动审查模型扩展的是实验性的 Auto review，不会自己开启审查。
+- 联网搜索的 `grok_search` 和 `openai_search` 也可以出现在 Pi 工具的选择面板里，前提是两个插件都已安装、搜索已配置好。
+- Git 变更和分支切换都依赖 Change requests & worktrees，但彼此独立。

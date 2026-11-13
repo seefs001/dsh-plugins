@@ -1,24 +1,24 @@
 ---
-title: 快速模式
-description: 在模型选择器旁切换 Responses 请求的优先处理。
+title: 快速模式（service tier）
+description: 模型选择器旁的 ⚡ 开关，为 Responses 模型发送 service_tier "priority"。
 ---
 
-`dsh-service-tier` 在模型选择器旁增加 ⚡。开启后，该模型请求携带 `service_tier: "priority"`。**Host + Web**。
+<PluginFacts slug="service-tier" />
+
+在模型选择器旁加一个 ⚡ 开关。对某个模型打开后，该模型的请求会带上 `service_tier: "priority"`。
+
+只有当前模型的 provider 使用 OpenAI Responses API（`llm-pi-ai` 里的 `api: openai-responses`）时才显示这个开关，因为只有这条路由接受该字段。
 
 ## 安装
 
-```bash
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/service-tier"
-```
+<InstallCommand slug="service-tier" />
 
-## 使用条件
+## 使用
 
-只有 provider 在 `llm-pi-ai` 中使用 **OpenAI Responses API**（`api: openai-responses`）时，按钮才会出现。
+点 ⚡ 切换当前模型的快速模式。切换立即生效，随后通过 config editor 保存到 profile。
 
-点击 ⚡ 立即生效，然后通过 config editor 保存到 profile 的 `cordis.patch.yml`。状态按 `provider/model` 分别保存。
-
-<Callout type="warn" title="费用与支持">
-优先处理可能采用不同计费。先确认 provider 的定价和支持情况；发送这个字段不代表每个兼容网关都提供加速。
+<Callout type="warn">
+OpenAI 和兼容网关对 priority 处理单独计费。长期开启前先确认 provider 的价格。
 </Callout>
 
 ## 配置
@@ -30,15 +30,15 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/se
       responses/gpt-6.1-sol: priority
 ```
 
-`tiers` 由按钮管理。[模型引用](./model-reference.mdx) 会读取这份状态，为标签附上 ⚡。
+`tiers` 由 ⚡ 按钮维护。
 
-## 实现与 HTTP
+## 原理
 
-Host 在 `llm-pi-ai/model-defaults` waterfall 中为 Responses 路由的快速模型增加 `serviceTier: 'priority'`。
+| 部分 | 作用 |
+| --- | --- |
+| Host（`lib/index.js`） | 挂在 `llm-pi-ai/model-defaults` waterfall 上，为开启的 Responses 路由 `provider/model` 加上 `serviceTier: 'priority'`。提供 `GET /service-tier/state` 和 `POST /service-tier/set` |
+| Web（`lib/client.js`） | 在 `conversation.input.right` 渲染 ⚡ 按钮，乐观更新开关状态 |
 
-| 方法 | 路由 | 作用 |
-| --- | --- | --- |
-| GET | `/service-tier/state` | 读取状态 |
-| POST | `/service-tier/set` | 切换状态 |
+两个路由都使用 Web API 的常规认证。`POST /service-tier/set` 接受 `{ "provider": string, "model": string, "fast": boolean }`，请求体上限 16 KiB。
 
-POST 接受 `{ "provider": string, "model": string, "fast": boolean }`，请求体上限为 16 KiB。两条路由使用 Web API 的正常认证。
+[# 引用模型](/docs/plugins/model-reference) 读取这里的状态，给 `#` 标签加上 ⚡。

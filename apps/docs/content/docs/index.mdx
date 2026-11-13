@@ -1,35 +1,42 @@
 ---
-title: 简介
-description: 给 DeepSeek Harness 加一点顺手的小功能。
+title: 概览
+description: dsh-plugins 是什么、怎么挑插件，以及 Host 和 Web 两部分的分工。
 ---
 
-dsh-plugins 是 seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）社区插件集。插件覆盖模型选择、会话管理、消息阅读、联网搜索、Git 改动与对话小伙伴。按需安装，额外依赖见对应插件页。
+dsh-plugins 是 seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件集。每个插件是一个独立 bundle，安装到某个 profile 后可以单独启用、停用和移除，不需要装整套。
 
 <Cards>
-  <Card title="快速开始" href="/docs/quick-start" description="检查环境，安装并启用第一个插件。" />
-  <Card title="插件目录" href="/docs/plugins" description="了解全部插件的用途、配置和使用限制。" />
-  <Card title="配置与数据" href="/docs/configuration" description="了解设置写在哪里，哪些数据由插件保存。" />
-  <Card title="本地开发" href="/docs/development" description="链接源码、运行检查，或参与文档维护。" />
+  <Card title="安装" href="/docs/quick-start" description="从 GitHub 或本地仓库安装，并确认插件生效。" />
+  <Card title="配置与数据" href="/docs/configuration" description="设置写在哪里，Host、profile 和浏览器各保存什么。" />
+  <Card title="版本与边界" href="/docs/compatibility" description="每个插件需要的 DSH 版本、额外依赖和不会改变的行为。" />
+  <Card title="插件目录" href="/docs/plugins" description="按用途分组的全部插件。" />
 </Cards>
 
-## 先装哪个？
+## 按需求挑插件
 
-- **经常切换模型**：[模型引用](/docs/plugins/model-reference) + [快速模式](/docs/plugins/service-tier) + [记住模型](/docs/plugins/remember-model)。
-- **想看子代理使用的模型**：[子代理模型](</docs/plugins/subagent-model>)，在输入框右下角显示只读模型名和推理强度。
-- **同时处理很多会话**：[会话分组](/docs/plugins/session-groups) + [最近会话](/docs/plugins/recent-sessions)。
-- **想知道是不是在等上下文压缩**：[压缩状态](/docs/plugins/compaction-status)，在输入框上方显示状态和已等待时间。
-- **需要快速回看上下文**：[引用跳转](/docs/plugins/quote-jump) + [工具透镜](/docs/plugins/tool-lens)。
-- **为 Agent 加搜索能力**：[联网搜索](/docs/plugins/web-access)。
-- **想为工具审查单独选模型并回看结果**：[自动审查模型](/docs/plugins/auto-review-model)。
-- **需要快速查看工作区 diff**：[Git 改动](/docs/plugins/git-changes)，需启用 Change requests & worktrees。
-- **想看当前对话的活动状态**：[AI 小伙伴](/docs/plugins/ai-mascot)，支持 GPT / Claude。
+| 你想要 | 插件 |
+| --- | --- |
+| 在提示词里点名模型，让子代理用指定模型 | [# 引用模型](/docs/plugins/model-reference)，可配合 [快速模式](/docs/plugins/service-tier) |
+| 新会话不用每次重新选模型 | [记住上次模型](/docs/plugins/remember-model) |
+| 看到子代理实际记录的模型 | [子代理模型](/docs/plugins/subagent-model) |
+| 让 Auto review 用另一个模型审查工具调用 | [自动审查模型](/docs/plugins/auto-review-model) |
+| 整理大量会话 | [会话分组](/docs/plugins/session-groups)、[最近会话优先](/docs/plugins/recent-sessions) |
+| 清理已删除目录留下的工作区记录 | [工作区管理](/docs/plugins/workspace-manager) |
+| 在新会话里换到另一个本地分支，或随时看未提交改动 | [分支切换](/docs/plugins/branch-switcher)、[Git 变更](/docs/plugins/git-changes) |
+| 长任务运行时 Mac 不休眠 | [保持唤醒](/docs/plugins/keep-awake) |
+| 读长对话时快速回到上下文 | [引用跳转](/docs/plugins/quote-jump)、[工具透镜](/docs/plugins/tool-lens) |
+| 看不懂某条回复 | [Wait, what? 回复解释](/docs/plugins/message-actions) |
+| 知道是不是卡在上下文压缩 | [上下文压缩状态](/docs/plugins/compaction-status) |
+| 给 Agent 加托管搜索 | [联网搜索](/docs/plugins/web-access) |
+| 在 DSH 里使用 Pi 的编程工具和 codemode | [Pi 工具](/docs/plugins/pi-tools) |
+| 从 Telegram、Discord 或 GitHub 驱动 DSH 会话 | [Switchboard](/docs/plugins/switchboard) |
 
-## Host 与 Web 是什么？
+## Host 和 Web
 
-**Host** 运行在 dsh 服务进程里，负责配置、状态、工具与模型请求。**Web** 运行在 `dsh web` 的浏览器页面里，负责输入框、侧边栏和消息显示。
+DSH 插件分两部分。Host 部分运行在 DSH 服务进程里，处理配置、存储、工具和模型请求。Web 部分运行在 `dsh web` 打开的浏览器页面里，负责输入框、侧边栏和消息显示。
 
-仅包含 Web 功能的插件也有一个供 Loader 加载的空 Host 入口。它们不会给终端界面添加同样的交互。
+只有 Web 功能的插件也带一个空的 Host 入口，因为 Loader 加载 bundle 时需要它。这些插件不会给终端界面添加相同的交互。每个插件页顶部的信息框写明了它的运行位置。
 
 <Callout>
-这是社区项目，不是 DeepSeek 官方插件。当前支持的 dsh 范围为 `>=0.2.2-rc.1 <0.3.0`。
+这是社区项目，不是 DeepSeek 官方插件。整套插件支持 DSH `>=0.2.2-rc.1 <0.3.0`，其中几个插件要求 rc.2 或更新的构建，见 [版本与边界](/docs/compatibility)。
 </Callout>

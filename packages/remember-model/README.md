@@ -1,6 +1,6 @@
 # dsh-remember-model
 
-Makes [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) start new sessions on the model and reasoning effort you picked most recently.
+New [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) sessions start on the model and reasoning effort you picked most recently.
 
 ## How it works
 

@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-seefs's plugin collection for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`): model selection, session management, web search, Git diffs, and conversation companions.
+Plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH), maintained by seefs. Each one is a separate bundle for model selection, session management, conversation reading, or new tools.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -13,72 +13,84 @@ English | [中文](README.zh.md)
 
 ## Plugins
 
-| Package | What it does | Halves |
-|---|---|---|
-| [`dsh-model-reference`](packages/model-reference) | Type `#` in the composer to insert a model chip with that model's last reasoning effort and fast mode. | Host + Web |
-| [`dsh-service-tier`](packages/service-tier) | A ⚡ toggle beside the model picker that sends `service_tier: "priority"` for OpenAI Responses models. | Host + Web |
-| [`dsh-subagent-model`](<packages/subagent-model/README.md>) | A read-only model and reasoning-effort label in subagent composers; the main agent's picker stays unchanged. | Web |
-| [`dsh-remember-model`](packages/remember-model) | New sessions start on the model and reasoning effort you picked last. | Host |
-| [`dsh-keep-awake`](<packages/keep-awake/README.md>) | Prevents macOS idle sleep while DSH runs; the display can still sleep and the screen can lock. Requires DSH rc.2 or newer. | Host |
-| [`dsh-recent-sessions`](packages/recent-sessions) | Sessions in the `@` menu are listed by last activity, newest first. | Web |
-| [`dsh-workspace-manager`](packages/workspace-manager) | Remove saved workspaces and clean up invalid directory entries without deleting files or sessions. Requires DSH rc.2 or newer. | Host + Web |
-| [`dsh-session-groups`](packages/session-groups) | Drag sessions into custom groups, reorder groups, and pin sessions within a group. | Host + Web |
-| [`dsh-compaction-status`](packages/compaction-status) | A compact status and elapsed timer above the composer during automatic compaction or `/compact`. | Host + Web |
-| [`dsh-auto-review-model`](packages/auto-review-model) | Pick the Auto review model and prompt; inspect the session review log and jump to reviewed calls. Needs `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
-| [`dsh-message-actions`](<packages/message-actions/README.md>) | One-click Wait, what? explanations in an isolated dialog, without adding to the conversation. A dedicated model selector and persistent caches. Requires DSH rc.2 or newer. | Host + Web |
-| [`dsh-quote-jump`](packages/quote-jump) | Quotes in user messages become blocks; clicking one scrolls to the quoted text and highlights it. | Web |
-| [`dsh-tool-lens`](packages/tool-lens) | Richer tool-call rows. The skill row opens the skill's `SKILL.md` in the right sidebar. | Web |
-| [`dsh-web-access`](packages/web-access) | `grok_search` (web + X) and `openai_search` tools. Pick a local Responses model and search type on the Plugins page. | Host + Web |
-| [`dsh-branch-switcher`](<packages/branch-switcher/README.md>) | Switch local branches from the New Session branch chip, with the native worktree option preserved. Requires DSH rc.2 and Change requests & worktrees. | Host + Web |
-| [`dsh-git-changes`](packages/git-changes) | Branch and uncommitted-change counts below the composer; click to open the right-sidebar diff. Requires Change requests & worktrees. | Web |
-| [`dsh-ai-mascot`](packages/ai-mascot) | Draggable GPT / Claude companions that follow the displayed conversation's activity. | Web |
+The minimum DSH version is rc.1 unless the table says rc.2. "Runs in" tells you whether the plugin has a Host half, a browser half, or both.
 
-Install only what you need. Some plugins require an enabled dsh experimental bundle or a configured provider; see each package's requirements. `dsh-model-reference` and `dsh-service-tier` work well together: with both installed, `#` chips also carry ⚡.
+### Models and review
+
+| Package | What it does | Runs in |
+|---|---|---|
+| [`dsh-model-reference`](packages/model-reference) | Type `#` in the composer to insert a model chip that carries that model's last reasoning effort and fast mode. | Host + Web |
+| [`dsh-service-tier`](packages/service-tier) | A ⚡ toggle beside the model picker sends `service_tier: "priority"` for OpenAI Responses models. | Host + Web |
+| [`dsh-remember-model`](packages/remember-model) | New sessions start on the model and reasoning effort you picked last. | Host |
+| [`dsh-subagent-model`](packages/subagent-model) | Shows a subagent's recorded model and reasoning effort in its composer. Read-only; the main agent's picker is unchanged. | Web |
+| [`dsh-auto-review-model`](packages/auto-review-model) | Choose the model and prompt that Auto review uses, and read each session's review log. Needs `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
+
+### Sessions and workspaces
+
+| Package | What it does | Runs in |
+|---|---|---|
+| [`dsh-recent-sessions`](packages/recent-sessions) | Sorts sessions in the `@` menu by last activity. | Web |
+| [`dsh-session-groups`](packages/session-groups) | Custom session groups with per-group pins, shared by every browser and the agent. | Host + Web |
+| [`dsh-workspace-manager`](packages/workspace-manager) | Removes saved workspace entries and cleans up ones whose directory is gone. Files and sessions stay. rc.2. | Host + Web |
+| [`dsh-branch-switcher`](packages/branch-switcher) | Switches to an existing local branch from the New Session screen before the first message. rc.2; needs Change requests & worktrees. | Host + Web |
+| [`dsh-git-changes`](packages/git-changes) | Branch and uncommitted-change counts below the composer; click to open the diff. Needs Change requests & worktrees. | Web |
+| [`dsh-keep-awake`](packages/keep-awake) | Prevents macOS idle sleep while the Host runs. The display can still sleep and the screen can still lock. rc.2. | Host |
+
+### Reading conversations
+
+| Package | What it does | Runs in |
+|---|---|---|
+| [`dsh-compaction-status`](packages/compaction-status) | A one-line status and elapsed timer above the composer during context compaction. | Host + Web |
+| [`dsh-quote-jump`](packages/quote-jump) | Quotes in your messages become blocks that scroll to the quoted text and highlight it. | Web |
+| [`dsh-tool-lens`](packages/tool-lens) | Tool-call rows that open the skill file, full output, result files, or the subagent's conversation. | Web |
+| [`dsh-message-actions`](packages/message-actions) | **Wait, what?** beside each reply explains it in an isolated model call that never enters the conversation. rc.2. | Host + Web |
+| [`dsh-ai-mascot`](packages/ai-mascot) | Draggable GPT / Claude companions that follow the displayed conversation. The artwork has separate non-commercial terms. | Web |
+
+### Tools and integrations
+
+| Package | What it does | Runs in |
+|---|---|---|
+| [`dsh-web-access`](packages/web-access) | Adds `grok_search` (web and X) and `openai_search`, using hosted search on an existing Responses provider. | Host + Web |
+| [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi 1.5.0's original coding tools, QuickJS codemode, and per-session DSH and MCP tool selection. rc.2 with the preset-options changes; see its README. | Host + Web |
+| [`dsh-switchboard`](packages/switchboard) | Connects DSH to a Switchboard relay so Telegram, Discord, and GitHub requests run in DSH sessions. | Host |
+
+Install only what you need. With both `dsh-model-reference` and `dsh-service-tier` installed, `#` chips also carry ⚡.
 
 ## Requirements
 
-- dsh `>=0.2.2-rc.1 <0.3.0`
-- Node.js `^22.19.0 || >=24`
-- The browser plugins need the Web GUI (`dsh web`).
+- DSH `>=0.2.2-rc.1 <0.3.0`. Packages marked rc.2 above require `>=0.2.2-rc.2`.
+- Node.js `^22.19.0 || >=24`.
+- Plugins with a Web half need the Web GUI (`dsh web`).
 
 ## Install
 
-Install from GitHub into a profile (here `web`). The `path:` parameter picks one package from this repository:
+Install one package from GitHub into a profile, here `web`. The `path:` parameter selects the package:
 
 ```bash
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/model-reference"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/service-tier"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/subagent-model"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/workspace-manager"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/compaction-status"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/message-actions"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/git-changes"
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/ai-mascot"
 ```
 
-You can also use the **Plugins** page in the Web GUI and paste the same spec. Installing a bundle selects it, and with `patchReload: live` it takes effect without a restart.
+Replace `model-reference` with any directory name from the tables. You can also paste the same `github:` spec into the **Plugins** page of the Web GUI.
 
-From a local clone:
+After installation, Plugin Manager selects the bundle. If the profile has HMR enabled, the change applies right away and the result says `applied`. If it says `restart-required`, restart DSH for that profile. Browser halves load after a page refresh.
+
+To install from a local clone instead:
 
 ```bash
 git clone https://github.com/seefs001/dsh-plugins.git
-dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
+cd dsh-plugins
+dsh plugin --profile web add link:$PWD/packages/model-reference
 ```
 
 ## Configuration
 
-Plugin settings (`model-reference` efforts, `service-tier` fast models, `auto-review-model` model and prompt, `message-actions` explanation model, and `web-access` search settings) are saved to your profile's `cordis.patch.yml` through dsh's config editor. Session groups, review logs, and reply explanation caches use the Host's `session_groups`, `auto_review_log`, and `message_actions` storage domains instead. AI Mascot keeps its position, size, compact-mode and motion preferences in browser localStorage, not the profile. See each package's README for storage limits and privacy notes.
+Most settings are made in the GUI and saved to the profile's `cordis.patch.yml` through DSH's config editor. This covers `model-reference` efforts, `service-tier` fast models, the `auto-review-model` model and prompt, the `message-actions` explanation model, and `web-access` search settings. Switchboard has no settings page; edit its row in `cordis.patch.yml`.
+
+Session groups, review logs, reply explanations, and Switchboard's connector state live in Host storage domains (`session_groups`, `auto_review_log`, `message_actions`, `switchboard_connector`). Pi tool selections are written to the session log. AI Mascot keeps its position and display preferences in browser localStorage. Each package README lists its storage limits and privacy notes.
 
 ## Documentation
 
-The [documentation site](https://seefs001.github.io/dsh-plugins/) uses Fumadocs and includes a GitHub Pages deployment workflow. It covers installation, all plugins, configuration, and development.
+The [documentation site](https://seefs001.github.io/dsh-plugins/) is in Chinese. It covers installation, configuration and data, version requirements and boundaries, and a page per plugin. It is built with Fumadocs and deployed to GitHub Pages.
 
 ```bash
 pnpm run docs:dev        # local preview
@@ -86,7 +98,7 @@ pnpm run docs:typecheck  # documentation types
 pnpm run docs:build      # static export to apps/docs/out
 ```
 
-See [apps/docs/README.md](apps/docs/README.md) for the first Pages deployment.
+[apps/docs/README.md](apps/docs/README.md) explains the Pages setup.
 
 ## Development
 
@@ -95,8 +107,8 @@ pnpm install
 pnpm run check   # oxlint + manifest validation + node:test
 ```
 
-The plugins are plain ES modules with no build step. Layout and conventions are in [CONTRIBUTING.md](CONTRIBUTING.md).
+Most plugins are plain ES modules with no build step. [CONTRIBUTING.md](CONTRIBUTING.md) lists the layout, the exceptions, and the release steps.
 
 ## License
 
-Plugin code: [MIT](LICENSE). AI Mascot's referenced character artwork has separate, non-commercial usage terms and is not covered by MIT. See its [artwork and attribution notes](packages/ai-mascot/README.md#artwork-and-rights).
+Plugin code is [MIT](LICENSE). AI Mascot references character artwork that has separate, non-commercial terms and is not covered by MIT. See its [artwork and rights notes](packages/ai-mascot/README.md#artwork-and-rights).

@@ -28,7 +28,7 @@ Click a log entry to reveal its reviewed tool call, scroll it into view, and bri
 
 ## Review prompt
 
-**Append** is the safe choice: your rules follow the built-in policy under an `ADDITIONAL USER POLICY` heading, and the risk levels and output format stay as built in.
+**Append** is the safer choice. Your rules follow the built-in policy under an `ADDITIONAL USER POLICY` heading, and the risk levels and output format stay as built in.
 
 **Replace** sends your text as the reviewer's whole system prompt. Auto review still parses the answer strictly, so the prompt must make the reviewer return exactly one JSON object: `low+allow`, `medium+allow`, `medium+deny`, or `high+deny`, with an optional `reason` only on deny. Anything else fails the review and blocks the call. **Load built-in prompt** fills the text box with the policy seen on the latest Auto review request, available after Auto review has run once since the Host started.
 

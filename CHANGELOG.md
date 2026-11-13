@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `dsh-pi-tools`: the conversation tool picker groups Pi, DSH and MCP tools into collapsible sections with selection counts, section checkboxes (whole section, or only the visible matches while filtering), a selected-only view, and expand/collapse all. Filtering always shows matches regardless of fold state. Save, Cancel, Restore defaults and session locking are unchanged.
+- Documentation site: reorganized into install, configuration and data, versions and boundaries, and grouped plugin pages, with pages for `dsh-pi-tools` and `dsh-switchboard`. Plugin versions and DSH ranges are read from package manifests at build time. Replaced references to a nonexistent `patchReload: live` setting with Plugin Manager's `applied` / `restart-required` results.
 - `dsh-keep-awake` 0.1.0: a macOS Host-only plugin that prevents automatic idle sleep using the built-in `caffeinate` utility. Keeps display sleep and screen locking unchanged; releases its assertion on plugin disposal or Host exit, including crashes. Includes English and Chinese metadata, an original icon, and usage documentation.
 - `dsh-subagent-model` 1.0.0: a read-only model and reasoning-effort label in subagent composers, sourced from the child session's recorded selection. Keeps the main agent's model picker unchanged; includes English and Chinese labels and plugin metadata.
 - `dsh-compaction-status` 0.1.0: a compact, single-line compaction indicator above the composer, aligned with the native task dock. Shows elapsed time for automatic compaction and `/compact` without changing compaction behavior.

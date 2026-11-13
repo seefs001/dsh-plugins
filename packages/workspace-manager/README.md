@@ -1,6 +1,6 @@
 # dsh-workspace-manager
 
-管理 DSH 保存的工作区记录。**Host + Web**，需要 DSH `>=0.2.2-rc.2 <0.3.0` 和默认 Web profile 的 Workspace 服务。
+管理 DSH 保存的工作区记录。插件包含 Host 和 Web 两部分，需要 DSH `>=0.2.2-rc.2 <0.3.0` 和默认 Web profile 的 Workspace 服务。
 
 ## 安装
 
@@ -10,7 +10,7 @@
 dsh plugin --profile web add "link:$PWD/packages/workspace-manager"
 ```
 
-在仓库根目录运行。启用后刷新网页，点击侧边栏的 **工作区管理 / Workspace manager**。安装命令会修改所选 profile。
+在仓库根目录运行。启用后刷新网页，点击侧边栏的 **工作区管理**（英文界面为 **Workspace manager**）。安装命令会修改所选 profile。
 
 发布到仓库后也可用 `github:seefs001/dsh-plugins#main&path:/packages/workspace-manager` 安装。
 

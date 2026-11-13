@@ -1,6 +1,6 @@
 # dsh-ai-mascot
 
-A small GPT / Claude companion in the lower-right corner of the DSH Web UI. It follows the **displayed conversation**, not a random busy session.
+A small GPT / Claude companion in the lower-right corner of the DSH Web UI. It follows the conversation you are looking at and ignores activity in other sessions.
 
 右下角的 GPT / Claude Q 版小伙伴。当前会话在思考、读文件、搜索、写代码、跑命令、协作、等待确认时，切换提示、动作和小道具。正常完成回复后短暂庆祝，随后回到待机。停止和报错不会触发庆祝。
 
@@ -20,10 +20,10 @@ A small GPT / Claude companion in the lower-right corner of the DSH Web UI. It f
 | Successful reply | One small hop and sparkle, then quiet idle |
 | Prompt / agent error | Two brief, small shakes and a “check the chat” message |
 
-- GPT, ChatGPT, Codex and OpenAI o1/o3/o4 model IDs select the GPT character. Claude model IDs select Claude. Matching uses the **model ID**, so an OpenAI-compatible provider serving a different model does not turn it into GPT. Other models do not display a mascot.
+- GPT, ChatGPT, Codex and OpenAI o1/o3/o4 model IDs select the GPT character. Claude model IDs select Claude. Matching uses the model ID, so an OpenAI-compatible provider serving a different model does not turn it into GPT. Other models do not display a mascot.
 - Actions use the actual Chat projection's live tool calls and partial reply, plus Session running/error/pending-interaction facts. A preparing tool call remains “thinking” until dispatched. For concurrent tools, the latest active call wins, including nested calls.
 - The character has no visible model-name label. Idle shows no status text or badge; active-state messages and controls remain available. GPT uses brisk copy such as “理理思路…” and Claude uses gentler copy such as “想一想…”. Each message follows the actual activity, without fake progress or rotating chatter.
-- This version animates the chosen **static front-view reference** with CSS and props. It is not a frame-by-frame sprite, Live2D model, or new set of character poses.
+- This version animates a static front-view reference image with CSS and props. There are no frame-by-frame sprites, Live2D model, or new character poses.
 - Drag the character to move it. Its position stays inside the viewport and is remembered in this browser. The collapsed 40px status button can also be dragged; a click without dragging expands it. Focus the character or compact button and use arrow keys to adjust its position (`Shift` for larger steps). Status text remains click-through.
 - The oval backing has been removed. The front-view crop is made transparent in browser memory by clearing edge-connected near-white background pixels, preserving enclosed white details. No processed artwork is bundled or uploaded.
 - Settings offer two sizes and an animation toggle. Preferences, including position, stay in this browser's local storage under `dsh-ai-mascot:preferences`. System `prefers-reduced-motion` is respected. No sound.

@@ -12,4 +12,4 @@ The source registers asynchronously, so the plugin looks for it every 500 ms and
 
 ## Compatibility
 
-This relies on internals of `dsh-client-ui-reference`: the source name `reference`, the `icon: 'session'` row shape, and the `dsh-session:` mention encoding. If a dsh release changes them, the plugin does nothing instead of failing.
+This relies on internals of `dsh-client-ui-reference`: the source name `reference`, the `icon: 'session'` row shape, and the `dsh-session:` mention encoding. If a DSH release changes them, the plugin stops sorting and reports no error.

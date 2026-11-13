@@ -1,38 +1,38 @@
 ---
-title: 模型引用
-description: 输入 # 插入模型标签，把模型、推理强度和快速模式传入提示词。
+title: '# 引用模型'
+description: 输入 # 插入模型标签，标签带上该模型上次的推理强度和快速模式。
 ---
 
-`dsh-model-reference` 在输入框增加 `#` 模型选择菜单，交互类似 `@` 文件和会话引用。**Host + Web**，无需手动配置。
+<PluginFacts slug="model-reference" />
+
+在输入框里输入 `#`，选一个模型，它会像 `@` 引用文件或会话一样变成一个标签。标签带上这个模型上次使用的推理强度；装了 [快速模式](/docs/plugins/service-tier) 并对该模型开启 ⚡ 时，也会带上快速模式。这样就可以写“让 #GPT-6.1 Sol · xhigh ⚡ 在子代理里审查这个 diff”。
 
 ## 安装
 
-```bash
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/model-reference"
-```
+<InstallCommand slug="model-reference" />
 
 ## 使用
 
-| 操作 | 作用 |
+| 按键 | 作用 |
 | --- | --- |
-| 输入 `#` 和文本 | 按模型名称、模型 ID、provider 名称或 ID 筛选 |
-| `↑` / `↓` | 移动选中项 |
-| `Enter` / `Tab` | 插入选中的模型 |
-| `Esc` | 关闭当前查询的菜单 |
+| `#` 加文字 | 打开选择器，按模型名、模型 ID、provider 名或 provider ID 过滤。每个词都要匹配，`/` 和空格用来分词 |
+| `↑` / `↓` | 移动高亮 |
+| `Enter` / `Tab` | 插入高亮的模型 |
+| `Esc` | 关闭这次查询的选择器 |
 
-空格和 `/` 都会拆分查询词，所有查询词都必须匹配。标签携带该模型上次使用的推理强度；安装 [快速模式](./service-tier.mdx) 后，也会携带该模型的 ⚡ 状态。
+复制标签时，剪贴板里是 `#provider/model`。
+
+在输入框的模型选择器或 `/model` 里切换模型时，插件会恢复该模型保存的推理强度。对同一个模型明确选择“默认”会清除保存的强度。保存的强度该模型已不支持时，回到模型自己的默认值。
 
 ## 模型看到什么
 
-标签在提示词中序列化为：
+标签在提示词里序列化成：
 
 ```text
 #model(provider=responses, model=gpt-6.1-sol, reasoning_effort=xhigh, service_tier=priority)
 ```
 
-例如，可以写「让这个模型在子代理中审查 diff」。标签提供模型信息，本身不会自动启动子代理，也不会切换当前会话模型。
-
-复制标签时，剪贴板中是 `#provider/model`。
+这是一段写给模型的文字，不会切换当前会话的模型。模型是否按这个引用去启动子代理，取决于你的提示和可用的工具。
 
 ## 配置
 
@@ -43,10 +43,11 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/mo
       responses/gpt-6.1-sol: xhigh
 ```
 
-`efforts` 由顶层会话的 `model/selection` 事件自动更新，通常不用手动编辑。
+`efforts` 记录每个 `provider/model` 上次的推理强度，由插件自动写入，一般不需要手改。只记录顶层会话的选择，子代理会话的选择不会覆盖它。
 
-## 实现
+## 原理
 
-Host 保存每个 `provider/model` 的推理强度，并通过 `GET /model-reference/state` 提供状态。路由使用 Web API 的正常认证。
-
-浏览器在 `conversation.input.overlay` 渲染菜单，并在输入触发管线中注册标签编解码器。
+| 部分 | 作用 |
+| --- | --- |
+| Host（`lib/index.js`） | 监听顶层会话的 `model/selection` 事件，按 `provider/model` 保存推理强度，并通过 `GET /model-reference/state` 提供给浏览器。这个路由和其他 Web API 使用同样的认证 |
+| Web（`lib/client.js`） | 在 `conversation.input.overlay` 渲染 `#` 菜单，并在 input-trigger 管线里注册标签编解码 |

@@ -1,32 +1,26 @@
 ---
 title: 引用跳转
-description: 点击用户消息里的引用块，回到原文并短暂高亮。
+description: 用户消息里的引用变成可点击的块，跳回原文并高亮。
 ---
 
-`dsh-quote-jump` 将用户消息里的引用胶囊替换为引用块。点击引用块，或聚焦后按 `Enter`，会向上定位引用原文并高亮约两秒。**仅 Web**，没有配置项。
+<PluginFacts slug="quote-jump" />
+
+把用户消息里的引用标签换成引用块。点击它（或聚焦后按 Enter），页面会滚到对话里被引用的原文，并高亮大约两秒。
 
 ## 安装
 
-```bash
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
-```
+<InstallCommand slug="quote-jump" />
 
-## 匹配与显示
+## 原理
 
-- 匹配忽略空白，减少 Markdown 排版差异的影响。
-- 多处匹配时，优先选择引用上方最近的一处。
-- 长引用无法完整匹配时，回退到前 48 个字符。
-- 滚动前会展开 `hidden="until-found"` 或 `<details>` 折叠行。
-- 高亮优先使用 CSS Custom Highlight API，不支持时回退到轮廓框。
+只有 Web 部分，Host 入口是空的。
+
+- 在 `conversation.user.text.node` 注册 `quote` 键，priority 50，遮住 `dsh-message-quotes` 自带的渲染器（priority 100）。停用插件即恢复内置标签。
+- 匹配时忽略空白，Markdown 排版差异不影响结果。多处匹配时，选引用上方最近的一处。很长的引用只用前 48 个字符匹配。
+- 高亮使用 CSS Custom Highlight API，不支持时退回为描边。
+- 滚动前会先展开折叠的行（`hidden="until-found"` 和 `<details>`）。
 
 ## 限制
 
-<Callout>
-只能查找已经加载到页面中的原文。若提示未找到，先向上滚动加载历史，再点击引用块。
-</Callout>
-
-代码块和表格依赖渲染后的文本匹配。渲染文字与复制内容不一致时，可能无法定位。
-
-## 实现
-
-在 `conversation.user.text.node` 的 `quote` 键上以优先级 50 注册渲染器，覆盖 `dsh-message-quotes` 的内置渲染器（优先级 100）。禁用插件会恢复原来的引用胶囊。
+- 只能找到页面里已经加载的文字。原消息还在未加载的历史里时，引用块会提示没找到；往上滚动加载后再点一次。
+- 引自代码块或表格的文字按文本匹配，渲染后的文字和复制时的选区不一致时可能匹配失败。

@@ -1,0 +1,106 @@
+---
+title: Switchboard
+description: 把 DSH 作为 dsh harness 接入 Switchboard 中继，让 Telegram、Discord 和 GitHub 的请求在 DSH 会话里运行。
+---
+
+<PluginFacts slug="switchboard" />
+
+把 DSH 以 `dsh` harness 的身份连到 [Switchboard](https://github.com/seefs001/switchboard) 中继。来自 Telegram、Discord 或 GitHub 的消息在 DSH 会话里作为一轮对话运行，回复流式发回，工具审批可以在 IM、中继面板或 DSH 界面里回答。
+
+只有 Host 部分，没有设置页，需要在 profile 的 `cordis.patch.yml` 里配置。
+
+## 安装
+
+<InstallCommand slug="switchboard" />
+
+bundle 插入的配置行里 `relayUrl` 为空，此时插件不连接。填好 `relayUrl` 和 `workspaces` 后插件才开始工作。profile 启用了 HMR 时，修改 patch 会触发重新组合；否则重启 DSH。
+
+## 配置
+
+```yaml
+- id: switchboard
+  config:
+    relayUrl: wss://switchboard.example.com/connect
+    hostId: macbook             # 必须和 switchboard.yaml 里的 hosts.<id> 一致；默认是主机名
+    tokenRef: SWITCHBOARD_TOKEN # 先查 DSH 凭据，再查同名环境变量
+    workspaces:                 # 中继可以使用的别名，必须和中继的注册表一致
+      app: /Users/me/work/app
+    profiles:                   # switchboard profile -> DSH 权限预设
+      readonly: read-only
+      workspace-write: workspace-write
+    approvalMode: race          # race | exclusive
+    untrustedIsolation: true
+    dataDir: ''                 # 默认 $DSH_HOME/switchboard
+```
+
+| 字段 | 默认值 | 含义 |
+| --- | --- | --- |
+| `relayUrl` | 空 | 中继的 WebSocket 地址。为空时插件不启用 |
+| `hostId` | 主机名 | `hello` 里发送的主机标识 |
+| `tokenRef` | `SWITCHBOARD_TOKEN` | 主机 token 在 DSH 凭据里的名字，找不到时读同名环境变量 |
+| `workspaces` | `{}` | 别名到绝对路径。路径会做 `realpath`，不存在的跳过 |
+| `profiles` | 见上 | 每个中继 profile 对应的 DSH 权限预设 |
+| `approvalMode` | `race` | `race`：中继和界面都能看到绑定会话的审批，先回答的生效。`exclusive`：只有中继能回答 |
+| `untrustedIsolation` | `true` | 声明并接受 `isolation: untrusted` 的运行。设为 `false` 时以 `isolation-unsupported` 拒绝 |
+| `dataDir` | `$DSH_HOME/switchboard` | 等待上传的产物（`blobs/`），不放进 storage domain 文档 |
+
+## 权限
+
+中继会话的审批策略总是 `ask`。中继 profile 映射到 DSH 权限预设：`readonly` 对应 `read-only` 沙箱加 `ask`，`workspace-write` 对应 `workspace-write` 沙箱加 `ask`。
+
+DSH 默认没有只读预设。没有时，插件直接写入沙箱模式和审批策略，界面上显示为 `custom`。想要具名预设，在权限预设插件里添加：
+
+```yaml
+- name: '@deepseek-ai/dsh-permission-presets'
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+```
+
+映射到审批为 `never` 的预设，或沙箱比 profile 允许的更宽，运行会失败，插件不会放宽权限。
+
+## 行为
+
+### 协议与运行
+
+插件实现 Switchboard connector 协议，`hello` 声明 `steer`、`loadSession`、`resume`、`close`，以及配置决定的 `untrustedIsolation`。
+
+一次派发会在工作区或工作树里新建会话，或恢复已绑定的会话，然后以 `requestId = runId` 通过界面使用的同一个队列发送提示。文本增量、最终文本、工具调用（带 ACP 工具类型和文件位置）、待办计划和推理都会流式发回。运行在本轮的 `turn/end` 结束，带汇总的 token 用量和 ACP `stopReason`（`end_turn`、`max_tokens`、`cancelled`）。
+
+在界面里对已绑定会话输入的消息也会告知中继（`run.open`，来源 `gui`），并流式发到同一个聊天。
+
+取消会停止正在运行的一轮，或移除还在排队的提示。steer 使用 DSH 的 steer 投递。`session.close` 只解除绑定，DSH 会话保留。
+
+### 审批
+
+只拦截已绑定会话的审批。每个请求带 ACP 选项（`allow-once`/`allow_once`、`reject-once`/`reject_once`）、标题、工具类型、文件位置和适合显示的摘要；摘要去掉了控制字符、零宽字符、双向控制字符和 Unicode tag 字符，截断处有标记。中继的选择映射为 `allowed-once` 或 `rejected`，`cancelled` 保持不变。`race` 模式下中继先回答时，界面上的审批卡片会移除；界面先回答时，中继收到带该选择的 `approval.withdrawn`；DSH 取消请求时，中继收到来自 `harness` 的 `{outcome: cancelled}`。
+
+### 不受信任的运行
+
+`binding.isolation: untrusted` 的运行总是使用新会话。标准会话不会被复用，被标记的会话也不会服务标准运行（`isolation-mismatch`）。profile 强制为 `readonly`。一个 `tools/pre-execute` 闸门只允许 `read`、`read_image`、`grep`、`glob` 和 `todo_write`，所有路径解析（跟随符号链接）后必须在会话目录内。`bash`、终端、`run_code`、网页工具、MCP 工具和子代理都被拒绝，工具执行没有网络通路。被标记会话的审批请求直接拒绝，不询问任何人。标记在 `session.close` 和重启后仍然保留。
+
+### 工作树
+
+`binding.worktree` 时，插件先用你自己的 git 凭据从 `origin` 拉取请求的 refspec；没有目标的 refspec 放在 `refs/switchboard/fetched/` 下。工作树从确切的 `start` 提交开始。带 `branch` 时，每个分支一个工作树（`.switchboard/worktrees/<branch>`），每次运行复用并重置到 `start`；已有的本地分支只有以 `switchboard/` 开头时才会被接管。不带分支时，工作树以分离状态放在 `.switchboard/worktrees/<runId>`。
+
+`restorePaths`（以 `*` 结尾的条目表示前缀）会恢复为 `restoreFrom` 中的版本，那里不存在时删除，并标记为 skip-worktree，Agent 的提交不会带上这些替换。提交作者只在该工作树里设置。运行结束时，`start` 之后的提交打包成分块的 git bundle 上传，上传完成后才发 `run.end`。工作树不会自动删除。
+
+### 状态
+
+未确认的帧、会话绑定和被标记的会话保存在 `switchboard_connector` storage domain。产物以文件形式放在 `dataDir/blobs`，重启后未完成的上传会继续。重启时正在进行的运行报告为 `failed`（`connector-restart`）。
+
+## 开发
+
+`lib/vendor/switchboard-kit.js` 是生成文件，打包了 `@switchboard/connector-kit`、`@switchboard/protocol` 和 zod，因为插件没有构建步骤。在 switchboard 仓库里重新生成：
+
+```bash
+bun scripts/build-dsh-kit.ts
+```

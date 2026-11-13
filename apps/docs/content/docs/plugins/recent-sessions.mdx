@@ -1,24 +1,24 @@
 ---
-title: 最近会话
-description: 让 @ 引用菜单优先显示最近活动的会话。
+title: 最近会话优先
+description: '@ 菜单里的会话按最近活动排序，最新的在前。'
 ---
 
-`dsh-recent-sessions` 将 `@` 引用菜单里的会话按最后活动时间倒序排列。**仅 Web**，没有配置项。
+<PluginFacts slug="recent-sessions" />
+
+在输入框输入 `@` 引用会话时，会话按最后活动时间排序，最新的排在最前面。文件行和其他分组不受影响。
 
 ## 安装
 
-```bash
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/recent-sessions"
-```
+<InstallCommand slug="recent-sessions" />
 
-## 行为
+## 原理
 
-- 只排序同一分区内连续的会话行，文件行和其他分区不变。
-- 按会话的 `updatedAt` 排序，相同时间保留原顺序。
-- 禁用插件会恢复原来的候选生成函数。
+只有 Web 部分，Host 入口是空的。
+
+插件包装内置 `@` 来源（`dsh-client-ui-reference` 中名为 `reference` 的来源）的 `candidates()`。同一分组里连续的会话行按会话的 `updatedAt` 排序，时间相同时保持原顺序。停用插件会恢复原函数。
+
+这个来源是异步注册的，插件每 500 ms 查找一次，30 秒后放弃。
 
 ## 兼容性
 
-插件包装内置 `dsh-client-ui-reference` 的 `reference` source 的 `candidates()`。source 异步注册时，每 500 ms 查找一次，最多等待 30 秒。
-
-它依赖 source 名称、`icon: 'session'` 行结构和 `dsh-session:` 引用编码。若 dsh 改变这些内部约定，插件会保持无操作，而不是让引用菜单报错。
+插件依赖 `dsh-client-ui-reference` 的内部约定：来源名 `reference`、`icon: 'session'` 的行结构，以及 `dsh-session:` 引用编码。DSH 改变这些约定后，插件不做任何事，不会报错。

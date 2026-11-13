@@ -1,14 +1,14 @@
 # dsh-compaction-status
 
-Shows **Compacting context…** and elapsed time in a compact, single-line status above the DSH composer. It uses the same centered width as the native task dock, rather than stretching across the page. No need to expand process details.
+Shows **Compacting context…** and the elapsed time in one line above the DSH composer, at the same centered width as the native task dock. You do not have to expand process details to see it.
 
-中文：上下文压缩时，在输入框上方显示一行「正在压缩上下文」和已等待时间。与原生任务栏同宽、居中，不使用通栏卡片或第二行说明。中文使用指南见[文档站页面](../../apps/docs/content/docs/plugins/compaction-status.mdx)。
+中文：上下文压缩时，在输入框上方显示一行「正在压缩上下文」和已等待时间，与原生任务栏同宽、居中。中文指南见[文档站](https://seefs001.github.io/dsh-plugins/docs/plugins/compaction-status/)。
 
 ## Requirements
 
 - DSH `>=0.2.2-rc.1 <0.3.0`.
 - Node.js `^22.19.0 || >=24.0.0`.
-- The Web GUI (`dsh web`). This bundle contains both Host and Web halves; it adds no terminal indicator.
+- The Web GUI (`dsh web`). The bundle has Host and Web halves and adds no terminal indicator.
 - The existing DSH compaction lifecycle. The plugin displays status; it does not enable or schedule compaction.
 
 ## Install
@@ -25,11 +25,11 @@ You can also paste that GitHub spec into the Web GUI's **Plugins** page. The Git
 dsh plugin --profile web add link:$PWD/packages/compaction-status
 ```
 
-Installation and enabling affect every session in that profile, not just the current conversation. With `patchReload: live`, the bundle applies without restarting DSH. Refresh the Web page if it still shows an older Client bundle. There are no plugin settings or extra API keys.
+Installing and enabling the bundle affects every session in that profile. If the profile has HMR enabled, Plugin Manager reports `applied` and no restart is needed; if it reports `restart-required`, restart DSH. Refresh the Web page if it still shows an older Client bundle. There are no plugin settings or extra API keys.
 
 ## Use and behavior
 
-During automatic compaction or a manual `/compact`, the dock shows a small spinner, the localized status, and an elapsed timer such as **Elapsed 0:34** / **已等待 0:34**. Hover for the explanatory text. There is no full-width banner, heavy card border, or second line of copy.
+During automatic compaction or a manual `/compact`, the dock shows a small spinner, the localized status, and an elapsed timer such as **Elapsed 0:34** / **已等待 0:34**. Hover for the explanatory text.
 
 - The status is outside folded process details and stays above the composer while you read older messages.
 - The timer uses the original `compaction/start` timestamp, in minutes and seconds. It measures elapsed wall time, not percentage complete or estimated time remaining.
@@ -63,4 +63,4 @@ pnpm exec oxlint --deny-warnings packages/compaction-status
 pnpm run validate
 ```
 
-These checks validate source and bundle metadata, not the rendered result. To verify the running GUI, observe an actual compaction: the single-line status should align with the task dock, remain readable in light and dark themes and narrow windows, then disappear when compaction ends. Live slot registration alone does not establish visual correctness.
+These checks cover source and bundle metadata. To check the rendered result, watch a real compaction in the running GUI: the status should line up with the task dock, stay readable in light and dark themes and narrow windows, and disappear when compaction ends.

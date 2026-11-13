@@ -1,31 +1,29 @@
 ---
-title: Git 改动
-description: 在输入框下方查看分支与未提交改动，一键打开右侧 diff。
+title: Git 变更
+description: 在输入框下方显示分支和未提交改动，点击打开右侧 diff。
 ---
 
-`dsh-git-changes` 在输入框下方、活动与用量标签旁增加 Git 入口，显示当前分支、增删行数和未提交文件数。点击后在右侧边栏打开 **Uncommitted** diff。**仅 Web**，没有配置项。
+<PluginFacts slug="git-changes" />
+
+在输入框下方、活动和用量标签旁边加一个 Git 入口，显示当前分支、增删行数和未提交的文件数。点它会在右侧边栏打开 diff，并直接定位到“未提交”范围。
 
 ## 安装
 
-```bash
-dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/git-changes"
-```
+<InstallCommand slug="git-changes" />
 
-<Callout type="warn" title="先启用 Change requests & worktrees">
-需要在 Plugins 页启用 `@deepseek-ai/dsh-experimental-forge-bundle`。本插件读取该面板的数据，不会自行启用它；依赖未启用或当前目录不是 Git checkout 时，入口不显示。
-</Callout>
+先在 Plugins 页启用 **Change requests & worktrees**（`@deepseek-ai/dsh-experimental-forge-bundle`）。插件读取这个面板的数据并打开它的本地改动标签页，没有它时入口不会出现。
 
-## 使用
+## 原理
 
-1. 打开工作目录位于 Git checkout 中的会话。
-2. 在输入框下方查看分支、增删行数和文件数。统计的是相对 HEAD 的未提交改动，包含未跟踪文件。
-3. 点击入口，在右侧 **Local changes** 标签页查看 diff，新打开的标签页默认选择 **Uncommitted**。
+只有 Web 部分，Host 入口是空的。
 
-工作区干净时显示 **No changes / 无改动**。在 diff 面板里手动切换范围后，插件不会反复切回 Uncommitted。
+- 在 `conversation.composer.dock` 注册 `git-changes` 入口（order 2，排在自带标签之后）。
+- 通过当前会话的 `forgePanel.follow` 获知分支和检出变化，再（防抖后）读取 `forgePanel.localDiff({ kind: 'uncommitted' })` 得到数字。统计的是相对 HEAD 的改动，包括未跟踪的文件。
+- 点击打开 `dsh-resource://forge-changes/<session>/local`，和面板里本地改动卡片打开的是同一个标签页。
+- 包装 forge 改动标签页（`sidebar.right.pane.tab`，priority -10），每个新的本地改动标签页会从 Branch 范围切到 Uncommitted 一次。之后你再选别的范围会保持不变。
+- 工作区干净时显示“无改动”，不在 Git 仓库里时隐藏。
 
-## 实现与限制
+## 限制
 
-插件在 `conversation.composer.dock` 注册入口，跟随当前会话的 `forgePanel.follow`，并防抖调用 `forgePanel.localDiff({ kind: 'uncommitted' })` 获取统计。它不自行运行 Git 命令。
-
-- 默认范围依赖 forge 标签页内部的 `byTab[tab].scope` 和 `scoped` action。若 dsh 升级改变这些约定，标签页可能重新默认打开 Branch，入口本身仍可用。
-- diff 超出 forge 面板的 `maxDiffBytes` 时，入口也会显示“无改动”。此时不能仅凭入口判断工作区是否干净。
+- 默认范围依赖 forge 标签页的内部 store（`byTab[tab].scope` 和 `scoped` action）。DSH 升级改变它们后，标签页会重新从 Branch 打开，入口本身照常工作。
+- diff 超过 forge 面板的 `maxDiffBytes` 时，入口显示“无改动”。
