@@ -113,4 +113,14 @@ Install this directory through DSH Plugin Manager, then select **pi** for a new 
 
 This package is plain ESM with no build or installation scripts. It resolves DSH public exports from the running installation, rather than installing a second copy of the runtime. The minimum supported DSH version is `0.2.2-rc.2`. Use the repository's pnpm lockfile; do not update Pi automatically.
 
-The icon is original artwork under this repository's MIT license. Verification uses temporary end-to-end checks and the repository's existing tests; no unit or integration test files are added.
+The icon is original artwork under this repository's MIT license. Verification uses standalone end-to-end checks and the repository's existing tests.
+
+The reported multiline Python failure is preserved in [the original input](../../scripts/fixtures/pi-multiline-python.json) and [the corrected input](../../scripts/fixtures/pi-multiline-python-corrected.json). Both commands use `String.raw` in the correction: plain backticks accept the line breaks but silently turn Python's `r'\s+'` into `r's+'`. The check reproduces the exact QuickJS error, exercises public recovery feedback, compares captured arguments byte-for-byte, and parses the shell/Python syntax without running the supplied network operations. It does not add production source rewriting or retries.
+
+Run it from the repository root inside DSH, which supplies `DSH_INSTALL_DIR`:
+
+```sh
+node scripts/check-pi-multiline.mjs
+```
+
+Outside DSH, set `DSH_INSTALL_DIR` to the runtime package directory containing DSH's dependencies. For a source checkout this is `apps/cli`, not the monorepo root.
