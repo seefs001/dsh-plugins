@@ -1,39 +1,39 @@
 # dsh-workspace-manager
 
-管理 DSH 保存的工作区记录。插件包含 Host 和 Web 两部分，需要 DSH `>=0.2.2-rc.2 <0.3.0` 和默认 Web profile 的 Workspace 服务。
+管理 DSH 保存的工作区记录。插件包含 Host 和 Web 两部分，需要 DSH `>=0.2.2-rc.2 <0.3.0` 和默认 Web profile 里的 Workspace 服务。
 
 ## 安装
 
-从本地仓库安装，无需构建：
+在仓库根目录运行，不需要构建：
 
 ```bash
 dsh plugin --profile web add "link:$PWD/packages/workspace-manager"
 ```
 
-在仓库根目录运行。启用后刷新网页，点击侧边栏的 **工作区管理**（英文界面为 **Workspace manager**）。安装命令会修改所选 profile。
+这条命令会修改所选的 profile。启用后刷新网页，点击侧边栏的 **工作区管理**（英文界面为 **Workspace manager**）。
 
-发布到仓库后也可用 `github:seefs001/dsh-plugins#main&path:/packages/workspace-manager` 安装。
+也可以用 GitHub 地址安装 `main` 上已推送的版本：`github:seefs001/dsh-plugins#main&path:/packages/workspace-manager`。
 
 ## 使用
 
-- 页面列出所有已保存的工作区，包括没有会话、已经在磁盘上删除的目录。支持按名称或完整路径搜索。
-- 点 **移除** 并确认，将该记录从原生工作区列表和选择器移除。目录不必存在。
-- 打开页面会检查目录；点 **检查目录** 可重新检查。检查在运行 DSH Host 的电脑执行。
-- 点 **清理失效记录** 会重新检查所有工作区，列出待移除路径，确认后逐项移除。该动作针对全部工作区，不受搜索条件影响。
-- 只有路径不存在（ENOENT）、路径本身或父路径不是目录（ENOTDIR）的记录进入批量清理。权限不足、I/O 错误等显示为 **无法检查**，不会进入批量清理。
+- 页面列出所有保存的工作区，包括没有会话的、目录已在磁盘上删除的，可以按名称或完整路径搜索。
+- 点 **移除** 并确认，这条记录就从原生工作区列表和选择器里消失。目录不需要存在。
+- 打开页面时会检查一次目录，点 **检查目录** 可以重新检查。检查在运行 DSH Host 的电脑上进行。
+- 点 **清理失效记录** 会重新检查全部工作区，列出要移除的路径，确认后逐条移除。它针对全部工作区，不受搜索条件影响。
+- 只有路径不存在（ENOENT），或路径本身、某个父路径不是目录（ENOTDIR）的记录会进入批量清理。权限不足、I/O 错误等情况显示为 **无法检查**，不进入批量清理。
 
 ## 数据与安全
 
-磁盘目录与 DSH 的工作区记录相互独立，删除目录不会自动移除记录。本插件调用原生 `workspaces.delete(workspaceId)`，保留文件、会话日志和正在运行的会话；不修改核心代码，不直接编辑 storage 文件。工作区移除后，其会话仍可从原生全部会话/搜索入口访问。
+磁盘目录和 DSH 的工作区记录相互独立，删除目录不会自动移除记录。插件调用原生的 `workspaces.delete(workspaceId)`：文件、会话日志和正在运行的会话都保留。插件不改核心代码，也不直接编辑 storage 文件。工作区移除后，它的会话仍可以从原生的全部会话和搜索入口打开。
 
-目录检查是即时快照。断开的外置磁盘或网络挂载也可能显示为不存在，所以插件不在后台自动移除记录。确认前请核对完整路径；确认后才发现挂载恢复，也不会删除任何磁盘内容。
+目录检查只是当下的快照。断开的外置磁盘或网络挂载也可能显示为不存在，所以插件不会在后台自动移除记录。确认前请核对完整路径。即使确认后才发现挂载已经恢复，磁盘上的内容也没有被删除。
 
-每次清理完成后显示成功数量。若中途失败，已成功移除的记录保留该结果，停止后续移除并显示错误；解决后可重试。浏览器的原生确认框负责确认，不另存插件状态。移除同步沿用 DSH 原生 Workspace API 的权限与推送机制。
+清理结束后显示成功移除的数量。中途失败时，已经移除的记录保持移除，剩下的不再继续，并显示错误；解决问题后可以重试。确认使用浏览器原生的确认框，插件不另存状态。移除和同步使用 DSH 原生 Workspace API 的权限和推送机制。
 
 ## HTTP
 
-`GET /workspace-manager/check` 返回 `{ checks: [{ workspaceId, path, status, code? }] }`。状态为 `directory`、`missing`、`not-directory` 或 `unavailable`。路由使用 Host 的正常连接检查，只读取已注册路径，不接受任意路径，不执行移除。
+`GET /workspace-manager/check` 返回 `{ checks: [{ workspaceId, path, status, code? }] }`，`status` 为 `directory`、`missing`、`not-directory` 或 `unavailable`。路由走 Host 的常规连接检查，只检查已注册的路径，不接受任意路径，也不执行移除。
 
 ## English
 
-The **Workspace manager** panel lists every saved workspace, including empty ones and paths that no longer exist. Remove one entry, or use **Clean up invalid entries** to rescan and confirm the full list of missing/non-directory paths. Search does not limit bulk cleanup. Files and sessions are never deleted. Permission and I/O errors are not cleanup candidates. Checks run on the DSH Host, not the browser device. Unmounted drives may look missing, so cleanup is always manual. Removal uses the native Workspace API and updates the built-in picker; a partial failure reports the completed count and stops the remaining operations.
+The **Workspace manager** panel lists every saved workspace, including empty ones and ones whose directory no longer exists. You can remove one entry, or use **Clean up invalid entries** to recheck all workspaces and confirm the full list of missing and non-directory paths. The search filter does not limit cleanup. Files and sessions are never deleted, and permission or I/O errors never make an entry a cleanup candidate. Checks run on the DSH Host, not the browser device. An unmounted drive can look missing, so cleanup is always manual. Removal uses the native Workspace API and updates the built-in picker. If one removal fails, the panel reports how many succeeded and stops.

@@ -52,7 +52,7 @@ A tool that appears in the picker is not necessarily callable right now:
 - `plugin_manager` loads only when a profile context exists.
 - Office tools become available on the step after the matching Office skill is loaded. Without the Office service they report unavailable, as in native DSH.
 - `exit_plan_mode` follows the native plan state.
-- Search tools appear only while their route and key are ready.
+- `grok_search` and `openai_search` are callable only while their route and credentials are ready. `web_search` follows the native web provider's availability. Registered search tools can remain visible in the picker while they are unavailable to the model.
 
 The picker shows the catalog the Host actually returns, so the count varies by environment. Codemode calls go through the current step's real tool admission and never use an alias that bypasses Office or plan conditions.
 
@@ -78,7 +78,7 @@ The defaults are the Pi tools, the configured MCP tools, the native tools mounte
 ## How the selection applies
 
 - Selections are stored as an `agent-preset/options` event in an existing blank session. Refresh and replay restore the committed selection, and forks inherit the log. Before a session is bound, the choice is an in-memory draft for the next new conversation, and switching presets resets it.
-- A selected native tool keeps its original registration and condition. A deselected one is blocked by an agent-level `false` shadow registration, so no same-name global tool falls through.
+- A selected preset-scoped native tool keeps its original registration and condition. A deselected one is blocked by an agent-level `false` shadow registration, so no same-name global tool falls through. Global passthrough tools keep their registrations and use per-agent restrictions for selection.
 - Pi owns its nine tool names, so deselecting a Pi tool never exposes a same-name DSH tool.
 - Deselected tools are excluded from model declarations, QuickJS discovery, and dispatch.
 - Selecting tools does not enable another MCP connection or change permissions.

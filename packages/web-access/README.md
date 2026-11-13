@@ -1,13 +1,13 @@
 # dsh-web-access
 
-Web search tools for DSH. Pick a local Responses model and a search type on the Plugins page; the tool calls that model's hosted search and returns a cited answer.
+Web search tools for DSH. On the Plugins page, pick a local Responses model and a search type for each tool. The tool calls that model's hosted search and returns an answer with cited sources.
 
 | Tool | Hosted search types | Parameters the model can pass |
 |---|---|---|
 | `grok_search` | `web_search`, `x_search`, or both | domains (web), X handles and dates (X) |
 | `openai_search` | `web_search` | allowed domains, context size, location |
 
-The two tools exist because xAI and OpenAI hosted search take different parameters. Each tool's schema lists only the options of the search types you enabled.
+There are two tools because xAI and OpenAI hosted search take different parameters. Each tool's schema lists only the options for the search types you enabled.
 
 ## Install
 
@@ -19,13 +19,13 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/we
 
 Open **Plugins → dsh-web-access**. For each tool:
 
-- **Enabled**: off removes the tool.
+- **Enabled**: turning it off removes the tool.
 - **Model**: any model on an `openai-responses` provider in llm-pi-ai. The endpoint (`baseURL`), key (`apiKeyEnv`), and extra `headers` come from that provider, so you do not enter them twice.
 - **Search type**: Grok can use web, X, or both. OpenAI uses web.
 
-Save restarts the plugin and re-registers the tools. A tool is offered to the model only while its provider route exists and its key resolves; the page shows **Ready** or the reason.
+Saving restarts the plugin and re-registers the tools. A tool is offered to the model only while its provider route exists and its key resolves; the page shows **Ready** or the reason it is not.
 
-At each model step, an available custom web search hides the built-in `web_search` for that agent. Disabling all custom web searches, losing their route/key, or unloading this plugin lifts the restriction and restores the built-in tool's normal availability. X-only Grok search does not replace general web search. `web_fetch` and the built-in providers stay unchanged. Readiness checks do not probe upstream search support or automatically fall back after an HTTP error.
+At each model step, an available custom web search hides the built-in `web_search` for that agent. Disabling every custom web search, losing their route or key, or unloading this plugin lifts the restriction, and the built-in tool is available as usual. An X-only Grok search does not replace general web search. `web_fetch` and the built-in providers are unchanged. Readiness checks do not probe whether the upstream supports search, and a tool does not fall back after an HTTP error.
 
 The same settings in `cordis.patch.yml`:
 
@@ -47,14 +47,14 @@ The same settings in `cordis.patch.yml`:
 
 ## Result
 
-The model receives the answer text plus up to 10 sources. Sources are the answer's citations (`url_citation` annotations, response `citations`, or markdown links in the answer); raw search-call results are used only when nothing was cited. The Chat uses the native search row: a compact Grok/OpenAI title, query, search channel, and source count. Expand it to read the formatted answer and source links. Running, stopped, and failed calls retain the native status indicators. Inspect still opens the original tool call, not the display adapter.
+The model receives the answer text and up to 10 sources. Sources are the answer's citations (`url_citation` annotations, response `citations`, or markdown links in the answer); raw search-call results are used only when the answer cites nothing. The Chat shows the native search row: a short Grok or OpenAI title, the query, the search channel, and the source count. Expand it to read the formatted answer and source links. Running, stopped, and failed calls keep the native status indicators. Inspect opens the original tool call.
 
 ## Optional search parameters
 
-Only `query` is required. All optional fields accept `null` as well as omission, including individual location fields. This supports strict Responses clients without filler dates or invented locations. For web-only Grok searches, set X filters to `null`. For non-localized OpenAI searches, set `user_location` to `null`. Empty strings are not substitutes for `null`; contradictory or malformed filters still return errors.
+Only `query` is required. Every optional field can be omitted or set to `null`, including each location field, so strict Responses clients do not have to invent dates or locations. For web-only Grok searches, set X filters to `null`. For non-localized OpenAI searches, set `user_location` to `null`. An empty string does not count as `null`, and contradictory or malformed filters still return errors.
 
 ## Caveats
 
-- Whether a gateway forwards hosted `web_search` / `x_search` depends on the gateway and the upstream account. An unsupported type comes back as the endpoint's HTTP error.
+- Whether a gateway forwards hosted `web_search` / `x_search` depends on the gateway and the upstream account. An unsupported type returns the endpoint's HTTP error.
 - `allowed_x_handles` / `excluded_x_handles` follow xAI's documented `x_search` fields; a gateway may ignore them.
 - The plugin only adds search. DSH's built-in `web_fetch` keeps working alongside it.
