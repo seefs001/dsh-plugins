@@ -125,7 +125,7 @@ export async function apply(ctx, rawConfig = {}) {
       const selected = definitions.filter(tool => loadout.enabled(tool.name, scope))
       const servers = config.mcpServers.filter(server => [...loadout.bridges.keys()]
         .some(toolName => toolName.startsWith(`mcp__${server}__`) && loadout.enabled(toolName, scope)))
-      return toolPrompt(selected) + (servers.length && config.mcpExposure !== 'hidden'
+      return toolPrompt(selected) + loadout.delegationPrompt(scope) + (servers.length && config.mcpExposure !== 'hidden'
         ? `\n\nMCP tool namespaces enabled in this session: ${servers.map(server => `mcp__${server}`).join(', ')}.\n`
           + (selected.some(tool => tool.name === 'codemode') ? 'Use codemode searchTools()/describeTool() to discover callable tools. ' : '')
           + (selected.some(tool => tool.name === 'tool_search') ? 'Use tool_search to load additional model-facing tool declarations. ' : '')

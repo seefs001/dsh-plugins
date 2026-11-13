@@ -11,11 +11,28 @@
         description: Pi 编程工具、QuickJS codemode 与按需 MCP，保留 DSH 会话和权限边界。
         order: 5
         plugins:
+          - id: pi-subagent-control
+            name: '@deepseek-ai/dsh-tool-subagent-control'
+            config:
+              interrupt: false
+          - id: pi-subagent
+            name: '@deepseek-ai/dsh-tool-subagent'
+            config:
+              provider: spawn
+              toolName: subagent
+              modelSelection: true
+              modelDiscovery: true
+          - id: pi-subagent-fork
+            name: '@deepseek-ai/dsh-tool-subagent'
+            config:
+              provider: fork
+              toolName: subagent_fork
           - id: pi-tools
             name: dsh-pi-tools
             config:
               mcpServers: [nowledge_mem]
               mcpExposure: codemode
+              scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent]
           - id: pi-project-instructions
             name: '@deepseek-ai/dsh-agent-instructions'
             config:

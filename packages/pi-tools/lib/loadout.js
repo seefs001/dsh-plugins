@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { emptyState } from './state.js'
 import { prepareArguments, toToolExposure } from './pi.js'
+import { scopeOf } from './harness.js'
 
 export const INTERNAL_PREFIX = 'pi_internal_'
 export const RESOURCE_TOOLS = new Set(['list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource'])
@@ -12,6 +13,15 @@ export class PiLoadout {
   constructor(ctx, config, state, definitions) {
     this.ctx = ctx
     this.config = config
+    this.scope = scopeOf(ctx)
+    this.scopedNames = new Set(config.scopedTools)
+    if (this.scopedNames.size && this.scope === undefined) throw new Error('Pi scoped tools require a preset scope')
+    for (const name of this.scopedNames) {
+      if (PI_NAMES.has(name) || name.startsWith(INTERNAL_PREFIX) || this.isMcp(name)) {
+        throw new Error(`Pi scopedTools must name native DSH tools, not Pi or MCP tools: ${name}`)
+      }
+    }
+    this.agentBindings = new Map()
     this.state = state
     this.ownNames = new Set(definitions.map(tool => tool.name))
     this.nativeCatalog = definitions.map(({ name, description }) => ({ name, description, group: 'pi' }))
@@ -35,7 +45,12 @@ export class PiLoadout {
       for (const record of this.bridges.values()) record.dispose()
       this.bridges.clear()
       this.internal.clear()
+      for (const agent of this.agentBindings.keys()) this.releaseAgent(agent)
     })
+    if (this.scopedNames.size) {
+      ctx.on('agent/created', ({ agent }) => this.bindAgent(agent))
+      ctx.on('agent/disposed', ({ agent }) => this.releaseAgent(agent))
+    }
     this.sync()
     ctx.on('tools/change', () => this.sync())
     ctx.agentPresets.registerOptions({
@@ -59,7 +74,8 @@ export class PiLoadout {
       }
       return selected.tools.includes(name)
     }
-    return this.ownNames.has(name) || (this.isMcp(name) && this.accepts(name))
+    return this.ownNames.has(name) || this.bridges.get(name)?.sourceScope !== undefined
+      || (this.isMcp(name) && this.accepts(name))
   }
 
   catalog() {
@@ -105,37 +121,55 @@ export class PiLoadout {
     this.updating = true
     try {
       const globals = this.ctx.tools.definitions()
-      const available = new Map(globals.filter(tool => this.accepts(tool.name)
-        && this.ctx.tools.executable(tool.name) === tool).map(tool => [tool.name, tool]))
+      // Reserve scoped names even before their provider arrives. A global
+      // shadow at this scope would collide with the native plugin's registration.
+      const available = new Map(globals.filter(tool => this.accepts(tool.name) && !this.scopedNames.has(tool.name)
+        && this.ctx.tools.executable(tool.name) === tool).map(tool => [tool.name, { original: tool }]))
+      for (const name of this.scopedNames) {
+        const original = this.ctx.tools.executable(name, this.scope)
+        if (original && this.ctx.tools.get(name) !== original) available.set(name, { original, sourceScope: this.scope })
+      }
       for (const [name, record] of this.bridges) {
-        if (available.get(name) === record.original) continue
+        const current = available.get(name)
+        if (current?.original === record.original && current.sourceScope === record.sourceScope) continue
         record.dispose()
         this.internal.delete(record.alias)
         this.bridges.delete(name)
       }
-      for (const [name, original] of available) {
+      for (const [name, { original, sourceScope }] of available) {
         if (this.bridges.has(name)) continue
         const alias = INTERNAL_PREFIX + createHash('sha256').update(name).digest('hex').slice(0, 24)
         const execute = async (input, exec) => {
-          if (this.ctx.tools.executable(name) !== original) throw new Error(`Tool is no longer available: ${name}`)
+          if (this.ctx.tools.executable(name, sourceScope) !== original) throw new Error(`Tool is no longer available: ${name}`)
           const args = prepareArguments(original, input, exec)
           if (RESOURCE_TOOLS.has(name) && !this.config.mcpServers.includes(args.server)) {
             throw new Error(`MCP server is not enabled in this preset: ${args.server}`)
           }
           return original.execute(args, exec)
         }
-        const direct = { ...original, execute }
+        // Native DSH prompt contributions compare definition identity. Keep
+        // their public definition intact; only the private script alias wraps it.
+        const direct = sourceScope === undefined ? { ...original, execute } : original
         const nested = { ...original, name: alias, execute }
         const releaseInternal = this.ctx.tools.register(nested, {
           when: ({ agent }) => this.enabled(name, agent),
         })
-        const releaseDirect = this.ctx.tools.register(direct, {
+        const releaseDirect = sourceScope === undefined ? this.ctx.tools.register(direct, {
           when: ({ agent }) => this.enabled(name, agent) && (!this.isMcp(name)
             || this.config.mcpExposure === 'direct' || this.stateOf(agent).loaded.includes(name)),
-        })
-        const record = { alias, original, direct, nested, dispose: () => { releaseDirect(); releaseInternal() } }
+        }) : () => {
+          for (const bindings of this.agentBindings.values()) {
+            const dispose = bindings.get(name)
+            bindings.delete(name)
+            dispose?.()
+          }
+        }
+        const record = { alias, original, sourceScope, direct, nested, dispose: () => { releaseDirect(); releaseInternal() } }
         this.bridges.set(name, record)
         this.internal.set(alias, name)
+        if (sourceScope !== undefined) {
+          for (const agent of this.agentBindings.keys()) this.bindScopedTool(agent, record)
+        }
       }
       // An Agent inherits this preset's registrations, so name restrictions
       // would hide its shadows too. Keep conditional shadows and mask only
@@ -155,11 +189,41 @@ export class PiLoadout {
     }
   }
 
+  bindAgent(agent) {
+    if (this.disposed || this.agentBindings.has(agent)) return
+    this.agentBindings.set(agent, new Map())
+    for (const record of this.bridges.values()) {
+      if (record.sourceScope !== undefined) this.bindScopedTool(agent, record)
+    }
+  }
+
+  bindScopedTool(agent, record) {
+    const name = record.original.name
+    // The original lives at the preset scope. A conditional registration at
+    // the agent scope shadows it without changing identity or scope ancestry.
+    const dispose = agent.ctx.tools.register(record.direct, {
+      when: ({ agent: caller }) => this.enabled(name, caller),
+    })
+    this.agentBindings.get(agent).set(name, dispose)
+  }
+
+  releaseAgent(agent) {
+    const bindings = this.agentBindings.get(agent)
+    if (!bindings) return
+    this.agentBindings.delete(agent)
+    for (const dispose of bindings.values()) dispose()
+  }
+
+  delegationPrompt(scope) {
+    if (!['subagent', 'subagent_fork'].some(name => this.bridges.get(name)?.sourceScope !== undefined && this.enabled(name, scope))) return ''
+    return '\n\nDSH subagent creation returns an activation name, not the completed result. Start independent children together and continue independent work while they run. When only waiting remains, end the turn so DSH can deliver completion notices; do not poll or keep a codemode script running while waiting. Collect required child results before the final answer. Coordinate concurrent file edits explicitly, then review the final diff and run relevant checks. Use only the selected delegation and control tools.'
+  }
+
   nestedDefinition(name, scope, toolSet) {
     if (name.startsWith(INTERNAL_PREFIX) || name === 'codemode' || name === 'tool_search') return undefined
     const record = this.bridges.get(name)
     if (!record) return this.ownNames.has(name) ? this.ctx.tools.executable(name, scope, toolSet) : undefined
-    if (this.ctx.tools.executable(name) !== record.original) return undefined
+    if (this.ctx.tools.executable(name, record.sourceScope) !== record.original) return undefined
     if (this.ctx.tools.get(name, scope) !== record.direct) return undefined
     return this.ctx.tools.executable(record.alias, scope, toolSet)
   }
