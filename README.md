@@ -25,6 +25,7 @@ English | [中文](README.zh.md)
 | [`dsh-session-groups`](packages/session-groups) | Drag sessions into custom groups, reorder groups, and pin sessions within a group. | Host + Web |
 | [`dsh-compaction-status`](packages/compaction-status) | A compact status and elapsed timer above the composer during automatic compaction or `/compact`. | Host + Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | Pick the Auto review model and prompt; inspect the session review log and jump to reviewed calls. Needs `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
+| [`dsh-message-actions`](<packages/message-actions/README.md>) | One-click Wait, what? explanations in an isolated dialog, without adding to the conversation. A dedicated model selector and persistent caches. Requires DSH rc.2 or newer. | Host + Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Quotes in user messages become blocks; clicking one scrolls to the quoted text and highlights it. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Richer tool-call rows. The skill row opens the skill's `SKILL.md` in the right sidebar. | Web |
 | [`dsh-web-access`](packages/web-access) | `grok_search` (web + X) and `openai_search` tools. Pick a local Responses model and search type on the Plugins page. | Host + Web |
@@ -54,6 +55,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/wo
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/compaction-status"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/message-actions"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
@@ -72,7 +74,7 @@ dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
 
 ## Configuration
 
-Plugin settings (`model-reference` efforts, `service-tier` fast models, `auto-review-model` model and prompt, and `web-access` search settings) are saved to your profile's `cordis.patch.yml` through dsh's config editor. Session groups and review logs use the Host's `session_groups` and `auto_review_log` storage domains instead. AI Mascot keeps its position, size, compact-mode and motion preferences in browser localStorage, not the profile. See each package's README for storage limits and privacy notes.
+Plugin settings (`model-reference` efforts, `service-tier` fast models, `auto-review-model` model and prompt, `message-actions` explanation model, and `web-access` search settings) are saved to your profile's `cordis.patch.yml` through dsh's config editor. Session groups, review logs, and reply explanation caches use the Host's `session_groups`, `auto_review_log`, and `message_actions` storage domains instead. AI Mascot keeps its position, size, compact-mode and motion preferences in browser localStorage, not the profile. See each package's README for storage limits and privacy notes.
 
 ## Documentation
 

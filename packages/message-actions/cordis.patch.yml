@@ -1,0 +1,4 @@
+- insert:
+    - id: message-actions
+      name: dsh-message-actions
+      config: {}

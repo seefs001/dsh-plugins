@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Wait, what? Reply explanations",
+    "description": "Click Wait, what? beside a reply's feedback buttons to explain it with missing context. Cached explanations open immediately; otherwise an isolated model call starts. No skill invocation, follow-up message or tool call enters the conversation. One fixed purpose and prompt, without custom templates. Choose a dedicated model and optional reasoning effort on the plugin page or in the dialog. Defaults to the original reply's model and never changes the conversation model. Settings persist in the profile; the latest 200 completed results persist on the Host. Stop, copy or regenerate in the dialog. Text only, without project files or tools. Requires DSH rc.2 or newer."
+  }
+}

@@ -25,6 +25,7 @@ seefs 的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（
 | [`dsh-session-groups`](packages/session-groups) | 拖拽会话加入自定义分组，调整分组顺序并在组内置顶。 | Host + Web |
 | [`dsh-compaction-status`](packages/compaction-status) | 自动压缩或 `/compact` 时，在输入框上方显示紧凑的状态与已等待时间。 | Host + Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | 指定 Auto review 模型与提示词，查看会话审查日志并跳转到工具调用。需要启用 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
+| [`dsh-message-actions`](<packages/message-actions/README.md>) | 回复底部一键 Wait, what?，补前提、重新讲清楚，独立缓存，不向主对话追加内容；可指定专用模型。需要 DSH rc.2 或更新版本。 | Host + Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 用户消息里的引用显示为引用块，点击后滚动到原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 更好用的工具调用行。技能行可在右侧边栏打开该技能的 `SKILL.md`。 | Web |
 | [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页 + X）和 `openai_search` 工具，在 Plugins 页选择本地 Responses 模型和搜索类型。 | Host + Web |
@@ -54,6 +55,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/wo
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-groups"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/compaction-status"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/message-actions"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/tool-lens"
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
@@ -72,7 +74,7 @@ dsh plugin --profile web add link:$PWD/dsh-plugins/packages/model-reference
 
 ## 配置
 
-插件设置（`model-reference` 的推理强度、`service-tier` 的快速模型、`auto-review-model` 的模型和提示词，以及 `web-access` 的搜索设置）通过 dsh 的 config editor 写入 profile 的 `cordis.patch.yml`。会话分组和审查日志分别保存在 Host 的 `session_groups`、`auto_review_log` storage domain。AI 小伙伴的位置、尺寸、收起状态与动画偏好保存在浏览器 localStorage，不写入 profile。存储上限和隐私说明见各包 README。
+插件设置（`model-reference` 的推理强度、`service-tier` 的快速模型、`auto-review-model` 的模型和提示词，`message-actions` 的解释模型，以及 `web-access` 的搜索设置）通过 dsh 的 config editor 写入 profile 的 `cordis.patch.yml`。会话分组、审查日志、回复解释缓存分别保存在 Host 的 `session_groups`、`auto_review_log`、`message_actions` storage domain。AI 小伙伴的位置、尺寸、收起状态与动画偏好保存在浏览器 localStorage，不写入 profile。存储上限和隐私说明见各包 README。
 
 ## 文档
 

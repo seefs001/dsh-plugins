@@ -1,0 +1,67 @@
+{
+  "name": "dsh-message-actions",
+  "version": "0.1.0",
+  "description": "One-click Wait, what? explanations of replies without changing the conversation, with a dedicated selectable model and persistent Host-side caching.",
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "deepseek-harness",
+    "conversation",
+    "wait-what",
+    "explanation"
+  ],
+  "license": "MIT",
+  "author": "seefs001",
+  "homepage": "https://github.com/seefs001/dsh-plugins/tree/main/packages/message-actions#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seefs001/dsh-plugins.git",
+    "directory": "packages/message-actions"
+  },
+  "type": "module",
+  "icon": "icon.svg",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.2.2-rc.2 <0.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "prepack": "pnpm run build"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
+  }
+}
