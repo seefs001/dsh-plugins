@@ -125,6 +125,17 @@ window.__ModuleLoader__.load({
         ? ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s` : ''
     }
 
+    // Group subcalls by name in first-call order, e.g. "grep × 2, read".
+    function callSummary(calls, t) {
+      if (!calls.length) return t('noCalls')
+      const counts = new Map()
+      for (const call of calls) {
+        const name = typeof call?.name === 'string' && call.name ? call.name : '?'
+        counts.set(name, (counts.get(name) ?? 0) + 1)
+      }
+      return [...counts].map(([name, count]) => count > 1 ? `${name} × ${count}` : name).join(', ')
+    }
+
     function pathLabel(path, cwd, home) {
       if (cwd && path.startsWith(`${cwd}/`)) return path.slice(cwd.length + 1)
       if (home && path.startsWith(`${home}/`)) return `~/${path.slice(home.length + 1)}`
@@ -162,7 +173,7 @@ window.__ModuleLoader__.load({
       const calls = Array.isArray(details.calls) ? details.calls : []
       const loaded = Array.isArray(details.loaded) ? details.loaded.filter(name => typeof name === 'string') : []
       const bodyId = `pi-tool-body-${callId}`
-      const summary = toolName === 'codemode' ? `${t('calls')}: ${calls.length}`
+      const summary = toolName === 'codemode' ? callSummary(calls, t)
         : toolName === 'tool_search' ? `${t('loaded')}: ${loaded.length}` : ''
       const elapsed = duration(block.time - block.callTime)
       let body
