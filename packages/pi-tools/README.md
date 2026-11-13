@@ -69,7 +69,9 @@ Scripts receive Pi's structured `read` and `bash` values. A nonzero `bash` exit 
 
 Safe calls may overlap. Mutations form exclusive barriers; policy preparation and result completion preserve submission order. Script cancellation, permission-mode changes, and plugin disposal abort and drain started nested work. Pi's compact nested-call summaries remain in result metadata; individual nested outputs are not added to the model's history.
 
-Codemode receives a JSON `code` string, which must still parse as JavaScript after JSON decoding. Shell quotes inside a JavaScript string need their own escaping. A template literal can contain `"$p"` directly; escape shell `${...}` interpolation when using one. The adapter preserves the submitted code and rejects syntax errors before making any tool calls. It does not guess repairs that could change a command's meaning.
+Codemode retains Pi's original parameter schema, description, and `constrainedSampling` policy. With the accompanying DSH tool-schema and pi-ai adapter support, Pi selects raw-JavaScript grammar transport where the model supports it and its ordinary JSON `{ "code": "..." }` transport otherwise. Scripts and nested arguments are preserved; there is no extra `input` parameter, source wrapper, guessed repair, or automatic replay. Raw transport removes the model-authored JSON-string layer, but scripts must still be valid JavaScript.
+
+When codemode is selected, its prompt includes multiline-string guidance and a `String.raw` heredoc example. For commands containing backticks or `${...}`, the guidance instead requires correctly escaped strings or concatenation: `String.raw` still interpolates, and blindly adding backslashes can change a shell command. A native `unexpected end of string` error gains this recovery guidance only when no nested calls were attempted or recorded and execution was not cancelled. The error remains an error; the model must submit corrected source in a new call. There is no automatic rewrite, retry, permission change, or replay of partially executed work. Other syntax errors and successful scripts keep their original results. This improves generation and recovery, not JavaScript's acceptance of malformed strings, and does not guarantee that a model follows the guidance.
 
 ## Web tool cards
 
@@ -85,10 +87,10 @@ This uses the additive `tool.call.presentation` chain supplied by the accompanyi
 - QuickJS scripts do not receive Node, filesystem, network, or timer APIs. Files and network access go through explicitly provided tools. Remote MCP permissions are independent of the local filesystem sandbox.
 - Pi's worker limits and output formatting remain in force. Pi owns implementation-temporary spill files; DSH stores returned images as durable attachments with its own admission and normalization limits.
 - MCP scripts receive the canonical result envelope, including protocol content and optional structured content. DSH remains authoritative for MCP transport errors and server error results.
-- Codemode currently uses the JSON `{ "code": "..." }` schema. Pi's provider-specific raw-JavaScript constrained-sampling transport is not implemented. `models.*`, classifiers, image-model routing, PowerShell, arbitrary Pi extensions, and Pi's agent loop are not loaded.
+- Codemode uses Pi's original `{ "code": "..." }` parameter schema and native sampling policy. Raw-JavaScript transport requires the accompanying DSH metadata passthrough and a pi-ai model with grammar-tool support; it is not forced onto unsupported routes. `models.*`, classifiers, image-model routing, PowerShell, arbitrary Pi extensions, and Pi's agent loop are not loaded.
 - Pi's tool/rule sections replace DSH's static tool guidance. DSH still owns model routing, runtime context, project instructions, session persistence, and compaction. Pi tools do not accept DSH escalation parameters; permission denials require a human permission change.
 
-The validated target is the local macOS DSH installation. Remote filesystem/process combinations, provider round trips, and Web tool-card rendering require separate verification.
+The validated target is the local macOS DSH installation. Remote filesystem/process combinations, live provider requests, and Web tool-card rendering require separate verification.
 
 ## Installation and development
 

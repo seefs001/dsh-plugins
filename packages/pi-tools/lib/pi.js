@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { validateToolArguments } from '@earendil-works/pi-ai/utils/validation'
+import { CODEMODE_STRING_GUIDANCE } from './codemode-syntax.js'
 
 export const PI_VERSION = '1.5.0'
 const entry = import.meta.resolve('@earendil-works/pi-coding-agent')
@@ -57,6 +58,7 @@ export function toolPrompt(definitions) {
     'You are a coding assistant running inside DeepSeek Harness with the Pi 1.5.0 tool set.',
     sections.tools,
     sections.rules,
+    ...definitions.some(tool => tool.name === 'codemode') ? [CODEMODE_STRING_GUIDANCE] : [],
     'DSH owns session permissions and the execution environment. A denied operation remains denied; do not work around it. Tool parameters do not support permission escalation. Ask the user to change permissions when necessary.',
   ].join('\n\n')
 }
@@ -75,7 +77,10 @@ export function jsonValue(value) {
 }
 
 export function schemaOf(tool) {
-  return { name: tool.name, description: tool.description, parameters: jsonValue(tool.parameters) }
+  return {
+    name: tool.name, description: tool.description, parameters: jsonValue(tool.parameters),
+    ...tool.constrainedSampling === undefined ? {} : { constrainedSampling: jsonValue(tool.constrainedSampling) },
+  }
 }
 
 export function prepareArguments(tool, args, exec) {

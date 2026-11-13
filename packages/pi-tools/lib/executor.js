@@ -1,6 +1,7 @@
 import { ToolExecutionPipeline, ToolNotFoundError, executeToolBatch, projectToolSchema } from './harness.js'
 import { createCodemodeToolDefinition, createToolSearchToolDefinition, invoke } from './pi.js'
 import { INTERNAL_PREFIX } from './loadout.js'
+import { withCodemodeSyntaxGuidance } from './codemode-syntax.js'
 
 // A read/write barrier for a script's calls. Read-only calls may overlap, while
 // mutations and unknown classifiers run alone. Started calls drain on abort.
@@ -134,11 +135,7 @@ export class PiExecutor {
         const description = prepared.descriptions[tool.name] ?? tool.description
         return {
           ...projectToolSchema(tool, false),
-          description: tool.name === 'codemode'
-            ? description.replace('The input is raw JavaScript (not JSON, no code fence),',
-              'The JSON `code` field contains raw JavaScript (no code fence),')
-              + '\n\nShell command quotes must also be valid JavaScript: use template literals or escape inner quotes before JSON encoding. Escape shell ${...} interpolation in template literals. Syntax errors execute no tools.'
-            : description,
+          description,
         }
       }),
       knownNames: [...new Set([...visible.map(tool => tool.name), ...callable.map(tool => tool.name)])],
@@ -190,7 +187,8 @@ export class PiExecutor {
       sessionManager: { getBranch: () => [{ type: 'custom', customType: 'codemode-store', data: { set: store, delete: [] } }] },
     }
     try {
-      const result = await invoke(definition, args, current, context)
+      const native = await invoke(definition, args, current, context)
+      const result = withCodemodeSyntaxGuidance(native, nested.nextId, current.signal)
       return { ...result, ...writes && !result.isError ? { state: { version: 1, kind: 'store', writes } } : {} }
     } finally {
       controller.abort(new Error('Script completed'))
