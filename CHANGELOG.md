@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `dsh-service-tier`: works again on DSH 0.2.2-rc.2 and later, which removed the `llm-pi-ai/model-defaults` waterfall. The plugin now wraps pi-ai's `streamSimple` and sets `service_tier` through `onPayload`; a changed DSH layout logs a warning instead of failing silently. The ⚡ toggle also appears on pi-ai catalog routes such as `openai` that set no `api` of their own.
 - `dsh-image-gen` 0.1.0: adds `openai_image` and `grok_image`, which call hosted `image_generation` on an existing Responses provider and save the images to files. The supplied `pi` preset passes both tools through.
 - `dsh-pi-mcp` 0.1.0: a Host-only plugin that registers each server in Pi's `~/.pi/agent/mcp.json` with the DSH MCP manager, converts `${VAR}` to `${credential:VAR}`, and follows file edits without a restart. Skips OAuth, `!command`, and SSE entries with a log warning.
 - `dsh-pi-tools`: `mcpServers` accepts `'*'` to bridge every global MCP namespace, including ones registered later. The supplied `pi` preset now uses it.

@@ -2,10 +2,13 @@
  * dsh-service-tier — Host half.
  *
  * Sends `service_tier: "priority"` for the `provider/model` pairs marked fast,
- * only on `openai-responses` routes, through the `llm-pi-ai/model-defaults`
- * waterfall. Two small authenticated JSON routes let the browser toggle read
+ * only on `openai-responses` routes. DSH 0.2.2-rc.2 removed the
+ * `llm-pi-ai/model-defaults` waterfall, so the option is added by wrapping
+ * pi-ai's request entry point (see pi-ai-hook.js). Two small authenticated JSON routes let the browser toggle read
  * and persist the choice in this plugin's own config (`tiers`).
  */
+import { addPiAiRequestTransform, catalogProvidersWithApi } from './pi-ai-hook.js'
+
 export const name = 'service-tier'
 export const inject = ['webServer', 'connection']
 
@@ -35,14 +38,18 @@ export function toggleTier(tiers, provider, model, fast) {
 }
 
 /** pi-ai provider ids whose route speaks the OpenAI Responses API, read from the composed config. */
-export function responsesProviders(editor) {
+export function responsesProviders(editor, catalogResponses = new Set()) {
   if (editor === undefined) return []
   try {
     for (const { entry, inherited, override } of editor.configuration()) {
       const pkg = entry?.options?.name ?? entry?.name
       if (pkg !== PI_AI_PACKAGE) continue
       const providers = { ...inherited?.providers, ...override?.providers }
-      return Object.entries(providers).filter(([, p]) => p?.api === RESPONSES_API).map(([id]) => id)
+      // A catalog route without its own `api` (e.g. `openai` through a gateway)
+      // keeps the catalog's Responses protocol.
+      return Object.entries(providers)
+        .filter(([id, p]) => p?.api === RESPONSES_API || (p && p.api === undefined && catalogResponses.has(id)))
+        .map(([id]) => id)
     }
   } catch {}
   return []
@@ -68,13 +75,42 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-export function apply(ctx, config) {
+/**
+ * Add `service_tier: "priority"` to Responses requests of fast `provider/model`
+ * pairs. pi-ai's simple-stream options drop `serviceTier`, so the field goes
+ * in through `onPayload`, after any payload hook DSH already set.
+ */
+export function serviceTierTransform(readTiers) {
+  return request => {
+    const { model, options } = request
+    if (model?.api !== RESPONSES_API || readTiers()[`${model.provider}/${model.id}`] === undefined) return request
+    const previous = options?.onPayload
+    return {
+      ...request,
+      options: {
+        ...options,
+        onPayload: async (params, payloadModel) => {
+          const next = (await previous?.(params, payloadModel)) ?? params
+          return { ...next, service_tier: 'priority' }
+        },
+      },
+    }
+  }
+}
+
+export async function apply(ctx, config) {
   let tiers = normalizeTiers(config?.tiers)
 
+  // DSH 0.2.2-rc.1 still has this waterfall; later releases use the pi-ai hook below.
   ctx.on('llm-pi-ai/model-defaults', (request, next) => {
     const base = next() ?? {}
     if (request.api !== RESPONSES_API || tiers[`${request.provider}/${request.model}`] === undefined) return base
     return { ...base, serviceTier: 'priority' }
+  })
+  const hooked = addPiAiRequestTransform(serviceTierTransform(() => tiers))
+  const catalogResponses = catalogProvidersWithApi(RESPONSES_API).catch(error => {
+    ctx.logger?.warn?.(`service-tier: cannot read the pi-ai catalog; catalog routes show no toggle (${error instanceof Error ? error.message : error})`)
+    return new Set()
   })
 
   const rejected = (req, res) => {
@@ -88,10 +124,10 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: STATE_PATH,
-    handler: (req, res) => {
+    handler: async (req, res) => {
       if (rejected(req, res)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
-      sendJson(res, 200, { tiers, responsesProviders: responsesProviders(ctx.get('configEditor')) })
+      sendJson(res, 200, { tiers, responsesProviders: responsesProviders(ctx.get('configEditor'), await catalogResponses) })
     },
   }), `service-tier: GET ${STATE_PATH}`)
 
@@ -122,4 +158,11 @@ export function apply(ctx, config) {
         .catch(error => ctx.logger?.warn?.(`service-tier: failed to save tiers: ${error?.message ?? error}`))
     },
   }), `service-tier: POST ${SET_PATH}`)
+
+  try {
+    const hook = await hooked
+    ctx.effect(() => hook.remove, 'service-tier: pi-ai request transform')
+  } catch (error) {
+    ctx.logger?.warn?.(`service-tier: priority requests are unavailable (${error instanceof Error ? error.message : error})`)
+  }
 }

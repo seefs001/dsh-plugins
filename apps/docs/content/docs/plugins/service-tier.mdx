@@ -7,7 +7,7 @@ description: 模型选择器旁的 ⚡ 开关，为 Responses 模型发送 servi
 
 在模型选择器旁加一个 ⚡ 开关。对某个模型打开后，该模型的请求会带上 `service_tier: "priority"`。
 
-只有当前模型的 provider 使用 OpenAI Responses API（`llm-pi-ai` 里的 `api: openai-responses`）时才显示这个开关，因为只有这条路由接受该字段。
+只有当前模型的 provider 使用 OpenAI Responses API 时才显示这个开关，因为只有这条路由接受该字段：`llm-pi-ai` 里写了 `api: openai-responses`，或者是没写 `api`、沿用 pi-ai 目录协议的目录路由（如 `openai`）。
 
 ## 安装
 
@@ -36,7 +36,7 @@ OpenAI 和兼容网关对 priority 处理单独计费。长期开启前先确认
 
 | 部分 | 作用 |
 | --- | --- |
-| Host（`lib/index.js`） | 挂在 `llm-pi-ai/model-defaults` waterfall 上，为开启的 Responses 路由 `provider/model` 加上 `serviceTier: 'priority'`。提供 `GET /service-tier/state` 和 `POST /service-tier/set` |
+| Host（`lib/index.js`） | 为开启的 Responses 路由 `provider/model` 加上 `service_tier: "priority"`。DSH 0.2.2-rc.2 去掉了 `llm-pi-ai/model-defaults` waterfall，插件改为包装 DSH 内部 pi-ai `Models` 原型上的 `streamSimple`，通过 `onPayload` 写入字段（`lib/pi-ai-hook.js`）。这依赖 DSH 内部结构，失效时 Host 日志会出现 `service-tier: priority requests are unavailable`。rc.1 的 waterfall 仍然兼容。提供 `GET /service-tier/state` 和 `POST /service-tier/set` |
 | Web（`lib/client.js`） | 在 `conversation.input.right` 渲染 ⚡ 按钮，乐观更新开关状态 |
 
 两个路由都使用 Web API 的常规认证。`POST /service-tier/set` 接受 `{ "provider": string, "model": string, "fast": boolean }`，请求体上限 16 KiB。
