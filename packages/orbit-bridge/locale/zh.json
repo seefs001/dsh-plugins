@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Orbit 执行桥",
+    "description": "只读巡检 Orbit 项目：完整分页、本地运行记录、相对上次已处理检查的变化列表，以及受限的 Agent 接口。不写 Orbit。"
+  }
+}

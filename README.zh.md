@@ -56,6 +56,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具、QuickJS codemode，以及按会话选择的 DSH 和 MCP 工具。不需要改 DSH 源码。 | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | 把 Pi 的 `~/.pi/agent/mcp.json` 里的 MCP 服务器注册到 DSH MCP 管理器，改文件即时生效。 | Host |
 | [`dsh-switchboard`](packages/switchboard) | 把 DSH 接入 Switchboard 中继，让 Telegram、Discord 和 GitHub 的请求在 DSH 会话里运行。 | Host |
+| [`dsh-orbit-bridge`](packages/orbit-bridge) | 只读巡检 Orbit 项目：完整分页、本地运行记录、相对上次已处理检查的变化列表。不写 Orbit。 | Host + Web |
 
 按需安装即可。同时装了 `dsh-model-reference` 和 `dsh-service-tier` 时，`#` 标签会带上 ⚡。
 
@@ -88,7 +89,7 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 
 大部分设置在界面里完成，由 DSH 的 config editor 写入 profile 的 `cordis.patch.yml`，包括 `model-reference` 的推理强度、`service-tier` 的快速模型、`auto-review-model` 的模型和提示词、`message-actions` 的解释模型，以及 `web-access` 的搜索设置。Switchboard 没有设置页，需要直接编辑 `cordis.patch.yml` 中它的那一行。
 
-会话分组、审查日志、回复解释和 Switchboard 的连接状态保存在 Host 的 storage domain（`session_groups`、`auto_review_log`、`message_actions`、`switchboard_connector`）。Pi 的工具选择写入会话日志。AI 吉祥物的位置和显示偏好保存在浏览器 localStorage。存储上限和隐私说明见各包 README。
+会话分组、审查日志、回复解释和 Switchboard 的连接状态，以及 Orbit 执行桥的规则和运行记录保存在 Host 的 storage domain（`session_groups`、`auto_review_log`、`message_actions`、`switchboard_connector`、`orbit_bridge`）。Pi 的工具选择写入会话日志。AI 吉祥物的位置和显示偏好保存在浏览器 localStorage。存储上限和隐私说明见各包 README。
 
 ## 文档
 

@@ -1,0 +1,125 @@
+---
+title: Orbit 执行桥
+description: 只读巡检 Orbit 项目，相对上次已处理的检查列出变化，结果保存在 Host，不写 Orbit。
+---
+
+<PluginFacts slug="orbit-bridge" />
+
+报告 P1 阶段的“最小只读执行桥”。它完整读取所选 Orbit 项目的全部任务，与上次已处理的检查比较，把结果保存在 Host 上。不修改任务、不发评论、不发消息，也不创建 Schedule。
+
+当前状态：0.1.0，尚未安装到任何 profile。Web 页面和 Agent 工具还没有在运行中的 DSH 里验证，见文末“验证范围”。
+
+主要限制：
+
+- **只支持原生工具执行器。** PTC 执行器（`run_code`）会拒绝桥的直接 Orbit 读取，所有运行都会失败。
+- **还没有可用的无人值守路径。** Agent 运行需要一个只暴露桥工具和三个 Orbit 读取工具的 preset。本插件不提供这样的 preset，也无法在定时会话启动前检查 preset。
+- **只报告项目变化。** 没有到期临近、久未更新等时间规则。
+
+## 安装
+
+<InstallCommand slug="orbit-bridge" />
+
+需要 `@deepseek-ai/dsh-storage-domain`（默认 profile 已包含），以及以某个名字注册的 Orbit MCP 服务器（默认 `orbit`，工具名为 `mcp__orbit__*`）。
+
+## 报告什么
+
+相对上次已处理的检查：
+
+- **新增**：基线里没有的任务 ID。
+- **状态**：`status_id` 不同，显示旧状态 → 新状态。
+- **字段变化**：标题、优先级、负责人、标签、父任务、里程碑、周期、截止时间、估算或描述（按摘要比较）。
+- **消失或不可见**：基线里有、本次完整读取没有返回的任务。可能被删除、移出范围或权限变化，插件不会把它当作完成。
+
+Orbit 的 `version` 只作为证据保存，不决定变化：version 变了但比较字段相同，不报告。
+
+未实现：到期临近、久未更新等时间规则，阻塞识别，评论、文档和聊天。本插件只报告项目任务变化。
+
+## 规则与运行
+
+**规则**（Routine）监视 1 到 10 个 Orbit 项目，状态为草稿、已启用、已暂停、已归档，带 `revision`。任何修改都会退回草稿；确认、暂停、恢复、归档、修改都会让 revision 加一，并取消该规则正在进行的运行。
+
+**运行**（Run）是一次检查：
+
+| 状态 | 含义 |
+|---|---|
+| `running` | 正在读取 Orbit，或（Agent 运行）等待 Agent 提交结果 |
+| `baseline` | 首次完整读取，或范围、连接身份变化：建立新基线，不列变化 |
+| `no_change` | 完整读取，自上次已处理检查以来无变化 |
+| `succeeded` | 完整读取，有变化且已记录结果 |
+| `failed` | 部分读取、Host 重启中断，或读取完成 20 分钟后 Agent 仍未提交结果 |
+| `cancelled` | 运行期间规则被修改，或调用工具被取消 |
+
+20 分钟上限没有定时器：只在页面读取状态、开始新运行或提交结果时惰性检查，在此之前超时的运行仍显示为等待。
+
+两条基线都从已保存的运行推导，没有单独的指针：
+
+- **最近完整读取**：最新一次完整读取的运行，不论是否已处理。
+- **最近已处理结果**：最新的 `baseline`、`no_change` 或 `succeeded` 运行。
+
+Agent 没有提交结果时，最近完整读取前进，已处理结果不动，下次检查会再次列出同样的变化。部分读取两者都不动。
+
+### 完整读取
+
+每次检查经 `ctx.tools.execute()` 调用：
+
+1. `get_me`：用用户或服务账号 ID、工作区 ID、token ID、scopes 和授权项目生成不含秘密的身份指纹。缺字段、没有 `tasks:read` 或项目不在授权内，读取失败。
+2. 每个项目的 `list_task_statuses` 和 `list_tasks`，逐页读完，每页 100 条。
+
+以下任一情况读取为部分读取，不产生变化列表：调用失败或返回错误；页缺少 `items` 或 `next_cursor`；cursor 为空、重复或被拒绝；单个项目超过 50 页；任务总数超过 2000；任务属于另一个项目；任务或状态缺少必填字段。
+
+运行记录保存任务快照（ID、编号、链接、比较字段、描述摘要），不保存描述和评论。没有 `log` 的 `ctx.tools.execute()` 调用不会在会话里留下工具调用事件，读取证据主要在本地运行记录里。
+
+### 去重
+
+- 一个规则同时只有一个进行中的运行。
+- 一个 Agent 同时只有一个进行中的运行。同一规则再次 observe 时，仅当规则仍为已启用、已确认且 revision 与该运行一致才返回它；否则或其他规则一律拒绝。
+- 变化相对已处理基线计算，已处理的变化不会重复出现。每个变化有稳定的变化键。
+
+## 页面
+
+点侧边栏面板列表里的 **Orbit 执行桥**。规则卡显示范围、禁止事项、离线限制、三个时间（最近开始运行、最近完整读取、最近已处理结果）、连接的工作区和 scopes；连接带写权限时显示警告。
+
+- **立即检查**（草稿或已启用）：用户在场的程序检查，结果标为“程序生成的差异列表，不是模型分析”。首次检查建立基线。
+- **确认启用**、**暂停**、**恢复**、**归档**、**修改**。修改已启用或已暂停的规则会退回草稿，重新确认前 Agent 运行会被拒绝。表单记住打开时的 revision，其他页面先改过时保存失败，不会覆盖。
+
+进行中的运行先显示“正在读取 Orbit”，读完后显示“等待 Agent 提交结果”。变化列表始终由程序生成；Agent 运行中只有摘要、事实和推断来自 Agent。程序摘要和错误类型在页面里本地化，原始错误详情仍然显示。
+
+每个操作都带上页面加载时的 revision，规则已变化时 Host 拒绝。
+
+## Agent 工具
+
+| 工具 | 用途 |
+|---|---|
+| `orbit_bridge_observe` `{ routineId }` | 检查一个已启用且已确认的规则，返回 `runId`、`state` 和 `changes`。`running` 表示有变化，需要提交结果。 |
+| `orbit_bridge_submit_outcome` `{ runId, summary, facts, inferences?, limitations? }` | 提交结果，每条事实引用本次运行的 `changeKeys`。其他会话的运行、已结束的运行、未知键、开始后被暂停或修改的规则都会被拒绝。 |
+
+两个工具都失败即关闭：
+
+- 调用方 Agent 能看到的工具必须全部属于两个桥工具和 `mcp__<server>__get_me`、`list_task_statuses`、`list_tasks`，否则 `orbit_bridge_observe` 拒绝。普通全工具会话会被拒绝，请用“立即检查”。
+- 运行进行中，工具 guard 拒绝该 Agent 的其他工具，并拒绝读取规则范围外项目的 `list_tasks`、`list_task_statuses`。之后注册的工具和 restriction 隐藏不了的会话内工具也受此约束。
+- 读取在调用方 Agent 的作用域内执行，其工具策略照常生效。没有 Agent 时（立即检查），要求审批的策略会直接拒绝读取。
+- PTC 执行器只接受 `run_code` 直接调用，桥的直接读取会失败，运行失败。需要原生执行器。
+
+不覆盖的部分：`orbit_bridge_observe` 被调用前，本插件不限制会话。暴露了更多工具的 preset 可能先调用它们；桥随后拒绝运行，但撤销不了这些调用。preset 是否真正受限需要人工确认。
+
+## Schedule 草稿
+
+规则可以保存 Schedule 草稿：RRULE（一行 `DTSTART`、一行 `RRULE`）、目标（`new` 或 `new_once`）、Agent preset 和可选目录。填好 RRULE 和 preset 后，页面显示一份 `ScheduleCreateRequest` JSON，可以在自动化任务页面自行创建。
+
+草稿始终标为未审核（`reviewed: false`、`createdByBridge: false`）。插件不调用 Schedule 服务，不检查 preset，也无法得知你是否已在别处创建。暂停规则只让执行桥拒绝运行；你创建的 Schedule 仍会打开会话，需要到自动化任务页面另行暂停。Schedule 投递只证明指令进入了会话收件箱，检查是否完成看运行状态。
+
+## 权限边界
+
+`/orbit-bridge/state`（GET）和 `/orbit-bridge/op`（POST）都要求 `ctx.connection.admit()` 返回的 Peer 主体为 `owner`。没有 Agent 工具能确认、暂停、恢复、归档或修改规则。
+
+Host 部分是受信任的本地代码。它不直接建立 Orbit HTTP 连接、不读取 Orbit 凭证，只经 `ctx.tools.execute()` 访问 Orbit，数据只存在 storage domain 里，另外提供两个本地 HTTP 路由。这些性质来自源码本身，不是沙箱保证。开发时使用的 Orbit 连接带 `tasks:write`、`docs:write`，无人值守时建议换成专用只读 token。
+
+## 存储
+
+`orbit_bridge` storage domain 的 `routines`、`runs` 两张表（默认 json 后端为 `~/.dsh/storages/orbit_bridge.json`）。每个规则保留最新 30 次运行，以及两条基线依赖的运行。Host 停止时仍在进行的运行，下次启动标为 `failed`（`interrupted`）。只支持单 Host。
+
+## 验证范围
+
+已做：`oxlint`、`node scripts/validate.mjs` 通过，Host 和 Client 文件通过 `node --check`。用只读调用确认了 Orbit 返回结构（`structuredContent: { items, next_cursor }`，最后一页 `next_cursor: null`，无效 cursor 报错，`get_me` 字段）。工具、storage domain、connection、slot 契约来自已安装 DSH 0.2.2-rc.3 的源码和运行时检查结果。
+
+未做：安装 bundle、浏览器里的页面、真实会话中的 Agent 工具、guard 对实际 preset 的效果、Schedule、重启恢复、在真实 Host 上的故障注入。

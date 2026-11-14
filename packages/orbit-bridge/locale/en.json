@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Orbit bridge",
+    "description": "Read-only watch over Orbit projects: complete paging, local run history, change lists against the last processed check, and a restricted agent interface. Never writes to Orbit."
+  }
+}
