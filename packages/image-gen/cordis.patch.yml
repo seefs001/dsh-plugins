@@ -1,0 +1,21 @@
+# Bundle patch layer: the row loads lib/index.js as the Host half (the
+# openai_image / grok_image tools and the settings routes); the `dsh.client`
+# declaration makes the web app load lib/client.js, the settings on this
+# bundle's Plugins page and the image rows in the conversation.
+- insert:
+    - id: image-gen
+      name: dsh-image-gen
+      config:
+        timeoutMs: 300000
+        # Relative to the session working directory, or absolute.
+        outputDir: generated-images
+        # provider/model: a local llm-pi-ai route with api openai-responses that
+        # can call the hosted image_generation tool. Empty = tool not offered.
+        openai:
+          enabled: true
+          provider: ''
+          model: ''
+        grok:
+          enabled: true
+          provider: ''
+          model: ''

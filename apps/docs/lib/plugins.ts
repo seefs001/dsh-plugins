@@ -44,6 +44,7 @@ const entries: Entry[] = [
   { slug: 'message-actions', category: 'conversation', surface: 'Host + Web', summary: '在回复旁点 Wait, what?，用独立模型调用解释这条回复，不写入对话。', requires: ['已配置的模型 provider'] },
   { slug: 'ai-mascot', category: 'conversation', surface: 'Web', summary: '右下角的 GPT / Claude 小伙伴，跟随当前对话的真实活动。', requires: ['可访问外部素材站点'] },
   { slug: 'web-access', category: 'tools', surface: 'Host + Web', summary: '新增 grok_search 和 openai_search，复用已有 Responses provider 的托管搜索。', requires: ['支持托管搜索的 Responses provider'] },
+  { slug: 'image-gen', category: 'tools', surface: 'Host + Web', summary: '新增 openai_image 和 grok_image，复用已有 Responses provider 的托管 image_generation 工具。', requires: ['支持托管 image_generation 的 Responses provider'] },
   { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 1.5.0 原版编程工具、QuickJS codemode 和可选的 DSH/MCP 工具。', requires: ['带预设选项接口的 DSH 构建', 'rg 与 fd'] },
   { slug: 'pi-mcp', category: 'tools', surface: 'Host', summary: '在 DSH 里使用 Pi 的 ~/.pi/agent/mcp.json，改文件即时生效。', requires: ['@deepseek-ai/dsh-mcp-manager'] },
   { slug: 'switchboard', category: 'tools', surface: 'Host', summary: '把 DSH 接入 Switchboard 中继，让 IM 和 GitHub 请求在 DSH 会话中运行。', requires: ['Switchboard 中继'] },

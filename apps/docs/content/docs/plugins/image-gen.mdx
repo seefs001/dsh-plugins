@@ -1,0 +1,44 @@
+---
+title: 画图
+description: 新增 openai_image 和 grok_image，复用已有 Responses provider 的托管 image_generation 工具生成图片，保存为文件并在对话里显示。
+---
+
+<PluginFacts slug="image-gen" />
+
+在 Plugins 页为每个画图工具选一个本地的 Responses 模型。工具调用该模型的托管 `image_generation` 工具，把图片写成文件，并在对话里显示。不需要填图片模型，由服务端决定。
+
+| 工具 | 托管工具 | 模型可以传的参数 |
+| --- | --- | --- |
+| `openai_image` | OpenAI `image_generation` | 尺寸、质量、背景、输出格式 |
+| `grok_image` | xAI `image_generation`（Grok Imagine） | 宽高比 |
+
+分成两个工具，是因为两家托管工具的参数不同。xAI 的工具没有尺寸字段，`aspect_ratio` 会追加到 prompt 里。只有 `prompt` 必填，其余字段可以省略或传 `null`。每次调用生成一张图。
+
+## 安装
+
+<InstallCommand slug="image-gen" />
+
+## 配置
+
+打开 **Plugins → dsh-image-gen**：
+
+- **输出目录**：图片写入的位置，相对会话工作目录或绝对路径，默认 `generated-images`。
+- **启用**：关闭后移除该工具。
+- **模型**：`llm-pi-ai` 中任意 `openai-responses` provider 下、能调用托管 `image_generation` 的模型，例如 OpenAI 用 GPT 模型，xAI 用 Grok 模型。端点（`baseURL`）、key（`apiKeyEnv`）和额外的 `headers` 都取自这个 provider。
+
+保存后插件重启并重新注册工具。工具只在 provider 路由存在且 key 能解析时提供给模型，页面上显示 **可用** 或不可用的原因。readiness 检查不会探测上游是否真的支持 `image_generation`。
+
+## 请求
+
+OpenAI 请求用 `tool_choice: {"type": "image_generation"}` 和 `action: "generate"` 强制调用工具。xAI 文档没有为这个工具写 `tool_choice`，Grok 请求用 `action: "generate"` 加一条只调用一次的指令。模型没出图就直接回答时，工具报错并带上模型的原话。
+
+## 结果
+
+每张图写成 `<工具>-<UTC 时间>-<id>.<扩展名>`，同时存入 DSH 的附件库。模型收到文件路径和图片模型实际使用的 prompt（OpenAI 的 `revised_prompt`，xAI 的 `prompt`）；当前模型声明支持图片输入时也会收到图片本身，纯文本模型只收到路径。对话里显示内置的图片行。
+
+## 边界
+
+- 网关是否转发托管 `image_generation` 取决于网关和上游账号，不支持时返回端点的 HTTP 错误。
+- 每次调用同时计费所选 Responses 模型和图片生成。
+- 文件由 Host 上的 Node 直接写入，不支持 SSH 等远程执行环境。
+- 只生成新图，不开放改图和参考图。

@@ -43,7 +43,7 @@ The bundled skill directory is located through `DSH_INSTALL_DIR`, or the process
 
 Plan mode reuses the standard preset's plan prompt. The preset does not copy the standard preset's same-name file and terminal tools, its persona, or its extra tool-result pruner. Like the creator preset, it enables the read-only plugin market tool and runtime inspection.
 
-The global `grok_search` and `openai_search` from [`dsh-web-access`](../web-access) pass through unchanged when configured and ready.
+The global `grok_search` and `openai_search` from [`dsh-web-access`](../web-access), and `openai_image` and `grok_image` from [`dsh-image-gen`](../image-gen), pass through unchanged when configured and ready.
 
 ### Native conditions still apply
 
@@ -97,7 +97,7 @@ scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_
   schedule_view, schedule_edit, create_goal, get_goal, update_goal, todo_write, web_fetch,
   web_search, present, office_render, office_convert, office_recalculate, exit_plan_mode,
   workflow, plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
-globalTools: [grok_search, openai_search]
+globalTools: [grok_search, openai_search, openai_image, grok_image]
 optInTools: [present, office_render, office_convert, office_recalculate,
   plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
 ```

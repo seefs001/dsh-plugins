@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `dsh-image-gen` 0.1.0: adds `openai_image` and `grok_image`, which call hosted `image_generation` on an existing Responses provider and save the images to files. The supplied `pi` preset passes both tools through.
 - `dsh-pi-mcp` 0.1.0: a Host-only plugin that registers each server in Pi's `~/.pi/agent/mcp.json` with the DSH MCP manager, converts `${VAR}` to `${credential:VAR}`, and follows file edits without a restart. Skips OAuth, `!command`, and SSE entries with a log warning.
 - `dsh-pi-tools`: `mcpServers` accepts `'*'` to bridge every global MCP namespace, including ones registered later. The supplied `pi` preset now uses it.
 - `dsh-pi-tools`: the conversation tool picker groups Pi, DSH and MCP tools into collapsible sections with selection counts, section checkboxes (whole section, or only the visible matches while filtering), a selected-only view, and expand/collapse all. Filtering always shows matches regardless of fold state. Save, Cancel, Restore defaults and session locking are unchanged.

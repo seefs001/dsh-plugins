@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Image generation",
+    "description": "Adds openai_image and grok_image tools. Pick a local Responses model for each on this page."
+  }
+}
