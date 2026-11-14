@@ -6,7 +6,6 @@ English | [中文](<#子代理模型>)
 
 ## Requirements
 
-- DSH `>=0.2.2-rc.1 <0.3.0` and Node.js `^22.19.0` or `>=24`.
 - The Web GUI (`dsh web`) with the built-in conversation, model-selection, and locale services.
 - No extra provider credentials, experimental bundle, or companion plugin.
 
@@ -58,7 +57,7 @@ Disable or remove **Subagent model** (`dsh-subagent-model`) in Plugin Manager to
 
 ### 安装与使用
 
-需要 DSH `>=0.2.2-rc.1 <0.3.0`、Node.js `^22.19.0` 或 `>=24`，以及内置的对话、模型选择和语言服务。不需要额外的 API key、实验 bundle 或配套插件。
+需要 Web 界面内置的对话、模型选择和语言服务。不需要额外的 API key、实验 bundle 或配套插件。
 
 上面的 GitHub 命令安装的是 `main` 上的版本。本地改动还没推送时，在仓库根目录运行上面的 `link:` 命令。请装进 Web 界面正在用的 profile，启用后会影响该 profile 的所有会话。Plugin Manager 提示需要重启时先重启，再打开子代理会话查看右下角。悬停可以看到 provider/model ID 和只读说明。
 

@@ -43,7 +43,7 @@ description: 新会话发出首条消息前，切换到已有的本地分支，�
 
 ## 限制
 
-- 只替换 `conversation.hero.options` 里原生的 `forge-panel.worktree` 条目，保留它注入的面板来源。依赖 DSH rc.2 自带的条目约定，Forge API 将来不兼容时插件需要更新。
+- 只替换 `conversation.hero.options` 里原生的 `forge-panel.worktree` 条目，保留它注入的面板来源。依赖 DSH 自带的条目约定，Forge API 将来不兼容时插件需要更新。
 - 只列已有的本地分支，当前分支之后按最近提交排序。列表输出上限 1 MiB。
 - 原生面板刷新后会更新当前会话。其他会话显示的分支可能稍后才刷新，但它们共用的文件系统已经变了。
 - 没有设置，也没有插件自己的持久存储。分支状态归 Git 管，命令和工具记录在会话日志里。

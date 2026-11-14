@@ -6,8 +6,6 @@ Shows **Compacting context…** and the elapsed time in one line above the DSH c
 
 ## Requirements
 
-- DSH `>=0.2.2-rc.1 <0.3.0`.
-- Node.js `^22.19.0 || >=24.0.0`.
 - The Web GUI (`dsh web`). The bundle has Host and Web halves and adds no terminal indicator.
 - DSH's existing compaction lifecycle. The plugin only displays status; it does not enable or schedule compaction.
 

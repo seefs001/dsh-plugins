@@ -4,7 +4,7 @@ Switch to an existing local Git branch from the branch chip on the **New Session
 
 ## Requirements
 
-- DSH `>=0.2.2-rc.2 <0.3.0` and the Web GUI.
+- The Web GUI.
 - **Change requests & worktrees** (`@deepseek-ai/dsh-experimental-forge-bundle`) enabled. This plugin does not enable it for you.
 - A Git workspace with local branches, writable under the session's sandbox policy.
 
@@ -49,7 +49,7 @@ A switch runs as session maintenance, so a first message that arrives during the
 ## Implementation and limits
 
 - The plugin shadows only the native `forge-panel.worktree` entry in `conversation.hero.options` and keeps its injected panel source. Registrations and subscriptions are disposed with the slot and the plugin.
-- It relies on the native entry contract shipped with DSH rc.2, so an incompatible future Forge API may need a plugin update. It does not change DSH source, rewrite the DOM, or import Client packages.
+- It relies on the native entry contract shipped with DSH, so an incompatible future Forge API may need a plugin update. It does not change DSH source, rewrite the DOM, or import Client packages.
 - Only existing local branches are listed: the current branch first, then the rest by newest commit. Each Git command is limited to 1 MiB of output and its deadline.
 - Refreshing the native panel updates the current session. Other sessions may show their branch later, even though the shared filesystem changed immediately.
 - There are no settings and no plugin-owned storage. Git owns branch state, and the session log holds command and tool records. No detail image is shipped, so Plugin Manager shows this README.

@@ -5,7 +5,7 @@ description: 链接本地源码、运行检查、维护文档和发布插件包�
 
 ## 准备
 
-在仓库根目录安装依赖。包管理器是根 `package.json` 的 `packageManager` 字段指定的 pnpm 版本，Node.js 要求 `^22.19.0` 或 `>=24`。
+在仓库根目录安装依赖。包管理器是根 `package.json` 的 `packageManager` 字段指定的 pnpm。
 
 ```bash
 pnpm install
@@ -69,10 +69,10 @@ pnpm run docs:build      # 静态导出到 apps/docs/out
 | `apps/docs/content/docs/**/*.mdx` | 页面正文，frontmatter 必须有 `title`，建议写 `description` |
 | `meta.json` | 侧边栏顺序和分组 |
 | `apps/docs/lib/plugins.ts` | 插件的分组、一句话简介、运行位置和额外要求 |
-| `apps/docs/components/plugins.tsx` | 插件信息框、目录、版本表和安装命令 |
+| `apps/docs/components/plugins.tsx` | 插件信息框、目录、依赖表和安装命令 |
 | `apps/docs/app/page.tsx` | 首页 |
 
-插件的版本、DSH 范围和中文标题在构建时从 `packages/*/package.json` 和 `locale/zh.json` 读取，不要在页面里手写。新增插件时，在 `lib/plugins.ts` 加一条记录并新建 `content/docs/plugins/<name>.mdx`，再把它加进 `plugins/meta.json`。漏掉记录时文档构建会失败。
+插件的包名和中文标题在构建时从 `packages/*/package.json` 和 `locale/zh.json` 读取，不要在页面里手写。新增插件时，在 `lib/plugins.ts` 加一条记录并新建 `content/docs/plugins/<name>.mdx`，再把它加进 `plugins/meta.json`。漏掉记录时文档构建会失败。
 
 修改插件行为时，同时更新包的 README 和站点上的插件页。
 

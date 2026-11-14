@@ -1,15 +1,13 @@
 ---
-title: 版本与边界
-description: 每个插件需要的 DSH 版本和额外条件，以及它们不会改变的 DSH 行为。
+title: 依赖与边界
+description: 每个插件需要先启用的 bundle 和外部依赖，以及它们不会改变的 DSH 行为。
 ---
 
-## 版本与依赖
+这些插件是 seefs 自用的，只跟随最新的 DSH 和本仓库 `main` 分支开发，不维护旧版本兼容。DSH 和插件都请保持最新。
 
-下表从各包的 `package.json` 和 locale 文件生成，`engines.dsh` 不包含当前 DSH 版本时，Plugin Manager 会拒绝安装或启用。
+## 依赖
 
 <RequirementsTable />
-
-Node.js 统一要求 `^22.19.0` 或 `>=24`。
 
 ## 需要先启用的 DSH bundle
 
@@ -21,10 +19,6 @@ Node.js 统一要求 `^22.19.0` 或 `>=24`。
 | 会话分组、自动审查模型、Wait, what?、Switchboard | `@deepseek-ai/dsh-storage-domain` | 默认 profile 已包含 |
 
 插件不会替你启用这些 bundle。
-
-## Pi 工具需要的 DSH 构建
-
-[Pi 工具](/docs/plugins/pi-tools) 用到两个公开发布的 0.2.2-rc.2 里还没有的接口：会话级的预设选项（`agent-preset/options` 与 `conversation.hero.agentPreset.options` slot）和工具结果展示链（`tool.call.presentation` slot）。codemode 的原始 JavaScript 语法传输还需要配套的 DSH 工具 schema 与 pi-ai 适配改动。版本号同为 0.2.2-rc.2、但没有这些改动的 DSH 无法提供工具选择面板，Pi 的结果卡片也会退回普通显示。
 
 ## 插件不会做的事
 

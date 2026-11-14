@@ -5,11 +5,7 @@ description: 从 GitHub 或本地仓库安装插件，并确认它已经生效�
 
 ## 环境要求
 
-| 依赖 | 要求 |
-| --- | --- |
-| DeepSeek Harness | `>=0.2.2-rc.1 <0.3.0`，部分插件要求 rc.2，见 [版本与边界](/docs/compatibility) |
-| Node.js | `^22.19.0` 或 `>=24` |
-| 浏览器界面 | 带 Web 部分的插件需要 `dsh web` |
+使用最新的 DeepSeek Harness 和本仓库 `main` 分支。带 Web 部分的插件需要 `dsh web`。
 
 下文命令以 `web` profile 为例。安装时用的 profile 必须和你实际启动的 profile 一致。
 
@@ -60,7 +56,7 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 <InstallAll />
 
 <Callout type="warn" title="先确认额外依赖">
-有些插件需要先启用别的 bundle 或准备外部条件，例如 Auto review、Change requests & worktrees、Responses provider、macOS 或特定的 DSH 构建。安装前看一下 [版本与边界](/docs/compatibility) 的表格。
+有些插件需要先启用别的 bundle 或准备外部条件，例如 Auto review、Change requests & worktrees、Responses provider 或 macOS。安装前看一下 [依赖与边界](/docs/compatibility) 的表格。
 </Callout>
 
 ## 安装后没有变化
@@ -69,7 +65,7 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 - Plugin Manager 返回 `restart-required` 时，重启后再看。
 - Web 部分在刷新页面后才会加载新代码。
 - 有些入口只在特定场景出现：⚡ 只出现在 `openai-responses` 模型旁；子代理模型只在子代理会话里显示；Git 变更需要 Git 仓库和 Change requests & worktrees；AI 吉祥物只在 GPT 或 Claude 模型的对话里出现。
-- 插件声明的 `engines.dsh` 不包含当前 DSH 版本时，Plugin Manager 会拒绝安装。
+- Plugin Manager 拒绝安装时，先把 DSH 更新到最新。
 
 ## 移除
 

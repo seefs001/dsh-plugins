@@ -6,10 +6,10 @@ import './global.css'
 
 export const metadata: Metadata = {
   title: {
-    default: 'dsh-plugins：DeepSeek Harness 插件集',
+    default: 'seefs/dsh-plugins：seefs 的 DeepSeek Harness 插件',
     template: '%s | dsh-plugins',
   },
-  description: 'DeepSeek Harness 社区插件的安装、配置、版本要求和使用边界。',
+  description: 'seefs 自用的 DeepSeek Harness 插件：安装、配置、依赖和使用边界。',
   icons: { icon: withBasePath('/icon.svg') },
 }
 

@@ -17,8 +17,8 @@ pnpm run docs:build      # 输出到 apps/docs/out
 | --- | --- |
 | `content/docs/**/*.mdx` | 页面正文 |
 | `content/docs/**/meta.json` | 侧边栏顺序和分组 |
-| `lib/plugins.ts` | 插件的分组、简介、运行位置和额外要求；版本、DSH 范围和标题在构建时从 `packages/*/package.json` 与 `locale/zh.json` 读取 |
-| `components/plugins.tsx` | 插件信息框、目录、版本表和安装命令 |
+| `lib/plugins.ts` | 插件的分组、简介、运行位置和额外要求；包名和标题在构建时从 `packages/*/package.json` 与 `locale/zh.json` 读取 |
+| `components/plugins.tsx` | 插件信息框、目录、依赖表和安装命令 |
 | `app/page.tsx`、`app/global.css` | 首页和站点样式 |
 
 不需要外部字体、搜索服务或部署密钥。搜索索引在构建时生成，在浏览器本地查询。
@@ -29,7 +29,7 @@ pnpm run docs:build      # 输出到 apps/docs/out
 2. 把改动合入 `main`，或在 `main` 上手动运行 **Documentation** 工作流。
 3. 部署成功后访问 <https://seefs001.github.io/dsh-plugins/>。
 
-PR 只做类型检查和静态构建，只有 `main` 的部署 job 有 Pages 写入和 OIDC 权限，不需要 `gh-pages` 分支。插件的 `package.json` 或 locale 变化也会触发构建，因为站点从它们读取版本信息。
+PR 只做类型检查和静态构建，只有 `main` 的部署 job 有 Pages 写入和 OIDC 权限，不需要 `gh-pages` 分支。插件的 `package.json` 或 locale 变化也会触发构建，因为站点从它们读取插件信息。
 
 工作流按仓库名设置 `NEXT_PUBLIC_BASE_PATH=/dsh-plugins`，本地开发默认在根路径。模拟 Pages 构建：
 

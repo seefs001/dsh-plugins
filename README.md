@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-Plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH), maintained by seefs. Each one is a separate bundle for model selection, session management, conversation reading, or new tools.
+seefs's personal plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH), built for daily use and kept current with the latest DSH. Each one is a separate bundle for model selection, session management, conversation reading, or new tools.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -13,7 +13,7 @@ English | [中文](README.zh.md)
 
 ## Plugins
 
-The minimum DSH version is rc.1 unless the table says rc.2. "Runs in" tells you whether the plugin has a Host half, a browser half, or both.
+"Runs in" tells you whether the plugin has a Host half, a browser half, or both.
 
 ### Models and review
 
@@ -31,10 +31,10 @@ The minimum DSH version is rc.1 unless the table says rc.2. "Runs in" tells you 
 |---|---|---|
 | [`dsh-recent-sessions`](packages/recent-sessions) | Sorts sessions in the `@` menu by last activity. | Web |
 | [`dsh-session-groups`](packages/session-groups) | Custom session groups with per-group pins, shared by every browser and the agent. | Host + Web |
-| [`dsh-workspace-manager`](packages/workspace-manager) | Removes saved workspace entries and cleans up ones whose directory is gone. Files and sessions stay. rc.2. | Host + Web |
-| [`dsh-branch-switcher`](packages/branch-switcher) | Switches to an existing local branch from the New Session screen before the first message. rc.2; needs Change requests & worktrees. | Host + Web |
+| [`dsh-workspace-manager`](packages/workspace-manager) | Removes saved workspace entries and cleans up ones whose directory is gone. Files and sessions stay. | Host + Web |
+| [`dsh-branch-switcher`](packages/branch-switcher) | Switches to an existing local branch from the New Session screen before the first message. Needs Change requests & worktrees. | Host + Web |
 | [`dsh-git-changes`](packages/git-changes) | Branch and uncommitted-change counts below the composer; click to open the diff. Needs Change requests & worktrees. | Web |
-| [`dsh-keep-awake`](packages/keep-awake) | Prevents macOS idle sleep while the Host runs. The display can still sleep and the screen can still lock. rc.2. | Host |
+| [`dsh-keep-awake`](packages/keep-awake) | Prevents macOS idle sleep while the Host runs. The display can still sleep and the screen can still lock. | Host |
 
 ### Reading conversations
 
@@ -43,7 +43,7 @@ The minimum DSH version is rc.1 unless the table says rc.2. "Runs in" tells you 
 | [`dsh-compaction-status`](packages/compaction-status) | A one-line status and elapsed timer above the composer during context compaction. | Host + Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Quotes in your messages become blocks that scroll to the quoted text and highlight it. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Tool-call rows that open the skill file, full output, result files, or the subagent's conversation. | Web |
-| [`dsh-message-actions`](packages/message-actions) | **Wait, what?** beside each reply explains it in an isolated model call that never enters the conversation. rc.2. | Host + Web |
+| [`dsh-message-actions`](packages/message-actions) | **Wait, what?** beside each reply explains it in an isolated model call that never enters the conversation. | Host + Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | Draggable GPT / Claude companions that follow the displayed conversation. The artwork has separate non-commercial terms. | Web |
 
 ### Tools and integrations
@@ -52,7 +52,7 @@ The minimum DSH version is rc.1 unless the table says rc.2. "Runs in" tells you 
 |---|---|---|
 | [`dsh-web-access`](packages/web-access) | Adds `grok_search` (web and X) and `openai_search`, using hosted search on an existing Responses provider. | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | Adds `openai_image` and `grok_image`, using hosted image generation on an existing Responses provider and saving the images to files. | Host + Web |
-| [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi 1.5.0's original coding tools, QuickJS codemode, and per-session DSH and MCP tool selection. Needs DSH rc.2 or later; no DSH source changes. | Host + Web |
+| [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi's original coding tools, QuickJS codemode, and per-session DSH and MCP tool selection. No DSH source changes. | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | Registers the MCP servers in Pi's `~/.pi/agent/mcp.json` with the DSH MCP manager and follows file edits live. | Host |
 | [`dsh-switchboard`](packages/switchboard) | Connects DSH to a Switchboard relay so Telegram, Discord, and GitHub requests run in DSH sessions. | Host |
 
@@ -60,8 +60,7 @@ Install only what you need. With both `dsh-model-reference` and `dsh-service-tie
 
 ## Requirements
 
-- DSH `>=0.2.2-rc.1 <0.3.0`. Packages marked rc.2 above require `>=0.2.2-rc.2`.
-- Node.js `^22.19.0 || >=24`.
+- The latest DSH. These plugins are for my own use and only track the newest DSH and this repository's `main` branch; older versions are not supported.
 - Plugins with a Web half need the Web GUI (`dsh web`).
 
 ## Install
@@ -92,7 +91,7 @@ Session groups, review logs, reply explanations, and Switchboard's connector sta
 
 ## Documentation
 
-The [documentation site](https://seefs001.github.io/dsh-plugins/) is in Chinese. It covers installation, configuration and data, version requirements and boundaries, and a page per plugin. It is built with Fumadocs and deployed to GitHub Pages.
+The [documentation site](https://seefs001.github.io/dsh-plugins/) is in Chinese. It covers installation, configuration and data, dependencies and boundaries, and a page per plugin. It is built with Fumadocs and deployed to GitHub Pages.
 
 ```bash
 pnpm run docs:dev        # local preview

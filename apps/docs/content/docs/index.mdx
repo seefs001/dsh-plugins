@@ -3,12 +3,12 @@ title: 概览
 description: dsh-plugins 是什么、怎么挑插件，以及 Host 和 Web 两部分的分工。
 ---
 
-dsh-plugins 是 seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件集。每个插件是一个独立 bundle，安装到某个 profile 后可以单独启用、停用和移除，不需要装整套。
+dsh-plugins 是 seefs 自用并持续维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件集。每个插件是一个独立 bundle，安装到某个 profile 后可以单独启用、停用和移除，不需要装整套。
 
 <Cards>
   <Card title="安装" href="/docs/quick-start" description="从 GitHub 或本地仓库安装，并确认插件生效。" />
   <Card title="配置与数据" href="/docs/configuration" description="设置写在哪里，Host、profile 和浏览器各保存什么。" />
-  <Card title="版本与边界" href="/docs/compatibility" description="每个插件需要的 DSH 版本、额外依赖和不会改变的行为。" />
+  <Card title="依赖与边界" href="/docs/compatibility" description="每个插件需要的 bundle、外部依赖和不会改变的行为。" />
   <Card title="插件目录" href="/docs/plugins" description="按用途分组的全部插件。" />
 </Cards>
 
@@ -38,5 +38,5 @@ DSH 插件分两部分。Host 部分运行在 DSH 服务进程里，处理配置
 只有 Web 功能的插件也带一个空的 Host 入口，因为 Loader 加载 bundle 时需要它。这些插件不会给终端界面添加相同的交互。每个插件页顶部的信息框写明了它的运行位置。
 
 <Callout>
-这是社区项目，不是 DeepSeek 官方插件。整套插件支持 DSH `>=0.2.2-rc.1 <0.3.0`，其中几个插件要求 rc.2 或更新的构建，见 [版本与边界](/docs/compatibility)。
+这是 seefs 的个人插件集，不是 DeepSeek 官方插件。插件只跟随最新的 DSH 开发，请保持 DSH 和插件都是最新。
 </Callout>

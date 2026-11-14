@@ -2,9 +2,10 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
- * Plugin facts for the site. Versions, DSH ranges, Web halves and titles come
- * from each package's manifest at build time; only the grouping, the short
- * Chinese summary and external requirements are written here.
+ * Plugin facts for the site. Package names, Web halves and titles come from
+ * each package's manifest at build time; only the grouping, the short Chinese
+ * summary and external requirements are written here. Every plugin targets the
+ * latest DSH, so the site shows no version numbers or ranges.
  */
 
 export type CategoryId = 'models' | 'sessions' | 'conversation' | 'tools'
@@ -22,7 +23,7 @@ interface Entry {
   category: CategoryId
   surface: Surface
   summary: string
-  /** Things the user must provide or enable beyond the DSH range. */
+  /** Bundles, services or tools the user must provide or enable. */
   requires?: string[]
 }
 
@@ -45,16 +46,13 @@ const entries: Entry[] = [
   { slug: 'ai-mascot', category: 'conversation', surface: 'Web', summary: '右下角的 GPT / Claude 小伙伴，跟随当前对话的真实活动。', requires: ['可访问外部素材站点'] },
   { slug: 'web-access', category: 'tools', surface: 'Host + Web', summary: '新增 grok_search 和 openai_search，复用已有 Responses provider 的托管搜索。', requires: ['支持托管搜索的 Responses provider'] },
   { slug: 'image-gen', category: 'tools', surface: 'Host + Web', summary: '新增 openai_image 和 grok_image，复用已有 Responses provider 的托管 image_generation 工具。', requires: ['支持托管 image_generation 的 Responses provider'] },
-  { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 1.5.0 原版编程工具、QuickJS codemode 和可选的 DSH/MCP 工具。', requires: ['DSH 0.2.2-rc.2 或更新版本', 'rg 与 fd'] },
+  { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 原版编程工具、QuickJS codemode 和可选的 DSH/MCP 工具。', requires: ['rg 与 fd'] },
   { slug: 'pi-mcp', category: 'tools', surface: 'Host', summary: '在 DSH 里使用 Pi 的 ~/.pi/agent/mcp.json，改文件即时生效。', requires: ['@deepseek-ai/dsh-mcp-manager'] },
   { slug: 'switchboard', category: 'tools', surface: 'Host', summary: '把 DSH 接入 Switchboard 中继，让 IM 和 GitHub 请求在 DSH 会话中运行。', requires: ['Switchboard 中继'] },
 ]
 
 export interface PluginInfo extends Entry {
   name: string
-  version: string
-  dsh: string
-  minDsh: string
   title: string
   enTitle: string
   description: string
@@ -72,8 +70,6 @@ function readJson<T>(path: string): T {
 
 interface Manifest {
   name: string
-  version: string
-  engines?: { dsh?: string }
   dsh?: { client?: unknown }
 }
 
@@ -85,14 +81,10 @@ function load(entry: Entry): PluginInfo {
   const manifest = readJson<Manifest>(join(dir, 'package.json'))
   const zh = readJson<LocaleMeta>(join(dir, 'locale', 'zh.json')).meta
   const en = readJson<LocaleMeta>(join(dir, 'locale', 'en.json')).meta
-  const dsh = manifest.engines?.dsh ?? ''
   const github = `github:seefs001/dsh-plugins#main&path:/packages/${entry.slug}`
   return {
     ...entry,
     name: manifest.name,
-    version: manifest.version,
-    dsh,
-    minDsh: /^>=\s*([^\s]+)/.exec(dsh)?.[1] ?? dsh,
     title: zh.title,
     enTitle: en.title,
     description: zh.description,
@@ -123,9 +115,3 @@ export function getPlugin(slug: string): PluginInfo {
 export function pluginsIn(category: CategoryId): PluginInfo[] {
   return plugins.filter(plugin => plugin.category === category)
 }
-
-/** The widest DSH range the collection supports, from the manifests. */
-export const supportedRange = (() => {
-  const ranges = [...new Set(plugins.map(plugin => plugin.dsh))]
-  return ranges.toSorted()[0] ?? ''
-})()

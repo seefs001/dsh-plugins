@@ -8,7 +8,7 @@ The toggle appears only when the current model's provider uses the OpenAI Respon
 
 | Half | File | Role |
 |---|---|---|
-| Host | `lib/index.js` | Adds `service_tier: "priority"` for fast `provider/model` pairs on Responses routes. DSH 0.2.2-rc.2 removed the `llm-pi-ai/model-defaults` waterfall, so the plugin wraps `streamSimple` on the prototype of the pi-ai `Models` collection that `@deepseek-ai/dsh-llm-pi-ai` uses and sets the field through `onPayload` (`lib/pi-ai-hook.js`). This depends on DSH internals; if the layout changes, the Host log shows `service-tier: priority requests are unavailable`. The rc.1 waterfall is still handled. Serves `GET /service-tier/state` and `POST /service-tier/set`. |
+| Host | `lib/index.js` | Adds `service_tier: "priority"` for fast `provider/model` pairs on Responses routes. The plugin wraps `streamSimple` on the prototype of the pi-ai `Models` collection that `@deepseek-ai/dsh-llm-pi-ai` uses and sets the field through `onPayload` (`lib/pi-ai-hook.js`). This depends on DSH internals; if the layout changes, the Host log shows `service-tier: priority requests are unavailable`. Serves `GET /service-tier/state` and `POST /service-tier/set`. |
 | Browser | `lib/client.js` | Renders the ⚡ button in `conversation.input.right` and updates it optimistically. |
 
 Both routes use the same authentication as the rest of the Web API. `POST /service-tier/set` accepts `{ "provider": string, "model": string, "fast": boolean }` with a body of up to 16 KiB.

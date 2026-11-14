@@ -4,13 +4,13 @@ import { CodeBlock, Pre } from 'fumadocs-ui/components/codeblock'
 import { ArrowRight, BookOpen, Download, Settings2, ShieldAlert, Wrench } from 'lucide-react'
 import { PluginDirectory } from '@/components/plugins'
 import { baseOptions } from '@/lib/layout.shared'
-import { getPlugin, plugins, supportedRange } from '@/lib/plugins'
+import { getPlugin, plugins } from '@/lib/plugins'
 import { repository } from '@/lib/site'
 
 const paths = [
   { href: '/docs/quick-start', icon: Download, title: '安装', text: '从 GitHub 或本地仓库安装单个插件，确认它已生效。' },
   { href: '/docs/configuration', icon: Settings2, title: '配置与数据', text: '设置写在哪里，Host、profile 和浏览器各保存什么。' },
-  { href: '/docs/compatibility', icon: ShieldAlert, title: '版本与边界', text: '每个插件的 DSH 版本、依赖，以及它不会改变的行为。' },
+  { href: '/docs/compatibility', icon: ShieldAlert, title: '依赖与边界', text: '每个插件需要先启用的 bundle，以及它不会改变的行为。' },
   { href: '/docs/development', icon: Wrench, title: '开发与发布', text: '链接源码、运行检查、维护文档和发布包。' },
 ]
 
@@ -21,10 +21,10 @@ export default function HomePage() {
       <div className="dp-home mx-auto w-full max-w-6xl px-4 sm:px-6">
         <section className="dp-hero" aria-labelledby="home-title">
           <div className="dp-hero-text">
-            <p className="dp-eyebrow">DeepSeek Harness 插件集</p>
+            <p className="dp-eyebrow">seefs 的 DeepSeek Harness 插件</p>
             <h1 id="home-title">dsh-plugins</h1>
             <p className="dp-lead">
-              {plugins.length} 个相互独立的 DSH 插件，覆盖模型选择、会话整理、对话阅读和工具扩展。
+              seefs 自用并持续维护的 {plugins.length} 个 DSH 插件，覆盖模型选择、会话整理、对话阅读和工具扩展。
               每个插件是一个 bundle，可以单独安装、启用和移除。
             </p>
             <div className="dp-actions">
@@ -32,7 +32,7 @@ export default function HomePage() {
               <Link href="/docs/plugins" className="dp-button">浏览插件</Link>
             </div>
             <p className="dp-meta">
-              支持 DSH <code>{supportedRange}</code>，部分插件需要 rc.2 · Node.js <code>^22.19.0</code> 或 <code>&gt;=24</code> · 代码使用 MIT 许可
+              跟随最新 DSH 和 <code>main</code> 分支更新 · 代码使用 MIT 许可
             </p>
           </div>
           <div className="dp-hero-code">
@@ -65,7 +65,7 @@ export default function HomePage() {
         </section>
 
         <footer className="dp-footer">
-          <p>seefs 维护的社区插件集，与 DeepSeek 官方无隶属关系。AI 小伙伴引用的角色素材另有非商业条款。</p>
+          <p>seefs 自用的插件集，与 DeepSeek 官方无隶属关系。AI 小伙伴引用的角色素材另有非商业条款。</p>
           <div>
             <a href={`${repository}/blob/main/LICENSE`}>MIT License</a>
             <a href={repository}>GitHub</a>

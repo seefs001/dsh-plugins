@@ -25,8 +25,7 @@ export function PluginFacts({ slug }: { slug: string }) {
   return (
     <section className="dp-facts not-prose" aria-label="插件信息">
       <dl>
-        <div><dt>包名</dt><dd><code>{plugin.name}</code> {plugin.version}</dd></div>
-        <div><dt>DSH 版本</dt><dd><code>{plugin.dsh}</code></dd></div>
+        <div><dt>包名</dt><dd><code>{plugin.name}</code></dd></div>
         <div><dt>运行位置</dt><dd><Surface plugin={plugin} /></dd></div>
         <div>
           <dt>额外要求</dt>
@@ -50,7 +49,6 @@ function Row({ plugin }: { plugin: PluginInfo }) {
       </div>
       <div className="dp-row-meta">
         <Surface plugin={plugin} />
-        <span className="dp-tag" title="最低 DSH 版本">DSH ≥ {plugin.minDsh}</span>
         {plugin.requires?.map(item => <span key={item} className="dp-tag dp-tag-warn">{item}</span>)}
       </div>
     </li>
@@ -76,20 +74,18 @@ export function PluginDirectory({ category, headingLevel = 2 }: { category?: Cat
   )
 }
 
-/** One row per plugin: version range, surface and external requirements. */
+/** One row per plugin: surface and external requirements. */
 export function RequirementsTable() {
   return (
-    <div className="dp-table-wrap not-prose" role="region" aria-label="插件版本与依赖" tabIndex={0}>
+    <div className="dp-table-wrap not-prose" role="region" aria-label="插件依赖" tabIndex={0}>
       <table className="dp-table">
         <thead>
-          <tr><th scope="col">插件</th><th scope="col">版本</th><th scope="col">DSH</th><th scope="col">运行位置</th><th scope="col">额外要求</th></tr>
+          <tr><th scope="col">插件</th><th scope="col">运行位置</th><th scope="col">额外要求</th></tr>
         </thead>
         <tbody>
           {plugins.map(plugin => (
             <tr key={plugin.slug}>
               <th scope="row"><Link href={plugin.href}>{plugin.title}</Link><br /><code>{plugin.name}</code></th>
-              <td>{plugin.version}</td>
-              <td><code>{plugin.dsh}</code></td>
               <td>{plugin.surface}</td>
               <td>{plugin.requires?.join('；') ?? '无'}</td>
             </tr>

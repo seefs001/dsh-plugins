@@ -45,7 +45,7 @@
 
 ## 安装与更新
 
-需要 DSH `>=0.2.2-rc.2 <0.3.0`、Web 界面和至少一个已配置的模型 provider。
+需要 Web 界面和至少一个已配置的模型 provider。
 
 ```bash
 dsh plugin --profile web add link:$PWD/packages/message-actions

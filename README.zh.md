@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件集。每个插件是独立的 bundle，覆盖模型选择、会话管理、对话阅读和新工具。
+seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件集，日常使用，跟随最新 DSH 持续更新。每个插件是独立的 bundle，覆盖模型选择、会话管理、对话阅读和新工具。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -13,7 +13,7 @@ seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 
 ## 插件
 
-最低 DSH 版本默认是 rc.1，表里标了 rc.2 的除外。“运行位置”说明插件有 Host 部分、浏览器部分，还是两者都有。
+“运行位置”说明插件有 Host 部分、浏览器部分，还是两者都有。
 
 ### 模型与审查
 
@@ -31,10 +31,10 @@ seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 |---|---|---|
 | [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序。 | Web |
 | [`dsh-session-groups`](packages/session-groups) | 自定义会话分组和组内置顶，所有浏览器和 Agent 共享。 | Host + Web |
-| [`dsh-workspace-manager`](packages/workspace-manager) | 移除保存的工作区记录，清理目录已不存在的条目，不删文件和会话。rc.2。 | Host + Web |
-| [`dsh-branch-switcher`](packages/branch-switcher) | 新会话发出首条消息前，在新建会话页切换到已有的本地分支。rc.2，需要 Change requests & worktrees。 | Host + Web |
+| [`dsh-workspace-manager`](packages/workspace-manager) | 移除保存的工作区记录，清理目录已不存在的条目，不删文件和会话。 | Host + Web |
+| [`dsh-branch-switcher`](packages/branch-switcher) | 新会话发出首条消息前，在新建会话页切换到已有的本地分支。需要 Change requests & worktrees。 | Host + Web |
 | [`dsh-git-changes`](packages/git-changes) | 输入框下方显示分支和未提交改动，点击打开 diff。需要 Change requests & worktrees。 | Web |
-| [`dsh-keep-awake`](packages/keep-awake) | Host 运行期间阻止 macOS 闲置休眠，屏幕仍可熄灭和锁定。rc.2。 | Host |
+| [`dsh-keep-awake`](packages/keep-awake) | Host 运行期间阻止 macOS 闲置休眠，屏幕仍可熄灭和锁定。 | Host |
 
 ### 对话阅读
 
@@ -43,7 +43,7 @@ seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-compaction-status`](packages/compaction-status) | 上下文压缩时，在输入框上方显示一行状态和已等待时间。 | Host + Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 用户消息里的引用变成可点击的块，跳回原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 工具调用行可以打开技能文件、完整输出、结果文件和子代理对话。 | Web |
-| [`dsh-message-actions`](packages/message-actions) | 回复旁的 **Wait, what?** 用独立模型调用解释这条回复，不写入对话。rc.2。 | Host + Web |
+| [`dsh-message-actions`](packages/message-actions) | 回复旁的 **Wait, what?** 用独立模型调用解释这条回复，不写入对话。 | Host + Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | 可拖动的 GPT / Claude 角色，跟随当前显示的对话。角色素材另有非商业条款。 | Web |
 
 ### 工具与集成
@@ -52,7 +52,7 @@ seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 |---|---|---|
 | [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页和 X）与 `openai_search`，使用已有 Responses provider 的托管搜索。 | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | 新增 `openai_image` 与 `grok_image`，使用已有 Responses provider 的托管画图工具，并把图片保存为文件。 | Host + Web |
-| [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 1.5.0 原版编程工具、QuickJS codemode，以及按会话选择的 DSH 和 MCP 工具。需要 DSH rc.2 或更新版本，不需要改 DSH 源码。 | Host + Web |
+| [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具、QuickJS codemode，以及按会话选择的 DSH 和 MCP 工具。不需要改 DSH 源码。 | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | 把 Pi 的 `~/.pi/agent/mcp.json` 里的 MCP 服务器注册到 DSH MCP 管理器，改文件即时生效。 | Host |
 | [`dsh-switchboard`](packages/switchboard) | 把 DSH 接入 Switchboard 中继，让 Telegram、Discord 和 GitHub 的请求在 DSH 会话里运行。 | Host |
 
@@ -60,8 +60,7 @@ seefs 维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 
 ## 环境要求
 
-- DSH `>=0.2.2-rc.1 <0.3.0`，上表标 rc.2 的包要求 `>=0.2.2-rc.2`。
-- Node.js `^22.19.0 || >=24`。
+- 最新版 DSH。这些插件是我自用的，只跟随最新 DSH 和本仓库 `main` 分支，不维护旧版本兼容。
 - 带 Web 部分的插件需要 Web 界面（`dsh web`）。
 
 ## 安装
@@ -92,7 +91,7 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 
 ## 文档
 
-[文档站](https://seefs001.github.io/dsh-plugins/)包括安装、配置与数据、版本要求与使用边界，以及每个插件的页面。站点用 Fumadocs 构建，部署到 GitHub Pages。
+[文档站](https://seefs001.github.io/dsh-plugins/)包括安装、配置与数据、依赖与使用边界，以及每个插件的页面。站点用 Fumadocs 构建，部署到 GitHub Pages。
 
 ```bash
 pnpm run docs:dev        # 本地预览

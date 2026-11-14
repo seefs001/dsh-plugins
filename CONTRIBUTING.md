@@ -49,7 +49,7 @@ If the profile has HMR enabled, Plugin Manager and HMR recompositions replace pl
 
 The Fumadocs site lives in `apps/docs`, separate from the plugin packages. Run `pnpm run docs:dev` from the root to preview it.
 
-Plugin versions, DSH ranges, and titles are read from each package's `package.json` and `locale/zh.json` at build time. When you add a package, add an entry to `apps/docs/lib/plugins.ts`, create `apps/docs/content/docs/plugins/<name>.mdx`, and list it in `plugins/meta.json`. The docs build fails if a package has no entry. Keep plugin pages in sync with package READMEs.
+Package names and titles are read from each package's `package.json` and `locale/zh.json` at build time. When you add a package, add an entry to `apps/docs/lib/plugins.ts`, create `apps/docs/content/docs/plugins/<name>.mdx`, and list it in `plugins/meta.json`. The docs build fails if a package has no entry. Keep plugin pages in sync with package READMEs.
 
 [apps/docs/README.md](apps/docs/README.md) covers deployment. Validate with `pnpm run docs:typecheck` and `NEXT_PUBLIC_BASE_PATH=/dsh-plugins pnpm run docs:build`. Pull requests build the site without deploying; changes on `main` deploy through the Documentation workflow once Pages is enabled.
 

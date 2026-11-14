@@ -1,6 +1,6 @@
 # dsh-workspace-manager
 
-管理 DSH 保存的工作区记录。插件包含 Host 和 Web 两部分，需要 DSH `>=0.2.2-rc.2 <0.3.0` 和默认 Web profile 里的 Workspace 服务。
+管理 DSH 保存的工作区记录。插件包含 Host 和 Web 两部分，需要默认 Web profile 里的 Workspace 服务。
 
 ## 安装
 

@@ -5,7 +5,6 @@ While the plugin is enabled, the Mac running the DSH Host does not fall into idl
 ## Requirements
 
 - macOS with the built-in `/usr/bin/caffeinate` utility.
-- DSH `>=0.2.2-rc.2 <0.3.0` and Node.js `^22.19.0 || >=24`.
 - The plugin acts on the computer that hosts DSH; the device viewing the Web GUI is unaffected. On other operating systems it logs a warning and does nothing.
 
 ## Install

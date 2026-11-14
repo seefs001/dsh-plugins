@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Workspace manager",
-    "description": "Remove saved workspaces and clean up missing directory entries. Files and sessions are kept. Directory checks run on the Host, not in the browser. Requires DSH rc.2 or newer."
+    "description": "Remove saved workspaces and clean up missing directory entries. Files and sessions are kept. Directory checks run on the Host, not in the browser."
   }
 }

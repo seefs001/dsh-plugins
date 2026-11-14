@@ -1,16 +1,16 @@
 # pi
 
-An isolated `pi` Agent preset for DeepSeek Harness. It runs Pi 1.5.0's original coding tools and QuickJS codemode inside DSH's sessions, permissions, sandbox, model routing, and MCP connections. The default preset and other sessions are unchanged. The preset's display name has no version suffix, but the implementation is pinned to Pi 1.5.0.
+An isolated `pi` Agent preset for DeepSeek Harness. It runs Pi's original coding tools and QuickJS codemode inside DSH's sessions, permissions, sandbox, model routing, and MCP connections. The default preset and other sessions are unchanged.
 
 The Chinese guide is on the [documentation site](https://seefs001.github.io/dsh-plugins/docs/plugins/pi-tools/).
 
 ## Requirements
 
-- DSH `>=0.2.2-rc.2 <0.3.0`. No DSH source changes are required. The package uses an ignorable `plugin:dsh-pi-tools/selection` Session record, the `conversation.hero.options` slot, and keyed `tool.call.toolview` entries. Codemode grammar sampling also wraps an internal pi-ai entry point; see [Codemode strings](#codemode-strings).
+- No DSH source changes are required. The package uses an ignorable `plugin:dsh-pi-tools/selection` Session record, the `conversation.hero.options` slot, and keyed `tool.call.toolview` entries. Codemode grammar sampling also wraps an internal pi-ai entry point; see [Codemode strings](#codemode-strings).
 - `rg` and `fd` available in DSH's execution environment, or configured with `rgCommand` and `fdCommand`. The adapter does not download binaries.
 - No global Pi CLI, Pi login, or Pi model configuration.
 
-The package depends on `@earendil-works/pi-coding-agent@1.5.0` and `@earendil-works/pi-ai@1.5.0` without ranges and checks the version when it loads. It imports fixed private Pi modules, so upgrading Pi needs a compatibility review.
+The package bundles `@earendil-works/pi-coding-agent` and `@earendil-works/pi-ai`. It imports private Pi modules, so upgrading Pi needs a compatibility review.
 
 ## Tools
 
@@ -168,7 +168,7 @@ When codemode is selected, its string guidance covers every string argument: fil
 
 ## Web tool cards
 
-The Web half claims the keyed `codemode` and `tool_search` views, which have no DSH built-in view. Successful Pi 1.5.0 text results show codemode call summaries with durations and errors, and loaded tool names. Pending and failed calls show a plain status row; failed calls include the error text. Pi `read`, `write` and `edit` keep DSH's built-in rows. Disclosure follows DSH's turn controls, and cards do not show live script progress.
+The Web half claims the keyed `codemode` and `tool_search` views, which have no DSH built-in view. Successful Pi text results show codemode call summaries with durations and errors, and loaded tool names. Pending and failed calls show a plain status row; failed calls include the error text. Pi `read`, `write` and `edit` keep DSH's built-in rows. Disclosure follows DSH's turn controls, and cards do not show live script progress.
 
 The root companion entry sets `presentationOnly: true`, which registers no Host tools, prompt sections, executor, or session state. It serves the `/pi-tools/options` route for the owner, which finds the live Pi preset generation that owns the session. The Pi tools exist only inside the `pi` preset. Styles and locale registrations go away when the companion unloads.
 

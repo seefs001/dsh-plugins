@@ -7,7 +7,7 @@ export function baseOptions(): BaseLayoutProps {
       title: (
         <>
           <span aria-hidden className="dp-logo">#</span>
-          <span className="font-mono font-semibold tracking-tight">dsh-plugins</span>
+          <span className="font-mono font-semibold tracking-tight">seefs/dsh-plugins</span>
         </>
       ),
     },
@@ -15,7 +15,7 @@ export function baseOptions(): BaseLayoutProps {
     links: [
       { text: '安装', url: '/docs/quick-start' },
       { text: '插件', url: '/docs/plugins' },
-      { text: '版本与边界', url: '/docs/compatibility' },
+      { text: '依赖与边界', url: '/docs/compatibility' },
     ],
   }
 }

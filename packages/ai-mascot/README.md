@@ -33,8 +33,6 @@ A small GPT / Claude companion in the lower-right corner of the DSH Web UI. It f
 
 ## Install
 
-Requires Node.js `^22.19.0 || >=24.0.0` and DSH `>=0.2.2-rc.1 <0.3.0`.
-
 For local development, add the package through DSH's Plugin Manager with a `link:` spec that points to this directory, for example `link:/absolute/path/to/dsh-plugins/packages/ai-mascot`, then enable the `dsh-ai-mascot` bundle. The package is plain JavaScript and needs no build or extra dependencies. Plugin and profile changes affect every session in the profile.
 
 Installing this package does not grant rights to the referenced artwork. Read the terms below before enabling it, especially for public or commercial use.
