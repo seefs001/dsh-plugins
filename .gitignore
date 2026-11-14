@@ -6,4 +6,5 @@ coverage/
 .next/
 .source/
 apps/docs/out/
+jobs/
 *.tsbuildinfo
