@@ -20,6 +20,8 @@ window.__ModuleLoader__.load({
       selectSection: 'Select all in {section}', clearSection: 'Clear all in {section}',
       selectMatches: 'Select {count} shown in {section}', clearMatches: 'Clear {count} shown in {section}',
       familyPi: 'Pi', familyDsh: 'DSH', familyMcp: 'MCP', optInTag: 'opt-in',
+      showDetails: 'Per-tool settings', showSimple: 'Simple view',
+      simpleHint: 'Turn whole groups on or off. Open per-tool settings to pick single tools.',
       sectionPi: 'Pi coding tools', sectionAgents: 'Agents and delegation', sectionPlanning: 'Plans, goals and todos',
       sectionJobs: 'Jobs and schedules', sectionWeb: 'Web, search and images', sectionFiles: 'Presentation and Office',
       sectionInteraction: 'Skills and questions', sectionPlugins: 'Plugins', sectionOther: 'Other DSH tools',
@@ -41,6 +43,8 @@ window.__ModuleLoader__.load({
       selectSection: '全选{section}', clearSection: '清空{section}',
       selectMatches: '选中{section}中显示的 {count} 个', clearMatches: '清空{section}中显示的 {count} 个',
       familyPi: 'Pi', familyDsh: 'DSH', familyMcp: 'MCP', optInTag: '非默认',
+      showDetails: '逐个设置', showSimple: '精简视图',
+      simpleHint: '按分组开关工具。需要单独挑选时，点「逐个设置」。',
       sectionPi: 'Pi 编程工具', sectionAgents: '代理与委派', sectionPlanning: '计划、目标与待办',
       sectionJobs: '作业与定时', sectionWeb: '网页、搜索与画图', sectionFiles: '展示与 Office',
       sectionInteraction: '技能与提问', sectionPlugins: '插件', sectionOther: '其他 DSH 工具',
@@ -95,6 +99,10 @@ window.__ModuleLoader__.load({
 .pi-tools-section-family{flex:none;padding:0 6px;border-radius:var(--dsw-radius-xs,4px);background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:18px}
 .pi-tools-section-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pi-tools-section-count{margin-left:auto;flex:none;font-size:12px;font-weight:400;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
+.pi-tools-simple-row{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;cursor:pointer;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.pi-tools-simple-row+.pi-tools-simple-row{border-top:0.5px solid var(--dsw-alias-border-l3)}
+.pi-tools-simple-row:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.pi-tools-simple-hint{margin:0 0 10px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
 .pi-tools-section-list{list-style:none;margin:0;padding:0 0 6px}
 .pi-tools-option-label{display:flex;gap:10px;align-items:flex-start;padding:6px 12px 6px 36px;cursor:pointer}
 .pi-tools-option-label .pi-tools-check{margin-top:2px}
@@ -343,8 +351,20 @@ window.__ModuleLoader__.load({
       })
     }
 
+    // Simple (group-level) view is the default; the choice is remembered per browser.
+    const VIEW_KEY = 'dsh-pi-tools:picker-view'
+    function readView() {
+      try { return localStorage.getItem(VIEW_KEY) === 'detailed' ? 'detailed' : 'simple' } catch { return 'simple' }
+    }
+    function writeView(view) {
+      try { localStorage.setItem(VIEW_KEY, view) } catch {}
+    }
+
     function PiToolPicker({ catalog, committed, reload, save, t }) {
       const disabled = false
+      const [view, setViewState] = React.useState(readView)
+      const setView = next => { setViewState(next); writeView(next) }
+      const simple = view === 'simple'
       const [open, setOpen] = React.useState(false)
       const [draft, setDraft] = React.useState(undefined)
       const [query, setQuery] = React.useState('')
@@ -395,6 +415,19 @@ window.__ModuleLoader__.load({
         } finally {
           setSaving(false)
         }
+      }
+      const renderSimpleRow = section => {
+        const count = section.tools.filter(tool => selectedSet.has(tool.name)).length
+        return h('label', { key: section.id, className: 'pi-tools-simple-row',
+          title: section.tools.map(tool => tool.name).join(', ') },
+        h(SectionCheckbox, {
+          rows: section.tools, selected: selectedSet, disabled: saving, onChange: setMany,
+          labels: { select: t('selectSection', { section: section.label }), clear: t('clearSection', { section: section.label }) },
+        }),
+        h('span', { className: 'pi-tools-section-family', 'aria-hidden': true }, t(section.family)),
+        h('span', { className: 'pi-tools-section-label' }, section.label),
+        h('span', { className: 'pi-tools-section-count' },
+          t('sectionCount', { selected: count, total: section.tools.length })))
       }
       const status = [t('selectedCount', { selected: tools.filter(tool => selectedSet.has(tool.name)).length, total: tools.length }),
         filtering ? t('matchCount', { count: matchCount }) : ''].filter(Boolean).join(' · ')
@@ -452,7 +485,16 @@ window.__ModuleLoader__.load({
             h(Button, { variant: 'primary', onClick: commit, disabled: !ready || saving || disabled },
               t(saving ? 'saving' : 'save'))),
         },
-        !ready ? h('p', { role: 'status' }, t('unavailable')) : h(React.Fragment, null,
+        !ready ? h('p', { role: 'status' }, t('unavailable')) : simple ? h(React.Fragment, null,
+          h('p', { className: 'pi-tools-simple-hint' }, t('simpleHint')),
+          h('div', { className: 'pi-tools-options-actions' },
+            h(Button, { variant: 'outline', size: 'sm', disabled: saving, onClick: () => setDraft([...catalog.defaults]) }, t('defaults')),
+            h(Button, { variant: 'ghost', size: 'sm', disabled: saving, onClick: () => setView('detailed') }, t('showDetails')),
+            h('span', { className: 'pi-tools-options-count', role: 'status' }, status)),
+          noGateway ? h('p', { className: 'pi-tools-options-warning' }, t('noGateway')) : null,
+          h('div', { className: 'pi-tools-options-list' },
+            sections.length ? sections.map(renderSimpleRow) : h('p', { className: 'pi-tools-options-empty' }, t('noMatches')))
+        ) : h(React.Fragment, null,
           h('div', { className: 'pi-tools-options-toolbar' },
             h(Input, { type: 'search', className: 'pi-tools-options-filter', value: query,
               icon: h(IconSearchOutlineRegular, { size: 16 }),
@@ -466,6 +508,8 @@ window.__ModuleLoader__.load({
             h(Button, { variant: 'ghost', size: 'sm', disabled: filtering || sections.length < 2,
               onClick: () => setCollapsed(Object.fromEntries(sections.map(section => [section.id, !anyFolded]))) },
             t(anyFolded ? 'expandAll' : 'collapseAll')),
+            h(Button, { variant: 'ghost', size: 'sm', disabled: saving,
+              onClick: () => { setQuery(''); setSelectedOnly(false); setView('simple') } }, t('showSimple')),
             h('span', { className: 'pi-tools-options-count', role: 'status' }, status)),
           noGateway ? h('p', { className: 'pi-tools-options-warning' }, t('noGateway')) : null,
           h('div', { className: 'pi-tools-options-list' },

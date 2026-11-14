@@ -66,6 +66,10 @@ Selected existing DSH MCP connections are bridged, including resource helpers. T
 
 Select **pi** on the new-conversation screen, then open **Tools**. The dialog groups Pi tools, DSH tools by purpose, and MCP tools by server.
 
+- The dialog opens in a simple view: one row per section with a checkbox, a selected count, and **Restore defaults**. Hover a row to see its tool names. **Per-tool settings** switches to the detailed view below; **Simple view** switches back. The browser remembers the last view.
+
+In the detailed view:
+
 - The filter matches tool names, descriptions, and section names. While filtering, every section with a match is shown expanded and its fold button is disabled; clearing the filter restores the previous fold state.
 - Each section header has a checkbox. Without a filter it selects or clears the whole section. With a filter it acts only on the visible matches and says so in its label, so hidden tools are never changed.
 - Folding or expanding a section never changes a selection.
