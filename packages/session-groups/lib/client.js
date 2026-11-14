@@ -4,6 +4,9 @@
  * - A "Session groups" launcher in the sidebar panel list opens a main panel
  *   that lists the custom groups; pinned sessions lead each group, the rest
  *   follow by last activity.
+ * - The sidebar session list shows the groups as folders above the built-in
+ *   Workspace list; grouped sessions leave that list while they belong to a
+ *   group, so it keeps only the remaining sessions.
  * - The session right-click menu gains "Add to group", "Pin in group" and
  *   "Remove from group".
  *
@@ -15,6 +18,7 @@ window.__ModuleLoader__.load({
   id: 'dsh-session-groups',
   factory(require) {
     const React = require('react')
+    const ReactDOM = require('react-dom')
     const h = React.createElement
     const NS = 'session-groups'
     const PANEL_ID = 'session-groups'
@@ -55,6 +59,7 @@ window.__ModuleLoader__.load({
       expand: 'Expand',
       sessions: '{n} sessions',
       dropNew: 'Drop here to create a new group',
+      dropInto: 'Drag sessions here',
     }
     const ZH = {
       panel: '会话分组',
@@ -92,13 +97,23 @@ window.__ModuleLoader__.load({
       expand: '展开',
       sessions: '{n} 个会话',
       dropNew: '拖到这里新建分组',
+      dropInto: '把会话拖到这里',
     }
 
     // ---------------------------------------------------------------- store
     /** Host-owned groups plus local view state (collapsed groups, the group being renamed). */
+    // Collapsed groups are a browser-local view preference shared by the sidebar and the page.
+    const COLLAPSED_KEY = 'dsh-session-groups.collapsed'
+    function readCollapsed() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]')
+        return new Set(Array.isArray(raw) ? raw.filter(x => typeof x === 'string') : [])
+      } catch { return new Set() }
+    }
+
     function createStore() {
       let state = { groups: [], status: 'loading', error: null }
-      let view = { collapsed: new Set(), editing: null }
+      let view = { collapsed: readCollapsed(), editing: null }
       const listeners = new Set()
       const emit = () => listeners.forEach(fn => fn())
       return {
@@ -106,7 +121,12 @@ window.__ModuleLoader__.load({
         subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn) },
         set(patch) { state = { ...state, ...patch }; emit() },
         view: () => view,
-        setView(patch) { view = { ...view, ...patch }; state = { ...state }; emit() },
+        setView(patch) {
+          view = { ...view, ...patch }
+          if (patch.collapsed) { try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...patch.collapsed])) } catch {} }
+          state = { ...state }
+          emit()
+        },
       }
     }
 
@@ -156,6 +176,12 @@ window.__ModuleLoader__.load({
     const IconGroups = ({ size = 16 }) => svg(size, [
       h('path', { key: 'a', d: 'M2 4.5h4l1.2 1.3H14v6.7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z' }),
       h('path', { key: 'b', d: 'M2 4.5v-1a1 1 0 0 1 1-1h2.6l1.2 1.3' }),
+    ])
+    const IconFolderClosed = ({ size = 16 }) => svg(size,
+      h('path', { d: 'M2 4.2a1 1 0 0 1 1-1h3l1.3 1.4H13a1 1 0 0 1 1 1v6.2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z' }))
+    const IconFolderOpen = ({ size = 16 }) => svg(size, [
+      h('path', { key: 'a', d: 'M2 11.8V4.2a1 1 0 0 1 1-1h3l1.3 1.4H12a1 1 0 0 1 1 1V7' }),
+      h('path', { key: 'b', d: 'M2 11.8 3.6 7.7a1 1 0 0 1 .9-.7h9.1a.6.6 0 0 1 .6.8l-1.4 4a1 1 0 0 1-.9.7H3a1 1 0 0 1-1-.7z' }),
     ])
     const IconPin = ({ size = 14, filled }) => svg(size, [
       h('path', { key: 'a', d: 'M6 2.5h4l-.6 3.6 2.1 2.2v1H4.5v-1l2.1-2.2z', fill: filled ? 'currentColor' : 'none' }),
@@ -251,6 +277,47 @@ window.__ModuleLoader__.load({
 @media (prefers-reduced-motion:reduce){.sg-sp{animation:none}.sg-page *{transition:none!important}}
 `
 
+    // Sidebar folders. Geometry follows the built-in Workspace rows through the
+    // sidebar's inherited --dsh-sidebar-* properties.
+    const SIDEBAR_CSS = `
+.sgs-host:only-child{display:none}
+.sgs-root{margin-bottom:10px;padding-bottom:8px;border-bottom:.5px solid var(--dsw-alias-border-l1,transparent)}
+.sgs-root>*+*,.sgs-folder>*+*{margin-top:2px}
+.sgs-folder{border-radius:var(--dsw-radius-md,8px);transition:box-shadow .12s var(--ds-ease-in-out,ease)}
+.sgs-folder.sgs-dropping{box-shadow:inset 0 0 0 1.5px var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary))}
+.sgs-row{position:relative;display:flex;align-items:center;height:32px;border-radius:var(--dsw-radius-md,8px);border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;background-clip:padding-box;box-sizing:border-box;padding:0 8px 0 calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));cursor:pointer;user-select:none;-webkit-user-select:none;color:var(--dsw-alias-label-primary);outline:none}
+.sgs-row:focus-visible{box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary))}
+.sgs-row.sgs-selected{background-color:var(--dsw-alias-interactive-bg-hover)}
+@media (hover:hover){.sgs-row:hover{background-color:var(--dsw-alias-interactive-bg-hover)}}
+.sgs-slot{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:20px;color:var(--dsw-alias-label-tertiary)}
+.sgs-folder-icon.sgs-active{color:var(--dsw-alias-state-business-primary)}
+.sgs-chev{display:none;align-items:center}
+@media (hover:hover){.sgs-head:hover .sgs-chev{display:inline-flex}.sgs-head:hover .sgs-glyph{display:none}}
+.sgs-glyph{display:inline-flex}
+.sgs-title{flex:1;min-width:0;margin:0 6px 0 var(--dsh-sidebar-label-gap,6px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px}
+.sgs-member .sgs-title{color:var(--dsw-alias-label-primary)}
+.sgs-rest{flex:none;display:inline-flex;align-items:center;gap:4px}
+.sgs-time,.sgs-count{font-size:10px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.sgs-count{font-size:12px;line-height:20px}
+.sgs-pinmark{display:inline-flex;color:var(--dsw-alias-label-caption,var(--dsw-alias-label-tertiary))}
+.sgs-actions{flex:none;display:none;align-items:center;gap:2px;margin-right:-4px}
+@media (hover:hover){.sgs-row:hover .sgs-actions,.sgs-row:focus-within .sgs-actions{display:inline-flex}.sgs-row:hover .sgs-rest,.sgs-row:focus-within .sgs-rest{display:none}}
+@media (hover:none){.sgs-head .sgs-actions{display:inline-flex}.sgs-head .sgs-rest{display:none}}
+.sgs-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
+.sgs-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.12))}
+.sgs-btn[aria-pressed=true]{color:var(--dsw-alias-label-primary)}
+.sgs-btn.sgs-danger:hover{color:var(--dsw-alias-state-error-primary)}
+.sgs-running{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));animation:sgs-pulse 1.4s ease-in-out infinite}
+@keyframes sgs-pulse{50%{opacity:.35}}
+.sgs-rename{flex:1;min-width:0;height:24px;margin:0 0 0 var(--dsh-sidebar-label-gap,6px);padding:0 6px;border:.5px solid var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary));border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:20px;outline:none}
+.sgs-hint{height:28px;padding-inline-start:calc(var(--dsh-sidebar-row-padding,12px) + 16px + var(--dsh-sidebar-label-gap,6px));font-size:12px;line-height:28px;color:var(--dsw-alias-label-tertiary)}
+.sgs-dropnew{border:1px dashed var(--dsw-alias-border-l4,var(--dsw-alias-border-l2));color:var(--dsw-alias-label-tertiary)}
+.sgs-dropnew .sgs-title{color:inherit;font-size:13px}
+.sgs-dropnew.sgs-dropping{border-color:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}
+@media (pointer:coarse){.sgs-rename{font-size:16px}}
+@media (prefers-reduced-motion:reduce){.sgs-running{animation:none}.sgs-folder{transition:none}}
+`
+
     return {
       inject: ['slots', 'locale', 'sessions', 'uiWorkspace', 'contextMenus', 'layout'],
       apply(ctx) {
@@ -287,8 +354,6 @@ window.__ModuleLoader__.load({
           }
         }
 
-        const openPanel = () => { try { ctx.layout.selectPanel(PANEL_ID) } catch {} }
-
         // ------------------------------------------------- session context menu
         ctx.effect(() => ctx.contextMenus.register({
           id: 'session-groups',
@@ -310,7 +375,6 @@ window.__ModuleLoader__.load({
               run: async () => {
                 const { groupId } = await op({ action: 'create', name: t('defaultName'), sessionId })
                 store.setView({ editing: groupId })
-                openPanel()
               },
             })
             const actions = [{
@@ -412,7 +476,7 @@ window.__ModuleLoader__.load({
         }
 
         // -------------------------------------------------------- components
-        function GroupName({ group, editing }) {
+        function GroupName({ group, editing, className = 'sg-rename' }) {
           const [value, setValue] = React.useState(group.name)
           const ref = React.useRef(null)
           React.useEffect(() => {
@@ -425,7 +489,9 @@ window.__ModuleLoader__.load({
             if (name && name !== group.name) void op({ action: 'rename', groupId: group.id, name }).catch(() => {})
           }
           return h('input', {
-            ref, className: 'sg-rename', value, maxLength: 80, 'aria-label': t('rename'),
+            ref, className, value, maxLength: 80, 'aria-label': t('rename'),
+            onClick: e => e.stopPropagation(),
+            onDoubleClick: e => e.stopPropagation(),
             onChange: e => setValue(e.target.value),
             onBlur: commit,
             onKeyDown: e => {
@@ -621,6 +687,231 @@ window.__ModuleLoader__.load({
                   h(IconPlus, { size: 14 }), t('dropNew'))
                 : null))
         }
+
+        // ------------------------------------------------- sidebar folders
+        // The built-in Workspace browser owns the session list; it marks its
+        // scroller `data-sidebar-list-area` and each Session row
+        // `data-row-key="session:<id>"` as stable integration markers. The
+        // groups render as folders at the top of that scroller, and a style
+        // rule hides grouped sessions from the built-in rows below.
+        const MEMBER_MIME = 'application/x-dsh-session-group-member'
+        const GROUP_MIME = 'application/x-dsh-session-group'
+        const hasType = (e, type) => Array.from(e.dataTransfer?.types ?? []).includes(type)
+        const usePanelInfo = () => React.useSyncExternalStore(
+          fn => ctx.layout.panelInfo.subscribe(fn),
+          () => ctx.layout.panelInfo.getSnapshot(),
+        )
+
+        /** The Workspace browser's list scroller, and whether its search is showing results instead. */
+        function useListArea() {
+          const [found, setFound] = React.useState({ area: null, searching: false })
+          React.useEffect(() => {
+            let frame = 0
+            const check = () => {
+              frame = 0
+              const area = document.querySelector('[data-sidebar-list-area]')
+              const input = document.querySelector('[data-sidebar-workspace-header] input')
+              const searching = Boolean(input && input.value.trim())
+              setFound(prev => prev.area === area && prev.searching === searching ? prev : { area, searching })
+            }
+            const schedule = () => { if (!frame) frame = requestAnimationFrame(check) }
+            check()
+            const observer = new MutationObserver(schedule)
+            observer.observe(document.body, { childList: true, subtree: true })
+            document.addEventListener('input', schedule, true)
+            return () => {
+              observer.disconnect()
+              document.removeEventListener('input', schedule, true)
+              if (frame) cancelAnimationFrame(frame)
+            }
+          }, [])
+          return found
+        }
+
+        function SidebarMember({ id, summary, group, pinned, current, locale }) {
+          const title = summary.displayTitle || summary.title || id
+          const stop = fn => e => { e.preventDefault(); e.stopPropagation(); fn() }
+          const open = () => ctx.uiWorkspace.openSession(id)
+          return h('div', {
+            className: `sgs-row sgs-member${current ? ' sgs-selected' : ''}`,
+            role: 'treeitem', 'aria-selected': current, tabIndex: 0, title,
+            draggable: true,
+            onDragStart: e => {
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('text/plain', id)
+              e.dataTransfer.setData(MEMBER_MIME, id)
+            },
+            onClick: open,
+            onKeyDown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); open() } },
+            onContextMenu: e => {
+              e.preventDefault()
+              e.stopPropagation()
+              ctx.contextMenus.open({ kind: 'session', value: { sessionId: id, displayTitle: summary.title ?? '' } }, { x: e.clientX, y: e.clientY })
+            },
+          },
+          h('span', { className: 'sgs-slot' }, summary.running ? h('span', { className: 'sgs-running', 'aria-hidden': true }) : null),
+          h('span', { className: 'sgs-title' }, title),
+          h('span', { className: 'sgs-rest' },
+            h('span', { className: 'sgs-time' }, relativeTime(summary.updatedAt, locale)),
+            pinned ? h('span', { className: 'sgs-pinmark', title: t('unpin') }, h(IconPin, { size: 13, filled: true })) : null),
+          h('span', { className: 'sgs-actions' },
+            h('button', {
+              type: 'button', className: 'sgs-btn', tabIndex: -1, 'aria-pressed': pinned,
+              title: pinned ? t('unpin') : t('pin'), 'aria-label': pinned ? t('unpin') : t('pin'),
+              onClick: stop(() => void op({ action: 'pin', sessionId: id, pinned: !pinned }).catch(() => {})),
+            }, h(IconPin, { size: 14, filled: pinned })),
+            h('button', {
+              type: 'button', className: 'sgs-btn', tabIndex: -1,
+              title: `${t('remove')} · ${group.name}`, 'aria-label': t('remove'),
+              onClick: stop(() => void op({ action: 'remove', sessionId: id }).catch(() => {})),
+            }, h(IconX, { size: 14 }))))
+        }
+
+        function SidebarFolder({ group, index, groups, list, view, currentId, locale }) {
+          const collapsed = view.collapsed.has(group.id)
+          const editing = view.editing === group.id
+          const [over, setOver] = React.useState(false)
+          const depth = React.useRef(0)
+          const setCollapsed = value => {
+            const next = new Set(view.collapsed)
+            if (value) next.add(group.id); else next.delete(group.id)
+            store.setView({ collapsed: next })
+          }
+          const members = orderedMembers(group, list.byId)
+            .filter(id => list.byId[id] && list.byId[id].origin !== 'subagent')
+          const pinned = new Set(group.pinned)
+          const containsCurrent = currentId !== undefined && group.sessionIds.includes(currentId)
+          const accepts = e => hasType(e, GROUP_MIME) || hasType(e, 'text/plain')
+          const dropProps = {
+            onDragEnter: e => { if (!accepts(e)) return; e.preventDefault(); depth.current += 1; setOver(true) },
+            onDragOver: e => { if (!accepts(e)) return; e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move' },
+            onDragLeave: () => { depth.current = Math.max(0, depth.current - 1); if (depth.current === 0) setOver(false) },
+            onDrop: e => {
+              depth.current = 0
+              setOver(false)
+              if (hasType(e, GROUP_MIME)) {
+                e.preventDefault(); e.stopPropagation()
+                const dragged = e.dataTransfer.getData(GROUP_MIME)
+                const from = groups.findIndex(g => g.id === dragged)
+                if (from < 0 || from === index) return
+                const beforeGroupId = from < index ? groups[index + 1]?.id : group.id
+                void op({ action: 'move_group', groupId: dragged, beforeGroupId }).catch(() => {})
+                return
+              }
+              const id = e.dataTransfer.getData('text/plain')?.trim()
+              const summary = id ? list.byId[id] : undefined
+              if (!summary || summary.blank) return
+              e.preventDefault(); e.stopPropagation()
+              if (collapsed) setCollapsed(false)
+              if (!group.sessionIds.includes(id)) void op({ action: 'add', groupId: group.id, sessionId: id }).catch(() => {})
+            },
+          }
+          const stop = fn => e => { e.preventDefault(); e.stopPropagation(); fn() }
+          return h('div', { className: `sgs-folder${over ? ' sgs-dropping' : ''}`, role: 'group', ...dropProps },
+            h('div', {
+              className: 'sgs-row sgs-head', role: 'treeitem', 'aria-expanded': !collapsed, tabIndex: 0,
+              draggable: !editing,
+              onDragStart: e => {
+                e.dataTransfer.effectAllowed = 'move'
+                e.dataTransfer.setData(GROUP_MIME, group.id)
+              },
+              onClick: () => { if (!editing) setCollapsed(!collapsed) },
+              onDoubleClick: stop(() => store.setView({ editing: group.id })),
+              onKeyDown: e => {
+                if (e.target !== e.currentTarget) return
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCollapsed(!collapsed) }
+                if (e.key === 'F2') { e.preventDefault(); store.setView({ editing: group.id }) }
+              },
+            },
+            h('span', { className: `sgs-slot sgs-folder-icon${containsCurrent && collapsed ? ' sgs-active' : ''}` },
+              h('span', { className: 'sgs-glyph' }, h(collapsed ? IconFolderClosed : IconFolderOpen, { size: 16 })),
+              h('span', { className: 'sgs-chev' }, h(IconChevron, { size: 12, open: !collapsed }))),
+            editing
+              ? h(GroupName, { group, editing, className: 'sgs-rename' })
+              : h('span', { className: 'sgs-title sgs-gname' }, group.name),
+            editing ? null : h('span', { className: 'sgs-rest' }, h('span', { className: 'sgs-count' }, members.length)),
+            editing ? null : h('span', { className: 'sgs-actions' },
+              h('button', {
+                type: 'button', className: 'sgs-btn', tabIndex: -1, title: t('rename'), 'aria-label': t('rename'),
+                onClick: stop(() => store.setView({ editing: group.id })),
+              }, h(IconEdit, { size: 14 })),
+              h('button', {
+                type: 'button', className: 'sgs-btn sgs-danger', tabIndex: -1, title: t('delete'), 'aria-label': t('delete'),
+                onClick: stop(() => {
+                  if (window.confirm(tf('deleteConfirm', { name: group.name }))) void op({ action: 'delete', groupId: group.id }).catch(() => {})
+                }),
+              }, h(IconTrash, { size: 14 })))),
+            collapsed ? null : members.length === 0
+              ? h('div', { className: 'sgs-hint' }, t('dropInto'))
+              : members.map(id => h(SidebarMember, {
+                key: id, id, summary: list.byId[id], group, pinned: pinned.has(id), current: id === currentId, locale,
+              })))
+        }
+
+        function SidebarGroups() {
+          const { area, searching } = useListArea()
+          const loc = useLocale()
+          const { groups } = useGroups()
+          const list = useSessions()
+          const panel = usePanelInfo()
+          const view = store.view()
+          const dragging = useDocumentDragging()
+          const host = React.useMemo(() => {
+            const el = document.createElement('div')
+            el.className = 'sgs-host'
+            return el
+          }, [])
+          // Keep the folders first in the scroller; the browser's own children follow.
+          React.useLayoutEffect(() => {
+            if (!area) return undefined
+            if (area.firstChild !== host) area.insertBefore(host, area.firstChild)
+            return () => host.remove()
+          }, [area, host])
+          // Dropping a group member back onto the built-in list removes it from its group.
+          React.useEffect(() => {
+            if (!area) return undefined
+            const outside = e => hasType(e, MEMBER_MIME) && !host.contains(e.target)
+            const over = e => { if (outside(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'move' } }
+            const drop = e => {
+              if (!outside(e)) return
+              const id = e.dataTransfer.getData(MEMBER_MIME)
+              e.preventDefault()
+              e.stopPropagation()
+              if (id) void op({ action: 'remove', sessionId: id }).catch(() => {})
+            }
+            area.addEventListener('dragover', over)
+            area.addEventListener('drop', drop)
+            return () => { area.removeEventListener('dragover', over); area.removeEventListener('drop', drop) }
+          }, [area, host])
+          const newDrop = useSessionDrop(list, sessionId => {
+            void op({ action: 'create', name: t('defaultName'), sessionId })
+              .then(({ groupId }) => store.setView({ editing: groupId }))
+              .catch(() => {})
+          })
+          if (!area) return null
+          const currentId = panel.activePanelId == null
+            ? Object.values(list.byId).find(s => (s.retainedBy?.mainView ?? 0) > 0)?.id
+            : undefined
+          const hidden = searching ? [] : groups.flatMap(g => g.sessionIds).filter(id => /^[\w.:-]+$/.test(id))
+          const hideCss = hidden.length === 0 ? ''
+            : `${hidden.map(id => `[data-sidebar-list-area] [data-row-key="session:${id}"]`).join(',')}{display:none!important}`
+          const showDropNew = !searching && (dragging || newDrop.over)
+          return ReactDOM.createPortal(h(React.Fragment, null,
+            h('style', null, SIDEBAR_CSS + hideCss),
+            searching || (groups.length === 0 && !showDropNew) ? null : h('div', {
+              className: 'sgs-root', role: 'tree', 'aria-label': t('panel'),
+            },
+            groups.map((group, index) => h(SidebarFolder, {
+              key: group.id, group, index, groups, list, view, currentId, locale: loc.active,
+            })),
+            showDropNew ? h('div', { className: `sgs-row sgs-dropnew${newDrop.over ? ' sgs-dropping' : ''}`, ...newDrop.props },
+              h('span', { className: 'sgs-slot' }, h(IconPlus, { size: 14 })),
+              h('span', { className: 'sgs-title' }, t('dropNew'))) : null)), host)
+        }
+
+        ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+          name: 'shell.overlay', id: 'session-groups-sidebar', order: 1000,
+        }, SidebarGroups))
 
         ctx.slots.inject('main', () => ctx.slots.register({
           name: 'main', key: PANEL_ID, locale: NS,
