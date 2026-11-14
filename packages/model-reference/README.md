@@ -16,6 +16,8 @@ A chip is serialized into the prompt as:
 
 This is text for the model; it does not switch the current session's model. Copying a chip puts `#provider/model` on the clipboard.
 
+Sent messages, queued rows, and history show the same chip instead of this text. Hover the chip to see the full `#model(...)` form.
+
 ## Usage
 
 | Key | Action |

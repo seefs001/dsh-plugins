@@ -52,6 +52,28 @@ window.__ModuleLoader__.load({
       return `#model(${parts.join(', ')})`
     }
 
+    // Sent messages carry the serialized text; find it again so the bubble shows a chip.
+    const SENT = /#model\(provider=([^,\s()]+), model=([^,\s()]+)(?:, reasoning_effort=([^,\s()]+))?(, service_tier=priority)?\)/gu
+    const sentRule = {
+      id: 'model',
+      order: 30,
+      match(text, from) {
+        SENT.lastIndex = from
+        const m = SENT.exec(text)
+        if (!m) return undefined
+        const data = { provider: m[1], model: m[2], fast: m[4] !== undefined }
+        if (m[3] !== undefined) data.effort = m[3]
+        return { id: 'model', start: m.index, end: m.index + m[0].length, data }
+      },
+    }
+
+    // Same label the composer chip shows; falls back to IDs when the directory is not loaded.
+    function chipLabel(data, groups) {
+      const model = groups?.find(g => g.id === data.provider)?.models.find(m => m.id === data.model)
+      const effortName = data.effort === undefined ? undefined : model?.reasoning?.efforts.find(e => e.id === data.effort)?.name ?? data.effort
+      return `#${model?.name ?? data.model}${effortName ? ` · ${effortName}` : ''}${data.fast ? ' ⚡' : ''}`
+    }
+
     // Remembered per-model efforts (this plugin's Host) and, when dsh-service-tier
     // is installed, its fast models. A missing route simply leaves defaults.
     const prefs = {
@@ -137,7 +159,7 @@ window.__ModuleLoader__.load({
 `
 
     return {
-      inject: ['slots', 'locale', 'modelDirectories', 'inputTriggers', 'sessions'],
+      inject: ['slots', 'locale', 'modelDirectories', 'inputTriggers', 'sessions', 'uiConversation'],
       apply(ctx) {
         const { ModelDirectory } = require('@deepseek-ai/dsh-client-ui-model-selection')
         ctx.effect(() => installEffortMemory(ModelDirectory), 'model-reference: restore model efforts')
@@ -152,6 +174,28 @@ window.__ModuleLoader__.load({
           onPick: () => undefined,
           codec: { clipboardText: ref => { const r = parseRef(ref); return `#${r.provider}/${r.model}` }, serialize: ref => Promise.resolve(serialize(ref)) },
         }), 'model-reference: codec source')
+
+        // Sent user text: render `#model(...)` as the same chip; hover shows the full text.
+        const { ReferenceChip } = require('@deepseek-ai/dsh-client-ui-primitives')
+        ctx.uiConversation.userText.register(sentRule)
+        function SentModelReference({ node, raw, directory }) {
+          const groups = React.useSyncExternalStore(
+            fn => directory ? directory.store.subscribe(fn) : () => {},
+            () => directory ? directory.store.getSnapshot().groups : undefined)
+          React.useEffect(() => {
+            const s = directory?.store.getSnapshot()
+            if (s && s.groups.length === 0 && s.status !== 'loading') directory.load().catch(() => {})
+          }, [directory])
+          return h(ReferenceChip, { label: chipLabel(node.data, groups), title: raw })
+        }
+        ctx.slots.inject('conversation.user.text.node', () => ctx.slots.register({
+          name: 'conversation.user.text.node', key: 'model', priority: 100,
+          inject: sessionId => {
+            let directory = null
+            try { directory = ctx.modelDirectories.directoryFor(sessionId) } catch {}
+            return { directory }
+          },
+        }, SentModelReference))
 
         function HashMenu({ sessionId, directory, useInput, inputActions }) {
           React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
@@ -269,7 +313,7 @@ window.__ModuleLoader__.load({
         }, HashMenu))
       },
       // Helpers exposed for offline checks.
-      _internal: { parseRef, serialize, match, decorate, restoreEffort, installEffortMemory },
+      _internal: { parseRef, serialize, sentRule, chipLabel, match, decorate, restoreEffort, installEffortMemory },
     }
   },
 })
