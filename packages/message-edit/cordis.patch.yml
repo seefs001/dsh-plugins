@@ -1,0 +1,5 @@
+# Host half serves /message-edit/op; lib/client.js adds the Edit control above your messages.
+- insert:
+    - id: message-edit
+      name: dsh-message-edit
+      config: {}

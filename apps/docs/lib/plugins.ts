@@ -43,6 +43,7 @@ const entries: Entry[] = [
   { slug: 'quote-jump', category: 'conversation', surface: 'Web', summary: '用户消息中的引用变成可点击的块，跳回原文并高亮。' },
   { slug: 'tool-lens', category: 'conversation', surface: 'Web', summary: '工具调用行可直接打开技能文件、完整输出、结果文件和子代理对话。' },
   { slug: 'message-actions', category: 'conversation', surface: 'Host + Web', summary: '在回复旁点 Wait, what?，用独立模型调用解释这条回复，不写入对话。', requires: ['已配置的模型 provider'] },
+  { slug: 'message-edit', category: 'conversation', surface: 'Host + Web', summary: '在自己的消息上点编辑：分支重发，或只改写模型上下文并保留后续消息。' },
   { slug: 'ai-mascot', category: 'conversation', surface: 'Web', summary: '右下角的 GPT / Claude 小伙伴，跟随当前对话的真实活动。', requires: ['可访问外部素材站点'] },
   { slug: 'web-access', category: 'tools', surface: 'Host + Web', summary: '新增 grok_search 和 openai_search，复用已有 Responses provider 的托管搜索。', requires: ['支持托管搜索的 Responses provider'] },
   { slug: 'image-gen', category: 'tools', surface: 'Host + Web', summary: '新增 openai_image 和 grok_image，复用已有 Responses provider 的托管 image_generation 工具。', requires: ['支持托管 image_generation 的 Responses provider'] },

@@ -44,6 +44,7 @@ English | [中文](README.zh.md)
 | [`dsh-quote-jump`](packages/quote-jump) | Quotes in your messages become blocks that scroll to the quoted text and highlight it. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Tool-call rows that open the skill file, full output, result files, or the subagent's conversation. | Web |
 | [`dsh-message-actions`](packages/message-actions) | **Wait, what?** beside each reply explains it in an isolated model call that never enters the conversation. | Host + Web |
+| [`dsh-message-edit`](packages/message-edit) | **Edit** above your messages: branch and resend (clears later messages), or rewrite it in the model context and keep later messages. | Host + Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | Draggable GPT / Claude companions that follow the displayed conversation. The artwork has separate non-commercial terms. | Web |
 
 ### Tools and integrations

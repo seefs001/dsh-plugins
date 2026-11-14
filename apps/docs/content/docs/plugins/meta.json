@@ -5,7 +5,7 @@
     "index",
     "---模型与审查---", "model-reference", "service-tier", "remember-model", "subagent-model", "auto-review-model",
     "---会话与工作区---", "recent-sessions", "session-groups", "workspace-manager", "branch-switcher", "git-changes", "keep-awake",
-    "---对话阅读---", "compaction-status", "quote-jump", "tool-lens", "message-actions", "ai-mascot",
+    "---对话阅读---", "compaction-status", "quote-jump", "tool-lens", "message-actions", "message-edit", "ai-mascot",
     "---工具与集成---", "web-access", "image-gen", "pi-tools", "pi-mcp", "switchboard"
   ]
 }
