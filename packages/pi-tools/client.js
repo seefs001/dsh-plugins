@@ -218,8 +218,70 @@ window.__ModuleLoader__.load({
           inspect ? h('button', { type: 'button', className: 'pi-tools-inspect', onClick: inspect }, t('inspect')) : null) : null)
     }
 
-    function PiToolOptions(props) {
-      return props.agentPreset === 'pi' ? h(PiToolPicker, props) : null
+    const OPTIONS_PATH = 'pi-tools/options'
+
+    async function optionsRequest(init) {
+      const response = await fetch(init?.body ? OPTIONS_PATH : init.url, {
+        method: init?.body ? 'POST' : 'GET',
+        headers: { accept: 'application/json', ...init?.body ? { 'content-type': 'application/json' } : {} },
+        ...init?.body ? { body: JSON.stringify(init.body) } : {},
+      })
+      const value = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(value.message || `HTTP ${response.status}`)
+      return value
+    }
+
+    // Stock DSH renders this row only for a blank Session. The Host decides
+    // whether the Session belongs to a Pi preset and is still editable.
+    const CARD_KEYS = ['codemode', 'tool_search']
+
+    // A keyed view must render every call of its name: unmatched phases
+    // (preparing, running, failed, images) use a plain status row.
+    function PiPlainRow({ toolName, phase, block, inspect, t }) {
+      const failed = phase === 'result' && block?.isError
+      const status = phase === 'result' ? (failed ? 'error' : 'ok') : 'running'
+      const text = phase === 'result' && Array.isArray(block?.content)
+        ? block.content.filter(item => item.type === 'text').map(item => item.text).join('\n') : ''
+      return h('div', { className: 'pi-tools-card', 'data-pi-tool': toolName },
+        h('div', { className: 'pi-tools-head' },
+          h('span', null, t(toolName)),
+          h('span', { className: failed ? 'pi-tools-error' : 'pi-tools-note' }, t(status)),
+          inspect ? h('button', { type: 'button', className: 'pi-tools-inspect', onClick: inspect }, t('inspect')) : null),
+        failed && text ? h('div', { className: 'pi-tools-body' }, textBlock(text, t('output'))) : null)
+    }
+
+    function PiToolView(props) {
+      const matched = select(props)
+      if (matched) return h(PiCard, { ...props, matched })
+      return h(PiPlainRow, props)
+    }
+
+    function PiToolOptions({ sessionId, useSessions, t }) {
+      const preset = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset)
+      const [state, setState] = React.useState({ status: 'loading' })
+      const load = React.useCallback(async () => {
+        try {
+          const value = await optionsRequest({ url: `${OPTIONS_PATH}?sessionId=${encodeURIComponent(sessionId)}` })
+          setState({ status: 'live', value })
+          return value
+        } catch (failure) {
+          setState({ status: 'failed', failure })
+          return undefined
+        }
+      }, [sessionId])
+      React.useEffect(() => { void load() }, [load, preset])
+      const value = state.status === 'live' ? state.value : undefined
+      if (!value?.applicable || !value.editable) return null
+      const save = async tools => {
+        try {
+          await optionsRequest({ body: { sessionId, tools } })
+          await load()
+          return undefined
+        } catch (failure) {
+          return failure instanceof Error ? failure.message : String(failure)
+        }
+      }
+      return h(PiToolPicker, { catalog: value.catalog, committed: value.tools, reload: load, save, t })
     }
 
     // Presentation-only sections. The catalog's group still decides Pi / DSH /
@@ -281,7 +343,8 @@ window.__ModuleLoader__.load({
       })
     }
 
-    function PiToolPicker({ options, disabled, save, t, useResource }) {
+    function PiToolPicker({ catalog, committed, reload, save, t }) {
+      const disabled = false
       const [open, setOpen] = React.useState(false)
       const [draft, setDraft] = React.useState(undefined)
       const [query, setQuery] = React.useState('')
@@ -290,11 +353,9 @@ window.__ModuleLoader__.load({
       const [saving, setSaving] = React.useState(false)
       const [error, setError] = React.useState(undefined)
       const uid = React.useId()
-      const resource = useResource(open ? 'dsh-resource://pi-tool-options/catalog' : '')
-      const catalog = resource.status === 'live' ? resource.value?.[NS] : undefined
       const ready = Array.isArray(catalog?.tools) && Array.isArray(catalog?.defaults)
       const tools = ready ? catalog.tools : []
-      const selected = draft ?? options[NS]?.tools ?? (ready ? catalog.defaults : [])
+      const selected = draft ?? committed ?? (ready ? catalog.defaults : [])
       const selectedSet = new Set(selected)
       const defaults = new Set(ready ? catalog.defaults : [])
       const filter = query.trim().toLowerCase()
@@ -326,7 +387,7 @@ window.__ModuleLoader__.load({
         setSaving(true)
         setError(undefined)
         try {
-          const refusal = await save({ ...options, [NS]: { tools: [...selected] } })
+          const refusal = await save([...selected])
           if (refusal) setError(refusal)
           else setOpen(false)
         } catch (cause) {
@@ -381,7 +442,7 @@ window.__ModuleLoader__.load({
       }
       return h(React.Fragment, null,
         h(Button, { variant: 'ghost', disabled, onClick: () => {
-          setDraft(undefined); setQuery(''); setSelectedOnly(false); setError(undefined); setOpen(true)
+          setDraft(undefined); setQuery(''); setSelectedOnly(false); setError(undefined); setOpen(true); void reload()
         } }, t('tools')),
         h(Modal, {
           open, onClose: close, title: t('chooseTools'), closeLabel: t('cancel'),
@@ -391,9 +452,7 @@ window.__ModuleLoader__.load({
             h(Button, { variant: 'primary', onClick: commit, disabled: !ready || saving || disabled },
               t(saving ? 'saving' : 'save'))),
         },
-        !ready ? h('p', { role: resource.status === 'failed' ? 'alert' : 'status' },
-          resource.status === 'failed' ? resource.failure.message
-            : t(resource.status === 'loading' ? 'loading' : 'unavailable')) : h(React.Fragment, null,
+        !ready ? h('p', { role: 'status' }, t('unavailable')) : h(React.Fragment, null,
           h('div', { className: 'pi-tools-options-toolbar' },
             h(Input, { type: 'search', className: 'pi-tools-options-filter', value: query,
               icon: h(IconSearchOutlineRegular, { size: 16 }),
@@ -415,18 +474,12 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots', 'locale', 'resources', 'remote', 'remote.agentPresets'],
+      inject: ['slots', 'locale'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en, zh }))
-        ctx.effect(() => ctx.resources.register({
-          protocol: 'pi-tool-options',
-          async *open(_address, { signal }) {
-            const result = await ctx.remote.agentPresets.options('pi')
-            if (!signal.aborted) yield result
-          },
-        }))
-        ctx.slots.inject('conversation.hero.agentPreset.options', () => ctx.slots.register({
-          name: 'conversation.hero.agentPreset.options', id: 'pi-tools', locale: NS,
+        ctx.slots.inject('conversation.hero.options', () => ctx.slots.register({
+          name: 'conversation.hero.options', id: 'pi-tools', locale: NS,
+          inject: sessionId => ({ sessionId }),
         }, PiToolOptions))
         ctx.effect(() => {
           const style = document.createElement('style')
@@ -435,9 +488,13 @@ window.__ModuleLoader__.load({
           document.head.append(style)
           return () => style.remove()
         })
-        ctx.slots.inject('tool.call.presentation', () => ctx.slots.register({
-          name: 'tool.call.presentation', locale: NS, select,
-        }, PiCard))
+        // Stock DSH dispatches cards by tool name. Only names without a
+        // built-in view are claimed; Pi read/write/edit keep DSH's own rows.
+        ctx.slots.inject('tool.call.toolview', function* () {
+          for (const key of CARD_KEYS) {
+            yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, PiToolView)
+          }
+        })
       },
     }
   },

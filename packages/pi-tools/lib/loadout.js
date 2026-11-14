@@ -2,15 +2,15 @@ import { createHash } from 'node:crypto'
 import { emptyState } from './state.js'
 import { prepareArguments, toToolExposure } from './pi.js'
 import { scopeOf, scopeChainOf } from './harness.js'
+import { isSelectionEvent, liveLoadouts } from './selection.js'
 
 export const INTERNAL_PREFIX = 'pi_internal_'
 export const RESOURCE_TOOLS = new Set(['list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource'])
-export const OPTION_KEY = 'pi-tools'
 const PI_NAMES = new Set(['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls', 'codemode', 'tool_search'])
 
 // Public and script bindings share implementations and the original policy name.
 export class PiLoadout {
-  constructor(ctx, config, state, definitions) {
+  constructor(ctx, config, state, definitions, selection) {
     this.ctx = ctx
     this.config = config
     this.scope = scopeOf(ctx)
@@ -28,6 +28,7 @@ export class PiLoadout {
     }
     this.agentBindings = new Map()
     this.state = state
+    this.selection = selection
     this.ownNames = new Set(definitions.map(tool => tool.name))
     this.nativeCatalog = definitions.map(({ name, description }) => ({ name, description, group: 'pi' }))
     this.guidelines = new Map(definitions.map(tool => [tool.name, tool.promptGuidelines ?? []]))
@@ -52,20 +53,19 @@ export class PiLoadout {
       this.internal.clear()
       for (const agent of this.agentBindings.keys()) this.releaseAgent(agent)
     })
+    ctx.effect(() => {
+      liveLoadouts.add(this)
+      return () => liveLoadouts.delete(this)
+    })
     if (this.scopedNames.size || this.globalNames.size) {
       ctx.on('agent/created', ({ agent }) => { this.bindAgent(agent); this.sync() })
       ctx.on('agent/disposed', ({ agent }) => this.releaseAgent(agent))
       ctx.on('session/event', (_session, event) => {
-        if (event.type === 'agent-preset/options' || event.type === 'agent-preset/selected') this.sync()
+        if (isSelectionEvent(event)) this.sync()
       }, { global: true })
     }
     this.sync()
     ctx.on('tools/change', () => this.sync())
-    ctx.agentPresets.registerOptions({
-      key: OPTION_KEY,
-      describe: () => this.catalog(),
-      parse: value => this.parseSelection(value),
-    })
     ctx.tools.guard(exec => this.enabled(this.internal.get(exec.name) ?? exec.name, exec.agent)
       ? undefined : `Tool is disabled for this Pi session: ${exec.name}`)
   }
@@ -75,12 +75,12 @@ export class PiLoadout {
   }
 
   enabled(name, agent) {
-    const selected = agent?.session ? this.ctx.agentPresets.optionsForSession(agent.session)[OPTION_KEY] : undefined
-    if (selected !== undefined) {
-      if (!selected || !Array.isArray(selected.tools) || !selected.tools.every(tool => typeof tool === 'string')) {
+    const selected = agent?.session ? this.selection.stateOf(agent.session).tools : null
+    if (selected !== null) {
+      if (!Array.isArray(selected) || !selected.every(tool => typeof tool === 'string')) {
         throw new Error('Invalid saved Pi tool selection')
       }
-      return selected.tools.includes(name)
+      return selected.includes(name)
     }
     if (this.optInNames.has(name)) return false
     return this.ownNames.has(name) || this.bridges.get(name)?.sourceScope !== undefined || this.bridges.get(name)?.passthrough === true

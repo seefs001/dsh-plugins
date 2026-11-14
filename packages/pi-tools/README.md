@@ -6,7 +6,7 @@ The Chinese guide is on the [documentation site](https://seefs001.github.io/dsh-
 
 ## Requirements
 
-- DSH `>=0.2.2-rc.2 <0.3.0` built with the companion changes this package relies on: session-owned preset options (`agent-preset/options` and the `conversation.hero.agentPreset.options` slot) and the `tool.call.presentation` slot. Codemode's raw-JavaScript grammar transport also needs the companion DSH tool-schema and pi-ai adapter changes. A release with the same version number but without these changes has no tool picker, and Pi result cards fall back to the ordinary view.
+- DSH `>=0.2.2-rc.2 <0.3.0`. No DSH source changes are required. The package uses an ignorable `plugin:dsh-pi-tools/selection` Session record, the `conversation.hero.options` slot, and keyed `tool.call.toolview` entries. Codemode grammar sampling also wraps an internal pi-ai entry point; see [Codemode strings](#codemode-strings).
 - `rg` and `fd` available in DSH's execution environment, or configured with `rgCommand` and `fdCommand`. The adapter does not download binaries.
 - No global Pi CLI, Pi login, or Pi model configuration.
 
@@ -79,7 +79,7 @@ The defaults are the Pi tools, the configured MCP tools, the native tools mounte
 
 ## How the selection applies
 
-- Selections are stored as an `agent-preset/options` event in an existing blank session. Refresh and replay restore the committed selection, and forks inherit the log. Before a session is bound, the choice is an in-memory draft for the next new conversation, and switching presets resets it.
+- The **Tools** button appears in the new-session row of a blank Pi session. Saving appends an ignorable `plugin:dsh-pi-tools/selection` record through `POST /pi-tools/options`; the Host refuses it once the first turn has started. Refresh and replay restore the committed selection, forks inherit the log, and switching presets resets it. A DSH build without this plugin still opens the session and skips the record.
 - A selected preset-scoped native tool keeps its original registration and condition. A deselected one is blocked by an agent-level `false` shadow registration, so no same-name global tool falls through. Global passthrough tools keep their registrations and use per-agent restrictions for selection.
 - Pi owns its nine tool names, so deselecting a Pi tool never exposes a same-name DSH tool.
 - Deselected tools are excluded from model declarations, QuickJS discovery, and dispatch.
@@ -150,7 +150,7 @@ Safe calls may overlap. Mutations form exclusive barriers, and policy preparatio
 
 ## Codemode strings
 
-Codemode keeps Pi's original parameter schema, description, and `constrainedSampling` policy. With the companion DSH and pi-ai support, Pi uses raw-JavaScript grammar transport where the model supports it and JSON `{ "code": "..." }` otherwise. There is no extra `input` parameter, source wrapper, guessed repair, or automatic replay. Raw transport removes the JSON-string layer, but scripts must still be valid JavaScript.
+Codemode keeps Pi's original parameter schema, description, and `constrainedSampling` policy. Stock DSH drops that policy before the request reaches pi-ai, so the root companion entry re-attaches it to the exact Pi codemode declaration by wrapping `streamSimple` on the prototype of the pi-ai `Models` collection that `@deepseek-ai/dsh-llm-pi-ai` uses (`lib/pi-ai-hook.js`). pi-ai then uses raw-JavaScript grammar transport where the model's compat enables OpenAI grammar tools, and JSON `{ "code": "..." }` otherwise. DSH does not let a profile set that compat flag, so custom routes stay on JSON. The hook depends on DSH internals; if the layout changes, the Host log shows `pi-tools: codemode grammar sampling is unavailable` and codemode uses JSON. There is no extra `input` parameter, source wrapper, guessed repair, or automatic replay. Raw transport removes the JSON-string layer, but scripts must still be valid JavaScript.
 
 When codemode is selected, its string guidance covers every string argument: file contents, edit text, paths, regex and glob patterns, and MCP fields. It includes nested Python, literal shell expansion, and multiline heredoc examples.
 
@@ -164,9 +164,9 @@ When codemode is selected, its string guidance covers every string argument: fil
 
 ## Web tool cards
 
-The Web half matches only successful Pi 1.5.0 text results. It shows offset-aware read lines, original edit diffs, written content, codemode call summaries with durations and errors, and loaded tool names. File links use the absolute path and line recorded at execution time. Disclosure follows DSH's turn controls. Failed, pending, image-bearing, and non-Pi calls keep their existing views, and cards do not show live script progress.
+The Web half claims the keyed `codemode` and `tool_search` views, which have no DSH built-in view. Successful Pi 1.5.0 text results show codemode call summaries with durations and errors, and loaded tool names. Pending and failed calls show a plain status row; failed calls include the error text. Pi `read`, `write` and `edit` keep DSH's built-in rows. Disclosure follows DSH's turn controls, and cards do not show live script progress.
 
-The root companion entry sets `presentationOnly: true`, which registers no Host tools, prompt sections, executor, or session state. The Pi tools exist only inside the `pi` preset. Styles and locale registrations go away when the companion unloads.
+The root companion entry sets `presentationOnly: true`, which registers no Host tools, prompt sections, executor, or session state. It serves the `/pi-tools/options` route for the owner, which finds the live Pi preset generation that owns the session. The Pi tools exist only inside the `pi` preset. Styles and locale registrations go away when the companion unloads.
 
 ## Compatibility boundaries
 

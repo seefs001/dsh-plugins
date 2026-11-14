@@ -3,12 +3,14 @@ import { createOperations } from './operations.js'
 import { Config, normalizeConfig } from './harness.js'
 import { STATE_META, stateDefinition } from './state.js'
 import { PiLoadout } from './loadout.js'
+import { registerOptionsRoute, selectionDefinition } from './selection.js'
+import { addPiAiRequestTransform } from './pi-ai-hook.js'
 import { PiExecutor } from './executor.js'
 import { runGrep } from './search.js'
 
 export { Config }
 export const name = 'pi-tools'
-export const inject = ['tools', 'systemPrompt', 'fs', 'subprocess', 'sandbox', 'sandboxPolicy', 'workingDirectory', 'attachments', 'sessionProjections', 'agentPresets']
+export const inject = ['tools', 'systemPrompt', 'fs', 'subprocess', 'sandbox', 'sandboxPolicy', 'workingDirectory', 'attachments', 'sessionProjections']
 
 async function convertContent(ctx, content) {
   return Promise.all(content.map(async block => {
@@ -106,12 +108,46 @@ export function createTools(ctx, config = normalizeConfig(), executor) {
   }))
 }
 
+// Stock DSH drops `constrainedSampling` from tool declarations before pi-ai.
+// Re-attach Pi's codemode grammar to the exact Pi codemode declaration so
+// pi-ai can use raw-JavaScript custom-tool transport where the route supports it.
+export function codemodeSamplingTransform(codemode = createCodemodeToolDefinition({ models: false })) {
+  const parameters = JSON.stringify(jsonValue(codemode.parameters))
+  const constrainedSampling = jsonValue(codemode.constrainedSampling)
+  return request => {
+    const tools = request.context?.tools
+    if (!Array.isArray(tools) || !tools.some(tool => tool?.name === 'codemode' && tool.constrainedSampling === undefined)) return request
+    return {
+      ...request,
+      context: {
+        ...request.context,
+        tools: tools.map(tool => tool?.name === 'codemode' && tool.constrainedSampling === undefined
+          && JSON.stringify(tool.parameters) === parameters ? { ...tool, constrainedSampling } : tool),
+      },
+    }
+  }
+}
+
+async function restoreCodemodeSampling(ctx) {
+  try {
+    const hook = await addPiAiRequestTransform(codemodeSamplingTransform())
+    ctx.effect(() => hook.remove, 'pi-tools: codemode grammar sampling')
+  } catch (error) {
+    ctx.logger?.warn?.(`pi-tools: codemode grammar sampling is unavailable; codemode uses JSON transport (${error instanceof Error ? error.message : error})`)
+  }
+}
+
 export async function apply(ctx, rawConfig = {}) {
   const config = normalizeConfig(rawConfig)
-  if (config.presentationOnly) return
+  if (config.presentationOnly) {
+    registerOptionsRoute(ctx)
+    await restoreCodemodeSampling(ctx)
+    return
+  }
   const state = await ctx.sessionProjections.register(stateDefinition)
+  const selection = await ctx.sessionProjections.register(selectionDefinition)
   const definitions = piDefinitions(ctx.workingDirectory.defaultDirectory, config)
-  const loadout = new PiLoadout(ctx, config, state, definitions)
+  const loadout = new PiLoadout(ctx, config, state, definitions, selection)
   const executor = new PiExecutor(ctx, config, loadout)
   for (const tool of createTools(ctx, config, executor)) {
     ctx.tools.register(tool, { when: ({ agent }) => loadout.enabled(tool.name, agent) })

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `dsh-pi-tools`: runs on stock DSH 0.2.2-rc.2 and later without DSH source changes. The tool selection is stored as an ignorable `plugin:dsh-pi-tools/selection` Session record and edited through the `conversation.hero.options` slot and an owner-only `/pi-tools/options` route. Result cards use keyed `tool.call.toolview` entries for `codemode` and `tool_search`; Pi `read`, `write` and `edit` now use DSH's built-in rows. Codemode grammar sampling is restored by wrapping pi-ai's `streamSimple`, for models whose compat enables OpenAI grammar tools.
 - `dsh-service-tier`: works again on DSH 0.2.2-rc.2 and later, which removed the `llm-pi-ai/model-defaults` waterfall. The plugin now wraps pi-ai's `streamSimple` and sets `service_tier` through `onPayload`; a changed DSH layout logs a warning instead of failing silently. The ⚡ toggle also appears on pi-ai catalog routes such as `openai` that set no `api` of their own.
 - `dsh-image-gen` 0.1.0: adds `openai_image` and `grok_image`, which call hosted `image_generation` on an existing Responses provider and save the images to files. The supplied `pi` preset passes both tools through.
 - `dsh-pi-mcp` 0.1.0: a Host-only plugin that registers each server in Pi's `~/.pi/agent/mcp.json` with the DSH MCP manager, converts `${VAR}` to `${credential:VAR}`, and follows file edits without a restart. Skips OAuth, `!command`, and SSE entries with a log warning.

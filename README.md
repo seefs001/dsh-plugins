@@ -52,7 +52,7 @@ The minimum DSH version is rc.1 unless the table says rc.2. "Runs in" tells you 
 |---|---|---|
 | [`dsh-web-access`](packages/web-access) | Adds `grok_search` (web and X) and `openai_search`, using hosted search on an existing Responses provider. | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | Adds `openai_image` and `grok_image`, using hosted image generation on an existing Responses provider and saving the images to files. | Host + Web |
-| [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi 1.5.0's original coding tools, QuickJS codemode, and per-session DSH and MCP tool selection. rc.2 with the preset-options changes; see its README. | Host + Web |
+| [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi 1.5.0's original coding tools, QuickJS codemode, and per-session DSH and MCP tool selection. Needs DSH rc.2 or later; no DSH source changes. | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | Registers the MCP servers in Pi's `~/.pi/agent/mcp.json` with the DSH MCP manager and follows file edits live. | Host |
 | [`dsh-switchboard`](packages/switchboard) | Connects DSH to a Switchboard relay so Telegram, Discord, and GitHub requests run in DSH sessions. | Host |
 

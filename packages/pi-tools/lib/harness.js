@@ -17,14 +17,18 @@ const [tools, pipeline, schema] = await Promise.all([
   load('@deepseek-ai/schemastery'),
 ])
 const toolsRequire = createRequire(require.resolve('@deepseek-ai/dsh-tools'))
-const { scopeOf, scopeChainOf } = await import(pathToFileURL(toolsRequire.resolve('@deepseek-ai/dsh-scope')).href)
+const [{ scopeOf, scopeChainOf }, { appendPluginRecord, pluginRecordOf }] = await Promise.all([
+  import(pathToFileURL(toolsRequire.resolve('@deepseek-ai/dsh-scope')).href),
+  // Plugin records must use the Harness's own Session class.
+  import(pathToFileURL(toolsRequire.resolve('@deepseek-ai/dsh-session')).href),
+])
 const projectionRequire = createRequire(require.resolve('@deepseek-ai/dsh-session-projection'))
 const { z } = await import(pathToFileURL(projectionRequire.resolve('zod')).href)
 
 export const { ToolExecutionPipeline, executeToolBatch } = pipeline
 export const { ToolNotFoundError, projectToolSchema } = tools
 export const Schema = schema.default
-export { z, scopeOf, scopeChainOf }
+export { z, scopeOf, scopeChainOf, appendPluginRecord, pluginRecordOf }
 
 export const Config = Schema.object({
   presentationOnly: Schema.boolean().default(false).description('Mount only the Web presentation companion; do not register tools, prompts, or state.'),

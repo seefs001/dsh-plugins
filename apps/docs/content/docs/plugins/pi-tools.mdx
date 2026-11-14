@@ -7,8 +7,8 @@ description: 独立的 pi 预设：Pi 1.5.0 原版编程工具、QuickJS codemod
 
 新增一个名为 `pi` 的 Agent 预设。它使用 Pi 1.5.0 原版的编程工具和 QuickJS codemode，同时保留 DSH 的会话、权限、沙箱、模型路由和 MCP 连接。默认预设和其他会话不受影响。
 
-<Callout type="warn" title="需要带配套改动的 DSH">
-工具选择面板和 Pi 结果卡片用到会话级预设选项（`agent-preset/options`、`conversation.hero.agentPreset.options`）和 `tool.call.presentation` slot，公开发布的 0.2.2-rc.2 还没有这些接口。codemode 的原始 JavaScript 语法传输还需要配套的 DSH 工具 schema 和 pi-ai 适配。更新本地源码不会重启正在运行的 Host；安装新版本后，要新开一个 `pi` 会话检查。
+<Callout type="info" title="不需要改 DSH 源码">
+插件只用原版 DSH 的接口：可忽略的 `plugin:dsh-pi-tools/selection` 会话记录、`conversation.hero.options` slot 和按工具名分派的 `tool.call.toolview`。原版 DSH 会在请求到达 pi-ai 前丢掉 Pi 的 `constrainedSampling`，插件包装 DSH 内部 pi-ai `Models` 原型上的 `streamSimple`，把它补回 Pi 的 codemode 声明。模型 compat 开启 OpenAI grammar 工具时走原始 JavaScript 语法传输，否则走 JSON `{ "code": "..." }`；DSH 不允许 profile 设置这个 compat，自定义路由仍走 JSON。这一步依赖 DSH 内部结构，失效时 Host 日志会出现 `pi-tools: codemode grammar sampling is unavailable`。更新本地源码不会重启正在运行的 Host；安装新版本后，要新开一个 `pi` 会话检查。
 </Callout>
 
 ## 安装
@@ -46,7 +46,7 @@ description: 独立的 pi 预设：Pi 1.5.0 原版编程工具、QuickJS codemod
 | 插件开发 | `plugin_manager`、`plugin_market`、`cordis_inspect_list`、`cordis_inspect_query`（来自创造模式的运行时检查，Host 端由 web-app bundle 提供）、`dsh-doc` skill |
 | 其他 | `workflow`（隔离的 workflow engine）、时间上下文、项目说明（AGENTS.md 等，上限 64 KiB）、上下文压缩和 `/compact` |
 
-全局的 `grok_search` 和 `openai_search` 由 [联网搜索](/docs/plugins/web-access) 提供。插件以原样透传的方式保留它们，配置好且 readiness 通过时才可用。
+全局的 `grok_search` 和 `openai_search` 由 [联网搜索](/docs/plugins/web-access) 提供，`openai_image` 和 `grok_image` 由 [画图](/docs/plugins/image-gen) 提供。插件以原样透传的方式保留它们，配置好且 readiness 通过时才可用。
 
 `workflow` 是 DSH 原生的工具，运行在 DSH 的 PTC runtime 上，和 Pi 的 `codemode`（QuickJS、`{ code: string }`）是两套独立的机制。
 
@@ -86,7 +86,7 @@ description: 独立的 pi 预设：Pi 1.5.0 原版编程工具、QuickJS codemod
 
 ## 选择怎样生效
 
-- 选择以 `agent-preset/options` 事件写进已存在的空白会话。刷新和回放会恢复已保存的选择，分叉的会话继承这份日志。会话还没建立时，选择只是下一个新会话的内存草稿，切换预设会清掉它。
+- 空白 `pi` 会话的新会话栏里有 **工具** 按钮。保存时通过 `POST /pi-tools/options` 追加一条可忽略的 `plugin:dsh-pi-tools/selection` 记录；第一轮开始后 Host 拒绝修改。刷新和回放会恢复已保存的选择，分叉的会话继承这份日志，切换预设会清掉它。没装这个插件的 DSH 也能打开会话，只是跳过这条记录。
 - 勾选的预设作用域原生工具直接继承它的原始注册和条件。取消勾选时，Agent 层的 `false` 影子注册会挡住调用，不会退回到同名的全局工具。全局透传工具保留原有注册，通过每个 Agent 的工具限制控制选择。
 - Pi 拥有自己 9 个工具名，取消某个 Pi 工具不会让同名的 DSH 工具顶上来。
 - 未勾选的工具既不出现在模型的工具声明里，也不会出现在 QuickJS 的工具发现结果里，调用会被拒绝。
@@ -104,7 +104,7 @@ scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_
   schedule_view, schedule_edit, create_goal, get_goal, update_goal, todo_write, web_fetch,
   web_search, present, office_render, office_convert, office_recalculate, exit_plan_mode,
   workflow, plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
-globalTools: [grok_search, openai_search]
+globalTools: [grok_search, openai_search, openai_image, grok_image]
 optInTools: [present, office_render, office_convert, office_recalculate,
   plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
 ```
@@ -153,9 +153,9 @@ MCP 暴露方式沿用 Pi 的原生映射：`codemode` 和 `deferred` 都是延�
 
 ## Web 结果卡片
 
-Web 部分只匹配 Pi 1.5.0 成功的纯文本结果：读取的行号、编辑的原始 diff、写入的内容、codemode 的调用摘要（含耗时和错误）以及已加载的工具名。点文件路径会按执行时记录的绝对路径和行号打开。失败、进行中、带图片和非 Pi 的调用保持原有显示。卡片不显示脚本的实时进度。
+Web 部分接管 `codemode` 和 `tool_search` 这两个没有 DSH 内置视图的工具名。Pi 1.5.0 成功的纯文本结果显示 codemode 的调用摘要（含耗时和错误）和已加载的工具名；进行中和失败的调用显示简单的状态行，失败时附上错误文本。Pi 的 `read`、`write`、`edit` 使用 DSH 内置视图。卡片不显示脚本的实时进度。
 
-根上的展示条目设置 `presentationOnly: true`，只注册 Web 展示，不注册 Host 工具、提示词、执行器或会话状态。真正的 Pi 工具只在 `pi` 预设里。
+根上的展示条目设置 `presentationOnly: true`，不注册 Host 工具、提示词、执行器或会话状态，只给 owner 提供 `/pi-tools/options` 路由，按会话找到所属的 Pi 预设实例。真正的 Pi 工具只在 `pi` 预设里。
 
 ## 兼容边界
 
