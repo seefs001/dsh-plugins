@@ -157,7 +157,7 @@ MCP 暴露方式沿用 Pi 的原生映射：`codemode` 和 `deferred` 都是延�
 
 ## Web 结果卡片
 
-Web 部分接管 `codemode` 和 `tool_search` 这两个没有 DSH 内置视图的工具名。Pi 成功的纯文本结果显示 codemode 的调用摘要（含耗时和错误）和已加载的工具名；进行中和失败的调用显示简单的状态行，失败时附上错误文本。Pi 的 `read`、`write`、`edit` 使用 DSH 内置视图。卡片不显示脚本的实时进度。
+Web 部分接管 `codemode` 和 `tool_search` 这两个没有 DSH 内置视图的工具名。Pi 成功的纯文本结果显示 codemode 的调用摘要（含耗时和错误）和已加载的工具名；进行中和失败的调用显示简单的状态行；失败标记始终可见，错误文本默认收起，点击工具名旁的箭头可以展开或再次折叠。Pi 的 `read`、`write`、`edit` 使用 DSH 内置视图。卡片不显示脚本的实时进度。
 
 根上的展示条目设置 `presentationOnly: true`，不注册 Host 工具、提示词、执行器或会话状态，只给 owner 提供 `/pi-tools/options` 路由，按会话找到所属的 Pi 预设实例。真正的 Pi 工具只在 `pi` 预设里。
 

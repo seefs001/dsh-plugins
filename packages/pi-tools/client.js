@@ -244,18 +244,24 @@ window.__ModuleLoader__.load({
     const CARD_KEYS = ['codemode', 'tool_search']
 
     // A keyed view must render every call of its name: unmatched phases
-    // (preparing, running, failed, images) use a plain status row.
-    function PiPlainRow({ toolName, phase, block, inspect, t }) {
+    // (preparing, running, failed, images) use a plain status row. Error details
+    // use DSH's initially collapsed disclosure, just like successful cards.
+    function PiPlainRow({ callId, toolName, phase, block, inspect, useDisclosure, t }) {
+      const { expanded, toggle } = useDisclosure()
       const failed = phase === 'result' && block?.isError
       const status = phase === 'result' ? (failed ? 'error' : 'ok') : 'running'
       const text = phase === 'result' && Array.isArray(block?.content)
         ? block.content.filter(item => item.type === 'text').map(item => item.text).join('\n') : ''
+      const expandable = failed && text.length > 0
+      const bodyId = `pi-tool-body-${callId}`
       return h('div', { className: 'pi-tools-card', 'data-pi-tool': toolName },
         h('div', { className: 'pi-tools-head' },
-          h('span', null, t(toolName)),
+          expandable ? h('button', { type: 'button', className: 'pi-tools-toggle', onClick: toggle, 'aria-expanded': expanded, 'aria-controls': bodyId },
+            h('span', { 'aria-hidden': true }, expanded ? '▾' : '▸'), h('span', null, t(toolName)))
+            : h('span', null, t(toolName)),
           h('span', { className: failed ? 'pi-tools-error' : 'pi-tools-note' }, t(status)),
           inspect ? h('button', { type: 'button', className: 'pi-tools-inspect', onClick: inspect }, t('inspect')) : null),
-        failed && text ? h('div', { className: 'pi-tools-body' }, textBlock(text, t('output'))) : null)
+        expandable && expanded ? h('div', { className: 'pi-tools-body', id: bodyId }, textBlock(text, t('output'))) : null)
     }
 
     function PiToolView(props) {

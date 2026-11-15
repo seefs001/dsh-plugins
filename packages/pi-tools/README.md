@@ -168,7 +168,7 @@ When codemode is selected, its string guidance covers every string argument: fil
 
 ## Web tool cards
 
-The Web half claims the keyed `codemode` and `tool_search` views, which have no DSH built-in view. Successful Pi text results show codemode call summaries with durations and errors, and loaded tool names. Pending and failed calls show a plain status row; failed calls include the error text. Pi `read`, `write` and `edit` keep DSH's built-in rows. Disclosure follows DSH's turn controls, and cards do not show live script progress.
+The Web half claims the keyed `codemode` and `tool_search` views, which have no DSH built-in view. Successful Pi text results show codemode call summaries with durations and errors, and loaded tool names. Pending and failed calls show a plain status row; failed calls keep a visible failure label and put error text behind a disclosure that starts collapsed. Pi `read`, `write` and `edit` keep DSH's built-in rows. Disclosure follows DSH's turn controls, and cards do not show live script progress.
 
 The root companion entry sets `presentationOnly: true`, which registers no Host tools, prompt sections, executor, or session state. It serves the `/pi-tools/options` route for the owner, which finds the live Pi preset generation that owns the session. The Pi tools exist only inside the `pi` preset. Styles and locale registrations go away when the companion unloads.
 
