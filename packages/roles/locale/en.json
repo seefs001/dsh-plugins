@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Roles",
+    "description": "Manage roles, each with a detailed prompt and its own skills, and switch a session's role from the composer's model menu."
+  }
+}

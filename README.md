@@ -24,6 +24,7 @@ English | [中文](README.zh.md)
 | [`dsh-remember-model`](packages/remember-model) | New sessions start on the model and reasoning effort you picked last. | Host |
 | [`dsh-subagent-model`](packages/subagent-model) | Shows a subagent's recorded model and reasoning effort in its composer. Read-only; the main agent's picker is unchanged. | Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | Choose the model and prompt that Auto review uses, and read each session's review log. Needs `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
+| [`dsh-roles`](packages/roles) | Manage roles, each a detailed prompt plus its own skills, and pick one per session from the composer's model menu. | Host + Web |
 
 ### Sessions and workspaces
 

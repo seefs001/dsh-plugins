@@ -24,6 +24,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-remember-model`](packages/remember-model) | 新会话使用你最近选择的模型和推理强度。 | Host |
 | [`dsh-subagent-model`](packages/subagent-model) | 在子代理输入框显示它记录的模型和推理强度。只读，主代理的选择器不变。 | Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | 为 Auto review 选择模型和提示词，查看每个会话的审查日志。需要 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
+| [`dsh-roles`](packages/roles) | 管理角色，每个角色带详细提示词和自己的技能，在输入框的模型菜单里为会话切换角色。 | Host + Web |
 
 ### 会话与工作区
 

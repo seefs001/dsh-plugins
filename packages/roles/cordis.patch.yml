@@ -1,0 +1,7 @@
+# Bundle patch layer: the row loads lib/index.js as the Host half (role
+# storage, prompt section, per-session skill provider, HTTP routes, the
+# `roles` agent tool); the `dsh.client` declaration makes the web app load
+# lib/client.js as the browser half.
+- insert:
+    - id: roles
+      name: dsh-roles

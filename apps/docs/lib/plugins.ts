@@ -33,6 +33,7 @@ const entries: Entry[] = [
   { slug: 'remember-model', category: 'models', surface: 'Host', summary: '新会话使用你最近选择的模型和推理强度。' },
   { slug: 'subagent-model', category: 'models', surface: 'Web', summary: '在子代理输入框显示它记录的模型和推理强度，只读。' },
   { slug: 'auto-review-model', category: 'models', surface: 'Host + Web', summary: '为 Auto review 单独选模型和审查提示词，并查看每个会话的审查日志。', requires: ['@deepseek-ai/dsh-experimental-auto-review'] },
+  { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '管理带详细提示词和技能的角色，在模型菜单里为会话切换角色。' },
   { slug: 'recent-sessions', category: 'sessions', surface: 'Web', summary: '@ 菜单里的会话按最近活动排序。' },
   { slug: 'session-groups', category: 'sessions', surface: 'Host + Web', summary: '自定义会话分组和组内置顶，所有浏览器与 Agent 共享。' },
   { slug: 'workspace-manager', category: 'sessions', surface: 'Host + Web', summary: '移除保存的工作区记录，清理目录已不存在的条目，不删文件和会话。' },
