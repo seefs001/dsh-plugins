@@ -241,6 +241,8 @@ window.__ModuleLoader__.load({
 .rlm-skill{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:var(--rlm-line);border-radius:var(--dsw-radius-md,12px)}
 .rlm-skill-head{display:flex;align-items:center;gap:8px}
 .rlm-skill-head>button.rlm-fold{flex:1;display:flex;align-items:center;gap:6px;min-width:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.rlm .rl-chev{flex:0 0 auto;width:12px;height:12px;color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));transition:transform .15s}
+.rlm .rl-chev[data-open=true]{transform:rotate(90deg)}
 .rlm-skill-name{font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rlm-skill-desc{flex:1;min-width:0;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rlm-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -258,11 +260,11 @@ window.__ModuleLoader__.load({
 `
 
     function Chevron({ open }) {
-      return h('svg', { className: 'rl-chev', 'data-open': open ? 'true' : 'false', viewBox: '0 0 12 12', 'aria-hidden': true },
+      return h('svg', { className: 'rl-chev', 'data-open': open ? 'true' : 'false', viewBox: '0 0 12 12', width: 12, height: 12, 'aria-hidden': true },
         h('path', { d: 'M4.5 2.5 8 6l-3.5 3.5', fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round' }))
     }
     function Check() {
-      return h('svg', { className: 'rl-check', viewBox: '0 0 14 14', 'aria-hidden': true },
+      return h('svg', { className: 'rl-check', viewBox: '0 0 14 14', width: 14, height: 14, 'aria-hidden': true },
         h('path', { d: 'M3 7.2 5.8 10 11 4', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' }))
     }
 
