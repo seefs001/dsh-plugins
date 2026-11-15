@@ -105,8 +105,6 @@ importers:
 
   packages/subagent-model: {}
 
-  packages/switchboard: {}
-
   packages/tool-lens: {}
 
   packages/web-access: {}

@@ -55,7 +55,6 @@ English | [中文](README.zh.md)
 | [`dsh-image-gen`](packages/image-gen) | Adds `openai_image` and `grok_image`, using hosted image generation on an existing Responses provider and saving the images to files. | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi's original coding tools, QuickJS codemode, and per-session DSH and MCP tool selection. No DSH source changes. | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | Registers the MCP servers in Pi's `~/.pi/agent/mcp.json` with the DSH MCP manager and follows file edits live. | Host |
-| [`dsh-switchboard`](packages/switchboard) | Connects DSH to a Switchboard relay so Telegram, Discord, and GitHub requests run in DSH sessions. | Host |
 | [`dsh-orbit-bridge`](packages/orbit-bridge) | Read-only watch over Orbit projects: complete paging, local run history, and change lists against the last processed check. Never writes to Orbit. | Host + Web |
 
 Install only what you need. With both `dsh-model-reference` and `dsh-service-tier` installed, `#` chips also carry ⚡.
@@ -87,9 +86,9 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 
 ## Configuration
 
-Most settings are made in the GUI and saved to the profile's `cordis.patch.yml` through DSH's config editor. This covers `model-reference` efforts, `service-tier` fast models, the `auto-review-model` model and prompt, the `message-actions` explanation model, and `web-access` search settings. Switchboard has no settings page; edit its row in `cordis.patch.yml`.
+Most settings are made in the GUI and saved to the profile's `cordis.patch.yml` through DSH's config editor. This covers `model-reference` efforts, `service-tier` fast models, the `auto-review-model` model and prompt, the `message-actions` explanation model, and `web-access` search settings.
 
-Session groups, review logs, reply explanations, Switchboard's connector state, and Orbit bridge routines and runs live in Host storage domains (`session_groups`, `auto_review_log`, `message_actions`, `switchboard_connector`, `orbit_bridge`). Pi tool selections are written to the session log. AI Mascot keeps its position and display preferences in browser localStorage. Each package README lists its storage limits and privacy notes.
+Session groups, review logs, reply explanations, and Orbit bridge routines and runs live in Host storage domains (`session_groups`, `auto_review_log`, `message_actions`, `orbit_bridge`). Pi tool selections are written to the session log. AI Mascot keeps its position and display preferences in browser localStorage. Each package README lists its storage limits and privacy notes.
 
 ## Documentation
 

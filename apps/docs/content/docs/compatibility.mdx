@@ -16,7 +16,7 @@ description: 每个插件需要先启用的 bundle 和外部依赖，以及它�
 | 自动审查模型 | `@deepseek-ai/dsh-experimental-auto-review` | 插件可以安装，但没有 Auto review 请求可改道，输入框也不显示审查标签 |
 | Git 变更 | Change requests & worktrees（`@deepseek-ai/dsh-experimental-forge-bundle`） | 输入框下方不出现入口 |
 | 分支切换 | Change requests & worktrees | 新会话页没有可替换的分支入口 |
-| 会话分组、自动审查模型、Wait, what?、Switchboard | `@deepseek-ai/dsh-storage-domain` | 默认 profile 已包含 |
+| 会话分组、自动审查模型、Wait, what? | `@deepseek-ai/dsh-storage-domain` | 默认 profile 已包含 |
 
 插件不会替你启用这些 bundle。
 
@@ -43,7 +43,6 @@ description: 每个插件需要先启用的 bundle 和外部依赖，以及它�
 
 - 联网搜索、Wait, what? 和自动审查模型会把相关文本发给你选择的模型服务。
 - AI 吉祥物首次显示时会从 `selinlee.github.io` 加载角色图，请求不带对话内容。角色素材不属于 MIT 许可，有单独的非商业条款。
-- Switchboard 会把会话流式转发到你配置的中继。不受信任的运行只能使用只读工具，详见 [Switchboard](/docs/plugins/switchboard)。
 - 插件管理会改变整个 profile，影响这个 profile 下的所有会话。
 
 ## 验证范围

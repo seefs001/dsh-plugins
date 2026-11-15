@@ -18,7 +18,6 @@ Most packages are plain JavaScript with no build step, so a `link:` install runs
 
 - `pi-tools` keeps its browser half in `client.js` at the package root, and its patch also inserts a `pi` agent preset.
 - `message-actions` builds `lib/client.js` from `src/client.js` with `pnpm --filter dsh-message-actions build`. `prepack` runs the build.
-- `switchboard` vendors `lib/vendor/switchboard-kit.js`, generated in the switchboard repository.
 
 `pnpm run validate` enforces these rules:
 

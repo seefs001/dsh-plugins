@@ -19,8 +19,6 @@ description: 插件设置写在哪里，Host、profile、会话日志和浏览�
 | Wait, what? 回复解释 | 最近 200 份完整解释 | Host 的 `message_actions` storage domain |
 | 联网搜索 | 每个搜索工具的开关、模型、搜索类型和超时 | profile 中该插件的配置 |
 | Pi 工具 | 预设配置；每个会话选择的工具 | 预设随 bundle 提供；工具选择写入会话日志的 `agent-preset/options` 事件 |
-| Switchboard | 中继地址、工作区别名、权限映射等 | profile 中该插件的配置，需手动编辑 |
-| Switchboard | 未确认的帧、会话绑定、隔离标记；待上传的产物 | Host 的 `switchboard_connector` storage domain；`dataDir/blobs` 下的文件 |
 | AI 吉祥物 | 位置、尺寸、收起状态和动画偏好 | 浏览器 localStorage 的 `dsh-ai-mascot:preferences` |
 
 其余插件没有自己的配置或存储：最近会话优先、子代理模型、上下文压缩状态、引用跳转、工具透镜、Git 变更、分支切换、工作区管理和保持唤醒。上下文压缩状态从原生会话事件派生一个 projection，不另存记录。工作区管理和分支切换只调用 DSH 原生的工作区接口和 Git，不保存自己的状态。
@@ -52,7 +50,7 @@ Wait, what? 回复解释的提示词和结果以明文保存在 Host。生成时
 
 ## 凭据
 
-联网搜索复用 `llm-pi-ai` 中 Responses provider 的 `baseURL`、`apiKeyEnv` 和 `headers`，插件只保存 provider、模型和搜索选项。Switchboard 的 token 通过 `tokenRef` 引用，先查 DSH 凭据，再查同名环境变量。
+联网搜索复用 `llm-pi-ai` 中 Responses provider 的 `baseURL`、`apiKeyEnv` 和 `headers`，插件只保存 provider、模型和搜索选项。
 
 不要把密钥写进文档、仓库或示例配置。provider 的 key 必须能在运行 Host 的环境里解析。
 
