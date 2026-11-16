@@ -25,7 +25,7 @@ window.__ModuleLoader__.load({
       defaultsSaved: 'Saved as the default for new conversations of this preset.', defaultsReset: 'Defaults reset to the preset configuration.',
       refreshMcp: 'Refresh MCP', refreshingMcp: 'Refreshing MCP…', mcpRefreshed: 'MCP refreshed: {summary}', mcpNone: 'No MCP servers to refresh.',
       simpleHint: 'Turn whole groups on or off. Open per-tool settings to pick single tools.',
-      sectionPi: 'Pi coding tools', sectionAgents: 'Agents and delegation', sectionPlanning: 'Plans, goals and todos',
+      sectionPi: 'Pi coding tools', sectionAgents: 'Agents and delegation', sectionPlanning: 'Work, plans and goals',
       sectionJobs: 'Jobs and schedules', sectionWeb: 'Web, search and images', sectionFiles: 'Presentation and Office',
       sectionInteraction: 'Skills and questions', sectionPlugins: 'Plugins', sectionOther: 'Other DSH tools',
       sectionMcpResources: 'MCP resources', sectionMcpServer: 'Server {server}',
@@ -51,7 +51,7 @@ window.__ModuleLoader__.load({
       defaultsSaved: '已设为此预设新对话的默认工具。', defaultsReset: '默认工具已恢复为预设配置。',
       refreshMcp: '刷新 MCP', refreshingMcp: '正在刷新 MCP…', mcpRefreshed: 'MCP 已刷新：{summary}', mcpNone: '没有可刷新的 MCP 服务。',
       simpleHint: '按分组开关工具。需要单独挑选时，点「逐个设置」。',
-      sectionPi: 'Pi 编程工具', sectionAgents: '代理与委派', sectionPlanning: '计划、目标与待办',
+      sectionPi: 'Pi 编程工具', sectionAgents: '代理与委派', sectionPlanning: '工作、计划与目标',
       sectionJobs: '作业与定时', sectionWeb: '网页、搜索与画图', sectionFiles: '展示与 Office',
       sectionInteraction: '技能与提问', sectionPlugins: '插件', sectionOther: '其他 DSH 工具',
       sectionMcpResources: 'MCP 资源', sectionMcpServer: '服务 {server}',
@@ -314,7 +314,7 @@ window.__ModuleLoader__.load({
     // MCP membership; unknown DSH tools fall back to "Other".
     const DSH_SECTIONS = [
       ['agents', ['subagent', 'subagent_fork', 'list_subagent_models', 'send_message', 'list_agents', 'wait_agent', 'workflow']],
-      ['planning', ['todo_write', 'create_goal', 'get_goal', 'update_goal', 'exit_plan_mode']],
+      ['planning', ['work_read', 'work_update', 'todo_write', 'create_goal', 'get_goal', 'update_goal', 'exit_plan_mode']],
       ['jobs', ['job_list', 'job_output', 'job_kill', 'schedule_create', 'schedule_list', 'schedule_view', 'schedule_edit']],
       ['web', ['web_fetch', 'web_search', 'grok_search', 'openai_search', 'openai_image', 'grok_image']],
       ['files', ['present', 'office_render', 'office_convert', 'office_recalculate']],

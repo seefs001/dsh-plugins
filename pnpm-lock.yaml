@@ -68,6 +68,8 @@ importers:
 
   packages/git-changes: {}
 
+  packages/image-gen: {}
+
   packages/keep-awake: {}
 
   packages/message-actions:
@@ -82,7 +84,15 @@ importers:
         specifier: 4.0.1
         version: 4.0.1
 
+  packages/message-edit: {}
+
   packages/model-reference: {}
+
+  packages/orbit-bridge: {}
+
+  packages/paseo-hub: {}
+
+  packages/pi-mcp: {}
 
   packages/pi-tools:
     dependencies:
@@ -92,12 +102,17 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: 1.5.0
         version: 1.5.0(@aws-sdk/credential-provider-node@3.972.96)(@smithy/signature-v4@5.7.5)(ws@8.22.2)(zod@4.6.7)
+      dsh-work-timeline:
+        specifier: workspace:^
+        version: link:../work-timeline
 
   packages/quote-jump: {}
 
   packages/recent-sessions: {}
 
   packages/remember-model: {}
+
+  packages/roles: {}
 
   packages/service-tier: {}
 
@@ -108,6 +123,8 @@ importers:
   packages/tool-lens: {}
 
   packages/web-access: {}
+
+  packages/work-timeline: {}
 
   packages/workspace-manager: {}
 

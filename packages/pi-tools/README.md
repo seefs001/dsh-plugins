@@ -31,7 +31,7 @@ The bundle mounts these native DSH plugins inside the `pi` preset. Their tools k
 | Subagents | `subagent`, `subagent_fork`, `list_subagent_models`, `send_message`, `list_agents`, `wait_agent` |
 | Questions and skills | `ask_user_question`; the `skill` tool; `/` completion for project, user, and DSH bundled skill directories; `/name` injects the skill through the native pre-step pipeline with model/user invocation policies unchanged |
 | Jobs, schedules, goals | `job_list`, `job_output`, `job_kill`; `schedule_create`, `schedule_list`, `schedule_view`, `schedule_edit`; `create_goal`, `get_goal`, `update_goal` and the `/goal` command |
-| Plans and todos | `todo_write`; an isolated plan mode with `exit_plan_mode` |
+| Work and plans | `work_read`, `work_update` from [Work timeline](../work-timeline); an isolated plan mode with `exit_plan_mode` |
 | Web and presentation | `web_fetch`, `web_search`, `present` |
 | Office | `office_render`, `office_convert`, `office_recalculate` |
 | Plugin development | `plugin_manager`, `plugin_market`, `cordis_inspect_list`, `cordis_inspect_query` (the creator preset's runtime inspection; the Host side comes from the web-app bundle), the `dsh-doc` skill |
@@ -41,7 +41,9 @@ The bundled skill directory is located through `DSH_INSTALL_DIR`, or the process
 
 `workflow` is DSH's native tool and runs on DSH's PTC runtime. It is separate from Pi's `codemode`, which stays on QuickJS with `{ code: string }`.
 
-Plan mode reuses the standard preset's plan prompt. The preset does not copy the standard preset's same-name file and terminal tools, its persona, or its extra tool-result pruner. Like the creator preset, it enables the read-only plugin market tool and runtime inspection.
+Work timeline replaces `todo_write` in new Pi sessions. It keeps stable steps across turns, records revisions and explicit artifact references, and provides a Plan / Timeline / Artifacts sidebar from the former TODO dock. Call `work_update` directly: codemode writes are rejected because nested results do not independently persist their metadata. `work_read` restores the current revision after compaction. File references open current contents, not immutable versions. The UI preserves legacy TODO lists in existing sessions. Updating an installed bundle and starting a new Pi session are required; old sessions retain their original preset revision.
+
+Plan mode retains the standard planning rules, with `work_update` excluded from tracking the planning phase. The preset does not copy the standard preset's same-name file and terminal tools, its persona, or its extra tool-result pruner. Like the creator preset, it enables the read-only plugin market tool and runtime inspection.
 
 The global `grok_search` and `openai_search` from [`dsh-web-access`](../web-access), and `openai_image` and `grok_image` from [`dsh-image-gen`](../image-gen), pass through unchanged when configured and ready.
 
@@ -108,7 +110,7 @@ mcpServers: ['*']
 mcpExposure: codemode
 scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent,
   ask_user_question, skill, job_list, job_output, job_kill, schedule_create, schedule_list,
-  schedule_view, schedule_edit, create_goal, get_goal, update_goal, todo_write, web_fetch,
+  schedule_view, schedule_edit, create_goal, get_goal, update_goal, work_read, work_update, web_fetch,
   web_search, present, office_render, office_convert, office_recalculate, exit_plan_mode,
   workflow, plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
 globalTools: [grok_search, openai_search, openai_image, grok_image]

@@ -40,7 +40,7 @@ description: 独立的 pi 预设：Pi 原版编程工具、QuickJS codemode，�
 | 子代理 | `subagent`、`subagent_fork`、`list_subagent_models`、`send_message`、`list_agents`、`wait_agent` |
 | 提问与技能 | `ask_user_question`；`skill` 工具，`/` 补全项目、用户和 DSH 内置技能目录里的技能，`/name` 通过原生 pre-step 注入技能说明 |
 | 作业、定时与目标 | `job_list`、`job_output`、`job_kill`；`schedule_create`、`schedule_list`、`schedule_view`、`schedule_edit`；`create_goal`、`get_goal`、`update_goal` 和 `/goal` 命令 |
-| 计划与待办 | `todo_write`；隔离的计划模式和 `exit_plan_mode` |
+| 工作与计划 | `work_read`、`work_update`；计划 / 过程 / 产物面板；隔离的计划模式和 `exit_plan_mode` |
 | 网页与展示 | `web_fetch`、`web_search`、`present` |
 | Office | `office_render`、`office_convert`、`office_recalculate` |
 | 插件开发 | `plugin_manager`、`plugin_market`、`cordis_inspect_list`、`cordis_inspect_query`（来自创造模式的运行时检查，Host 端由 web-app bundle 提供）、`dsh-doc` skill |
@@ -50,7 +50,9 @@ description: 独立的 pi 预设：Pi 原版编程工具、QuickJS codemode，�
 
 `workflow` 是 DSH 原生的工具，运行在 DSH 的 PTC runtime 上，和 Pi 的 `codemode`（QuickJS、`{ code: string }`）是两套独立的机制。
 
-计划模式直接复用 DSH 标准预设的计划提示词。预设没有搬入标准模式的同名文件和终端工具、标准 persona、额外的工具结果裁剪器。和创造模式一样，预设启用了只读的插件市场工具和运行时检查。
+工作时间线替代新 Pi 会话的 `todo_write`。点击输入区工作摘要打开右侧面板，可查看稳定步骤、阻塞原因、修订过程和显式关联的产物。`work_read` 用于压缩或打断后读回状态。`work_update` 必须直接调用，不可放入 codemode，因为嵌套工具结果不会独立提交状态。文件预览展示当前内容，不是历史版本。更新 bundle 后要新建 Pi 会话，已有会话保留原 preset revision 和旧清单。
+
+计划模式保留 DSH 标准预设的规划规则，并明确不使用 `work_update` 跟踪尚待批准的实施计划。预设没有搬入标准模式的同名文件和终端工具、标准 persona、额外的工具结果裁剪器。和创造模式一样，预设启用了只读的插件市场工具和运行时检查。
 
 ### 原生条件仍然生效
 
@@ -115,7 +117,7 @@ mcpServers: ['*']
 mcpExposure: codemode
 scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent,
   ask_user_question, skill, job_list, job_output, job_kill, schedule_create, schedule_list,
-  schedule_view, schedule_edit, create_goal, get_goal, update_goal, todo_write, web_fetch,
+  schedule_view, schedule_edit, create_goal, get_goal, update_goal, work_read, work_update, web_fetch,
   web_search, present, office_render, office_convert, office_recalculate, exit_plan_mode,
   workflow, plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
 globalTools: [grok_search, openai_search, openai_image, grok_image]
