@@ -1,4 +1,5 @@
 import { appendPluginRecord, pluginRecordOf, z } from './harness.js'
+import { openDefaults, writeDefaults } from './defaults.js'
 
 // Session-owned tool selection stored as an ignorable plugin record, so a
 // stock DSH reader keeps the Session even without this plugin.
@@ -56,9 +57,15 @@ function send(res, status, value) {
   res.end(JSON.stringify(value))
 }
 
+const syncAll = () => { for (const loadout of liveLoadouts) loadout.sync() }
+
 // GET ?sessionId= reads the catalog and committed selection of a blank Pi Session.
 // POST { sessionId, tools } commits a selection before the first turn.
+// POST { sessionId, action: 'save-defaults', tools } saves Host defaults for the
+// Session's preset; `tools: null` restores the configured defaults.
+// POST { sessionId, action: 'refresh-mcp' } restarts the preset's MCP servers.
 export function registerOptionsRoute(ctx) {
+  openDefaults(ctx, syncAll)
   ctx.inject(['webServer', 'connection', 'sessionController', 'agents'], scope => {
     scope.effect(() => scope.webServer.register({
       kind: 'exact', path: OPTIONS_PATH,
@@ -84,8 +91,19 @@ export function registerOptionsRoute(ctx) {
           const editable = boundary.openTurnStartSeq === null && boundary.lastTurn === 0
           const state = loadout.selection.stateOf(agent.session)
           if (!post) {
-            return send(res, 200, { applicable: true, editable, catalog: loadout.catalog(), tools: state.tools })
+            return send(res, 200, { applicable: true, editable, catalog: loadout.catalog(state.agentPreset), tools: state.tools })
           }
+          if (body?.action === 'refresh-mcp') {
+            const servers = await loadout.refreshMcp(scope.get('mcpManager'))
+            return send(res, 200, { ok: true, servers, catalog: loadout.catalog(state.agentPreset) })
+          }
+          if (body?.action === 'save-defaults') {
+            if (!state.agentPreset) return send(res, 409, { message: 'The session has no Agent preset' })
+            await writeDefaults(state.agentPreset, body.tools === null ? null : loadout.defaultChanges(body.tools))
+            syncAll()
+            return send(res, 200, { ok: true, catalog: loadout.catalog(state.agentPreset) })
+          }
+          if (body?.action !== undefined) return send(res, 400, { message: `Unknown action: ${body.action}` })
           if (!editable) return send(res, 409, { message: 'This session has already started' })
           const agentPreset = state.agentPreset
           if (!agentPreset) return send(res, 409, { message: 'The session has no Agent preset' })

@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises'
 import { validateToolArguments } from '@earendil-works/pi-ai/utils/validation'
-import { CODEMODE_STRING_GUIDANCE } from './codemode-syntax.js'
 
 export const PI_VERSION = '1.5.0'
 const entry = import.meta.resolve('@earendil-works/pi-coding-agent')
@@ -11,7 +10,7 @@ if (manifest.version !== PI_VERSION) {
 
 // These private module paths are intentionally coupled to the exact version above.
 // Import the tools, not Pi's CLI, extension loader, settings, or agent loop.
-const [read, bash, edit, write, mime, prompt, shell, find, grep, ls, codemode, search, truncation, paths, mcp] = await Promise.all([
+const [read, bash, edit, write, mime, prompt, shell, find, grep, ls, codemode, search, truncation, paths, mcp, mcpPrompt] = await Promise.all([
   'core/tools/read.js',
   'core/tools/bash.js',
   'core/tools/edit.js',
@@ -27,6 +26,7 @@ const [read, bash, edit, write, mime, prompt, shell, find, grep, ls, codemode, s
   'core/tools/truncate.js',
   'core/tools/path-utils.js',
   'extensions/mcp/tools.js',
+  'extensions/mcp/index.js',
 ].map(path => import(new URL(path, entry).href)))
 
 export const factories = {
@@ -47,20 +47,19 @@ export const { truncateHead, truncateLine, formatSize, DEFAULT_MAX_BYTES, GREP_M
 export const detectImageMimeType = mime.detectSupportedImageMimeType
 export const getShellConfig = shell.getShellConfig
 
-export function toolPrompt(definitions) {
-  const sections = prompt.buildSystemPromptSections({
-    cwd: '.',
+// Keep Pi's complete prompt, including its preamble, docs, and cwd. Runtime
+// facts and enforcement still belong to DSH, not to a rewritten Pi persona.
+export function toolPrompt(definitions, { cwd = '.', mcpServers = [], mcpExposure = 'codemode' } = {}) {
+  const servers = mcpPrompt.renderServersSection(mcpServers.map(name => ({
+    entry: { name, config: { exposure: mcpExposure } },
+  })))
+  return prompt.buildSystemPrompt({
+    cwd,
     selectedTools: definitions.map(tool => tool.name),
     toolSnippets: Object.fromEntries(definitions.map(tool => [tool.name, tool.promptSnippet])),
     toolGuidelines: Object.fromEntries(definitions.map(tool => [tool.name, tool.promptGuidelines ?? []])),
+    sections: servers ? { mcp_servers: servers } : {},
   })
-  return [
-    'You are a coding assistant running inside DeepSeek Harness with the Pi 1.5.0 tool set.',
-    sections.tools,
-    sections.rules,
-    ...definitions.some(tool => tool.name === 'codemode') ? [CODEMODE_STRING_GUIDANCE] : [],
-    'DSH owns session permissions and the execution environment. A denied operation remains denied; do not work around it. Tool parameters do not support permission escalation. Ask the user to change permissions when necessary.',
-  ].join('\n\n')
 }
 
 export function createDefinitions(cwd, operations, names = Object.keys(factories)) {

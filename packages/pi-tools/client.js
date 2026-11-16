@@ -21,6 +21,9 @@ window.__ModuleLoader__.load({
       selectMatches: 'Select {count} shown in {section}', clearMatches: 'Clear {count} shown in {section}',
       familyPi: 'Pi', familyDsh: 'DSH', familyMcp: 'MCP', optInTag: 'opt-in',
       showDetails: 'Per-tool settings', showSimple: 'Simple view',
+      saveDefaults: 'Set as default', resetDefaults: 'Use preset defaults', customDefaults: 'Custom defaults',
+      defaultsSaved: 'Saved as the default for new conversations of this preset.', defaultsReset: 'Defaults reset to the preset configuration.',
+      refreshMcp: 'Refresh MCP', refreshingMcp: 'Refreshing MCP…', mcpRefreshed: 'MCP refreshed: {summary}', mcpNone: 'No MCP servers to refresh.',
       simpleHint: 'Turn whole groups on or off. Open per-tool settings to pick single tools.',
       sectionPi: 'Pi coding tools', sectionAgents: 'Agents and delegation', sectionPlanning: 'Plans, goals and todos',
       sectionJobs: 'Jobs and schedules', sectionWeb: 'Web, search and images', sectionFiles: 'Presentation and Office',
@@ -44,6 +47,9 @@ window.__ModuleLoader__.load({
       selectMatches: '选中{section}中显示的 {count} 个', clearMatches: '清空{section}中显示的 {count} 个',
       familyPi: 'Pi', familyDsh: 'DSH', familyMcp: 'MCP', optInTag: '非默认',
       showDetails: '逐个设置', showSimple: '精简视图',
+      saveDefaults: '设为默认', resetDefaults: '恢复预设默认', customDefaults: '自定义默认',
+      defaultsSaved: '已设为此预设新对话的默认工具。', defaultsReset: '默认工具已恢复为预设配置。',
+      refreshMcp: '刷新 MCP', refreshingMcp: '正在刷新 MCP…', mcpRefreshed: 'MCP 已刷新：{summary}', mcpNone: '没有可刷新的 MCP 服务。',
       simpleHint: '按分组开关工具。需要单独挑选时，点「逐个设置」。',
       sectionPi: 'Pi 编程工具', sectionAgents: '代理与委派', sectionPlanning: '计划、目标与待办',
       sectionJobs: '作业与定时', sectionWeb: '网页、搜索与画图', sectionFiles: '展示与 Office',
@@ -79,6 +85,7 @@ window.__ModuleLoader__.load({
 .pi-tools-inspect{font-size:12px!important;text-decoration:underline;text-underline-offset:3px}
 .pi-tools-picker{width:min(720px,100%);max-height:100%}
 .pi-tools-picker .pi-tools-error{margin:10px 0 0;font-size:13px}
+.pi-tools-picker .pi-tools-notice{margin:10px 0 0;font-size:13px;color:var(--dsw-alias-label-secondary)}
 .pi-tools-options-toolbar{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap}
 .pi-tools-options-filter{flex:1 1 260px;min-width:0}
 .pi-tools-options-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:10px 0}
@@ -295,7 +302,12 @@ window.__ModuleLoader__.load({
           return failure instanceof Error ? failure.message : String(failure)
         }
       }
-      return h(PiToolPicker, { catalog: value.catalog, committed: value.tools, reload: load, save, t })
+      const act = async body => {
+        const result = await optionsRequest({ body: { sessionId, ...body } })
+        await load()
+        return result
+      }
+      return h(PiToolPicker, { catalog: value.catalog, committed: value.tools, reload: load, save, act, t })
     }
 
     // Presentation-only sections. The catalog's group still decides Pi / DSH /
@@ -366,7 +378,13 @@ window.__ModuleLoader__.load({
       try { localStorage.setItem(VIEW_KEY, view) } catch {}
     }
 
-    function PiToolPicker({ catalog, committed, reload, save, t }) {
+    function mcpSummary(servers, t) {
+      if (!servers.length) return t('mcpNone')
+      return t('mcpRefreshed', { summary: servers.map(server => server.state === 'connected'
+        ? `${server.name} (${server.toolCount})` : `${server.name}: ${server.error ?? server.state}`).join(', ') })
+    }
+
+    function PiToolPicker({ catalog, committed, reload, save, act, t }) {
       const disabled = false
       const [view, setViewState] = React.useState(readView)
       const setView = next => { setViewState(next); writeView(next) }
@@ -378,6 +396,8 @@ window.__ModuleLoader__.load({
       const [collapsed, setCollapsed] = React.useState({})
       const [saving, setSaving] = React.useState(false)
       const [error, setError] = React.useState(undefined)
+      const [notice, setNotice] = React.useState(undefined)
+      const [busy, setBusy] = React.useState(undefined)
       const uid = React.useId()
       const ready = Array.isArray(catalog?.tools) && Array.isArray(catalog?.defaults)
       const tools = ready ? catalog.tools : []
@@ -407,7 +427,30 @@ window.__ModuleLoader__.load({
           ? [...selected, ...names.filter(name => !selectedSet.has(name))]
           : selected.filter(name => !changed.has(name)))
       }
-      const close = () => { if (!saving) setOpen(false) }
+      const close = () => { if (!saving && !busy) setOpen(false) }
+      const run = async (kind, body, describe) => {
+        if (!ready || saving || busy) return
+        setBusy(kind)
+        setError(undefined)
+        setNotice(undefined)
+        try {
+          setNotice(describe(await act(body)))
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : String(cause))
+        } finally {
+          setBusy(undefined)
+        }
+      }
+      const saveDefaults = () => run('defaults', { action: 'save-defaults', tools: [...selected] }, () => t('defaultsSaved'))
+      const resetDefaults = () => run('defaults', { action: 'save-defaults', tools: null }, () => t('defaultsReset'))
+      const refreshMcp = () => run('mcp', { action: 'refresh-mcp' }, result => mcpSummary(result?.servers ?? [], t))
+      const extraActions = h(React.Fragment, null,
+        h(Button, { variant: 'ghost', size: 'sm', disabled: saving || !!busy, onClick: saveDefaults }, t('saveDefaults')),
+        catalog?.customDefaults
+          ? h(Button, { variant: 'ghost', size: 'sm', disabled: saving || !!busy, onClick: resetDefaults, title: t('customDefaults') }, t('resetDefaults'))
+          : null,
+        h(Button, { variant: 'ghost', size: 'sm', disabled: saving || !!busy, onClick: refreshMcp },
+          t(busy === 'mcp' ? 'refreshingMcp' : 'refreshMcp')))
       const commit = async () => {
         if (!ready || saving || disabled) return
         setSaving(true)
@@ -481,14 +524,14 @@ window.__ModuleLoader__.load({
       }
       return h(React.Fragment, null,
         h(Button, { variant: 'ghost', disabled, onClick: () => {
-          setDraft(undefined); setQuery(''); setSelectedOnly(false); setError(undefined); setOpen(true); void reload()
+          setDraft(undefined); setQuery(''); setSelectedOnly(false); setError(undefined); setNotice(undefined); setOpen(true); void reload()
         } }, t('tools')),
         h(Modal, {
           open, onClose: close, title: t('chooseTools'), closeLabel: t('cancel'),
           description: t('toolsHint'), className: 'pi-tools-picker',
           footer: h(React.Fragment, null,
             h(Button, { variant: 'ghost', onClick: close, disabled: saving }, t('cancel')),
-            h(Button, { variant: 'primary', onClick: commit, disabled: !ready || saving || disabled },
+            h(Button, { variant: 'primary', onClick: commit, disabled: !ready || saving || !!busy || disabled },
               t(saving ? 'saving' : 'save'))),
         },
         !ready ? h('p', { role: 'status' }, t('unavailable')) : simple ? h(React.Fragment, null,
@@ -496,6 +539,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'pi-tools-options-actions' },
             h(Button, { variant: 'outline', size: 'sm', disabled: saving, onClick: () => setDraft([...catalog.defaults]) }, t('defaults')),
             h(Button, { variant: 'ghost', size: 'sm', disabled: saving, onClick: () => setView('detailed') }, t('showDetails')),
+            extraActions,
             h('span', { className: 'pi-tools-options-count', role: 'status' }, status)),
           noGateway ? h('p', { className: 'pi-tools-options-warning' }, t('noGateway')) : null,
           h('div', { className: 'pi-tools-options-list' },
@@ -516,10 +560,12 @@ window.__ModuleLoader__.load({
             t(anyFolded ? 'expandAll' : 'collapseAll')),
             h(Button, { variant: 'ghost', size: 'sm', disabled: saving,
               onClick: () => { setQuery(''); setSelectedOnly(false); setView('simple') } }, t('showSimple')),
+            extraActions,
             h('span', { className: 'pi-tools-options-count', role: 'status' }, status)),
           noGateway ? h('p', { className: 'pi-tools-options-warning' }, t('noGateway')) : null,
           h('div', { className: 'pi-tools-options-list' },
             shown.length ? shown.map(renderSection) : h('p', { className: 'pi-tools-options-empty' }, t('noMatches')))),
+        notice ? h('p', { role: 'status', className: 'pi-tools-notice' }, notice) : null,
         error ? h('p', { role: 'alert', className: 'pi-tools-error' }, error) : null))
     }
 

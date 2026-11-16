@@ -163,12 +163,8 @@ export async function apply(ctx, rawConfig = {}) {
         .filter(toolName => loadout.enabled(toolName, scope))
         .map(toolName => loadout.serverOf(toolName))
         .filter(server => server !== undefined))].toSorted()
-      return toolPrompt(selected) + loadout.delegationPrompt(scope) + (servers.length && config.mcpExposure !== 'hidden'
-        ? `\n\nMCP tool namespaces enabled in this session: ${servers.map(server => `mcp__${server}`).join(', ')}.\n`
-          + (selected.some(tool => tool.name === 'codemode') ? 'Use codemode searchTools()/describeTool() to discover callable tools. ' : '')
-          + (selected.some(tool => tool.name === 'tool_search') ? 'Use tool_search to load additional model-facing tool declarations. ' : '')
-          + 'MCP connections and credentials are managed by DeepSeek Harness; remote MCP access is not limited by the local filesystem sandbox.'
-        : '')
+      const cwd = scope?.session ? ctx.workingDirectory.get(scope.session) : ctx.workingDirectory.defaultDirectory
+      return toolPrompt(selected, { cwd, mcpServers: servers, mcpExposure: config.mcpExposure })
     },
     interpolate: false,
   })

@@ -81,6 +81,16 @@ In the detailed view:
 
 The defaults are the Pi tools, the configured MCP tools, the native tools mounted in the preset except those listed in `optInTools`, and the two passthrough searches. The supplied preset lists `present`, the Office tools, and the plugin development tools (`plugin_manager`, `plugin_market`, `cordis_inspect_list`, `cordis_inspect_query`) as opt-in. Other global DSH tools on the Host are opt-in. New tools are not added to an existing explicit selection; a new session or **Restore defaults** picks up the new defaults.
 
+### Saved defaults
+
+**Set as default** saves the dialog's current checks as the Host default for this preset. New sessions and **Restore defaults** then use it. The saved default records only the differences from the configured defaults, so a tool that appears later, such as a new MCP tool, follows the configured rule unless you changed that tool. **Use preset defaults** appears while a saved default exists and deletes it. Saved defaults live in the `pi_tools_defaults` storage domain, keyed by preset id.
+
+A session without an explicit selection follows the current default until its first step. That step writes the default into the session as a selection record, so later edits to the default reach only new sessions.
+
+### Refreshing MCP
+
+**Refresh MCP** restarts every MCP server the preset bridges through the DSH MCP manager. It waits up to 20 seconds for each server to settle, then reloads the catalog and reports each server's state and tool count. Use it after you change an MCP server so the dialog lists its new tools. It refreshes only servers already known to the MCP manager. A server added to Pi's `mcp.json` reaches the manager through `dsh-pi-mcp`'s file watcher. Restarting a server also reconnects it for every other session that uses it.
+
 ## How the selection applies
 
 - The **Tools** button appears in the new-session row of a blank Pi session. Saving appends an ignorable `plugin:dsh-pi-tools/selection` record through `POST /pi-tools/options`; the Host refuses it once the first turn has started. Refresh and replay restore the committed selection, forks inherit the log, and switching presets resets it. A DSH build without this plugin still opens the session and skips the record.
@@ -152,11 +162,17 @@ Scripts receive Pi's structured `read` and `bash` values. A nonzero `bash` exit 
 
 Safe calls may overlap. Mutations form exclusive barriers, and policy preparation and result completion keep submission order. Script cancellation, permission-mode changes, and plugin disposal abort and drain started nested work. Pi's compact nested-call summaries stay in result metadata; individual nested outputs are not added to the model's history.
 
+## System prompt
+
+The preset calls Pi 1.5.0's original complete system-prompt builder. Its preamble, selected-tool list, rules, documentation links, and current working directory are rendered by Pi itself. Deferred MCP servers use Pi's original `mcp_servers` section renderer. The plugin does not replace the preamble with a DSH identity or append custom codemode, permission, delegation, or MCP paragraphs to the system prompt.
+
+For the same tool definitions, working directory, and MCP server names/exposure, this generated text matches Pi's builder byte for byte. This does not make the entire model request identical to the Pi CLI: DSH still supplies tool declarations, project instructions, skills, runtime facts, and other plugins' context through its own mechanisms. Permissions, sandbox enforcement, and subagent execution remain DSH-owned. Pi's documentation links describe Pi, not the DSH-specific extensions.
+
 ## Codemode strings
 
 Codemode keeps Pi's original parameter schema, description, and `constrainedSampling` policy. Stock DSH drops that policy before the request reaches pi-ai, so the root companion entry re-attaches it to the exact Pi codemode declaration by wrapping `streamSimple` on the prototype of the pi-ai `Models` collection that `@deepseek-ai/dsh-llm-pi-ai` uses (`lib/pi-ai-hook.js`). pi-ai then uses raw-JavaScript grammar transport where the model's compat enables OpenAI grammar tools, and JSON `{ "code": "..." }` otherwise. DSH does not let a profile set that compat flag, so custom routes stay on JSON. The hook depends on DSH internals; if the layout changes, the Host log shows `pi-tools: codemode grammar sampling is unavailable` and codemode uses JSON. There is no extra `input` parameter, source wrapper, guessed repair, or automatic replay. Raw transport removes the JSON-string layer, but scripts must still be valid JavaScript.
 
-When codemode is selected, its string guidance covers every string argument: file contents, edit text, paths, regex and glob patterns, and MCP fields. It includes nested Python, literal shell expansion, and multiline heredoc examples.
+Codemode syntax/reference error feedback includes string guidance for file contents, edit text, paths, regex and glob patterns, and MCP fields, with nested Python, literal shell expansion, and multiline heredoc examples. This guidance is not appended to the system prompt.
 
 - Ordinary JavaScript strings interpret backslashes. Use `String.raw` for literal backslashes when the text has no backticks or `${...}`.
 - `String.raw` still evaluates `${...}`. Escaping interpolation or backticks inside it keeps the extra backslashes. Build literal delimiters from ordinary quoted strings or concatenated raw chunks.
@@ -181,7 +197,7 @@ The root companion entry sets `presentationOnly: true`, which registers no Host 
 - Pi's worker limits and output formatting stay in force. Pi owns its temporary spill files; DSH stores returned images as durable attachments with its own admission and normalization limits.
 - MCP scripts receive the canonical result envelope, including protocol content and optional structured content. DSH stays authoritative for MCP transport errors and server error results.
 - `models.*`, classifiers, image-model routing, PowerShell, arbitrary Pi extensions, and Pi's agent loop are not loaded.
-- Pi's tool and rule sections replace DSH's static tool guidance. DSH still owns model routing, runtime context, project instructions, session persistence, and compaction. Pi tools do not accept DSH escalation parameters; a permission denial needs a human permission change.
+- Pi's complete system prompt replaces DSH's static identity and tool guidance in this preset. DSH still owns model routing, runtime context, project instructions, session persistence, and compaction. Pi tools do not accept DSH escalation parameters; a permission denial needs a human permission change.
 
 ## Installation and development
 

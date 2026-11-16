@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto'
 import { emptyState } from './state.js'
 import { prepareArguments, toToolExposure } from './pi.js'
 import { scopeOf, scopeChainOf } from './harness.js'
-import { isSelectionEvent, liveLoadouts } from './selection.js'
+import { appendSelection, isSelectionEvent, liveLoadouts } from './selection.js'
+import { savedDefaultsOf } from './defaults.js'
 
 export const INTERNAL_PREFIX = 'pi_internal_'
 export const RESOURCE_TOOLS = new Set(['list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource'])
@@ -64,6 +65,18 @@ export class PiLoadout {
         if (isSelectionEvent(event)) this.sync()
       }, { global: true })
     }
+    // Host defaults can change at any time. Freeze them into a Session that
+    // has no explicit selection once it runs, so later edits affect only new
+    // conversations. The step's tool set was resolved from the same defaults.
+    ctx.on('agent/pre-step', async ({ agent }, next) => {
+      const decision = await next()
+      const current = agent.session ? this.selection.stateOf(agent.session) : undefined
+      if (decision.kind !== 'reject' && current?.tools === null && current.agentPreset && this.contains(agent)
+        && savedDefaultsOf(current.agentPreset)) {
+        appendSelection(agent.session, current.agentPreset, this.catalog(current.agentPreset).defaults.toSorted())
+      }
+      return decision
+    })
     this.sync()
     ctx.on('tools/change', () => this.sync())
     ctx.tools.guard(exec => this.enabled(this.internal.get(exec.name) ?? exec.name, exec.agent)
@@ -88,19 +101,75 @@ export class PiLoadout {
     // The mounting plugin decided this Agent gets the tool; a saved Pi
     // selection never listed it and must not hide it.
     if (this.agentScoped(name)) return true
-    const selected = agent?.session ? this.selection.stateOf(agent.session).tools : null
+    const state = agent?.session ? this.selection.stateOf(agent.session) : undefined
+    const selected = state?.tools ?? null
     if (selected !== null) {
       if (!Array.isArray(selected) || !selected.every(tool => typeof tool === 'string')) {
         throw new Error('Invalid saved Pi tool selection')
       }
       return selected.includes(name)
     }
+    return this.defaultEnabled(name, state?.agentPreset)
+  }
+
+  /** A Host-saved default for the preset replaces the configured defaults. */
+  defaultEnabled(name, agentPreset) {
+    const saved = savedDefaultsOf(agentPreset)
+    if (saved?.include.includes(name)) return true
+    if (saved?.exclude.includes(name)) return false
+    return this.configuredDefault(name)
+  }
+
+  /** Express a full selection as changes to the configured defaults. */
+  defaultChanges(tools) {
+    const selected = new Set(this.parseSelection({ tools }).tools)
+    const configured = new Set(this.catalog().configuredDefaults)
+    return {
+      include: [...selected].filter(name => !configured.has(name)).toSorted(),
+      exclude: [...configured].filter(name => !selected.has(name)).toSorted(),
+    }
+  }
+
+  /**
+   * Restart the selected MCP servers so they list their tools again, then wait
+   * a bounded time for each to settle. New registrations reach the catalog
+   * through tools/change.
+   */
+  async refreshMcp(manager, timeoutMs = 20_000) {
+    if (!manager || this.config.mcpExposure === 'hidden') return []
+    const names = manager.list().filter(view => view.configured && this.serverEnabled(view.name)
+      && view.status.state !== 'disabled').map(view => view.name)
+    const failures = new Map()
+    await Promise.all(names.map(name => manager.restart(name).catch(error => {
+      failures.set(name, error instanceof Error ? error.message : String(error))
+    })))
+    const pending = new Set(['connecting', 'reconnecting', 'waiting-credentials'])
+    const deadline = Date.now() + timeoutMs
+    const views = () => new Map(manager.list().map(view => [view.name, view]))
+    let current = views()
+    while (Date.now() < deadline && names.some(name => pending.has(current.get(name)?.status.state))) {
+      await new Promise(resolve => setTimeout(resolve, 200))
+      current = views()
+    }
+    this.sync()
+    return names.map(name => {
+      const status = current.get(name)?.status ?? { state: 'closed' }
+      return {
+        name, state: status.state,
+        ...status.state === 'connected' ? { toolCount: status.toolCount } : {},
+        ...failures.has(name) ? { error: failures.get(name) }
+          : typeof status.lastError === 'string' ? { error: status.lastError } : {},
+      }
+    })
+  }
+
+  configuredDefault(name) {
     if (this.optInNames.has(name)) return false
     return this.ownNames.has(name) || this.bridges.get(name)?.sourceScope !== undefined || this.bridges.get(name)?.passthrough === true
       || (this.isMcp(name) && this.accepts(name))
   }
 
-  catalog() {
+  catalog(agentPreset) {
     const tools = [
       ...this.nativeCatalog,
       ...[...this.bridges.values()].map(({ original }) => ({
@@ -108,8 +177,10 @@ export class PiLoadout {
         group: this.isMcp(original.name) ? 'mcp' : 'dsh',
       })).toSorted((a, b) => a.name.localeCompare(b.name)),
     ]
-    return { tools, defaults: tools.filter(tool => this.enabled(tool.name)).map(tool => tool.name),
-      mcpExposure: this.config.mcpExposure }
+    const saved = savedDefaultsOf(agentPreset)
+    return { tools, defaults: tools.filter(tool => this.defaultEnabled(tool.name, agentPreset)).map(tool => tool.name),
+      configuredDefaults: tools.filter(tool => this.configuredDefault(tool.name)).map(tool => tool.name),
+      customDefaults: saved !== undefined, mcpExposure: this.config.mcpExposure }
   }
 
   parseSelection(value) {
@@ -287,11 +358,6 @@ export class PiLoadout {
     this.agentBindings.delete(agent)
     for (const dispose of record.bindings.values()) dispose()
     record.releaseMask?.()
-  }
-
-  delegationPrompt(scope) {
-    if (!['subagent', 'subagent_fork'].some(name => this.bridges.get(name)?.sourceScope !== undefined && this.enabled(name, scope))) return ''
-    return '\n\nDSH subagent creation returns an activation name, not the completed result. Start independent children together and continue independent work while they run. When only waiting remains, end the turn so DSH can deliver completion notices; do not poll or keep a codemode script running while waiting. Collect required child results before the final answer. Coordinate concurrent file edits explicitly, then review the final diff and run relevant checks. Use only the selected delegation and control tools.'
   }
 
   nestedDefinition(name, scope, toolSet) {
