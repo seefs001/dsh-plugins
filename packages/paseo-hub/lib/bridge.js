@@ -37,7 +37,7 @@ const textOf = content => (content ?? []).filter(block => block.type === 'text')
 /** One Hub agent snapshot: the fields Hub reads plus the wire shape Paseo clients expect. */
 export function agentSnapshot(ctx, sessionId, run) {
   const agent = ctx.agents.get(sessionId)
-  const session = agent?.session ?? ctx.sessions?.get?.(sessionId)
+  const session = agent?.session ?? ctx.get?.('sessions')?.get?.(sessionId)
   const archived = ctx.workspaceRegistry?.archivedSessionIds?.includes(sessionId) === true
   const status = agent === undefined ? 'idle' : agent.status === 'running' ? 'running' : 'idle'
   const current = agent?.model?.current?.()
