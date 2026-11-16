@@ -23,7 +23,7 @@ export const OP_PATH = '/roles/op'
 export const EVENTS_PATH = '/roles/events'
 export const TOOL_NAME = 'roles'
 export const PROVIDER_NAME = 'dsh-roles'
-export const ACTIONS = ['list', 'get', 'create', 'update', 'duplicate', 'delete', 'move', 'select', 'reset', 'restore_builtins']
+export const ACTIONS = ['list', 'get', 'catalog', 'preview', 'create', 'update', 'duplicate', 'delete', 'move', 'select', 'reset', 'restore_builtins']
 
 const MAX_BODY_BYTES = 1024 * 1024
 const MAX_ROLES = 100
@@ -73,6 +73,8 @@ function normalizeRole(raw) {
     description: str(raw.description, LIMITS.description),
     prompt: typeof raw.prompt === 'string' ? raw.prompt.slice(0, LIMITS.prompt) : '',
     skills,
+    localSkills: [...new Set((Array.isArray(raw.localSkills) ? raw.localSkills : [])
+      .filter(n => typeof n === 'string' && n.length <= 64 && SKILL_NAME.test(n)))].slice(0, MAX_SKILLS),
     ...(typeof raw.builtin === 'string' && raw.builtin ? { builtin: raw.builtin } : {}),
     updatedAt: Number.isFinite(raw.updatedAt) ? raw.updatedAt : 0,
   }
@@ -142,7 +144,14 @@ export function parseDraft(draft, base = {}) {
     if (s.content.length > LIMITS.skillContent) throw new OpError(`skill "${skillName}" content exceeds ${LIMITS.skillContent} characters`)
     return normalizeSkill(s)
   })
-  return { name: roleName, icon: str(merged.icon, LIMITS.icon), description: str(merged.description, LIMITS.description), prompt: merged.prompt, skills }
+  const localSkills = merged.localSkills ?? []
+  if (!Array.isArray(localSkills) || localSkills.length > MAX_SKILLS) throw new OpError(`localSkills must be an array of at most ${MAX_SKILLS} names`)
+  for (const skillName of localSkills) {
+    if (typeof skillName !== 'string' || skillName.length > 64 || !SKILL_NAME.test(skillName)) throw new OpError('localSkills names must be kebab-case')
+    if (names.has(skillName)) throw new OpError(`skill "${skillName}" appears twice (inline or local)`)
+    names.add(skillName)
+  }
+  return { name: roleName, icon: str(merged.icon, LIMITS.icon), description: str(merged.description, LIMITS.description), prompt: merged.prompt, skills, localSkills }
 }
 
 function requireRole(library, roleId) {
@@ -161,6 +170,9 @@ export function applyOp(library, op, now = Date.now()) {
   switch (op?.action) {
     case 'list':
       return { library, result: {} }
+    case 'preview':
+      // Validate a draft and render what the model would see, without storing it.
+      return { library, result: { prompt: renderRolePrompt(parseDraft(op.role)) } }
     case 'get':
       return { library, result: { role: requireRole(library, op.roleId) } }
     case 'create': {
@@ -233,6 +245,9 @@ export function renderRolePrompt(role) {
   if (role.skills.length > 0) {
     lines.push('', `Skills that come with this role (load them with the \`skill\` tool when relevant): ${role.skills.map(s => s.name).join(', ')}.`)
   }
+  if (role.localSkills?.length) {
+    lines.push('', `Local skill references for this role: ${role.localSkills.join(', ')}. Load these by name with the skill tool when relevant, using the current session's skill catalog. These are references, not copies; if a referenced skill is absent from that catalog, report it as unavailable rather than inventing its instructions. Other session skills remain available.`)
+  }
   return lines.join('\n')
 }
 
@@ -272,11 +287,17 @@ const TOOL_DESCRIPTION = [
   'Actions: list (summaries plus the current session\'s role); get {roleId} (full prompt and skills); create {role}; update {roleId, role} (fields given replace the stored ones);',
   'duplicate {roleId}; delete {roleId}; move {roleId, beforeRoleId?}; select {roleId} switches the current session to a role, roleId null clears it;',
   'reset {roleId} restores a built-in role; restore_builtins adds back deleted built-in roles.',
-  'role = {name, icon?, description?, prompt, skills?: [{name (kebab-case), description, whenToUse?, content (markdown)}]}.',
+  'role = {name, icon?, description?, prompt, skills?: [{name (kebab-case), description, whenToUse?, content (markdown)}], localSkills?: [existing skill names]}.',
+  'catalog {cwd?} lists locally discovered model-invocable skills (no content); cwd selects project skills. localSkills references existing skills by name, preserves their files, and does not restrict other skills. preview {role} renders a draft without saving.',
   'Only switch or edit roles when the user asks.',
 ].join(' ')
 
-const summaryOf = r => ({ id: r.id, name: r.name, icon: r.icon, description: r.description, skills: r.skills.map(s => s.name), ...(r.builtin ? { builtin: true } : {}) })
+const contentKey = r => JSON.stringify([r.name, r.icon, r.description, r.prompt, r.skills, r.localSkills ?? []])
+const BUILTIN_KEYS = new Map(BUILTIN_ROLES.map(b => [b.builtin, contentKey(builtinRole(b))]))
+/** Whether a built-in role differs from the text it ships with. */
+const isModifiedBuiltin = role => BUILTIN_KEYS.has(role.builtin) && BUILTIN_KEYS.get(role.builtin) !== contentKey(role)
+
+const summaryOf = r => ({ id: r.id, name: r.name, icon: r.icon, description: r.description, skills: r.skills.map(s => s.name), localSkills: r.localSkills, ...(r.builtin ? { builtin: true } : {}) })
 
 export function apply(ctx) {
   let closed = false
@@ -390,6 +411,9 @@ export function apply(ctx) {
   const snapshot = () => ({
     roles: library.roles,
     sessions: Object.fromEntries([...sessions].map(([id, s]) => [id, s.roleId])),
+    builtinModified: library.roles.filter(r => r.builtin && isModifiedBuiltin(r)).map(r => r.id),
+    builtinMissing: BUILTIN_ROLES.filter(b => !library.roles.some(r => r.id === b.builtin || r.builtin === b.builtin)).length,
+    limits: { ...LIMITS, roles: MAX_ROLES, skills: MAX_SKILLS },
   })
   const broadcast = () => {
     const frame = `data: ${JSON.stringify(snapshot())}\n\n`
@@ -397,7 +421,18 @@ export function apply(ctx) {
   }
 
   let tail = Promise.resolve()
-  const run = (op, callerSessionId, fromTool = false) => {
+  const run = async (op, callerSessionId, fromTool = false) => {
+    // Read-only draft/catalog operations do not wait behind storage mutations.
+    if (op?.action === 'preview') return applyOp(library, op).result
+    if (op?.action === 'catalog') {
+      const registry = ctx.get('skills')
+      if (!registry) throw new OpError('skill registry unavailable')
+      if (op.cwd !== undefined && (typeof op.cwd !== 'string' || !op.cwd.trim())) throw new OpError('cwd must be a non-empty directory path')
+      const result = await registry.snapshot({ cwd: op.cwd, signal: AbortSignal.timeout(10_000) })
+      const skills = result.skills.filter(s => s.invocation.modelInvocable && s.resourceBase?.kind === 'directory' && s.provider !== PROVIDER_NAME)
+        .map(s => ({ name: s.name, description: s.description, source: s.source, path: s.path ?? s.resourceBase.path }))
+      return { skills, complete: result.complete }
+    }
     const task = tail.then(async () => {
       if (closed) throw new OpError('roles are unloading')
       const domain = await ready
@@ -529,6 +564,7 @@ export function apply(ctx) {
         type: 'object',
         properties: {
           action: { type: 'string', enum: ACTIONS, description: 'Operation to perform.' },
+          cwd: { type: 'string', description: 'catalog: project directory to include workspace skills; omit for user and bundled skills.' },
           roleId: { type: ['string', 'null'], description: 'Target role id (from list); null with select clears the role.' },
           beforeRoleId: { type: 'string', description: 'move: place before this role; omit to move last.' },
           role: {
@@ -540,6 +576,7 @@ export function apply(ctx) {
               description: { type: 'string' },
               prompt: { type: 'string', description: 'Detailed role prompt in Markdown.' },
               skills: { type: 'array', items: skillSchema },
+              localSkills: { type: 'array', items: { type: 'string' }, description: 'References to existing local skills by name. Loaded through the native skill tool; no file content is copied.' },
             },
             additionalProperties: false,
           },

@@ -11,14 +11,24 @@ Role manager for the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-
 
 ## Manage roles
 
-The role manager is this bundle's page under **Plugins**:
+Open **Roles** in the sidebar, or **Open role manager** on this bundle's **Plugins** page:
 
 - The left column lists roles in menu order, with skill counts and how many sessions use each role.
-- The editor has the name, an emoji icon, a short description, the prompt, and the role's skills. **Save** stores the role; **Discard changes** reverts the draft. Switching to another role with unsaved edits asks first.
-- **New role**, **Duplicate**, **Delete**, and the ↑ / ↓ buttons change the library. Deleting a role clears it from the sessions that used it.
+- Edit the name, emoji and description inline. The **Prompt**, **Skills**, and **What the model sees** tabs separate editing from inspection; the preview includes unsaved edits.
+- **Save** (⌘S / Ctrl+S) stores the role; **Discard** reverts the draft. Unsaved drafts survive role switches and navigation within this loaded page, but not a reload. A new role is only stored after **Create role**.
+- The bottom save bar stays visible. Field errors, unsaved markers, and an external-edit warning show the state of the draft.
+- **New role** adds a draft. **More actions** contains Duplicate, Move up/down, Reset to built-in and Delete. Duplicating includes unsaved edits. Deleting a role clears it from the sessions that used it.
 - Four built-in roles ship with the plugin: 代码审查员 (code reviewer), 架构师 (architect), 调试专家 (debugger) and 技术写作 (technical writer). Each has a detailed prompt and one or two skills. Edit them freely; **Reset to built-in** restores one, and **Restore built-in roles** adds back the ones you deleted.
 
-Limits: 100 roles, 20 skills per role, 40,000 characters per prompt, 60,000 per skill.
+Limits: 100 stored roles, 20 role-owned skills and 20 local references per role, 40,000 characters per prompt, 60,000 per role-owned skill.
+
+### Reference local skills
+
+In **Skills → Local skill references**, search and check existing skills. The catalog comes from DSH's native skill registry, including its configured user, custom and bundled filesystem roots. Enter a project directory and click **Read skill catalog** to include that project's skills.
+
+Only names are saved in `localSkills`; no files are copied or changed. At runtime, the native `skill` tool resolves each name in the session's own project context, so resource directories and local edits remain intact. A reference missing from that session's catalog is unavailable; the role prompt tells the agent to report it instead of inventing instructions. References do not hide or restrict other session skills. A name cannot be both a reference and a role-owned skill.
+
+**Role-owned skills** below the picker are editable Markdown embedded in the role itself.
 
 ## What the model sees
 
@@ -29,7 +39,9 @@ Switching roles changes the system prompt, which lowers provider cache reuse for
 
 ## Agent tool
 
-The Host registers a `roles` tool with the same operations as the UI: `list`, `get`, `create`, `update`, `duplicate`, `delete`, `move`, `select`, `reset`, and `restore_builtins`. `select` acts on the calling session. The tool description tells the agent to change roles only when the user asks.
+The Host registers a `roles` tool with the same operations as the UI: `list`, `get`, `catalog`, `preview`, `create`, `update`, `duplicate`, `delete`, `move`, `select`, `reset`, and `restore_builtins`. `select` acts on the calling session. The tool description tells the agent to change roles only when the user asks.
+
+`catalog {cwd?}` lists local skill metadata, without loading bodies. `create` / `update` accept `role.localSkills: ["skill-name"]` alongside inline `role.skills`. `preview {role}` renders the prompt without saving.
 
 ## Storage
 
