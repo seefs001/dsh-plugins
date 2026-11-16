@@ -59,7 +59,53 @@ run:
 
 每次运行的目录会加入侧栏工作区列表（已有的工作区直接复用；启动时也会补上之前运行的目录），所以 Hub 会话会出现在会话列表里。设 `listWorkspaces: false` 可关闭。
 
-追问、取消、归档、恢复、改标题和读取文件（附件）都作用于同一个 DSH 会话：Hub 的 agent id 和 workspace id 都是 DSH 会话 id。页面列出最近 20 次 Hub 运行，可直接 **打开**。
+追问、取消、归档、恢复、改标题和读取文件（附件）都作用于同一个 DSH 会话：Hub 的 agent id 和 workspace id 都是 DSH 会话 id。
+
+## 页面
+
+**Paseo Hub** 页面分五个标签，未注册 daemon 时也可进入 Hub API：
+
+- **概览**：运行计数（总数、运行中、已完成、失败、近 24 小时，点击进入对应筛选的运行列表）；连接信息和 **打开 Hub**、**立即重连**、**断开**；最近 5 次运行和最近 5 条活动。
+- **运行**：全部 Hub 运行，按时间倒序。支持搜索（标题、目录、模型、会话 ID，按 `/` 聚焦）、带计数的状态筛选和分页（每页 10、20 或 50 条，按浏览器记住）。每行可打开会话、运行中可停止，展开后显示 mode、预设、模型、推理强度、worktree、轮数、时间和最近错误。**⋯** 菜单可复制会话 ID 或目录、查看该运行的活动、归档或恢复，以及把已归档的运行从列表移除（DSH 会话保留）。
+- **活动**：记录登录、连接、断线、撤销、运行开始、追问、完成、失败、取消和页面操作。可按来源、只看问题或单个运行筛选，支持搜索、分页和清空。
+- **Hub API**：组织 Key 管理、触发器搜索和分页、YAML 查看编辑及校验安装、带稳定 delivery key 的手动运行、项目 / daemon / 集成资源查询，以及旧版整份配置管理。不要求本机 daemon 已接入；校验触发器要求目标 daemon 在线。
+- **设置**：Hub 可选的 mode、带本 daemon 名称的触发器片段（可复制）和当前插件设置。
+
+运行状态来自会话：回合进行中为 **运行中**；调用 `finish_execution` 后为 **已完成**；回合结束但没调用为 **本轮结束**；最近一轮出错或被中断为 **失败** 或 **已取消**；归档后为 **已归档**。在页面上归档和恢复也会通知 Hub。活动日志存在 `paseo_hub` 存储域的 `events` 表，超过 1100 条时裁剪到最近 1000 条。运行记录保留未归档运行，超过 300 条时清理较旧的已归档记录。
+
+## 组织 API 与 agent 工具
+
+进入 **Hub API**，填 Hub origin 和组织 API key，点 **保存 API 访问**。这里的 Key 与 daemon 登录栏位的一次性 Key 分开，持久保存在 DSH credentials 的 `paseo-hub/api`，绑定对应地址，页面和工具都读不到原值。换地址必须填新 Key。**移除已保存的 Key** 仅删除本地副本，不在 Hub 撤销 Key，也不影响 daemon 连接。非本机地址请使用 HTTPS。
+
+**检查读取权限** 分别请求项目、触发器和配置资源。不具备某项权限时显示 Hub 的错误、字段问题、所需 scope 和 request ID；不会通过真实安装或触发来探测写权限。
+
+| 操作 | Hub scope |
+| --- | --- |
+| 查询项目 | `projects:read` |
+| 查询 / 导出触发器、配置 / 平台资源、校验触发器或旧版配置 | `configuration:validate` |
+| 安装触发器、替换旧版整份配置 | `configuration:install` |
+| 触发已配置的手动任务 | `runs:dispatch` |
+| 通过单独的登录表单注册本机 daemon | `daemons:enroll` |
+
+### 触发器与运行
+
+- **触发器** 列表不默认加载全部 YAML，点 **查看 / 编辑 YAML** 读取单个文档。**从模板新建** 生成手动触发器，需填写自己的名称、目录、daemon 和 mode。
+- 编辑后先 **仅校验**，成功后才可 **安装 / 更新**；再次编辑会清除校验结果。安装按 YAML `name` 新建或覆盖，并立即激活版本。停用可改 `enabled: false`，重新校验并安装。安装前需确认，当前公开 API 没有删除触发器的端点。
+- **手动运行** 填项目 slug、触发器、符合 `from_users` 白名单的 actor、输入、delivery key 和可选预期版本 ID。默认文本输入；旧版结构化输入可选 JSON。提交前需确认。
+- 同一次任务重试保留 delivery key，新任务才点 **为新运行生成 Key**。Hub 持久去重，但不保证恰好执行一次或返回旧响应。超时后先到 Hub 核对，不盲目重试。成功响应是触发回执，不是实时完成状态。
+- **资源** 只读查询项目、daemon、集成 slug 和平台筛选 ID。项目选项显示前 100 条，更多可用工具分页获取。
+- **旧版配置** 接受含 `projectSlug`、`files: [{path, content}]` 的完整 JSON bundle。包括 `.paseo/hub.yml`、直接工作流 YAML 和引用的 partial。安装替换项目整份活动配置，不合并单文件。本地请求上限 8 MiB，Hub 的文件和 bundle 限制仍生效。
+
+### Agent 工具
+
+页面与工具共用相同 Host 操作：
+
+- `paseo_hub`：`status`、`check`、`projects`、`triggers`、`get-trigger`、`resources`、`setup-resources`、`validate-trigger`、`validate-configuration`。列表支持 `query`、`page` 和 `pageSize`（1–100）。`get-trigger` 用 `name` 指定名称或 ID；触发器用 `yaml`；旧版配置用 `projectSlug` 与 `files`。
+- `paseo_hub_write`：`install-trigger`、`install-configuration`、`dispatch`。手动运行使用 `projectSlug`、`trigger`、`actor`、`deliveryKey`、可选 `input` 和 `expectedVersionId`。
+
+**工具写入默认关闭**，只有你能在页面勾选 **允许 agent 工具安装配置、触发真实运行**。工具不能保存或读取 Key、修改 Hub 地址，也不能给自己开权限。调用仍遵守 agent 的工具策略。Pi 预设若隐藏了新工具，可在会话工具选择器中启用。
+
+校验、安装、触发的结果记入 **活动 → 组织 API**，不记录 YAML、提示词正文或凭据。触发记录详情保留 `triggerRunId` 和 `deliveryKey`。**运行** 标签仍只列本机承载的 DSH 会话，不是组织全部 Hub 运行。公开 Key 无法管理成员、连接或项目，这些留在 Hub 控制台操作。接口范围以 [公开 API 文档](https://paseo.sh/docs/hub/api) 和当前 Hub 版本为准。
 
 ## 配置
 
@@ -98,7 +144,8 @@ run:
 ## 安全
 
 - daemon 凭据是 32 字节随机值，保存在 DSH credentials（`paseo-hub/daemon`）。Hub 只存它的 SHA-256 校验值。
-- CLI 登录凭据和粘贴的 API key 只用一次，不落盘。
+- daemon 登录栏的 CLI 凭据和可选 Key 只用一次，不落盘。单独在 **Hub API** 保存的组织 Key 会按你的操作持久保存为 `paseo-hub/api`，不作为 daemon 凭据使用。
+- 组织 API 请求固定到已保存的 origin，不跟随重定向。owner 路由 `/paseo-hub/api` 与 agent 工具共用实现，但凭据管理仅供用户操作。
 - Hub 工具放行和 Hub 环境变量只作用于本插件为 Hub 创建的会话，你自己的会话不受影响。
 - 文件读取先解析符号链接，再限制在会话工作目录内，并受 Hub 的 `maxBytes` 限制。
 - 页面和路由只接受 owner 连接。
@@ -118,5 +165,7 @@ Hub 需要让无人值守触发接受 `dsh`：在 `src/triggers/configuration/un
 - 手动运行（`danger-full-access`）：`bash` 输出 Hub 环境变量 `provider=dsh mode=danger-full-access`，运行 `succeeded`。
 - DSH 重启后从已存状态重连，运行列表保留。
 - 断开后 Hub 显示 Revoked；在 Hub 撤销后页面显示已撤销。
+
+上面的历史端到端验证不包含新增的组织 API 控制台。本次新增部分使用内存凭据和模拟 HTTP 响应验证共享操作与工具，并在 DSH 页面进行模拟数据交互验证；未保存真实组织 Key，未对真实 Hub 安装或触发。Host 重新加载后的真实 API 联调仍待验证。
 
 未验证：GitHub、Slack、Discord、Linear、Telegram 触发的端到端链路；追问消息；worktree；从 Hub 归档和恢复；附件。

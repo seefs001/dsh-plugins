@@ -73,6 +73,7 @@ export class HubBridge {
    * @param {string[]} options.permissions - permissions this relationship enrolled with.
    * @param {string} options.daemonId
    * @param {(level: string, msg: string) => void} options.log
+   * @param {{ add(entry: object): void }} [options.journal] - activity journal for the page.
    */
   constructor(ctx, options) {
     this.ctx = ctx
@@ -82,6 +83,7 @@ export class HubBridge {
     this.permissions = options.permissions
     this.daemonId = options.daemonId
     this.log = options.log
+    this.journal = options.journal ?? { add() {} }
     /** Agent ids Hub subscribed to through `agent.timeline.set_subscription.request`. */
     this.watched = new Set()
     this.observingDirectory = false
@@ -160,6 +162,12 @@ export class HubBridge {
     } catch (error) {
       if (typeof requestId !== 'string') return
       this.log('warn', `${type} failed: ${error?.message ?? error}`)
+      this.journal.add({
+        kind: type === 'create_agent_request' ? 'run.create-failed' : 'hub.request-failed',
+        level: 'error',
+        message: `${type} failed: ${error?.message ?? error}`,
+        sessionId: typeof message.agentId === 'string' ? message.agentId : typeof message.workspaceId === 'string' ? message.workspaceId : null,
+      })
       if (type === 'create_agent_request') return this.emit({ type: 'status', payload: { status: 'agent_create_failed', requestId, error: error?.message ?? String(error) } })
       this.rpcError(requestId, type, error)
     }
@@ -293,6 +301,11 @@ export class HubBridge {
       worktree: worktree ?? null,
       createdAt: new Date().toISOString(),
       archivedAt: null,
+      outcome: 'created',
+      turns: 0,
+      lastActivityAt: null,
+      lastError: null,
+      finishedAt: null,
     }
     // Persist before the Session exists: agent/created reads the record to mount
     // Hub's MCP server and preapprovals during Agent setup.
@@ -321,6 +334,7 @@ export class HubBridge {
       }
       if (record.title) await this.ctx.sessionController.rename({ sessionId, title: record.title.slice(0, 200) }).catch(() => {})
       await this.listWorkspace(cwd)
+      this.journal.add({ kind: 'run.created', message: `Run started: ${record.title ?? sessionId} (${modeId}${record.model ? `, ${record.model}` : ''})`, sessionId })
       return sessionId
     } catch (error) {
       await this.store.remove(record.key).catch(() => {})
@@ -377,12 +391,14 @@ export class HubBridge {
       mode: message.activeTurnBehavior === 'steer' && this.ctx.agents.get(message.agentId)?.status === 'running' ? 'steer' : 'queue',
       content: [{ type: 'text', text: String(message.text ?? '') }],
     }, AbortSignal.timeout(30_000))
+    this.journal.add({ kind: 'run.message', message: `Hub sent a follow-up: ${String(message.text ?? '').slice(0, 160)}`, sessionId: message.agentId })
     this.reply('send_agent_message_response', message.requestId, { agentId: message.agentId, accepted: true, error: null })
   }
 
   cancel(message) {
     const agent = this.ctx.agents.get(message.agentId)
     if (agent !== undefined && agent.status === 'running') this.ctx.sessionController.cancel({ sessionId: message.agentId })
+    this.journal.add({ kind: 'run.canceled', level: 'warn', message: 'Hub canceled the run', sessionId: message.agentId })
     this.reply('cancel_agent_response', message.requestId, { agentId: message.agentId, success: true, error: null })
   }
 
@@ -394,6 +410,7 @@ export class HubBridge {
       await this.ctx.workspaceController.archiveSession({ sessionId, stopActivity: true })
     }
     await this.store.put({ ...run, archivedAt: new Date().toISOString() })
+    this.journal.add({ kind: 'run.archived', message: 'Hub archived the run', sessionId })
     this.reply('archive_workspace_response', message.requestId, { workspaceId: sessionId, success: true, error: null })
     this.publishUpdate(sessionId)
   }
@@ -417,6 +434,7 @@ export class HubBridge {
     }
     await this.ctx.sessionController.resolveAgent(sessionId)
     await this.store.put({ ...run, archivedAt: null })
+    this.journal.add({ kind: 'run.restored', message: 'Hub restored the run', sessionId })
     this.reply('workspace.recovery.restore.response', message.requestId, { workspaceId: sessionId, accepted: true, error: null })
     this.publishUpdate(sessionId)
   }
