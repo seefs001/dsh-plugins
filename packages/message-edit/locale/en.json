@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Message edit",
-    "description": "Hover one of your messages and click the pencil icon next to Copy. Choose \"Clear later messages\" to branch into a new session from just before it and send the edited version (the original session stays), or \"Keep later messages\" to rewrite it in the current model context without rerunning anything."
+    "description": "Hover one of your messages and click the pencil icon next to Copy. By default, overwrite the message in the current session’s model context without switching sessions or rerunning anything. Later messages stay. Fork and resend is an explicit alternative that creates a separate session."
   }
 }

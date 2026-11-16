@@ -1,10 +1,9 @@
 /**
  * dsh-message-edit — browser half.
  *
- * Adds an edit control above each of your messages. "Clear later messages"
- * forks the session just before the message and sends the edited copy there;
- * "Keep later messages" rewrites the message in the model context of the
- * current session without rerunning anything.
+ * Adds an edit control above each of your messages. By default, editing
+ * overwrites the message in the current session's model context without
+ * rerunning anything. Forking and resending is an explicit alternative.
  */
 window.__ModuleLoader__.load({
   id: 'dsh-message-edit',
@@ -16,8 +15,8 @@ window.__ModuleLoader__.load({
     const EN = {
       edit: 'Edit', editHint: 'Edit this message', title: 'Edit message', cancel: 'Cancel', close: 'Close',
       loading: 'Loading…', working: 'Working…',
-      clear: 'Clear later messages', clearHint: 'Branch into a new session from just before this message and send the edited version. This session stays unchanged.',
-      keep: 'Keep later messages', keepHint: 'Rewrite this message in the model context of this session. Later messages stay; nothing reruns. The chat still shows the original text.',
+      clear: 'Fork and resend', clearHint: 'Create a separate session from just before this message and resend the edited version there. This session stays unchanged.',
+      keep: 'Overwrite in this session', keepHint: 'Default: rewrite this message in the current session’s model context without switching sessions. Later messages stay; nothing reruns. The chat keeps the original text with an edited preview.',
       keepUnavailable: 'This message was compacted, so it can no longer be rewritten in place.',
       forkUnavailable: 'There is no earlier history to branch from.',
       submitClear: 'Branch and send', submitKeep: 'Save to context',
@@ -27,8 +26,8 @@ window.__ModuleLoader__.load({
     const ZH = {
       edit: '编辑', editHint: '编辑这条消息', title: '编辑消息', cancel: '取消', close: '关闭',
       loading: '正在加载…', working: '正在处理…',
-      clear: '清理后续消息', clearHint: '从这条消息之前分出新会话，发送修改后的消息并重新回答。当前会话保持不变。',
-      keep: '保留后续消息', keepHint: '只在当前会话的模型上下文里改写这条消息，后续消息保留，不会重新回答。聊天记录仍显示原文。',
+      clear: '分叉并重发', clearHint: '另建一个会话，从这条消息之前的历史重新回答。当前会话保持不变。',
+      keep: '覆盖当前会话', keepHint: '默认：在当前会话的模型上下文里改写这条消息，不切换会话。后续消息保留，不会重新回答。聊天保留原文，并展示修改预览。',
       keepUnavailable: '这条消息已被压缩，无法在原处改写。',
       forkUnavailable: '这条消息之前没有可分支的历史。',
       submitClear: '分支并发送', submitKeep: '保存到上下文',
@@ -123,7 +122,7 @@ window.__ModuleLoader__.load({
           const alive = React.useRef(true)
           const [info, setInfo] = React.useState(null)
           const [text, setText] = React.useState('')
-          const [mode, setMode] = React.useState('clear')
+          const [mode, setMode] = React.useState('keep')
           const [busy, setBusy] = React.useState(true)
           const [error, setError] = React.useState('')
           React.useEffect(() => {
@@ -134,7 +133,6 @@ window.__ModuleLoader__.load({
             op({ action: 'inspect', sessionId, rpcId }).then(v => {
               if (!alive.current) return
               setInfo(v); setText(v.text)
-              if (v.forkAt === null && v.inContext) setMode('keep')
             }).catch(e => { if (alive.current) setError(e.message) })
               .finally(() => { if (alive.current) setBusy(false) })
             return () => {
@@ -180,8 +178,8 @@ window.__ModuleLoader__.load({
             info ? h('textarea', { className: 'dme-text', value: text, autoFocus: true, disabled: busy, onChange: e => { setText(e.target.value); setError('') } })
               : h('p', { className: 'dme-note', role: 'status' }, t('loading')),
             info ? h('fieldset', { className: 'dme-modes' },
-              mode_('clear', t('clear'), t('clearHint'), !canClear, t('forkUnavailable')),
-              mode_('keep', t('keep'), t('keepHint'), !canKeep, t('keepUnavailable'))) : null,
+              mode_('keep', t('keep'), t('keepHint'), !canKeep, t('keepUnavailable')),
+              mode_('clear', t('clear'), t('clearHint'), !canClear, t('forkUnavailable'))) : null,
             error ? h('p', { className: 'dme-error', role: 'alert' }, error) : null),
           h('div', { className: 'dme-foot' },
             h('button', { type: 'button', className: 'dme-btn', onClick: onClose, disabled: busy }, t('cancel')),

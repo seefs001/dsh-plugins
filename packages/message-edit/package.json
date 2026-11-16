@@ -1,7 +1,7 @@
 {
   "name": "dsh-message-edit",
   "version": "0.1.0",
-  "description": "Edit your earlier messages: branch from just before a message and resend it (clearing later messages), or rewrite it in the model context while keeping later messages.",
+  "description": "Edit earlier messages in the current session by default, keeping later messages. Forking and resending is an explicit alternative.",
   "keywords": [
     "dsh-plugin",
     "dsh",
