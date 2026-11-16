@@ -470,24 +470,32 @@ export function apply(ctx, config) {
   ready.catch(error => ctx.logger?.error?.(`paseo-hub: storage unavailable: ${error?.message ?? error}`))
   ctx.effect(() => () => {
     connector?.stop()
-    for (const fiber of fibers.values()) void Promise.resolve(fiber.dispose?.()).catch(() => {})
+    for (const fiber of fibers.values()) void Promise.resolve(fiber?.dispose?.()).catch(() => {})
     fibers.clear()
     void ready.then(domain => domain.close()).catch(() => {})
   }, 'paseo-hub: connector')
 
   // Mount Hub's MCP server on a Hub session's own Agent scope, for fresh and resumed Agents.
-  ctx.on('agent/created', async ({ agent }) => {
-    await ready.catch(() => {})
+  const mount = async (agent) => {
     const run = store?.bySession(agent.id)
-    if (run?.hub == null) return
+    if (run?.hub == null || fibers.has(agent)) return
+    fibers.set(agent, null)
     try {
       const fiber = await mountHubMcp(agent, run)
       fibers.set(agent, fiber)
       agent.ctx.effect(() => () => { fibers.delete(agent) }, 'paseo-hub: hub mcp owner')
     } catch (error) {
+      fibers.delete(agent)
       ctx.logger?.warn?.(`paseo-hub: Hub tools unavailable for ${agent.id}: ${error?.message ?? error}`)
     }
+  }
+  ctx.on('agent/created', async ({ agent }) => {
+    await ready.catch(() => {})
+    await mount(agent)
   })
+  // A plugin reload (update, profile change) unmounts Hub tools from live
+  // Agents; agent/created will not fire for them again, so remount here.
+  void ready.then(() => Promise.all((ctx.agents.list?.() ?? []).map(mount))).catch(() => {})
 
   ctx.on('agent/status', ({ agent }) => {
     if (store?.bySession(agent.id) !== undefined) connector?.bridge?.onStatus(agent.id)
