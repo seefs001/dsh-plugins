@@ -74,7 +74,20 @@ export class PiLoadout {
     return agent?.session ? this.state.stateOf(agent.session) : emptyState()
   }
 
+  /**
+   * An MCP tool another plugin mounted on one Agent's own scope, such as
+   * Paseo Hub's per-run server. It is not global, so sync() never bridges or
+   * masks it; it reaches only that Agent and passes through as a direct tool.
+   */
+  agentScoped(name) {
+    return !this.bridges.has(name) && !this.ownNames.has(name) && !name.startsWith(INTERNAL_PREFIX)
+      && !RESOURCE_TOOLS.has(name) && this.isMcp(name) && this.accepts(name)
+  }
+
   enabled(name, agent) {
+    // The mounting plugin decided this Agent gets the tool; a saved Pi
+    // selection never listed it and must not hide it.
+    if (this.agentScoped(name)) return true
     const selected = agent?.session ? this.selection.stateOf(agent.session).tools : null
     if (selected !== null) {
       if (!Array.isArray(selected) || !selected.every(tool => typeof tool === 'string')) {
@@ -284,7 +297,7 @@ export class PiLoadout {
   nestedDefinition(name, scope, toolSet) {
     if (name.startsWith(INTERNAL_PREFIX) || name === 'codemode' || name === 'tool_search') return undefined
     const record = this.bridges.get(name)
-    if (!record) return this.ownNames.has(name) ? this.ctx.tools.executable(name, scope, toolSet) : undefined
+    if (!record) return this.ownNames.has(name) || this.agentScoped(name) ? this.ctx.tools.executable(name, scope, toolSet) : undefined
     if (record.passthrough) {
       if (this.ctx.tools.get(name, record.sourceScope) !== record.original) return undefined
       return this.ctx.tools.executable(name, scope, toolSet) === record.original ? record.original : undefined
@@ -321,6 +334,7 @@ export class PiLoadout {
   }
 
   exposure(name) {
+    if (this.agentScoped(name)) return 'direct'
     return this.isMcp(name) ? toToolExposure(this.config.mcpExposure) : 'direct'
   }
 
@@ -330,7 +344,7 @@ export class PiLoadout {
       if (definition.name === 'codemode' || definition.name === 'tool_search') continue
       const name = this.internal.get(definition.name) ?? definition.name
       if (this.bridges.has(name) && !this.bridges.get(name).passthrough && !this.internal.has(definition.name)) continue
-      if (!this.bridges.has(name) && !this.ownNames.has(name)) continue
+      if (!this.bridges.has(name) && !this.ownNames.has(name) && !this.agentScoped(name)) continue
       const structured = this.bridges.has(name) ? definition.output.schema : this.outputs.get(name)
       result.set(name, {
         name, description: definition.description, parameters: definition.parameters,

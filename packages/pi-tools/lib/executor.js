@@ -96,7 +96,7 @@ export class PiExecutor {
     this.disposed = false
     this.pipeline = new ToolExecutionPipeline(ctx, {
       get: (name, scope, toolSet) => !name.startsWith(INTERNAL_PREFIX)
-        && (loadout.ownNames.has(name) || loadout.bridges.has(name))
+        && (loadout.ownNames.has(name) || loadout.bridges.has(name) || loadout.agentScoped(name))
         ? ctx.tools.executable(name, scope, toolSet) : undefined,
     })
     this.nestedPipeline = new ToolExecutionPipeline(ctx, {
@@ -121,7 +121,7 @@ export class PiExecutor {
   describe(definitions) {
     const callable = this.loadout.callable(definitions)
     const visible = definitions.filter(tool => !tool.name.startsWith(INTERNAL_PREFIX)
-      && (this.loadout.ownNames.has(tool.name) || this.loadout.bridges.has(tool.name)))
+      && (this.loadout.ownNames.has(tool.name) || this.loadout.bridges.has(tool.name) || this.loadout.agentScoped(tool.name)))
     const scriptTools = new Map(callable.map(tool => [tool.name, tool]))
     const prepared = this.config.codemode ? createCodemodeToolDefinition({ models: false }).prepareLoadout({
       callable,
