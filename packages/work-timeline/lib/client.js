@@ -16,7 +16,9 @@ window.__ModuleLoader__.load({
         'work.active': 'Active', 'work.blocked': 'Blocked', 'work.completed': 'Reported complete', 'work.canceled': 'Canceled',
         progress: '{done} of {total} done', progressEmpty: 'No steps yet',
         countBlocked: '{n} blocked', countCanceled: '{n} canceled',
-        now: 'Now', waitingOn: 'Waiting on', blockedBy: 'Blocked: {reason}',
+        now: 'Current', waitingOn: 'Waiting on', blockedBy: 'Blocked: {reason}', blockedMany: '{n} blocked · {reason}',
+        details: 'Details', 'attn.blocked': 'Blocked · {n}', 'attn.in_progress': 'Reported in progress · {n}', 'attn.next': 'Next step',
+        'more.blocked': '{n} more blocked', 'more.in_progress': '{n} more in progress', viewAll: 'View all {n}',
         outcome: 'Reported outcome', stepOutcome: 'Result',
         reported: 'Status is the agent’s latest report. It does not mean the agent is running now or that results were verified.',
         inherited: 'Inherited', inheritedHint: 'This plan was inherited from the source session; new revisions belong to this session.',
@@ -32,7 +34,7 @@ window.__ModuleLoader__.load({
         noSteps: 'No steps recorded yet.', showInPlan: 'Show step in plan', stepRef: 'Step: {title}',
         emptyTitle: 'No work recorded',
         emptyBody: 'When the agent tracks multi-step work with work_update, its plan, revisions and linked files appear here.',
-        showMore: 'Show more', showLess: 'Show less',
+        showLess: 'Show less',
         legacy: 'Task list', error: 'Could not open: {message}',
       },
       zh: {
@@ -43,7 +45,9 @@ window.__ModuleLoader__.load({
         'work.active': '推进中', 'work.blocked': '受阻', 'work.completed': '报告已完成', 'work.canceled': '已取消',
         progress: '已完成 {done}/{total}', progressEmpty: '尚无步骤',
         countBlocked: '{n} 项受阻', countCanceled: '{n} 项取消',
-        now: '当前', waitingOn: '等待', blockedBy: '受阻：{reason}',
+        now: '当前', waitingOn: '等待', blockedBy: '受阻：{reason}', blockedMany: '{n} 项受阻：{reason}',
+        details: '详情', 'attn.blocked': '受阻 · {n}', 'attn.in_progress': '报告进行中 · {n}', 'attn.next': '下一步',
+        'more.blocked': '另有 {n} 项受阻', 'more.in_progress': '另有 {n} 项进行中', viewAll: '查看全部 {n} 项',
         outcome: '报告结果', stepOutcome: '结果',
         reported: '状态来自 Agent 最近一次报告，不代表 Agent 正在运行，也不代表结果已验证。',
         inherited: '继承', inheritedHint: '计划继承自来源会话，之后的修订只属于当前会话。',
@@ -59,7 +63,7 @@ window.__ModuleLoader__.load({
         noSteps: '尚未记录步骤。', showInPlan: '在计划中查看步骤', stepRef: '步骤：{title}',
         emptyTitle: '还没有工作记录',
         emptyBody: 'Agent 用 work_update 跟踪多步骤任务后，计划、修订过程和关联文件会显示在这里。',
-        showMore: '展开', showLess: '收起',
+        showLess: '收起',
         legacy: '任务清单', error: '无法打开：{message}',
       },
     }
@@ -110,9 +114,28 @@ window.__ModuleLoader__.load({
 @container (max-width:460px){.wt-dock-focus{display:none}.wt-dock-title{flex:1 1 auto;max-width:none}}
 @container (max-width:300px){.wt-dock .wt-meter{display:none}}
 
-/* Sidebar page: fixed overview, tab strip, scrolling body. */
-.wt-page{container-type:inline-size;display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden}
-.wt-head{flex:none;display:flex;flex-direction:column;gap:10px;max-height:45%;overflow-y:auto;overscroll-behavior:contain;padding:16px 20px 12px}
+/* Sidebar page: one scroll container holding the overview, tab strip and the selected view. */
+.wt-page{container-type:inline-size;display:flex;flex-direction:column;height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.wt-head{flex:none;display:flex;flex-direction:column;gap:10px;padding:16px 20px 12px}
+.wt-page-error{margin:0 20px 8px}
+.wt-meta-toggle{display:inline-flex;align-items:center;gap:2px;margin-left:auto}
+.wt-meta{display:flex;flex-direction:column;gap:4px;padding-left:10px;border-left:2px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+.wt-attn{display:flex;flex-direction:column;gap:2px;padding-left:10px;border-left:2px solid var(--dsw-alias-border-l2)}
+.wt-attn[data-kind=blocked]{border-left-color:var(--dsw-alias-state-warn-primary)}
+.wt-attn[data-kind=blocked]>.wt-label{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.wt-attn[data-kind=in_progress]{border-left-color:var(--dsw-alias-state-business-primary)}
+.wt-attn>.wt-link{align-self:flex-start}
+.wt-attn-row{display:flex;align-items:flex-start;gap:8px;width:calc(100% + 12px);margin:0 -6px;padding:3px 6px;border-radius:6px;min-width:0}
+@media (hover:hover){.wt-attn-row:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.wt-attn-row .wt-glyph{margin-top:2px}.wt-attn-row .wt-chevron{margin-top:3px}
+.wt-attn-text{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
+.wt-attn-step{font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wt-attn-why{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.wt-deliv{display:flex;flex-direction:column;gap:6px}
+.wt-deliv .wt-chips{align-items:center;margin:0}
+.wt-count{color:var(--dsw-alias-label-tertiary);font-weight:400}
+.wt-outcome-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.wt-outcome-text[data-clamped=true]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .wt-eyebrow{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
 .wt-pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px 0 6px;border-radius:11px;font-weight:500;
   color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-card-fill,var(--dsw-alias-bg-layer-1))}
@@ -123,13 +146,12 @@ window.__ModuleLoader__.load({
 .wt-tag{padding:0 6px;border-radius:var(--dsw-radius-xs,4px);border:0.5px solid var(--dsw-alias-border-l2)}
 .wt-head h2{font-size:16px;line-height:24px;font-weight:600;overflow-wrap:anywhere}
 .wt-objective{color:var(--dsw-alias-label-secondary);white-space:pre-wrap;overflow-wrap:anywhere}
-.wt-objective[data-clamped=true]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
-.wt-more{align-self:flex-start;margin-top:-6px;color:var(--dsw-alias-link,var(--dsw-alias-brand-primary));font-size:12px;border-radius:4px}
+:where(.wt-head) [data-clamped=true]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .wt-progress{display:flex;flex-direction:column;gap:6px}
 .wt-progress-text{display:flex;flex-wrap:wrap;gap:0 12px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums}
 .wt-progress-text strong{color:var(--dsw-alias-label-primary);font-weight:500}
 .wt-progress-text [data-tone=warn]{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.wt-outcome{padding:8px 10px;border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-card-fill,var(--dsw-alias-bg-layer-1));
+.wt-outcome{padding:6px 0 0 10px;
   border-left:2px solid var(--dsw-alias-border-l2);overflow-wrap:anywhere;white-space:pre-wrap}
 .wt-outcome[data-tone=completed]{border-left-color:var(--dsw-alias-state-success-primary)}
 .wt-label{display:block;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;font-weight:500}
@@ -141,7 +163,7 @@ window.__ModuleLoader__.load({
 .wt-tab[aria-selected=true]{color:var(--dsw-alias-label-primary);font-weight:500;background:var(--dsw-alias-bg-base);
   box-shadow:0 0 0 0.5px var(--dsw-alias-border-l1)}
 .wt-tab-count{color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:400;font-variant-numeric:tabular-nums}
-.wt-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 20px 24px}
+.wt-body{flex:none;padding:14px 20px 24px}
 .wt-body>.wt-error{margin-bottom:10px}
 .wt-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;height:100%;min-height:200px;padding:32px 28px;text-align:center}
 .wt-empty svg{color:var(--dsw-alias-label-tertiary);margin-bottom:4px}
@@ -226,7 +248,7 @@ window.__ModuleLoader__.load({
   .wt-head{padding:12px 14px 10px}.wt-tabs{margin:0 14px}.wt-body{padding:12px 14px 20px}
   .wt-tab-count{display:none}.wt-file-step{padding-left:12px}.wt-change{flex-wrap:wrap}.wt-change-delta{max-width:100%}
 }
-@media (max-height:520px){.wt-page{overflow-y:auto}.wt-head{max-height:none;overflow:visible}.wt-body{flex:none;overflow:visible}}
+
 `
     const encode = value => encodeURIComponent(value).replace(/%3A/gi, ':')
     // Public Session file-address format; opening stays in the Host's authorized filesystem.
@@ -320,7 +342,9 @@ window.__ModuleLoader__.load({
           const tone = toneOf(snapshot)
           const sum = count(snapshot.steps)
           const focus = snapshot.status === 'active' ? focusOf(snapshot.steps) : undefined
-          const detail = focus ? (focus.status === 'blocked' ? t('blockedBy', { reason: focus.blocker }) : focus.content) : snapshot.outcome
+          const blockedCount = snapshot.steps.filter(step => step.status === 'blocked').length
+          const detail = !focus ? snapshot.outcome : focus.status !== 'blocked' ? focus.content
+            : blockedCount > 1 ? t('blockedMany', { n: blockedCount, reason: focus.blocker }) : t('blockedBy', { reason: focus.blocker })
           const open = () => {
             try { ctx.sidebarRight.openTab(KEY); setError('') } catch (failure) { setError(failure.message) }
           }
@@ -339,33 +363,76 @@ window.__ModuleLoader__.load({
               error && h('p', { role: 'alert', className: 'wt-error' }, t('error', { message: error }))))
         }
 
-        function Overview({ state, t }) {
+
+        /** What the reader should look at first: every blocker, else reported in-progress steps, else the next pending step. */
+        function Attention({ snapshot, showStep, t }) {
+          if (snapshot.status !== 'active') return null
+          const blocked = snapshot.steps.filter(step => step.status === 'blocked')
+          const active = snapshot.steps.filter(step => step.status === 'in_progress')
+          const next = snapshot.steps.find(step => step.status === 'pending')
+          const [kind, items] = blocked.length ? ['blocked', blocked] : active.length ? ['in_progress', active] : next ? ['next', [next]] : []
+          if (!kind) return null
+          const shown = items.slice(0, 2)
+          return h('div', { className: 'wt-attn', 'data-kind': kind },
+            h('span', { className: 'wt-label' }, t(`attn.${kind}`, { n: items.length })),
+            h('ul', null, shown.map(step => h('li', { key: step.id },
+              h('button', { type: 'button', className: 'wt-attn-row', title: t('showInPlan'), onClick: () => showStep(step.id) },
+                h(StatusGlyph, { status: step.status }),
+                h('span', { className: 'wt-attn-text' },
+                  h('span', { className: 'wt-attn-step' }, step.content),
+                  step.blocker && h('span', { className: 'wt-attn-why' }, step.blocker)),
+                h(Chevron, {}))))),
+            items.length > shown.length && h('button', { type: 'button', className: 'wt-link', onClick: () => showStep(items[shown.length].id) },
+              t(`more.${kind}`, { n: items.length - shown.length })))
+        }
+
+        /** Explicit deliverables only; evidence stays in the Artifacts view and no file is promoted as primary or latest. */
+        function Deliverables({ snapshot, preview, openAll, t }) {
+          const items = snapshot.artifacts.filter(artifact => artifact.role === 'deliverable')
+          if (!items.length) return null
+          const shown = items.slice(0, 3)
+          return h('div', { className: 'wt-deliv' },
+            h('span', { className: 'wt-label' }, t('group.deliverable'), ' ', h('span', { className: 'wt-count' }, items.length)),
+            h('div', { className: 'wt-chips' },
+              shown.map(artifact => h('button', {
+                key: artifact.id, type: 'button', className: 'wt-chip', 'data-role': 'deliverable', title: artifact.path,
+                'aria-label': t('openFile', { name: artifact.title }), onClick: () => preview(artifact),
+              }, h(FileGlyph, {}), h('span', { className: 'wt-ellipsis' }, artifact.title))),
+              items.length > shown.length && h('button', { type: 'button', className: 'wt-link', onClick: openAll }, t('viewAll', { n: items.length }))))
+        }
+
+        function Overview({ state, details, setDetails, showStep, preview, openAll, prefix, t }) {
           const work = state.current
           const snapshot = work.snapshot
           const tone = toneOf(snapshot)
           const sum = count(snapshot.steps)
           const latest = state.history.at(-1)
-          const long = snapshot.objective.length > 160 || snapshot.objective.split('\n').length > 3
-          const [expanded, setExpanded] = React.useState(false)
-          return h('header', { className: 'wt-head', tabIndex: 0, 'aria-label': t('overview') },
+          // Clamped text has one guaranteed full-text entry: the always-present Details toggle.
+          const clamp = !details
+          return h('header', { className: 'wt-head', 'aria-label': t('overview') },
             h('div', { className: 'wt-eyebrow' },
-              h('span', { className: 'wt-pill', 'data-tone': tone }, h(StatusGlyph, { status: glyphOf(tone) }), t(`work.${tone}`)),
-              h('span', null, t('revisionShort', { n: work.revision })),
-              latest && h('time', { dateTime: new Date(latest.time).toISOString() }, t('updatedAt', { time: formatTime(latest.time) })),
-              state.inherited && h('span', { className: 'wt-tag', title: t('inheritedHint') }, t('inherited'))),
-            h('h2', null, snapshot.title),
-            h('p', { className: 'wt-objective', 'data-clamped': long && !expanded }, snapshot.objective),
-            long && h('button', { type: 'button', className: 'wt-more', 'aria-expanded': expanded, onClick: () => setExpanded(value => !value) }, t(expanded ? 'showLess' : 'showMore')),
+              h('span', { className: 'wt-pill', 'data-tone': tone, title: t('reported') }, h(StatusGlyph, { status: glyphOf(tone) }), t(`work.${tone}`)),
+              state.inherited && h('span', { className: 'wt-tag' }, t('inherited')),
+              h('button', { type: 'button', className: 'wt-link wt-meta-toggle', 'aria-expanded': details, 'aria-controls': `${prefix}-meta`, onClick: () => setDetails(value => !value) },
+                t(details ? 'showLess' : 'details'), h(Chevron, { up: details, down: !details }))),
+            details && h('div', { className: 'wt-meta', id: `${prefix}-meta` },
+              h('p', null, t('revisionShort', { n: work.revision }),
+                latest && h(React.Fragment, null, ' · ', h('time', { dateTime: new Date(latest.time).toISOString() }, t('updatedAt', { time: formatTime(latest.time) })))),
+              h('p', null, t('reported')),
+              state.inherited && h('p', null, t('inheritedHint'))),
+            h('h2', { 'data-clamped': clamp }, snapshot.title),
+            h('p', { className: 'wt-objective', 'data-clamped': clamp }, snapshot.objective),
             snapshot.steps.length > 0 && h('div', { className: 'wt-progress' },
               h(Meter, { steps: snapshot.steps }),
               h('p', { className: 'wt-progress-text' },
                 h('strong', null, progressText(sum, t)),
                 sum.blocked > 0 && h('span', { 'data-tone': 'warn' }, t('countBlocked', { n: sum.blocked })),
                 sum.canceled > 0 && h('span', null, t('countCanceled', { n: sum.canceled })))),
+            h(Attention, { snapshot, showStep, t }),
             snapshot.outcome && h('div', { className: 'wt-outcome', 'data-tone': snapshot.status },
-              h('span', { className: 'wt-label' }, t('outcome')), snapshot.outcome),
-            state.inherited && h('p', { className: 'wt-note' }, t('inheritedHint')),
-            h('p', { className: 'wt-note' }, t('reported')))
+              h('span', { className: 'wt-label' }, t('outcome')),
+              h('p', { className: 'wt-outcome-text', 'data-clamped': clamp }, snapshot.outcome)),
+            h(Deliverables, { snapshot, preview, openAll, t }))
         }
 
         function PlanView({ snapshot, selected, register, preview, t }) {
@@ -471,9 +538,11 @@ window.__ModuleLoader__.load({
           const [target, setTarget] = React.useState(null)
           const [filter, setFilter] = React.useState('')
           const [error, setError] = React.useState('')
+          const [details, setDetails] = React.useState(false)
+          const [jump, setJump] = React.useState(0)
           const nodes = React.useRef(new Map())
           const tabs = React.useRef([])
-          const body = React.useRef(null)
+          const strip = React.useRef(null)
           const prefix = React.useId()
           const register = key => element => { if (element) nodes.current.set(key, element); else nodes.current.delete(key) }
           React.useEffect(() => {
@@ -481,10 +550,12 @@ window.__ModuleLoader__.load({
             const element = nodes.current.get(target)
             element?.scrollIntoView?.({ block: 'nearest' })
             element?.focus({ preventScroll: true })
-          }, [target, view])
-          const select = next => { setView(next); setTarget(null); body.current?.scrollTo?.({ top: 0 }) }
-          const showStep = id => { setView('plan'); setTarget(`step:${id}`) }
-          const showArtifact = id => { setView('artifacts'); setFilter(''); setTarget(`artifact:${id}`) }
+          }, [target, view, jump])
+          // The page is the only scroller: keep the tab strip in view so the selected view starts on screen.
+          const select = next => { setView(next); setTarget(null); strip.current?.scrollIntoView?.({ block: 'start' }) }
+          const locate = key => { setTarget(key); setJump(value => value + 1) }
+          const showStep = id => { setView('plan'); locate(`step:${id}`) }
+          const showArtifact = id => { setView('artifacts'); setFilter(''); locate(`artifact:${id}`) }
           const preview = artifact => {
             try { actions.openResource(fileAddress(sessionId, artifact.path), { preferNewPane: true }); setError('') }
             catch (failure) { setError(failure.message) }
@@ -500,15 +571,16 @@ window.__ModuleLoader__.load({
           }
           const counts = { plan: snapshot.steps.length, process: state.current.revision, artifacts: snapshot.artifacts.length }
           const selected = target?.split(':').slice(1).join(':')
+          const openAll = () => { setFilter(''); select('artifacts') }
           return h('section', { className: 'wt wt-page', 'aria-label': t('title') }, style,
-            h(Overview, { state, t }),
-            h('div', { className: 'wt-tabs', role: 'tablist', 'aria-label': t('views'), onKeyDown }, VIEWS.map((name, index) => h('button', {
+            h(Overview, { state, details, setDetails, showStep, preview, openAll, prefix, t }),
+            error && h('p', { role: 'alert', className: 'wt-error wt-page-error' }, t('error', { message: error })),
+            h('div', { className: 'wt-tabs', ref: strip, role: 'tablist', 'aria-label': t('views'), onKeyDown }, VIEWS.map((name, index) => h('button', {
               key: name, type: 'button', role: 'tab', className: 'wt-tab', id: `${prefix}-${name}`,
               'aria-selected': view === name, 'aria-controls': `${prefix}-panel`, tabIndex: view === name ? 0 : -1,
               ref: element => { tabs.current[index] = element }, onClick: () => select(name),
             }, t(name), h('span', { className: 'wt-tab-count' }, counts[name])))),
-            h('div', { className: 'wt-body', role: 'tabpanel', tabIndex: 0, id: `${prefix}-panel`, 'aria-labelledby': `${prefix}-${view}`, ref: body },
-              error && h('p', { role: 'alert', className: 'wt-error' }, t('error', { message: error })),
+            h('div', { className: 'wt-body', role: 'tabpanel', tabIndex: 0, id: `${prefix}-panel`, 'aria-labelledby': `${prefix}-${view}` },
               view === 'plan' ? h(PlanView, { snapshot, selected: target?.startsWith('step:') ? selected : '', register, preview, t })
                 : view === 'process' ? h(ProcessView, { state, showStep, showArtifact, t })
                   : h(ArtifactsView, { snapshot, filter, setFilter, selected: target?.startsWith('artifact:') ? selected : '', register, preview, showStep, filterId: `${prefix}-filter`, t })))
