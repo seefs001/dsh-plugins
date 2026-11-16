@@ -51,6 +51,7 @@ const entries: Entry[] = [
   { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 原版编程工具、QuickJS codemode 和可选的 DSH/MCP 工具。', requires: ['rg 与 fd'] },
   { slug: 'pi-mcp', category: 'tools', surface: 'Host', summary: '在 DSH 里使用 Pi 的 ~/.pi/agent/mcp.json，改文件即时生效。', requires: ['@deepseek-ai/dsh-mcp-manager'] },
   { slug: 'orbit-bridge', category: 'tools', surface: 'Host + Web', summary: '只读巡检 Orbit 项目：完整分页、本地运行记录、相对上次已处理检查的变化列表，不写 Orbit。', requires: ['Orbit MCP 服务器', '@deepseek-ai/dsh-storage-domain'] },
+  { slug: 'paseo-hub', category: 'tools', surface: 'Host + Web', summary: '把 Host 作为 daemon 接入 Paseo Hub：浏览器登录，Hub 触发在 DSH 会话里运行，mode 对应权限预设。', requires: ['支持 dsh provider 的 Paseo Hub', '@deepseek-ai/dsh-permission-presets'] },
 ]
 
 export interface PluginInfo extends Entry {

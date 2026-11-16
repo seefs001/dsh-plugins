@@ -57,6 +57,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具、QuickJS codemode，以及按会话选择的 DSH 和 MCP 工具。不需要改 DSH 源码。 | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | 把 Pi 的 `~/.pi/agent/mcp.json` 里的 MCP 服务器注册到 DSH MCP 管理器，改文件即时生效。 | Host |
 | [`dsh-orbit-bridge`](packages/orbit-bridge) | 只读巡检 Orbit 项目：完整分页、本地运行记录、相对上次已处理检查的变化列表。不写 Orbit。 | Host + Web |
+| [`dsh-paseo-hub`](packages/paseo-hub) | 把这台 Host 作为 daemon 接入 Paseo Hub：浏览器登录后，Hub 触发在 DSH 会话里运行，provider 为 `dsh`，模型和权限预设都用你的。 | Host + Web |
 
 按需安装即可。同时装了 `dsh-model-reference` 和 `dsh-service-tier` 时，`#` 标签会带上 ⚡。
 

@@ -57,6 +57,7 @@ English | [中文](README.zh.md)
 | [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi's original coding tools, QuickJS codemode, and per-session DSH and MCP tool selection. No DSH source changes. | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | Registers the MCP servers in Pi's `~/.pi/agent/mcp.json` with the DSH MCP manager and follows file edits live. | Host |
 | [`dsh-orbit-bridge`](packages/orbit-bridge) | Read-only watch over Orbit projects: complete paging, local run history, and change lists against the last processed check. Never writes to Orbit. | Host + Web |
+| [`dsh-paseo-hub`](packages/paseo-hub) | Connect this Host to Paseo Hub as a daemon: browser sign-in, then Hub triggers run as DSH sessions with provider `dsh`, your models, and your permission presets as modes. | Host + Web |
 
 Install only what you need. With both `dsh-model-reference` and `dsh-service-tier` installed, `#` chips also carry ⚡.
 

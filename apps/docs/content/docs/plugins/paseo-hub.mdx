@@ -1,0 +1,118 @@
+---
+title: Paseo Hub
+description: 把 DSH Host 作为 daemon 接入 Paseo Hub，Hub 的触发在 DSH 会话里运行。
+---
+
+<PluginFacts slug="paseo-hub" />
+
+把这台 DSH Host 接入 [Paseo Hub](https://github.com/getpaseo/hub)，身份是一个 daemon。之后 Hub 来自 GitHub、Slack、Discord、Linear、Telegram、定时和手动运行的触发，会在这台 Host 上启动 DSH 会话。Hub 只看到一个 provider：`dsh`，模型用你的 DSH 模型，mode 用你的权限预设。
+
+当前状态：0.1.0。已在本地 Hub（内嵌数据库）和 DSH 0.2.2-rc.3 上端到端验证，范围见文末。
+
+需要一个认识 `dsh` provider 的 Hub。原版 Hub 的无人值守触发只接受 `claude`、`codex`、`opencode` 和 `pi`，要加上一行 `dsh` 白名单，见“Hub 侧改动”。
+
+## 安装
+
+<InstallCommand slug="paseo-hub" />
+
+需要 `@deepseek-ai/dsh-permission-presets`（Hub 的 mode 就是权限预设）和 `@deepseek-ai/dsh-storage-domain`，默认 profile 都已包含。
+
+## 接入
+
+1. 在侧栏打开 **Paseo Hub**。
+2. 填 Hub 地址，例如 `https://hub.example.com`。只填 origin，不带路径。
+3. 点 **登录**。页面显示一个代码和 **打开批准页面**。以组织 owner 或 admin 身份在 Hub 批准 CLI 登录，两边代码应一致。
+4. 插件轮询 Hub，换取一次性注册令牌，以 `hub.execute` 权限注册这台 Host 并连接。页面变为 **已连接**。
+
+没有浏览器时，可以在可选栏位粘贴带 **Enroll daemons** 权限的组织 API key。key 只用一次，用来换注册令牌，不会保存。
+
+Host 以主机名出现在 Hub 的 **Daemons** 页面，重名时 Hub 自动加后缀。
+
+## 写触发器
+
+```yaml
+run:
+  target: { daemon: my-mac, cwd: /Users/me/project }
+  agent:
+    provider: dsh
+    model: messages/claude-opus-5-5   # 可选：<DSH provider id>/<模型 id>
+    thinkingOptionId: high            # 可选：该模型的推理等级
+    mode: workspace-write             # 必填：一个 DSH 权限预设
+  prompt: 修复失败的测试并开 PR。
+```
+
+- **provider** 固定为 `dsh`。
+- **model** 写成 `<DSH provider id>/<模型 id>`，与 Hub 模型选择器列出的一致。省略时用 DSH 默认模型。
+- **thinkingOptionId** 取该模型的推理等级之一。
+- **mode** 对新触发器必填，与 Claude、Codex 相同。每个 mode 对应一个权限预设，插件页面列出 Hub 可选的值。Hub 保存触发器前会让这台 Host 校验，模型或 mode 写错会在保存时报错，不会拖到运行时。
+
+## 一次运行做什么
+
+插件为每个 Hub agent：
+
+1. 在触发器的 `cwd` 创建 DSH 会话，应用 mode 对应的权限预设、模型和推理等级，用 Hub 给的标题命名。
+2. 只在这个会话上挂载 Hub 的 MCP 服务器，工具名为 `mcp__hub__reply`、`mcp__hub__finish_execution` 等。
+3. 只在这个会话里放行 Hub 预先批准的那几个 Hub 工具。其他工具照预设处理，`approval: ask` 的预设仍会在 DSH 界面里问你。
+4. 把 Hub 的环境变量（`PASEO_AGENT_PROVIDER`、`PASEO_AGENT_MODE`、`PASEO_HUB_CONFIG_JSON`，触发器有 GitHub 权限时还有短期 `GH_TOKEN`/`GITHUB_TOKEN`）传给这个会话的 `bash` 命令。
+5. 把轮次、助手文本、推理和工具调用流式发给 Hub。agent 调用 `finish_execution` 时 Hub 结束这一步。
+
+追问、取消、归档、恢复、改标题和读取文件（附件）都作用于同一个 DSH 会话：Hub 的 agent id 和 workspace id 都是 DSH 会话 id。页面列出最近 20 次 Hub 运行，可直接 **打开**。
+
+## 配置
+
+```yaml
+- id: paseo-hub
+  config:
+    modes: {}          # Hub mode -> DSH 预设；留空则每个预设以原名提供
+    defaultMode: ''    # 未指定 mode 时用的 mode；留空用预设默认值
+    agentPreset: ''    # Hub 会话用的 agent 预设；留空用部署默认值
+```
+
+## 连接状态
+
+| 状态 | 含义 |
+| --- | --- |
+| 未连接 | 没有接入关系，去登录。 |
+| 登录中 | 等待浏览器批准，或正在注册。 |
+| 连接中 / 重连中 | 正在建立连接，或以 1 秒到 60 秒的退避重试。**立即重连** 马上重试。 |
+| 已连接 | Hub 可以把运行派到这里。 |
+| 已撤销 | Hub 拒绝或撤销了这台 Host 的凭据。先断开，再重新登录。 |
+
+**断开** 会在 Hub 撤销这个 daemon、删除本地凭据，保留所有 DSH 会话。Hub 不可达时页面会提示，需要你到 Hub 的 Daemons 页面手动撤销。
+
+## 限制
+
+- **agent 预设必须能用会话级 MCP 工具。** Hub 的 `reply` 和 `finish_execution` 挂在这次运行自己的会话上。`standard` 能用；dsh-pi-tools 的 `pi` 预设现在会把会话级 MCP 工具作为直接工具放行，也能用。只认全局 MCP 的预设看不到这两个工具，运行无法回复，Hub 等到空闲超时才结束这一步。
+- **只在 Host 运行时工作。** Host 离线时 Hub 保留运行，到它自己的超时后判失败。
+- **一台 Host 只接一个 Hub。** 换 Hub 先断开。
+- **worktree 只支持 `branch-off`**，且需要加载实验性 worktree 服务（`dsh-experimental-worktree`）。`checkout-branch`、`checkout-pr` 会明确报错。
+- **只挂 Hub 自己的 MCP 服务器。** 触发器额外声明的 MCP 服务器会被拒绝，请在 DSH 里配置。
+- **不支持 provider options**，用 mode。
+- **Hub 环境变量只到 `bash`。** 通过 shell 解析器注入会话的 bash 命令，不进其他工具和 MCP 服务器。`DSH_*` 变量会被丢弃。
+- 工作区标签只确认，不写入 DSH。
+
+## 安全
+
+- daemon 凭据是 32 字节随机值，保存在 DSH credentials（`paseo-hub/daemon`）。Hub 只存它的 SHA-256 校验值。
+- CLI 登录凭据和粘贴的 API key 只用一次，不落盘。
+- Hub 工具放行和 Hub 环境变量只作用于本插件为 Hub 创建的会话，你自己的会话不受影响。
+- 文件读取先解析符号链接，再限制在会话工作目录内，并受 Hub 的 `maxBytes` 限制。
+- 页面和路由只接受 owner 连接。
+
+## Hub 侧改动
+
+Hub 需要让无人值守触发接受 `dsh`：在 `src/triggers/configuration/unattended.ts` 的 `UNATTENDED_PROVIDERS` 里加上 `"dsh"`，`dsh` 仍要求 mode。配套改动还更新了拒绝文案、触发器编辑器说明，并在空的 Daemons 页面加了 DeepSeek Harness 接入提示。
+
+## 验证范围
+
+2026-11-16，用源码构建的 Hub（内嵌数据库）和隔离 `DSH_HOME` 下的 DSH 0.2.2-rc.3 验证：
+
+- 浏览器登录：显示代码，在 `/cli-login` 批准后注册并连接，Hub Daemons 页面显示在线。
+- API key 登录；错误 key 给出明确报错并回到未连接；带路径的地址被拒绝。
+- `POST /api/v1/triggers/validate` 用 `provider: dsh`：合法配置通过；未知模型和 mode 返回本 Host 的报错；缺 mode 由 Hub 拒绝。
+- 手动运行（`messages/claude-opus-5-5`、`workspace-write`）：会话读取文件并直接调用 `mcp__hub__finish_execution`，运行 `succeeded`。
+- 手动运行（`danger-full-access`）：`bash` 输出 Hub 环境变量 `provider=dsh mode=danger-full-access`，运行 `succeeded`。
+- DSH 重启后从已存状态重连，运行列表保留。
+- 断开后 Hub 显示 Revoked；在 Hub 撤销后页面显示已撤销。
+
+未验证：GitHub、Slack、Discord、Linear、Telegram 触发的端到端链路；追问消息；worktree；从 Hub 归档和恢复；附件。
