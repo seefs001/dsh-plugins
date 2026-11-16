@@ -41,6 +41,7 @@ run:
 - **provider** is always `dsh`.
 - **model** is `<DSH provider id>/<model id>`, exactly as Hub's model picker lists it. Omitted uses the DSH default model.
 - **thinkingOptionId** is one of the model's reasoning efforts.
+- To keep chatting by replying in Slack, Discord, or Telegram, set `continuation: { mode: conversation }` on the step. With `mode: new`, every mention is a fresh run and replies are ignored.
 - **mode** is required for new triggers, as for Claude and Codex. Each mode is a DSH permission preset; the page lists the ones Hub can pick. Hub validates the trigger against this Host before saving, so a wrong model or mode fails at save, not at run time.
 
 ## What a run does
@@ -53,6 +54,8 @@ For each Hub agent the plugin:
 4. Passes Hub's environment (`PASEO_AGENT_PROVIDER`, `PASEO_AGENT_MODE`, `PASEO_HUB_CONFIG_JSON`, short-lived `GH_TOKEN`/`GITHUB_TOKEN` when the trigger has GitHub authority) to that session's `bash` commands.
 5. Streams turns, assistant text, reasoning, and tool calls to Hub. Hub ends the step when the agent calls `finish_execution`.
 
+Each run's directory is added to the sidebar workspace list (existing workspaces are reused; directories of earlier runs are added on start), so Hub sessions appear in the session list. Set `listWorkspaces: false` to keep them out.
+
 Follow-ups, cancel, archive, restore, title, and file reads (attachments) all address the same DSH session: Hub's agent id and workspace id are the DSH session id. The page lists the 20 most recent Hub runs with an **Open** button.
 
 ## Configuration
@@ -63,6 +66,7 @@ Follow-ups, cancel, archive, restore, title, and file reads (attachments) all ad
     modes: {}          # Hub mode -> DSH preset; empty offers every preset under its own name
     defaultMode: ''    # mode for a Hub agent that names none; empty uses the presets default
     agentPreset: ''    # agent preset for Hub sessions; empty uses the deployment default
+    listWorkspaces: true  # add each run directory to the sidebar workspace list
 ```
 
 Example: offer only two modes under Hub-style names.

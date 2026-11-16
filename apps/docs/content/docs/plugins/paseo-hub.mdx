@@ -44,6 +44,7 @@ run:
 - **provider** 固定为 `dsh`。
 - **model** 写成 `<DSH provider id>/<模型 id>`，与 Hub 模型选择器列出的一致。省略时用 DSH 默认模型。
 - **thinkingOptionId** 取该模型的推理等级之一。
+- 想在 Slack、Discord、Telegram 里直接回复继续聊，给步骤加 `continuation: { mode: conversation }`。用 `mode: new` 时每次 @bot 都是新运行，回复会被忽略。
 - **mode** 对新触发器必填，与 Claude、Codex 相同。每个 mode 对应一个权限预设，插件页面列出 Hub 可选的值。Hub 保存触发器前会让这台 Host 校验，模型或 mode 写错会在保存时报错，不会拖到运行时。
 
 ## 一次运行做什么
@@ -56,6 +57,8 @@ run:
 4. 把 Hub 的环境变量（`PASEO_AGENT_PROVIDER`、`PASEO_AGENT_MODE`、`PASEO_HUB_CONFIG_JSON`，触发器有 GitHub 权限时还有短期 `GH_TOKEN`/`GITHUB_TOKEN`）传给这个会话的 `bash` 命令。
 5. 把轮次、助手文本、推理和工具调用流式发给 Hub。agent 调用 `finish_execution` 时 Hub 结束这一步。
 
+每次运行的目录会加入侧栏工作区列表（已有的工作区直接复用；启动时也会补上之前运行的目录），所以 Hub 会话会出现在会话列表里。设 `listWorkspaces: false` 可关闭。
+
 追问、取消、归档、恢复、改标题和读取文件（附件）都作用于同一个 DSH 会话：Hub 的 agent id 和 workspace id 都是 DSH 会话 id。页面列出最近 20 次 Hub 运行，可直接 **打开**。
 
 ## 配置
@@ -66,6 +69,7 @@ run:
     modes: {}          # Hub mode -> DSH 预设；留空则每个预设以原名提供
     defaultMode: ''    # 未指定 mode 时用的 mode；留空用预设默认值
     agentPreset: ''    # Hub 会话用的 agent 预设；留空用部署默认值
+    listWorkspaces: true  # 把每次运行的目录加入侧栏工作区列表
 ```
 
 ## 连接状态

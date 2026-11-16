@@ -15,3 +15,6 @@
         defaultMode: ''
         # Agent preset for Hub sessions; empty uses the deployment default.
         agentPreset: ''
+        # Add each Hub run directory to the sidebar workspace list, so Hub
+        # sessions show up there. Existing workspaces are reused.
+        listWorkspaces: true

@@ -48,6 +48,8 @@ export const Config = Schema.object({
     .description('Mode for a Hub agent that names none; empty uses the permission presets default.'),
   agentPreset: Schema.string().default('')
     .description('Agent preset for Hub sessions; empty uses the deployment default.'),
+  listWorkspaces: Schema.boolean().default(true)
+    .description('Add each Hub run directory to the sidebar workspace list, so its sessions are visible.'),
 })
 
 // ---- persistence ----
@@ -455,6 +457,14 @@ export function apply(ctx, config) {
     store = new RunStore(domain)
     connector = new Connector(ctx, config, domain, store)
     await connector.start()
+    // Runs recorded before workspace listing existed are still invisible; list their directories once.
+    if (config.listWorkspaces !== false) {
+      const paths = new Set(store.list().filter(run => run.archivedAt === null).map(run => run.cwd))
+      for (const path of paths) {
+        await ctx.workspaceController.create({ path })
+          .catch(error => ctx.logger?.warn?.(`paseo-hub: could not add ${path} to the workspace list: ${error?.message ?? error}`))
+      }
+    }
     return domain
   })
   ready.catch(error => ctx.logger?.error?.(`paseo-hub: storage unavailable: ${error?.message ?? error}`))

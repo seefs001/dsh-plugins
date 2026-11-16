@@ -320,10 +320,25 @@ export class HubBridge {
         })
       }
       if (record.title) await this.ctx.sessionController.rename({ sessionId, title: record.title.slice(0, 200) }).catch(() => {})
+      await this.listWorkspace(cwd)
       return sessionId
     } catch (error) {
       await this.store.remove(record.key).catch(() => {})
       throw error
+    }
+  }
+
+  /**
+   * Make the run's directory a sidebar Workspace, so Hub sessions show up in
+   * the session list. The registry reuses an existing record for the same
+   * path; a failure only costs visibility, never the run.
+   */
+  async listWorkspace(cwd) {
+    if (this.config.listWorkspaces === false) return
+    try {
+      await this.ctx.workspaceController.create({ path: cwd })
+    } catch (error) {
+      this.log('warn', `could not add ${cwd} to the workspace list: ${error?.message ?? error}`)
     }
   }
 
