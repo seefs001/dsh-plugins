@@ -22,6 +22,7 @@ English | [中文](README.zh.md)
 | [`dsh-model-reference`](packages/model-reference) | Type `#` in the composer to insert a model chip that carries that model's last reasoning effort and fast mode. | Host + Web |
 | [`dsh-service-tier`](packages/service-tier) | A ⚡ toggle beside the model picker sends `service_tier: "priority"` for OpenAI Responses models. | Host + Web |
 | [`dsh-remember-model`](packages/remember-model) | New sessions start on the model and reasoning effort you picked last. | Host |
+| [`dsh-title-model`](packages/title-model) | Choose a separate model for session titles without changing the title strategy or conversation model. | Host + Web |
 | [`dsh-subagent-model`](packages/subagent-model) | Shows a subagent's recorded model and reasoning effort in its composer. Read-only; the main agent's picker is unchanged. | Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | Choose the model and prompt that Auto review uses, and read each session's review log. Needs `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
 | [`dsh-roles`](packages/roles) | Edit roles in a sidebar manager with prompts, role-owned skills and local skill references; pick one per session from the composer's model menu. | Host + Web |
@@ -88,7 +89,7 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 
 ## Configuration
 
-Most settings are made in the GUI and saved to the profile's `cordis.patch.yml` through DSH's config editor. This covers `model-reference` efforts, `service-tier` fast models, the `auto-review-model` model and prompt, the `message-actions` explanation model, and `web-access` search settings.
+Most settings are made in the GUI and saved to the profile's `cordis.patch.yml` through DSH's config editor. This covers `model-reference` efforts, `service-tier` fast models, the `auto-review-model` model and prompt, the native title generator’s model through `title-model`, the `message-actions` explanation model, and `web-access` search settings.
 
 Session groups, review logs, reply explanations, and Orbit bridge routines and runs live in Host storage domains (`session_groups`, `auto_review_log`, `message_actions`, `orbit_bridge`). Roles and selections use the `roles` domain. Paseo Hub keeps its daemon relationship, local runs and activity in `paseo_hub`; daemon credentials and the separately saved organization API key use DSH credentials. Pi tool selections are written to the session log, while saved preset defaults use `pi_tools_defaults`. AI Mascot keeps its position and display preferences in browser localStorage. Each package README lists its storage limits and privacy notes.
 

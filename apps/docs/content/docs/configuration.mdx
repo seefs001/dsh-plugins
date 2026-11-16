@@ -12,6 +12,7 @@ description: 插件设置写在哪里，Host、profile、会话日志和浏览�
 | # 引用模型 | 每个 `provider/model` 上次的推理强度 | profile 中该插件的 `efforts` 配置 |
 | 快速模式 | 开启 ⚡ 的 `provider/model` | profile 中该插件的 `tiers` 配置 |
 | 记住上次模型 | 新会话的默认模型和推理强度 | DSH 自己的 `agent-default-model` 配置 |
+| 标题模型 | 标题专用模型，或跟随会话 | 原生标题生成器的 `provider/model` 配置；禁用设置插件不会重置 |
 | 自动审查模型 | 审查模型、推理强度、提示词模式和提示词 | profile 中该插件的配置 |
 | 自动审查模型 | 每个会话的审查记录 | Host 的 `auto_review_log` storage domain |
 | 会话分组 | 分组、成员、组顺序和组内置顶 | Host 的 `session_groups` storage domain |

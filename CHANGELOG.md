@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `dsh-title-model` 0.1.0: choose a separate model for native first-prompt or conversation-following session titles on the bundle’s Plugins page, or through `title_model`. Writes only the native generator’s provider/model configuration, preserving the title strategy and conversation model. Saved choices persist after disabling this settings plugin. Not yet exercised in a running DSH.
+
 - `dsh-pi-tools`: save Host-wide tool defaults per preset as differences from the configured defaults, reset them from the picker, and freeze saved defaults into a session when its first step begins. **Refresh MCP** restarts bridged servers and reloads their tools, reporting server status and tool counts.
 - `dsh-pi-tools`: use Pi 1.5.0's complete system-prompt builder and original MCP-server section, including Pi's preamble, documentation links and working directory. Remove plugin-added system-prompt paragraphs; codemode string guidance remains in error feedback. Mark the older prompt comparison report as historical. DSH still owns runtime context, permissions and subagent execution.
 - `dsh-roles`: dedicated sidebar manager with retained in-page drafts, prompt/skills/model-preview tabs, emoji picker, field validation and a fixed save bar. Roles can reference local skills by name through the native skill catalog, including a chosen project's skills, without copying files or changing which other skills a session can use.

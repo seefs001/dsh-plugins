@@ -1,0 +1,5 @@
+# Keep the selected native title provider and its generation policy unchanged.
+- insert:
+    - id: title-model
+      name: dsh-title-model
+      config: {}

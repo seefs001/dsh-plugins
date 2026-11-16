@@ -31,6 +31,7 @@ const entries: Entry[] = [
   { slug: 'model-reference', category: 'models', surface: 'Host + Web', summary: '输入 # 插入模型标签，带上该模型上次的推理强度和快速模式。' },
   { slug: 'service-tier', category: 'models', surface: 'Host + Web', summary: '模型选择器旁的 ⚡ 开关，为 Responses 模型发送 service_tier: "priority"。', requires: ['openai-responses provider'] },
   { slug: 'remember-model', category: 'models', surface: 'Host', summary: '新会话使用你最近选择的模型和推理强度。' },
+  { slug: 'title-model', category: 'models', surface: 'Host + Web', summary: '为对话标题单独选模型，保留原生标题生成策略和主对话模型。', requires: ['已启用的原生标题生成器'] },
   { slug: 'subagent-model', category: 'models', surface: 'Web', summary: '在子代理输入框显示它记录的模型和推理强度，只读。' },
   { slug: 'auto-review-model', category: 'models', surface: 'Host + Web', summary: '为 Auto review 单独选模型和审查提示词，并查看每个会话的审查日志。', requires: ['@deepseek-ai/dsh-experimental-auto-review'] },
   { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '在独立侧栏页编辑角色提示词、自带技能和本地技能引用，在模型菜单里为会话切换角色。' },

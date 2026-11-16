@@ -22,6 +22,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-model-reference`](packages/model-reference) | 在输入框输入 `#` 插入模型标签，带上该模型上次的推理强度和快速模式。 | Host + Web |
 | [`dsh-service-tier`](packages/service-tier) | 模型选择器旁的 ⚡ 开关，为 OpenAI Responses 模型发送 `service_tier: "priority"`。 | Host + Web |
 | [`dsh-remember-model`](packages/remember-model) | 新会话使用你最近选择的模型和推理强度。 | Host |
+| [`dsh-title-model`](packages/title-model) | 为对话标题单独选择模型，保留标题生成策略和主对话模型。 | Host + Web |
 | [`dsh-subagent-model`](packages/subagent-model) | 在子代理输入框显示它记录的模型和推理强度。只读，主代理的选择器不变。 | Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | 为 Auto review 选择模型和提示词，查看每个会话的审查日志。需要 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
 | [`dsh-roles`](packages/roles) | 在独立侧栏管理页编辑角色提示词、自带技能和本地技能引用，在输入框的模型菜单里为会话切换角色。 | Host + Web |
@@ -88,7 +89,7 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 
 ## 配置
 
-大部分设置在界面里完成，由 DSH 的 config editor 写入 profile 的 `cordis.patch.yml`，包括 `model-reference` 的推理强度、`service-tier` 的快速模型、`auto-review-model` 的模型和提示词、`message-actions` 的解释模型，以及 `web-access` 的搜索设置。
+大部分设置在界面里完成，由 DSH 的 config editor 写入 profile 的 `cordis.patch.yml`，包括 `model-reference` 的推理强度、`service-tier` 的快速模型、`auto-review-model` 的模型和提示词、通过 `title-model` 设置的原生标题模型、`message-actions` 的解释模型，以及 `web-access` 的搜索设置。
 
 会话分组、审查日志、回复解释，以及 Orbit 执行桥的规则和运行记录保存在 Host 的 storage domain（`session_groups`、`auto_review_log`、`message_actions`、`orbit_bridge`）。角色库和角色选择保存在 `roles`。Paseo Hub 的 daemon 关系、本机运行和活动保存在 `paseo_hub`，daemon 凭据和单独保存的组织 API key 使用 DSH credentials。Pi 的工具选择写入会话日志，保存的预设默认工具使用 `pi_tools_defaults`。AI 吉祥物的位置和显示偏好保存在浏览器 localStorage。存储上限和隐私说明见各包 README。
 

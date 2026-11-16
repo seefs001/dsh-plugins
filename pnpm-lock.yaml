@@ -120,6 +120,8 @@ importers:
 
   packages/subagent-model: {}
 
+  packages/title-model: {}
+
   packages/tool-lens: {}
 
   packages/web-access: {}
