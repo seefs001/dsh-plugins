@@ -24,7 +24,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-remember-model`](packages/remember-model) | 新会话使用你最近选择的模型和推理强度。 | Host |
 | [`dsh-subagent-model`](packages/subagent-model) | 在子代理输入框显示它记录的模型和推理强度。只读，主代理的选择器不变。 | Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | 为 Auto review 选择模型和提示词，查看每个会话的审查日志。需要 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
-| [`dsh-roles`](packages/roles) | 管理角色，每个角色带详细提示词和自己的技能，在输入框的模型菜单里为会话切换角色。 | Host + Web |
+| [`dsh-roles`](packages/roles) | 在独立侧栏管理页编辑角色提示词、自带技能和本地技能引用，在输入框的模型菜单里为会话切换角色。 | Host + Web |
 
 ### 会话与工作区
 
@@ -54,10 +54,10 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 |---|---|---|
 | [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页和 X）与 `openai_search`，使用已有 Responses provider 的托管搜索。 | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | 新增 `openai_image` 与 `grok_image`，使用已有 Responses provider 的托管画图工具，并把图片保存为文件。 | Host + Web |
-| [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具、QuickJS codemode，以及按会话选择的 DSH 和 MCP 工具。不需要改 DSH 源码。 | Host + Web |
+| [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具和系统提示词、QuickJS codemode、会话工具选择、预设默认工具保存和 MCP 刷新。不需要改 DSH 源码。 | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | 把 Pi 的 `~/.pi/agent/mcp.json` 里的 MCP 服务器注册到 DSH MCP 管理器，改文件即时生效。 | Host |
 | [`dsh-orbit-bridge`](packages/orbit-bridge) | 只读巡检 Orbit 项目：完整分页、本地运行记录、相对上次已处理检查的变化列表。不写 Orbit。 | Host + Web |
-| [`dsh-paseo-hub`](packages/paseo-hub) | 把这台 Host 作为 daemon 接入 Paseo Hub：浏览器登录后，Hub 触发在 DSH 会话里运行，provider 为 `dsh`，模型和权限预设都用你的。 | Host + Web |
+| [`dsh-paseo-hub`](packages/paseo-hub) | 把 Paseo Hub 触发作为 DSH 会话运行，查看本机运行与活动，或通过组织 API 控制台和工具管理触发器、手动触发任务。 | Host + Web |
 
 按需安装即可。同时装了 `dsh-model-reference` 和 `dsh-service-tier` 时，`#` 标签会带上 ⚡。
 
@@ -90,7 +90,7 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 
 大部分设置在界面里完成，由 DSH 的 config editor 写入 profile 的 `cordis.patch.yml`，包括 `model-reference` 的推理强度、`service-tier` 的快速模型、`auto-review-model` 的模型和提示词、`message-actions` 的解释模型，以及 `web-access` 的搜索设置。
 
-会话分组、审查日志、回复解释，以及 Orbit 执行桥的规则和运行记录保存在 Host 的 storage domain（`session_groups`、`auto_review_log`、`message_actions`、`orbit_bridge`）。Pi 的工具选择写入会话日志。AI 吉祥物的位置和显示偏好保存在浏览器 localStorage。存储上限和隐私说明见各包 README。
+会话分组、审查日志、回复解释，以及 Orbit 执行桥的规则和运行记录保存在 Host 的 storage domain（`session_groups`、`auto_review_log`、`message_actions`、`orbit_bridge`）。角色库和角色选择保存在 `roles`。Paseo Hub 的 daemon 关系、本机运行和活动保存在 `paseo_hub`，daemon 凭据和单独保存的组织 API key 使用 DSH credentials。Pi 的工具选择写入会话日志，保存的预设默认工具使用 `pi_tools_defaults`。AI 吉祥物的位置和显示偏好保存在浏览器 localStorage。存储上限和隐私说明见各包 README。
 
 ## 文档
 

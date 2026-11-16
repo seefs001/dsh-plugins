@@ -33,7 +33,7 @@ const entries: Entry[] = [
   { slug: 'remember-model', category: 'models', surface: 'Host', summary: '新会话使用你最近选择的模型和推理强度。' },
   { slug: 'subagent-model', category: 'models', surface: 'Web', summary: '在子代理输入框显示它记录的模型和推理强度，只读。' },
   { slug: 'auto-review-model', category: 'models', surface: 'Host + Web', summary: '为 Auto review 单独选模型和审查提示词，并查看每个会话的审查日志。', requires: ['@deepseek-ai/dsh-experimental-auto-review'] },
-  { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '管理带详细提示词和技能的角色，在模型菜单里为会话切换角色。' },
+  { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '在独立侧栏页编辑角色提示词、自带技能和本地技能引用，在模型菜单里为会话切换角色。' },
   { slug: 'recent-sessions', category: 'sessions', surface: 'Web', summary: '@ 菜单里的会话按最近活动排序。' },
   { slug: 'session-groups', category: 'sessions', surface: 'Host + Web', summary: '自定义会话分组和组内置顶，所有浏览器与 Agent 共享。' },
   { slug: 'workspace-manager', category: 'sessions', surface: 'Host + Web', summary: '移除保存的工作区记录，清理目录已不存在的条目，不删文件和会话。' },
@@ -48,10 +48,10 @@ const entries: Entry[] = [
   { slug: 'ai-mascot', category: 'conversation', surface: 'Web', summary: '右下角的 GPT / Claude 小伙伴，跟随当前对话的真实活动。', requires: ['可访问外部素材站点'] },
   { slug: 'web-access', category: 'tools', surface: 'Host + Web', summary: '新增 grok_search 和 openai_search，复用已有 Responses provider 的托管搜索。', requires: ['支持托管搜索的 Responses provider'] },
   { slug: 'image-gen', category: 'tools', surface: 'Host + Web', summary: '新增 openai_image 和 grok_image，复用已有 Responses provider 的托管 image_generation 工具。', requires: ['支持托管 image_generation 的 Responses provider'] },
-  { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 原版编程工具、QuickJS codemode 和可选的 DSH/MCP 工具。', requires: ['rg 与 fd'] },
+  { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 原版工具和系统提示词、QuickJS codemode、默认工具保存和 MCP 刷新。', requires: ['rg 与 fd'] },
   { slug: 'pi-mcp', category: 'tools', surface: 'Host', summary: '在 DSH 里使用 Pi 的 ~/.pi/agent/mcp.json，改文件即时生效。', requires: ['@deepseek-ai/dsh-mcp-manager'] },
   { slug: 'orbit-bridge', category: 'tools', surface: 'Host + Web', summary: '只读巡检 Orbit 项目：完整分页、本地运行记录、相对上次已处理检查的变化列表，不写 Orbit。', requires: ['Orbit MCP 服务器', '@deepseek-ai/dsh-storage-domain'] },
-  { slug: 'paseo-hub', category: 'tools', surface: 'Host + Web', summary: '把 Host 作为 daemon 接入 Paseo Hub：浏览器登录，Hub 触发在 DSH 会话里运行，mode 对应权限预设。', requires: ['支持 dsh provider 的 Paseo Hub', '@deepseek-ai/dsh-permission-presets'] },
+  { slug: 'paseo-hub', category: 'tools', surface: 'Host + Web', summary: '把 Hub 触发作为 DSH 会话运行，查看本机运行和活动，通过组织 API 控制台与工具管理触发器及手动运行。', requires: ['支持 dsh provider 的 Paseo Hub', '@deepseek-ai/dsh-permission-presets'] },
 ]
 
 export interface PluginInfo extends Entry {
