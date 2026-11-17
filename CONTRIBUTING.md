@@ -14,7 +14,7 @@ packages/<name>/
 └── README.md
 ```
 
-Most packages are plain JavaScript with no build step, so a `link:` install runs the source directly. Three packages differ:
+Most packages are plain JavaScript with no build step, so a `link:` install runs the source directly. Two packages differ:
 
 - `pi-tools` keeps its browser half in `client.js` at the package root, and its patch also inserts a `pi` agent preset.
 - `message-actions` builds `lib/client.js` from `src/client.js` with `pnpm --filter dsh-message-actions build`. `prepack` runs the build.
