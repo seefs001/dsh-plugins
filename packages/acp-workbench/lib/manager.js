@@ -5,6 +5,9 @@ import { homedir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { AcpConnection, RpcError } from './transport.js'
 import { WorkbenchStore } from './store.js'
+import { advertisedModels, inputModalities } from './models.js'
+
+export { advertisedModels }
 
 const ACTIVE = new Set(['starting', 'idle', 'running', 'waiting', 'canceling'])
 const USER_ONLY = new Set(['provider-save', 'provider-remove', 'diagnose', 'models', 'discover', 'import', 'respond', 'configure'])
@@ -26,17 +29,6 @@ const DEFAULT_PROVIDERS = [
 const ORIGINAL_DEFAULTS = ['cursor', 'antigravity']
 const MAX_MODELS = 200
 
-/** Models a session result advertises, through the standard model list or a `model` config option. */
-export function advertisedModels(result) {
-  const listed = result?.models?.availableModels
-  if (Array.isArray(listed) && listed.length) {
-    return listed.filter(model => typeof model?.modelId === 'string').map(model => ({ id: model.modelId, name: model.name ?? model.modelId }))
-  }
-  const option = (result?.configOptions ?? []).find(item => item?.category === 'model' && item.type !== 'boolean')
-  return (option?.options ?? []).flatMap(group => group.options ?? [group])
-    .filter(item => typeof item?.value === 'string').map(item => ({ id: item.value, name: item.name ?? item.value }))
-}
-
 export function summary(session) {
   const { id, providerId, title, cwd, state, remoteId, createdAt, updatedAt, archived, eventSeq, lastError, stopReason, ownerSessionId } = session
   return { id, providerId, title, cwd, state, remoteId, createdAt, updatedAt, archived, eventSeq, lastError, stopReason, ownerSessionId,
@@ -47,9 +39,10 @@ export function summary(session) {
 const CLIENT_INFO = { name: 'dsh-acp-workbench', version: '0.2.0' }
 
 export class Workbench {
-  constructor({ domain, subprocess, changed, log, autoApprove }) {
+  constructor({ domain, subprocess, changed, modelsChanged, log, autoApprove }) {
     this.subprocess = subprocess
     this.changed = changed
+    this.modelsChanged = modelsChanged
     this.log = log
     /** Optional policy: returns the option id to select for a permission request, or null to ask the user. */
     this.autoApprove = autoApprove
@@ -227,12 +220,18 @@ export class Workbench {
   }
 
   /** Cache candidates for ACP Settings; discovery never changes the user-selected model list. */
-  async noteAdvertised(providerId, models) {
+  async noteAdvertised(providerId, models, capabilities) {
     const provider = this.store.providers.get(providerId)
-    if (!provider || !models.length) return
-    if (JSON.stringify(provider.advertised?.models) === JSON.stringify(models)) return
-    await this.store.saveProvider({ ...provider, advertised: { at: now(), models } })
+    if (!provider) return
+    const previous = provider.advertised
+    const known = new Map(previous?.models?.map(model => [model.id, model]) ?? [])
+    const inputs = inputModalities(capabilities) ?? previous?.inputModalities
+    const facts = { models: models.length ? models.map(model => ({ ...known.get(model.id), ...model })) : previous?.models ?? [],
+      ...(inputs ? { inputModalities: inputs } : {}) }
+    if (JSON.stringify({ models: previous?.models ?? [], ...(previous?.inputModalities ? { inputModalities: previous.inputModalities } : {}) }) === JSON.stringify(facts)) return
+    await this.store.saveProvider({ ...provider, advertised: { at: now(), ...facts } })
     this.changed()
+    this.modelsChanged?.(providerId)
   }
 
   async create(op, caller) {
@@ -274,8 +273,8 @@ export class Workbench {
         // ACP only reports models for a session. The user asked for this explicitly; the
         // empty session is never prompted.
         const result = await connection.request('session/new', { cwd, mcpServers: [] }, 60_000)
-        const models = advertisedModels(result)
-        await this.noteAdvertised(provider.id, models)
+        const models = advertisedModels(result, info.agentCapabilities)
+        await this.noteAdvertised(provider.id, models, info.agentCapabilities)
         return { models, sessionId: result.sessionId ?? null }
       }
       if (!info.agentCapabilities?.sessionCapabilities?.list) throw new Error('This provider does not advertise session/list')
@@ -328,7 +327,7 @@ export class Workbench {
       session.configOptions = result.configOptions ?? session.configOptions ?? []
       runtime.replaying = false
       this.record(session, 'session', result)
-      await this.noteAdvertised(session.providerId, advertisedModels(result))
+      await this.noteAdvertised(session.providerId, advertisedModels(result, session.capabilities), session.capabilities)
       await this.transition(session, 'idle')
     } catch (error) {
       runtime.releaseSpawn()
@@ -346,7 +345,7 @@ export class Workbench {
     switch (update.sessionUpdate) {
       case 'config_option_update':
         session.configOptions = update.configOptions ?? []
-        await this.noteAdvertised(session.providerId, advertisedModels({ configOptions: session.configOptions }))
+        await this.noteAdvertised(session.providerId, advertisedModels({ models: session.models, configOptions: session.configOptions }, session.capabilities))
         break
       case 'current_mode_update': session.modes = { ...session.modes, currentModeId: update.currentModeId }; break
       case 'available_commands_update': session.commands = update.availableCommands ?? []; break
@@ -517,16 +516,16 @@ export class Workbench {
     try {
       const result = await runtime.connection.request(method, { sessionId: session.remoteId, ...params })
       if (!this.isCurrent(session, runtime)) throw new Error('Session disconnected during configuration')
+      if (op.modelId !== undefined) session.models = { ...session.models, currentModelId: op.modelId }
       if (result.configOptions) {
         session.configOptions = result.configOptions
-        await this.noteAdvertised(session.providerId, advertisedModels(result))
+        await this.noteAdvertised(session.providerId, advertisedModels({ ...result, models: result.models ?? session.models }, session.capabilities))
       } else if (op.configId !== undefined) {
         // Without an echoed option list, record the accepted value so it is not re-applied every turn.
         const option = session.configOptions.find(o => o.id === op.configId)
         if (option) option.currentValue = op.value
       }
       if (op.modeId !== undefined) session.modes.currentModeId = op.modeId
-      if (op.modelId !== undefined) session.models = { ...session.models, currentModelId: op.modelId }
       this.record(session, 'configuration', { method, params, result })
       await this.transition(session, 'idle')
       return this.detail(session)

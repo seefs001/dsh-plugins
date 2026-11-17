@@ -66,7 +66,9 @@ export async function apply(ctx) {
   }
   const domain = await ctx.storageDomain.open(DOMAIN_SPEC)
   let native
-  const manager = new Workbench({ domain, subprocess: ctx.subprocess, changed, log: message => ctx.logger.warn(message),
+  const manager = new Workbench({ domain, subprocess: ctx.subprocess, changed,
+    modelsChanged: providerId => native && ctx.emit('llm/models-updated', native.route(providerId)),
+    log: message => ctx.logger.warn(message),
     autoApprove: (session, params) => native?.autoApprove(session, params) ?? null })
   native = new NativeAcp(ctx, manager)
   try { await manager.initialize(); await native.initialize() } catch (error) { await native.close(); await manager.close(); throw error }

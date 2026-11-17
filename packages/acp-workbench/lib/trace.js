@@ -1,6 +1,6 @@
 /**
  * Fold one run's raw ACP events into the rows a conversation shows beside the reply:
- * tool calls merged by id, plans, one CLI log, interaction outcomes and errors.
+ * tool calls merged by id, plans, chronological CLI log segments, interaction outcomes and errors.
  * Message and thought chunks are excluded because DSH renders the reply itself, and
  * `session/load` history replays are excluded because they belong to earlier turns.
  * Folding is incremental: `through` is the last sequence applied.
@@ -40,7 +40,7 @@ export function foldEvents(trace, events) {
       const entries = update?.entries ?? data.params?.todos ?? []
       row.entries = data.params?.merge ? [...new Map([...row.entries, ...entries].map(entry => [entry.id, entry])).values()] : entries
     } else if (event.type === 'stderr') {
-      if (!trace.log) {
+      if (!trace.log || trace.rows.at(-1) !== trace.log) {
         trace.log = { kind: 'log', seq: event.seq, text: '' }
         trace.rows.push(trace.log)
       }

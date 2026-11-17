@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { createTrace, foldEvents } from './trace.js'
+import { modelDetails, reasoningInfo, reasoningSelection } from './models.js'
 
 export const ACP_ROUTE_PREFIX = 'acp-'
 const MAX_HANDOFF = 200_000
@@ -150,11 +151,26 @@ export class NativeAcp {
   }
   /** Only models explicitly selected in ACP Settings appear alongside the CLI default. */
   async listModels(provider) {
-    const { label, models = [] } = this.provider(provider)
-    const entry = (id, name, description) => ({ provider, id, name, description, inputModalities: ['text', 'image'] })
+    const source = this.provider(provider)
+    const { label, models = [] } = source
+    const entry = (id, name, description) => {
+      const facts = id === DEFAULT_MODEL ? {} : modelDetails(source, id)
+      const inputs = facts.inputModalities ?? source.advertised?.inputModalities
+      const reasoning = reasoningInfo(facts)
+      const details = [facts.description, description,
+        facts.contextWindow ? `Context: ${facts.contextWindow} tokens.` : null,
+        facts.maxTokens ? `Maximum output: ${facts.maxTokens} tokens (CLI limit).` : null,
+        inputs?.length ? `Input: ${inputs.join(', ')}.` : null].filter(Boolean).join(' ')
+      const badge = ['ACP', inputs?.includes('image') ? 'image' : null,
+        facts.contextWindow ? `${facts.contextWindow % 1000 === 0 ? `${facts.contextWindow / 1000}k` : facts.contextWindow} ctx` : null].filter(Boolean).join(' · ')
+      return { provider, id, name, description: details, badge: { text: badge, tone: 'neutral' },
+        ...(inputs ? { inputModalities: inputs } : {}),
+        ...(facts.contextWindow ? { context: { contextWindow: facts.contextWindow } } : {}),
+        ...(reasoning ? { reasoning } : {}) }
+    }
     return [
       entry(DEFAULT_MODEL, 'CLI default', `Keep the model ${label} is currently using. ${label} runs its own tools and permissions, not the DSH tool sandbox.`),
-      ...models.map(model => entry(model.id, model.name ?? model.id, `${label} switches to ${model.id} before the turn. Its own tools and permissions apply, not the DSH tool sandbox.`)),
+      ...models.map(model => entry(model.id, model.name ?? model.id, `${label} applies the selected model and reasoning effort before the turn. Its own tools and permissions apply, not the DSH tool sandbox.`)),
     ]
   }
   async resolveModel(provider, model) {
@@ -348,18 +364,29 @@ export class NativeAcp {
   /**
    * Switch the external conversation to the model chosen in the DSH model picker. `default`
    * keeps whatever the CLI is using. A CLI that reports models through a `model` config option
-   * is switched through that option; otherwise through `session/set_model`.
+   * is switched through that option; otherwise through `session/set_model`. A reasoning
+   * choice maps to an advertised full variant ID or the model's live thought-level option.
    */
-  async applyModel(session, model) {
-    if (!model || model === DEFAULT_MODEL) return
-    const option = session.configOptions?.find(item => item?.category === 'model' && item.type !== 'boolean')
-    const current = option ? option.currentValue : session.models?.currentModelId
-    if (current === model) return
+  async applyModel(session, model, effort) {
+    if (!model || model === DEFAULT_MODEL) {
+      if (effort !== undefined) throw new Error('Choose an explicit ACP model to set reasoning effort. No prompt was sent.')
+      return
+    }
     try {
-      await this.manager.configure(session, option ? { configId: option.id, value: model } : { modelId: model }, { chosen: true })
+      const selection = reasoningSelection(modelDetails(this.manager.provider(session.providerId), model), effort)
+      const option = session.configOptions?.find(item => item?.category === 'model' && item.type !== 'boolean')
+      const current = option ? option.currentValue : session.models?.currentModelId
+      if (current !== selection.modelId) {
+        await this.manager.configure(session, option ? { configId: option.id, value: selection.modelId } : { modelId: selection.modelId }, { chosen: true })
+      }
+      if (selection.configId) {
+        const thought = session.configOptions?.find(item => item.id === selection.configId && item.category === 'thought_level' && item.type === 'select')
+        if (!thought) throw new Error('The connected CLI did not advertise the selected reasoning option')
+        if (thought.currentValue !== selection.value) await this.manager.configure(session, { configId: thought.id, value: selection.value })
+      }
     } catch (error) {
       const { label } = this.manager.provider(session.providerId)
-      throw new Error(`${label} did not switch to model "${model}": ${error.message}. Refresh models in ACP Settings, or choose CLI default. No prompt was sent.`, { cause: error })
+      throw new Error(`${label} did not switch to model "${model}"${effort === undefined ? '' : ` with reasoning effort "${effort}"`}: ${error.message}. Refresh models in ACP Settings, or choose CLI default. No prompt was sent.`, { cause: error })
     }
   }
 
@@ -449,7 +476,7 @@ export class NativeAcp {
       if (!this.manager.runtimes.has(session.id)) await this.manager.connect(session)
       signal.throwIfAborted()
       // Nothing has been sent yet; a refused model fails this turn and keeps the connection.
-      await this.applyModel(session, model)
+      await this.applyModel(session, model, options.reasoningEffort)
       signal.throwIfAborted()
       const input = await this.input(session, options.messages, signal, position.messageIds)
       signal.throwIfAborted()

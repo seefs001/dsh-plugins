@@ -60,6 +60,9 @@ window.__ModuleLoader__.load({
       modelsLoaded: '{n} candidate models found.', modelPickerHint: 'Choose this conversation’s model in the normal DSH model picker.',
       visibleModels: 'Models in the picker', modelSelectionHint: 'Check the models you want to show, then save. CLI default is always available.',
       saveModels: 'Save model selection', modelsSaved: 'Model picker updated.', noModels: 'Refresh models to load the choices.',
+      modelInfoHint: 'CLI-reported details follow the selected models into the picker. Unknown capacities are not filled in. Use the picker’s reasoning control when advertised.',
+      modelContext: 'Context: {n} tokens', modelOutput: 'Output limit: {n} tokens', modelInput: 'Input: {types}',
+      modelEfforts: 'Reasoning: {levels}', modelInfoUnknown: 'No model details advertised', modalityText: 'text', modalityImage: 'image',
       authMethods: 'Sign-in methods', rawResult: 'Raw result', none: 'None advertised',
       'cap.loadSession': 'Resume sessions', 'cap.image': 'Image input', 'cap.audio': 'Audio input', 'cap.embeddedContext': 'Embedded context',
       'cap.list': 'Session list', 'cap.mcpHttp': 'MCP over HTTP', 'cap.mcpSse': 'MCP over SSE',
@@ -124,6 +127,9 @@ window.__ModuleLoader__.load({
       modelsLoaded: '发现 {n} 个候选模型。', modelPickerHint: '请在原 DSH 模型选择器中选择此会话使用的模型。',
       visibleModels: '显示在模型选择器中的模型', modelSelectionHint: '勾选需要显示的模型并保存。CLI default 始终保留。',
       saveModels: '保存模型选择', modelsSaved: '模型列表已更新。', noModels: '请先刷新模型以载入候选项。',
+      modelInfoHint: '已选模型会携带 CLI 公布的信息。未公布的容量不补猜测值；支持思考强度时，可在原模型选择器中调整。',
+      modelContext: '上下文：{n} tokens', modelOutput: '输出上限：{n} tokens', modelInput: '输入：{types}',
+      modelEfforts: '思考强度：{levels}', modelInfoUnknown: 'CLI 未公布模型信息', modalityText: '文本', modalityImage: '图片',
       authMethods: '登录方式', rawResult: '原始结果', none: '未公布',
       'cap.loadSession': '恢复会话', 'cap.image': '图片输入', 'cap.audio': '音频输入', 'cap.embeddedContext': '嵌入上下文',
       'cap.list': '会话列表', 'cap.mcpHttp': 'HTTP MCP', 'cap.mcpSse': 'SSE MCP',
@@ -209,7 +215,8 @@ window.__ModuleLoader__.load({
 
 /* Execution trace (chat node and records) */
 .aw-trace{margin:2px 0;min-width:0}
-.aw-trace-body{display:flex;flex-direction:column;gap:8px;padding:4px 0 6px 26px;min-width:0}
+.aw-trace-head{display:flex;align-items:center;gap:8px;min-height:28px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.aw-trace-body{display:flex;flex-direction:column;gap:8px;padding:4px 0 6px;min-width:0}
 .aw-trace-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);min-width:0}
 .aw-trace-meta .aw-path{max-width:min(100%,360px)}
 .aw-summary{color:var(--dsw-alias-label-tertiary);font-size:12px;margin-left:8px;font-weight:400}
@@ -282,7 +289,7 @@ window.__ModuleLoader__.load({
       const response = await fetch('/acp-workbench/op', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(op), signal })
       const value = await response.json().catch(() => null)
       if (!response.ok) throw new Error(value?.message ?? `HTTP ${response.status}`)
-      if (value === null && op.action !== 'native-run') throw new Error('Invalid response from ACP Workbench')
+      if (value === null && op.action !== 'native-trace') throw new Error('Invalid response from ACP Workbench')
       return value
     }
     const uniqueEvents = events => [...new Map(events.map(event => [event.seq, event])).values()].toSorted((a, b) => a.seq - b.seq)
@@ -567,8 +574,8 @@ window.__ModuleLoader__.load({
           }
         }
 
-        function TraceList({ events, raw, live, conversation }) {
-          const rows = React.useMemo(() => raw ? EMPTY : timeline(events), [events, raw])
+        function TraceList({ events = EMPTY, folded, raw, live, conversation }) {
+          const rows = React.useMemo(() => raw ? EMPTY : folded ?? timeline(events), [events, folded, raw])
           if (raw) {
             if (!events.length) return h('p', { className: 'aw-note' }, t('noEvents'))
             return h('div', { className: 'aw-list' }, events.map(event => h(Json, { key: event.seq, label: `#${event.seq} · ${eventLabel(event)} · ${clock(event.at)}`, payload: event })))
@@ -577,13 +584,17 @@ window.__ModuleLoader__.load({
             const key = `${row.kind}:${row.seq}`
             if (row.kind === 'tool') return h(ToolRow, { key, tool: row.tool, live: live && !row.replay })
             if (row.kind === 'plan') return h(PlanRow, { key, entries: row.entries, live })
-            if (row.kind === 'stderr') return h(StderrRow, { key, text: row.text })
+            if (row.kind === 'stderr' || row.kind === 'log') return h(StderrRow, { key, text: row.text })
+            if (row.kind === 'error') return h('div', { key, className: 'aw-event', 'data-tone': 'error' }, row.message)
+            if (row.kind === 'interaction') return h(EventRow, { key, live, row: { type: 'interaction', data: { kind: row.interaction, params: { title: row.title } } } })
+            if (row.kind === 'answered') return h(EventRow, { key, live, row: { type: 'interaction-result', data: { result: { outcome: { outcome: row.outcome } } } } })
+            if (row.kind === 'expired') return h(EventRow, { key, live, row: { type: 'interaction-expired', data: { reason: row.reason } } })
             // DSH already renders the reply itself beside a conversation trace.
             if (row.kind === 'message') return conversation ? null : h(MessageRow, { key, row })
             if (row.kind === 'content') return conversation ? null : h('div', { key, className: 'aw-msg' }, h(Block, { block: row.content }))
             return conversation && !shownBesideReply(row) ? null : h(EventRow, { key, row, live })
           }).filter(Boolean)
-          if (!items.length) return h('p', { className: 'aw-note' }, t(conversation && events.length ? 'noActivity' : 'noEvents'))
+          if (!items.length) return h('p', { className: 'aw-note' }, t(conversation ? 'noActivity' : 'noEvents'))
           return h('div', { className: 'aw-list' }, items)
         }
 
@@ -701,7 +712,6 @@ window.__ModuleLoader__.load({
           const [events, setEvents] = React.useState(EMPTY)
           const [ready, setReady] = React.useState(false)
           const [raw, setRaw] = React.useState(false)
-          const [open, setOpen] = React.useState(null)
           const [error, setError] = React.useState('')
           const [loadingOlder, setLoadingOlder] = React.useState(false)
           const after = React.useRef(0)
@@ -714,28 +724,28 @@ window.__ModuleLoader__.load({
           const run = session?.native.runs.findLast(matches)
           const active = !!run && ACTIVE_RUN.has(run.state)
           const pending = run && interactions ? session.interactions.filter(item => item.turnId === run.id) : EMPTY
-          const expanded = open ?? (active || pending.length > 0)
           const target = run?.to ?? session?.eventSeq ?? 0
           const from = run?.from ?? 1
-          const toggle = React.useCallback(() => setOpen(!expanded), [expanded])
+          const traceReady = !!fallback?.native.runs.some(matches)
+          // Keep every execution step inline. The Host folds token chunks and updates per tool,
+          // so a long run does not require paging its raw stream just to show the ordered steps.
           React.useEffect(() => {
-            if (current) return
             const controller = new AbortController()
-            void api({ action: 'native-run', dshSessionId: sessionId, turn, step, messageId,
+            void api({ action: 'native-trace', dshSessionId: sessionId, turn, step, messageId,
               ...(reference ? { externalId: reference.sessionId, runId: reference.turnId } : {}) }, controller.signal)
-              .then(value => { if (!controller.signal.aborted) setFallback(value) })
+              .then(value => { if (!controller.signal.aborted) { setFallback(value); setError('') } })
               .catch(failure => { if (!controller.signal.aborted) setError(failure.message) })
             return () => controller.abort()
-          }, [sessionId, turn, step, messageId, reference?.sessionId, reference?.turnId, !!current])
+          }, [sessionId, turn, step, messageId, reference?.sessionId, reference?.turnId, target])
           React.useEffect(() => {
             started.current = false
             generation.current++
             setEvents(EMPTY)
             setReady(false)
           }, [session?.id, run?.id, raw])
-          // Events load only for an expanded trace, starting from a recent window of the run.
+          // Raw diagnostics stay lazy and paged; the normal timeline already has all folded rows.
           React.useEffect(() => {
-            if (!expanded || !session || !run) return
+            if (!raw || !session || !run) return
             if (!started.current) { after.current = Math.max(0, from - 1, target - 200); started.current = true }
             if (after.current >= target) { setReady(true); return }
             const controller = new AbortController()
@@ -754,7 +764,7 @@ window.__ModuleLoader__.load({
               } catch (failure) { if (!controller.signal.aborted) setError(failure.message) }
             })()
             return () => controller.abort()
-          }, [expanded, session?.id, run?.id, target, raw])
+          }, [session?.id, run?.id, target, raw])
           if (!session || !run) return error ? h('p', { className: 'aw-error', role: 'alert' }, error) : null
           const older = async () => {
             const first = events[0]?.seq ?? target + 1
@@ -773,23 +783,22 @@ window.__ModuleLoader__.load({
             files ? (files === 1 ? tt('traceFile') : tt('traceFiles', { n: files })) : null,
           ].filter(Boolean).join(' · ')
           return h('section', { className: 'acpw aw-trace', 'aria-label': tt('trace', { name }) },
-            h(DisclosureRow, {
-              icon: h(StateDot, { state: DOT[state] ?? 'idle' }),
-              title: tt('trace', { name }),
-              open: expanded, expandable: true, onToggle: toggle, expandOnRowClick: true, keepContentWhenOpen: true, running: active,
-              collapsedContent: summary ? h('span', { className: 'aw-summary' }, summary) : null,
-            }, expanded ? h('div', { className: 'aw-trace-body' },
+            h('div', { className: 'aw-trace-head' },
+              h(StateDot, { state: DOT[state] ?? 'idle' }),
+              h('span', null, tt('trace', { name })),
+              summary ? h('span', null, summary) : null),
+            h('div', { className: 'aw-trace-body' },
               h('div', { className: 'aw-trace-meta' },
                 h(PathLabel, { path: session.cwd, className: 'aw-path' }),
                 h('span', null, run.handoff ? tt('handoff') : tt('sameContext')),
                 run.stopReason && run.stopReason !== 'end_turn' ? h('span', null, tt('stopReason', { reason: run.stopReason })) : null,
                 h('span', { className: 'aw-grow' }),
-                events[0]?.seq > from ? h(Button, { size: 'sm', variant: 'ghost', disabled: loadingOlder, onClick: older }, tt('older')) : null,
+                raw && events[0]?.seq > from ? h(Button, { size: 'sm', variant: 'ghost', disabled: loadingOlder, onClick: older }, tt('older')) : null,
                 h(Button, { size: 'sm', variant: 'ghost', 'aria-pressed': raw, onClick: () => setRaw(!raw) }, tt(raw ? 'viewTimeline' : 'viewRaw'))),
-              ready || events.length ? h(TraceList, { events, raw, live: active, conversation: true }) : h('p', { className: 'aw-note' }, tt('loading')),
+              (raw ? ready || events.length : traceReady) ? h(TraceList, { events, folded: raw ? undefined : fallback.rows, raw, live: active, conversation: true }) : h('p', { className: 'aw-note' }, tt('loading')),
               run.error ? h('p', { className: 'aw-error', role: 'alert' }, run.error) : null,
               error || view.error ? h('p', { className: 'aw-error', role: 'alert' }, error || view.error) : null,
-              pending.map(item => h(InteractionCard, { key: item.id, item, sessionId: session.id, run: view.run, disabled: view.busy || !canWrite, inline: true }))) : null))
+              pending.map(item => h(InteractionCard, { key: item.id, item, sessionId: session.id, run: view.run, disabled: view.busy || !canWrite, inline: true }))))
         }
 
         function ChildRow({ child, sessionId, view, canWrite }) {
@@ -841,7 +850,7 @@ window.__ModuleLoader__.load({
         const traceState = (event, previous) => {
           const source = event.data.message?.source
           return { turn: event.data.turn, step: event.data.step, seq: event.seq,
-            active: source ? source.provider?.startsWith('acp-') : previous?.active,
+            provider: source ? source.provider : previous?.provider,
             reference: source?.replayState?.response?.acp ?? previous?.reference, messageId: event.data.message?.id ?? previous?.messageId }
         }
         ctx.uiConversation.events.register({
@@ -850,9 +859,11 @@ window.__ModuleLoader__.load({
             'assistant/live-chunk': event => event.data.chunk.type === 'block-start' ? traceMatch(event) : null,
             'assistant/message': event => event.surfaceOp === 'append' ? traceMatch(event) : null,
           },
-          start: (_context, match, reader) => traceState(match.event, { active: reader.previous('acp-route')?.state.provider?.startsWith('acp-') }),
+          start: (_context, match, reader) => traceState(match.event, reader.previous('acp-route')?.state),
           update: (context, match) => ({ ...traceState(match.event, context.state), seq: context.state.seq }),
-          buildViewNode: context => context.state?.active ? { key: context.key, id: context.id, kind: 'acp-run', target: 'chat',
+          buildViewNode: context => context.state?.provider?.startsWith('acp-') ? { key: context.key, id: context.id, kind: 'acp-run', target: 'chat',
+            // Claude Code's timeline stands outside Chat's step and Turn process disclosures.
+            ...(context.state.provider === 'acp-claude-code' ? { groupTree: 'turn' } : {}),
             anchorSeq: context.state.seq, location: context.start?.location ?? { kind: 'unresolved' }, visibility: 'visible', data: context.state } : null,
         })
         function NativeNode(props) {
@@ -957,8 +968,14 @@ window.__ModuleLoader__.load({
           const [selectedModels, setSelectedModels] = React.useState(() => providers[0]?.models ?? [])
           const [modelsSaved, setModelsSaved] = React.useState(false)
           const saved = providers.find(provider => provider.id === editing)
-          const modelChoices = [...new Map([...(saved?.advertised?.models ?? []), ...(saved?.models ?? []), ...selectedModels]
-            .map(model => [model.id, model])).values()].filter(model => model.id !== 'default')
+          const modelChoices = [...[...(saved?.advertised?.models ?? []), ...(saved?.models ?? []), ...selectedModels]
+            .reduce((map, model) => map.set(model.id, { ...map.get(model.id), ...model }), new Map()).values()].filter(model => model.id !== 'default')
+          const modelInfo = model => [model.description,
+            model.inputModalities?.length ? tt('modelInput', { types: model.inputModalities.map(type => tt(type === 'image' ? 'modalityImage' : 'modalityText')).join(' / ') }) : null,
+            model.contextWindow ? tt('modelContext', { n: model.contextWindow }) : null,
+            model.maxTokens ? tt('modelOutput', { n: model.maxTokens }) : null,
+            model.reasoning ? tt('modelEfforts', { levels: model.reasoning.efforts.map(effort => effort.name).join(' / ') }) : null,
+          ].filter(Boolean).join(' · ') || tt('modelInfoUnknown')
           const canSaveModels = !!saved && !busy && JSON.stringify(selectedModels) !== JSON.stringify(saved.models ?? [])
           const edit = provider => {
             setEditing(provider?.id ?? '')
@@ -1025,13 +1042,16 @@ window.__ModuleLoader__.load({
                 h('fieldset', { className: 'aw-section' },
                   h('legend', { className: 'aw-strong' }, tt('visibleModels')),
                   h('p', { className: 'aw-note' }, tt('modelSelectionHint')),
+                  h('p', { className: 'aw-note' }, tt('modelInfoHint')),
                   modelChoices.length ? h('div', { className: 'aw-model-list' }, modelChoices.map(model => h('label', { key: model.id, className: 'aw-option' },
                     h('input', { type: 'checkbox', checked: selectedModels.some(item => item.id === model.id), disabled: busy, onChange: event => {
                       const checked = event.target.checked
-                      setSelectedModels(old => checked ? [...old, model] : old.filter(item => item.id !== model.id))
+                      setSelectedModels(old => checked ? [...old, { id: model.id, name: model.name ?? model.id }] : old.filter(item => item.id !== model.id))
                       setModelsSaved(false)
                     } }),
-                    h('span', { className: 'aw-grow' }, h('span', null, model.name ?? model.id), h('span', { className: 'aw-item-sub aw-mono', style: { display: 'block' } }, model.id)))))
+                    h('span', { className: 'aw-grow' }, h('span', null, model.name ?? model.id),
+                      h('span', { className: 'aw-item-sub aw-mono', style: { display: 'block' } }, model.id),
+                      h('span', { className: 'aw-item-sub', style: { display: 'block' } }, modelInfo(model))))))
                     : h('p', { className: 'aw-note' }, tt('noModels')),
                   h('div', { className: 'aw-row' },
                     h(Button, { size: 'sm', variant: 'primary', disabled: !canSaveModels, onClick: saveModels }, tt('saveModels')),
