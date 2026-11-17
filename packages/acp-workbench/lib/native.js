@@ -59,7 +59,6 @@ export class NativeAcp {
   constructor(ctx, manager) {
     this.ctx = ctx
     this.manager = manager
-    this.positions = new Map()
     this.children = new Map()
     this.active = new Map()
     this.maintenance = new Set()
@@ -79,11 +78,6 @@ export class NativeAcp {
 
   async initialize() {
     this.syncProviders()
-    this.disposers.push(this.ctx.on('agent/pre-step', (payload, next) => {
-      this.positions.set(payload.agent.id, { turn: payload.turn, step: payload.step, provider: payload.modelSelection.provider,
-        messageIds: payload.messages.map(message => message.id) })
-      return next()
-    }))
     this.disposers.push(this.ctx.on('agent/status', () => this.manager.changed()))
     this.disposers.push(this.ctx.on('session/event', (dshSession, event) => {
       if (event.type === 'model/selection') this.manager.changed()
@@ -101,7 +95,6 @@ export class NativeAcp {
       }
     }))
     this.disposers.push(this.ctx.on('agent/disposed', ({ agent }) => {
-      this.positions.delete(agent.id)
       for (const session of this.sessions(agent.id, false)) {
         void this.manager.disconnect(session, 'native-agent-disposed').catch(error => this.manager.log?.(error.message))
       }
@@ -404,10 +397,24 @@ export class NativeAcp {
     return { prompt, text: text || '[Attached input]', lastMessageId: messages.at(-1)?.id, handoff: fresh }
   }
 
+  /** Read the accepted step, even when this adapter mounted after its pre-step hook. */
+  positionOf(agent) {
+    const session = agent.session
+    const boundary = this.ctx.agents.turnBoundaryOf(session)
+    if (boundary.openTurnStartSeq === null || boundary.lastStepBoundary?.kind !== 'start') return null
+    const start = session.eventAt(boundary.lastStepBoundary.seq)
+    if (start?.type !== 'step/start' || start.data.turn !== boundary.lastTurn) return null
+    const { turn, step } = start.data
+    const messageIds = session.snapshotEvents(start.seq + 1)
+      .filter(event => event.type === 'user/message')
+      .map(event => event.data.id)
+    return { turn, step, provider: session.requestHeader()?.config.provider, messageIds }
+  }
+
   async *stream(options, model = DEFAULT_MODEL) {
     if (this.closing) throw new Error('ACP integration is unloading')
     const agent = options.sessionId ? this.ctx.agents.get(options.sessionId) : null
-    const position = agent ? this.positions.get(agent.id) : null
+    const position = agent ? this.positionOf(agent) : null
     if (!agent || agent.status !== 'running' || position?.provider !== options.provider || options.purpose) {
       throw new Error('ACP routes are conversation execution engines, not utility completion models')
     }
