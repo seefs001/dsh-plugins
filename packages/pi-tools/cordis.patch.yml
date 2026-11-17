@@ -144,7 +144,7 @@
                 - plugin_market
                 - cordis_inspect_list
                 - cordis_inspect_query
-              globalTools: [grok_search, openai_search, openai_image, grok_image]
+              globalTools: [grok_search, openai_search, openai_image, grok_image, subagent_agy, subagent_cursor]
               # Mounted and listed in the picker, but off until the session selects them.
               optInTools:
                 - present

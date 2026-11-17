@@ -113,7 +113,7 @@ scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_
   schedule_view, schedule_edit, create_goal, get_goal, update_goal, work_read, work_update, web_fetch,
   web_search, present, office_render, office_convert, office_recalculate, exit_plan_mode,
   workflow, plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
-globalTools: [grok_search, openai_search, openai_image, grok_image]
+globalTools: [grok_search, openai_search, openai_image, grok_image, subagent_agy, subagent_cursor]
 optInTools: [present, office_render, office_convert, office_recalculate,
   plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
 ```
