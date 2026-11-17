@@ -46,8 +46,9 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-quote-jump`](packages/quote-jump) | 用户消息里的引用变成可点击的块，跳回原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 工具调用行可以打开技能文件、完整输出、结果文件和子代理对话。 | Web |
 | [`dsh-message-actions`](packages/message-actions) | 回复旁的 **Wait, what?** 用独立模型调用解释这条回复，不写入对话。 | Host + Web |
-| [`dsh-message-edit`](packages/message-edit) | 在自己的消息上点 **编辑**：分支重发（清理后续消息），或只改写模型上下文、保留后续消息。 | Host + Web |
+| [`dsh-message-edit`](packages/message-edit) | 在自己的消息上点 **编辑**：默认清空后续模型上下文，也可选择保留；另支持分叉重发。 | Host + Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | 可拖动的 GPT / Claude 角色，跟随当前显示的对话。角色素材另有非商业条款。 | Web |
+| [`dsh-acp-workbench`](packages/acp-workbench) | 让会话改由 Cursor、Antigravity 等本机 ACP Agent 执行，或委派可续聊的原生 ACP 子任务；工具轨迹和审批留在当前会话。外部 CLI 不受 DSH 沙箱约束。 | Host + Web |
 
 ### 工具与集成
 

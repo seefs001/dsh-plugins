@@ -54,6 +54,7 @@ const entries: Entry[] = [
   { slug: 'work-timeline', category: 'tools', surface: 'Host + Web', summary: '会话里的工作计划、修订过程和产物面板，替换 Pi 预设的 TODO；work_read 和 work_update 由 pi 预设提供。', requires: ['Pi 工具的 pi 预设，或挂载 dsh-work-timeline/tools 的预设'] },
   { slug: 'pi-mcp', category: 'tools', surface: 'Host', summary: '在 DSH 里使用 Pi 的 ~/.pi/agent/mcp.json，改文件即时生效。', requires: ['@deepseek-ai/dsh-mcp-manager'] },
   { slug: 'orbit-bridge', category: 'tools', surface: 'Host + Web', summary: '只读巡检 Orbit 项目：完整分页、本地运行记录、相对上次已处理检查的变化列表，不写 Orbit。', requires: ['Orbit MCP 服务器', '@deepseek-ai/dsh-storage-domain'] },
+  { slug: 'acp-workbench', category: 'conversation', surface: 'Host + Web', summary: '在原会话直接使用 ACP，或委派可续聊的原生子任务，就地查看执行轨迹并处理审批。', requires: ['已安装并登录的 ACP CLI'] },
   { slug: 'paseo-hub', category: 'tools', surface: 'Host + Web', summary: '把 Hub 触发作为 DSH 会话运行，查看本机运行和活动，通过组织 API 控制台与工具管理触发器及手动运行。', requires: ['支持 dsh provider 的 Paseo Hub', '@deepseek-ai/dsh-permission-presets'] },
 ]
 

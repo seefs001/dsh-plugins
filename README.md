@@ -46,8 +46,9 @@ English | [中文](README.zh.md)
 | [`dsh-quote-jump`](packages/quote-jump) | Quotes in your messages become blocks that scroll to the quoted text and highlight it. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Tool-call rows that open the skill file, full output, result files, or the subagent's conversation. | Web |
 | [`dsh-message-actions`](packages/message-actions) | **Wait, what?** beside each reply explains it in an isolated model call that never enters the conversation. | Host + Web |
-| [`dsh-message-edit`](packages/message-edit) | **Edit** above your messages: branch and resend (clears later messages), or rewrite it in the model context and keep later messages. | Host + Web |
+| [`dsh-message-edit`](packages/message-edit) | **Edit** your messages in place: clear later model context by default, or keep it. Fork and resend is also available. | Host + Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | Draggable GPT / Claude companions that follow the displayed conversation. The artwork has separate non-commercial terms. | Web |
+| [`dsh-acp-workbench`](packages/acp-workbench) | Run a conversation through a local ACP agent such as Cursor or Antigravity, or delegate to native, continuable ACP subagents. Tool traces and approvals stay in the conversation. External CLIs are not sandboxed by DSH. | Host + Web |
 
 ### Tools and integrations
 
