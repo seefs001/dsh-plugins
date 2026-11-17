@@ -557,7 +557,7 @@ window.__ModuleLoader__.load({
           const showStep = id => { setView('plan'); locate(`step:${id}`) }
           const showArtifact = id => { setView('artifacts'); setFilter(''); locate(`artifact:${id}`) }
           const preview = artifact => {
-            try { actions.openResource(fileAddress(sessionId, artifact.path), { preferNewPane: true }); setError('') }
+            try { actions.openResource(fileAddress(sessionId, artifact.path), { destination: 'sidebar' }); setError('') }
             catch (failure) { setError(failure.message) }
           }
           const onKeyDown = event => {
