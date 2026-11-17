@@ -1,45 +1,53 @@
 /**
  * dsh-message-edit — browser half.
  *
- * Adds an edit control above each of your messages. By default, editing
- * overwrites the message in the current session's model context without
- * rerunning anything. Forking and resending is an explicit alternative.
+ * Renders your messages with saved edits and a Copy / Edit action row. By default, editing
+ * overwrites the message and clears later model context in the current
+ * session without rerunning anything. Keeping later context is optional;
+ * forking and resending is an explicit alternative.
  */
 window.__ModuleLoader__.load({
   id: 'dsh-message-edit',
   factory(require) {
     const React = require('react')
-    const ReactDOM = require('react-dom')
     const h = React.createElement
     const NS = 'messageEdit'
     const EN = {
       edit: 'Edit', editHint: 'Edit this message', title: 'Edit message', cancel: 'Cancel', close: 'Close',
+      copy: 'Copy', copied: 'Copied', copyFailed: 'Could not copy the message.',
       loading: 'Loading…', working: 'Working…',
       clear: 'Fork and resend', clearHint: 'Create a separate session from just before this message and resend the edited version there. This session stays unchanged.',
-      keep: 'Overwrite in this session', keepHint: 'Default: rewrite this message in the current session’s model context without switching sessions. Later messages stay; nothing reruns. The chat keeps the original text with an edited preview.',
-      keepUnavailable: 'This message was compacted, so it can no longer be rewritten in place.',
+      keep: 'Overwrite in this session', keepHint: 'Rewrite this message in the current session’s model context without switching sessions or rerunning anything. The message bubble and Copy action use the saved text.',
+      clearLater: 'Clear later context', clearLaterHint: 'On by default: remove all later messages and tool results from the model context. Uncheck to keep them. Chat history remains visible; completed actions are not undone.',
+      keepUnavailable: 'This message was compacted or cleared from context, so it can no longer be rewritten in place.',
       forkUnavailable: 'There is no earlier history to branch from.',
-      submitClear: 'Branch and send', submitKeep: 'Save to context',
-      edited: 'Edited in context', showEdited: 'What the model now sees', compacted: '(since compacted)',
+      submitClear: 'Branch and send', submitKeep: 'Save to context', submitTrim: 'Save and clear later context',
+      edited: 'Edited', compacted: '(no longer in context)',
       empty: 'The message cannot be empty.', unchanged: 'Nothing changed.',
     }
     const ZH = {
       edit: '编辑', editHint: '编辑这条消息', title: '编辑消息', cancel: '取消', close: '关闭',
+      copy: '复制', copied: '已复制', copyFailed: '无法复制消息。',
       loading: '正在加载…', working: '正在处理…',
       clear: '分叉并重发', clearHint: '另建一个会话，从这条消息之前的历史重新回答。当前会话保持不变。',
-      keep: '覆盖当前会话', keepHint: '默认：在当前会话的模型上下文里改写这条消息，不切换会话。后续消息保留，不会重新回答。聊天保留原文，并展示修改预览。',
-      keepUnavailable: '这条消息已被压缩，无法在原处改写。',
+      keep: '覆盖当前会话', keepHint: '在当前会话的模型上下文里改写这条消息，不切换会话，也不会重新回答。消息气泡和复制按钮都会使用保存后的文字。',
+      clearLater: '清空后续上下文', clearLaterHint: '默认勾选：从模型上下文中移除这条消息之后的所有消息和工具结果。取消勾选则保留。聊天历史仍可见，已执行的操作不会撤销。',
+      keepUnavailable: '这条消息已被压缩或从上下文中清空，无法在原处改写。',
       forkUnavailable: '这条消息之前没有可分支的历史。',
-      submitClear: '分支并发送', submitKeep: '保存到上下文',
-      edited: '上下文已修改', showEdited: '模型现在看到的内容', compacted: '（之后已被压缩）',
+      submitClear: '分支并发送', submitKeep: '保存到上下文', submitTrim: '保存并清空后续上下文',
+      edited: '已编辑', compacted: '（已不在上下文中）',
       empty: '消息不能为空。', unchanged: '内容没有变化。',
     }
     const CSS = `
-.dme-before{display:flex;justify-content:flex-end;align-items:center;gap:6px;min-height:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
-.dme-before:empty{display:none}
-.dme-badge svg{width:14px;height:14px;flex:none}
-.dme-badge{display:inline-flex;align-items:center;gap:4px;padding:0 6px;border:0;border-radius:6px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:20px;white-space:nowrap;cursor:pointer}
-.dme-preview{box-sizing:border-box;align-self:flex-end;max-width:min(560px,100%);margin:4px 0 6px;padding:8px 12px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.dme-row{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.dme-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;min-height:calc(28px + var(--dsh-content-font-delta,0px));color:var(--dsw-alias-label-tertiary)}
+.dme-time,.dme-badge{font-size:var(--dsh-content-font-size-secondary,13px);line-height:24px;white-space:nowrap}
+.dme-time{padding-right:12px}
+.dme-action{display:inline-flex;align-items:center;justify-content:center;width:calc(28px + var(--dsh-content-font-delta,0px));height:calc(28px + var(--dsh-content-font-delta,0px));padding:6px;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:inherit;cursor:pointer}
+.dme-action svg{width:calc(15px + var(--dsh-content-font-delta,0px));height:calc(15px + var(--dsh-content-font-delta,0px))}
+@media(hover:hover){.dme-action:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}
+[data-actions-reveal='hover'] .dme-actions,:is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering']):has(~ :is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering'])) .dme-actions{opacity:0;transition:opacity 80ms ease}
+[data-actions-reveal='hover']:is(:hover,:focus-within) .dme-actions,:is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering']):has(~ :is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering'])):is(:hover,:focus-within) .dme-actions{opacity:1}}
 .dme-dialog{box-sizing:border-box;width:min(680px,calc(100vw - 32px));max-height:calc(100dvh - 48px);padding:0;border:1px solid var(--dsw-alias-border-l2);border-radius:16px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 24px 80px var(--dsw-alias-bg-mask-2);font:inherit;font-size:14px;line-height:1.6;text-align:left}
 .dme-dialog[open]{display:flex;flex-direction:column}
 .dme-dialog::backdrop{background:var(--dsw-alias-bg-mask-1)}
@@ -62,8 +70,8 @@ window.__ModuleLoader__.load({
 .dme-btn:disabled{opacity:.4;cursor:not-allowed}
 .dme-primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}
 .dme-icon{width:32px;min-height:32px;padding:0;border-color:transparent}
-.dme-btn:focus-visible,.dme-badge:focus-visible,.dme-text:focus-visible{outline:2px solid var(--dsw-alias-brand-primary-new-colorprimary-new-color);outline-offset:2px}
-@media(hover:hover){.dme-badge:hover,.dme-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dme-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
+.dme-btn:focus-visible,.dme-action:focus-visible,.dme-text:focus-visible{outline:2px solid var(--dsw-alias-brand-primary-new-colorprimary-new-color);outline-offset:2px}
+@media(hover:hover){.dme-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dme-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
 @media(max-width:600px){.dme-modes{grid-template-columns:1fr}}
 `
 
@@ -77,7 +85,7 @@ window.__ModuleLoader__.load({
       return data.value
     }
 
-    // One shared, invalidatable edit list per session for every badge in it.
+    // One shared, invalidatable edit list per session for its bubbles and badges.
     const lists = new Map()
     function editsStore(sessionId) {
       let entry = lists.get(sessionId)
@@ -123,6 +131,7 @@ window.__ModuleLoader__.load({
           const [info, setInfo] = React.useState(null)
           const [text, setText] = React.useState('')
           const [mode, setMode] = React.useState('keep')
+          const [clearLater, setClearLater] = React.useState(true)
           const [busy, setBusy] = React.useState(true)
           const [error, setError] = React.useState('')
           React.useEffect(() => {
@@ -145,12 +154,13 @@ window.__ModuleLoader__.load({
           const canKeep = Boolean(info?.inContext)
           const submit = async () => {
             if (!text.trim()) { setError(t('empty')); return }
-            if (mode === 'keep' && text === info.text) { setError(t('unchanged')); return }
+            if (!info || busy || (mode === 'keep' ? !canKeep : !canClear)) return
+            if (mode === 'keep' && !clearLater && text === info.text) { setError(t('unchanged')); return }
             setBusy(true); setError('')
             try {
               if (mode === 'keep') {
-                await op({ action: 'rewrite', sessionId, rpcId, text })
-                onDone()
+                await op({ action: 'rewrite', sessionId, rpcId, text, clearLater })
+                onDone(text)
               } else {
                 const childId = await ctx.sessions.fork({ sessionId, atSeq: info.forkAt, increaseTitle: true })
                 await op({ action: 'send', sessionId: childId, sourceSessionId: sessionId, rpcId, text })
@@ -180,49 +190,80 @@ window.__ModuleLoader__.load({
             info ? h('fieldset', { className: 'dme-modes' },
               mode_('keep', t('keep'), t('keepHint'), !canKeep, t('keepUnavailable')),
               mode_('clear', t('clear'), t('clearHint'), !canClear, t('forkUnavailable'))) : null,
+            info && mode === 'keep' ? h('label', { className: 'dme-mode' },
+              h('input', { type: 'checkbox', checked: clearLater, disabled: busy || !canKeep, onChange: e => { setClearLater(e.target.checked); setError('') } }),
+              h('div', null, h('b', null, t('clearLater')), h('span', null, t('clearLaterHint')))) : null,
             error ? h('p', { className: 'dme-error', role: 'alert' }, error) : null),
           h('div', { className: 'dme-foot' },
             h('button', { type: 'button', className: 'dme-btn', onClick: onClose, disabled: busy }, t('cancel')),
             h('button', { type: 'button', className: 'dme-btn dme-primary', onClick: submit, disabled: busy || !info || (mode === 'clear' ? !canClear : !canKeep) },
-              busy && info ? t('working') : t(mode === 'clear' ? 'submitClear' : 'submitKeep'))))
+              busy && info ? t('working') : t(mode === 'clear' ? 'submitClear' : clearLater ? 'submitTrim' : 'submitKeep'))))
         }
 
-        function Before({ matched: rpcId, sessionId }) {
+        function UserMessage({ node, sessionId, loadImage, renderFactorySlot, renderSlotChain }) {
           useLocale()
+          const data = node.data
+          const rpcId = data.source?.kind === 'user' ? data.source.rpcId : undefined
           const store = editsStore(sessionId)
           const edited = React.useSyncExternalStore(fn => { store.listeners.add(fn); return () => store.listeners.delete(fn) }, () => store.value[rpcId])
           const [open, setOpen] = React.useState(false)
-          const [show, setShow] = React.useState(false)
-          const anchor = React.useRef(null)
-          const [actions, setActions] = React.useState(null)
-          // The bubble's own action row (time + copy) has no slot; mount the icon into it, after Copy.
-          React.useLayoutEffect(() => {
-            const wrapper = anchor.current?.parentElement
-            const row = wrapper?.parentElement
-            const found = row && [...row.children].toReversed().find(c => c !== wrapper && c.querySelector(':scope > button'))
-            setActions(prev => (prev === (found ?? null) ? prev : found ?? null))
-          })
-          const copy = actions?.querySelector(':scope > button:not([data-dme])')
-          const icon = document.getElementById('dsw-icon-edit-outline-regular')
-            ? h('svg', { width: 16, height: 16, 'aria-hidden': true }, h('use', { href: '#dsw-icon-edit-outline-regular' }))
-            : h(Pencil)
-          const entry = h('button', {
-            type: 'button', 'data-dme': '', className: copy?.className ?? 'dme-btn dme-icon',
-            title: t('editHint'), 'aria-label': t('editHint'), 'aria-haspopup': 'dialog', onClick: () => setOpen(true),
-          }, icon)
-          return h(React.Fragment, null,
-            h('div', { ref: anchor, className: 'dme-before' },
-              edited ? h('button', { type: 'button', className: 'dme-badge', 'aria-expanded': show, onClick: () => setShow(v => !v), title: t('showEdited') },
-                h(Pencil), t('edited'), edited.inContext ? '' : ` ${t('compacted')}`) : null),
-            actions ? ReactDOM.createPortal(entry, actions) : null,
-            edited && show ? h('div', { className: 'dme-preview', 'aria-label': t('showEdited') }, edited.text) : null,
-            open ? h(Dialog, { sessionId, rpcId, onClose: () => setOpen(false), onDone: () => { setOpen(false); setShow(true); void store.refresh() } }) : null)
+          const [copied, setCopied] = React.useState(false)
+          const [copyError, setCopyError] = React.useState(false)
+          const content = React.useMemo(() => {
+            const texts = [], attachments = [], extraBlocks = []
+            for (const block of data.content) {
+              if (block.type === 'text' && typeof block.text === 'string') texts.push(block.text)
+              else if (block.type === 'image' && block.attachment) attachments.push({ type: 'image', image: { attachment: block.attachment } })
+              else if (block.type === 'file' && block.attachment) attachments.push({ type: 'file', file: block.attachment })
+              else extraBlocks.push(block)
+            }
+            return { text: edited?.text ?? texts.join(''), attachments, extraBlocks, referenceLabels: data.referenceLabels }
+          }, [data.content, data.referenceLabels, edited?.text])
+          const facts = React.useMemo(() => ({
+            ...(data.referenceLabels === undefined ? {} : { sessionLabels: data.referenceLabels }),
+            ...(data.skillNames === undefined ? {} : { skillNames: data.skillNames }),
+          }), [data.referenceLabels, data.skillNames])
+          React.useEffect(() => {
+            setCopied(false); setCopyError(false)
+          }, [content.text])
+          React.useEffect(() => {
+            if (!copied) return
+            const timer = setTimeout(() => setCopied(false), 2000)
+            return () => clearTimeout(timer)
+          }, [copied])
+          const copy = async () => {
+            try {
+              await navigator.clipboard.writeText(content.text)
+              setCopied(true); setCopyError(false)
+            } catch { setCopyError(true) }
+          }
+          const date = new Date(data.time)
+          const clock = date.toDateString() === new Date().toDateString()
+            ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          return h('div', { className: 'dme-row' },
+            renderSlotChain('conversation.chat.user.before', { source: data.source, kind: node.kind }, { fallback: null }),
+            renderFactorySlot('conversation.chat.user.content', { content, facts, interactive: true, loadImage }),
+            h('div', { className: 'dme-actions' },
+              edited ? h('span', { className: 'dme-badge' }, t('edited'), edited.inContext ? '' : ` ${t('compacted')}`) : null,
+              h('time', { className: 'dme-time', dateTime: date.toISOString(), title: date.toLocaleString() }, clock),
+              h('button', { type: 'button', className: 'dme-action', onClick: copy, title: t(copied ? 'copied' : 'copy'), 'aria-label': t(copied ? 'copied' : 'copy') },
+                h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, 'aria-hidden': true },
+                  copied ? h('path', { d: 'm5 12 4 4L19 6' }) : h(React.Fragment, null, h('rect', { x: 8, y: 8, width: 12, height: 12, rx: 2 }), h('path', { d: 'M16 8V4H4v12h4' })))),
+              typeof rpcId === 'string' ? h('button', { type: 'button', className: 'dme-action', title: t('editHint'), 'aria-label': t('editHint'), 'aria-haspopup': 'dialog', onClick: () => setOpen(true) }, h(Pencil)) : null),
+            copyError ? h('p', { className: 'dme-error', role: 'alert' }, t('copyFailed')) : null,
+            open ? h(Dialog, { sessionId, rpcId, onClose: () => setOpen(false), onDone: text => {
+              store.value = { ...store.value, [rpcId]: { text, inContext: true } }
+              for (const notify of store.listeners) notify()
+              setOpen(false)
+              void store.refresh()
+            } }) : null)
         }
 
-        ctx.slots.inject('conversation.chat.user.before', () => ctx.slots.register({
-          name: 'conversation.chat.user.before',
-          select: owner => owner.kind === 'user' && owner.source?.kind === 'user' && typeof owner.source.rpcId === 'string' ? owner.source.rpcId : null,
-        }, Before))
+        ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
+          name: 'conversation.chat.node', key: 'user', priority: -10,
+          children: { 'conversation.chat.user.before': { kind: 'chain', scope: 'session' } },
+        }, UserMessage))
       },
     }
   },

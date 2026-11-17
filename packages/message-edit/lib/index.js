@@ -39,8 +39,8 @@ const sameMessage = (event, rpcId) => event.type === 'user/message'
 
 /**
  * Locate one human message by its prompt rpcId and follow this plugin's
- * in-place rewrites (single-node `user/message` replacements that keep the
- * same source) to the node the model currently sees.
+ * in-place rewrites (`user/message` replacements starting at the current
+ * node and keeping the same source) to the node the model currently sees.
  */
 export function locate(events, rpcId) {
   const index = events.findIndex(e => sameMessage(e, rpcId) && e.surfaceOp === 'append')
@@ -53,7 +53,7 @@ export function locate(events, rpcId) {
     const e = events[i]
     if (!isReplace(e) || !e.sourceEventSeqs?.includes(current.seq)) continue
     const op = e.surfaceOp
-    if (sameMessage(e, rpcId) && op.startSeq === current.seq && op.endSeq === current.seq) {
+    if (sameMessage(e, rpcId) && op.startSeq === current.seq) {
       current = e
       edits++
     } else {
@@ -117,9 +117,10 @@ export class MessageEdit {
     return { edited }
   }
 
-  /** Keep later history: replace only this message's model-visible node. */
-  async rewrite({ sessionId, rpcId, text }) {
+  /** Replace this message, clearing the later model-visible context by default. */
+  async rewrite({ sessionId, rpcId, text, clearLater = true }) {
     checkText(text)
+    if (typeof clearLater !== 'boolean') throw new Error('clearLater must be a boolean')
     const agent = await this.agent(sessionId)
     const session = agent.session
     if (!session || typeof agent.runMaintenance !== 'function') throw new Error('This session cannot be edited in place')
@@ -128,13 +129,16 @@ export class MessageEdit {
       task = agent.runMaintenance(async () => {
         const events = await this.events(sessionId)
         const found = locate(events, rpcId)
-        if (!found.inContext) throw new Error('This message was compacted and is no longer in the model context')
-        if (!session.surface.nodes.includes(found.current.seq)) throw new Error('This message is no longer in the model context')
-        if (textOf(found.current.data.content) === text) return { seq: found.current.seq, unchanged: true }
+        if (!found.inContext) throw new Error('This message was compacted or cleared and is no longer in the model context')
+        const nodes = session.surface.nodes
+        const index = nodes.indexOf(found.current.seq)
+        if (index < 0) throw new Error('This message is no longer in the model context')
+        const replaced = clearLater ? nodes.slice(index) : [found.current.seq]
+        if (textOf(found.current.data.content) === text && replaced.length === 1) return { seq: found.current.seq, unchanged: true }
         const data = deepFreeze(structuredClone({ ...found.current.data, content: editedContent(found.current.data.content, text) }))
         const event = session.append('user/message', data, {
-          surfaceOp: { op: 'replace', startSeq: found.current.seq, endSeq: found.current.seq },
-          sourceEventSeqs: [found.current.seq],
+          surfaceOp: { op: 'replace', startSeq: found.current.seq, endSeq: replaced.at(-1) },
+          sourceEventSeqs: replaced,
         })
         return { seq: event.seq }
       })

@@ -1,7 +1,7 @@
 {
   "name": "dsh-message-edit",
   "version": "0.1.0",
-  "description": "Edit earlier messages in the current session by default, keeping later messages. Forking and resending is an explicit alternative.",
+  "description": "Edit earlier messages in the current session, clearing later model context by default with an option to keep it. Forking and resending is an explicit alternative.",
   "keywords": [
     "dsh-plugin",
     "dsh",
