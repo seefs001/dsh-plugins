@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Skill cheat sheet",
+    "description": "Browse user-invocable skills with short Chinese operation summaries and full author descriptions. The wider list defaults to manual-only skills; turn on the option to include skills the Agent can also invoke. Search summaries and use cases, pin favorites, and insert /name at the start of the input without submitting or running it. Existing input content is kept. Pins come first, then highest observed usage within each group. Pins and counts are saved on the Host; counts include successful manual slash loads and Agent skill tool calls since tracking began, with no history backfill. Unknown skills retain labeled author text. No runtime model calls."
+  }
+}

@@ -64,6 +64,8 @@ importers:
 
   packages/branch-switcher: {}
 
+  packages/cheat-sheet: {}
+
   packages/compaction-status: {}
 
   packages/git-changes: {}

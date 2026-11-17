@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `dsh-cheat-sheet`: replace clipboard copying with native composer insertion. The action button and Enter in search prepend `/name ` through session-scoped, revision-guarded `inputActions`, preserving existing text, reference chips and attachments without submitting or counting a load. Success closes the sheet; a locked or changed draft keeps it open with a retry message. Browser interaction has not yet been verified.
+
+- `dsh-cheat-sheet`: wider 60% skill list with two-line Chinese operation summaries, searchable alongside original metadata. Reads the user-owned `~/.agents/skills/short-descriptions.zh.json`; the requested Claude model prepared 114 local entries. Defaults to manual-only skills with an explicit toggle to include Agent-invocable skills; pins follow the same filter. Original descriptions remain in the details pane. Missing JSON or unknown skills fall back to labeled author text without disabling pins/counts or making runtime model calls.
+
+- `dsh-cheat-sheet` 0.2.0: redesigned skill browser with persistent pins and default highest-usage-first ordering within pinned/unpinned groups. The Host counts observed successful native slash loads and `skill` tool calls, not copy clicks; no history backfill. Shared pin operations through the Web UI and `cheat_sheet` tool, stored with aggregate counts in the `cheat_sheet` domain. Retains the session-native catalog, full author descriptions, manual-only labels and copy-without-run behavior. Updated UI and Host counter flow have not yet been exercised in a running DSH.
+
 - `dsh-title-model` 0.1.0: choose a separate model for native first-prompt or conversation-following session titles on the bundle’s Plugins page, or through `title_model`. Writes only the native generator’s provider/model configuration, preserving the title strategy and conversation model. Saved choices persist after disabling this settings plugin. Not yet exercised in a running DSH.
 
 - `dsh-pi-tools`: save Host-wide tool defaults per preset as differences from the configured defaults, reset them from the picker, and freeze saved defaults into a session when its first step begins. **Refresh MCP** restarts bridged servers and reloads their tools, reporting server status and tool counts.

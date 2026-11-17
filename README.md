@@ -53,6 +53,7 @@ English | [中文](README.zh.md)
 
 | Package | What it does | Runs in |
 |---|---|---|
+| [`dsh-cheat-sheet`](packages/cheat-sheet) | Search the current session's user-invocable skills, pin favorites, sort by actual usage frequency, and insert slash commands into the composer without submitting them. | Host + Web |
 | [`dsh-web-access`](packages/web-access) | Adds `grok_search` (web and X) and `openai_search`, using hosted search on an existing Responses provider. | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | Adds `openai_image` and `grok_image`, using hosted image generation on an existing Responses provider and saving the images to files. | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi's original coding tools and system prompt, QuickJS codemode, per-session tool selection, saved preset defaults and MCP refresh. No DSH source changes. | Host + Web |

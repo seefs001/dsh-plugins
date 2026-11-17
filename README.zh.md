@@ -53,6 +53,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
+| [`dsh-cheat-sheet`](packages/cheat-sheet) | 搜索当前会话可主动调用的技能，置顶常用项，默认按实际使用频次降序，把命令写入输入框，不自动发送或执行技能。 | Host + Web |
 | [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页和 X）与 `openai_search`，使用已有 Responses provider 的托管搜索。 | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | 新增 `openai_image` 与 `grok_image`，使用已有 Responses provider 的托管画图工具，并把图片保存为文件。 | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具和系统提示词、QuickJS codemode、会话工具选择、预设默认工具保存和 MCP 刷新。不需要改 DSH 源码。 | Host + Web |
