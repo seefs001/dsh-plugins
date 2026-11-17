@@ -21,6 +21,7 @@ description: 插件设置写在哪里，Host、profile、会话日志和浏览�
 | 联网搜索 | 每个搜索工具的开关、模型、搜索类型和超时 | profile 中该插件的配置 |
 | Pi 工具 | 预设配置；每个会话选择的工具 | 预设随 bundle 提供；工具选择写入会话日志的 `plugin:dsh-pi-tools/selection` 记录 |
 | Pi 工具 | 按预设保存的默认工具差异 | Host 的 `pi_tools_defaults` storage domain |
+| 工作时间线 | 当前工作的快照和修订 | 会话日志里成功的 `work_update` 工具结果（`meta.dshWorkTimeline`），没有独立的 storage domain |
 | 角色 | 角色提示词、自带技能、本地技能引用和会话选择 | Host 的 `roles` storage domain；本地技能只保存名称，不复制文件 |
 | Paseo Hub | daemon 连接关系、本机运行和活动日志 | Host 的 `paseo_hub` storage domain |
 | Paseo Hub | daemon 凭据；单独保存的组织 API key、origin 和 agent 写入开关 | DSH credentials 的 `paseo-hub/daemon` 与 `paseo-hub/api` |

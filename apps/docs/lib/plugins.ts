@@ -50,6 +50,7 @@ const entries: Entry[] = [
   { slug: 'web-access', category: 'tools', surface: 'Host + Web', summary: '新增 grok_search 和 openai_search，复用已有 Responses provider 的托管搜索。', requires: ['支持托管搜索的 Responses provider'] },
   { slug: 'image-gen', category: 'tools', surface: 'Host + Web', summary: '新增 openai_image 和 grok_image，复用已有 Responses provider 的托管 image_generation 工具。', requires: ['支持托管 image_generation 的 Responses provider'] },
   { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 原版工具和系统提示词、QuickJS codemode、默认工具保存和 MCP 刷新。', requires: ['rg 与 fd'] },
+  { slug: 'work-timeline', category: 'tools', surface: 'Host + Web', summary: '会话里的工作计划、修订过程和产物面板，替换 Pi 预设的 TODO；work_read 和 work_update 由 pi 预设提供。', requires: ['Pi 工具的 pi 预设，或挂载 dsh-work-timeline/tools 的预设'] },
   { slug: 'pi-mcp', category: 'tools', surface: 'Host', summary: '在 DSH 里使用 Pi 的 ~/.pi/agent/mcp.json，改文件即时生效。', requires: ['@deepseek-ai/dsh-mcp-manager'] },
   { slug: 'orbit-bridge', category: 'tools', surface: 'Host + Web', summary: '只读巡检 Orbit 项目：完整分页、本地运行记录、相对上次已处理检查的变化列表，不写 Orbit。', requires: ['Orbit MCP 服务器', '@deepseek-ai/dsh-storage-domain'] },
   { slug: 'paseo-hub', category: 'tools', surface: 'Host + Web', summary: '把 Hub 触发作为 DSH 会话运行，查看本机运行和活动，通过组织 API 控制台与工具管理触发器及手动运行。', requires: ['支持 dsh provider 的 Paseo Hub', '@deepseek-ai/dsh-permission-presets'] },

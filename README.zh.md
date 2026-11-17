@@ -56,6 +56,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页和 X）与 `openai_search`，使用已有 Responses provider 的托管搜索。 | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | 新增 `openai_image` 与 `grok_image`，使用已有 Responses provider 的托管画图工具，并把图片保存为文件。 | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具和系统提示词、QuickJS codemode、会话工具选择、预设默认工具保存和 MCP 刷新。不需要改 DSH 源码。 | Host + Web |
+| [`dsh-work-timeline`](packages/work-timeline) | 会话里的工作计划、修订过程和关联产物，显示在输入框摘要条和右侧面板。替换 Pi 预设的 TODO 清单，`work_read` 和 `work_update` 由 `dsh-pi-tools` 挂载。 | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | 把 Pi 的 `~/.pi/agent/mcp.json` 里的 MCP 服务器注册到 DSH MCP 管理器，改文件即时生效。 | Host |
 | [`dsh-orbit-bridge`](packages/orbit-bridge) | 只读巡检 Orbit 项目：完整分页、本地运行记录、相对上次已处理检查的变化列表。不写 Orbit。 | Host + Web |
 | [`dsh-paseo-hub`](packages/paseo-hub) | 把 Paseo Hub 触发作为 DSH 会话运行，查看本机运行与活动，或通过组织 API 控制台和工具管理触发器、手动触发任务。 | Host + Web |
@@ -91,7 +92,7 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 
 大部分设置在界面里完成，由 DSH 的 config editor 写入 profile 的 `cordis.patch.yml`，包括 `model-reference` 的推理强度、`service-tier` 的快速模型、`auto-review-model` 的模型和提示词、通过 `title-model` 设置的原生标题模型、`message-actions` 的解释模型，以及 `web-access` 的搜索设置。
 
-会话分组、审查日志、回复解释，以及 Orbit 执行桥的规则和运行记录保存在 Host 的 storage domain（`session_groups`、`auto_review_log`、`message_actions`、`orbit_bridge`）。角色库和角色选择保存在 `roles`。Paseo Hub 的 daemon 关系、本机运行和活动保存在 `paseo_hub`，daemon 凭据和单独保存的组织 API key 使用 DSH credentials。Pi 的工具选择写入会话日志，保存的预设默认工具使用 `pi_tools_defaults`。AI 吉祥物的位置和显示偏好保存在浏览器 localStorage。存储上限和隐私说明见各包 README。
+会话分组、审查日志、回复解释，以及 Orbit 执行桥的规则和运行记录保存在 Host 的 storage domain（`session_groups`、`auto_review_log`、`message_actions`、`orbit_bridge`）。角色库和角色选择保存在 `roles`。Paseo Hub 的 daemon 关系、本机运行和活动保存在 `paseo_hub`，daemon 凭据和单独保存的组织 API key 使用 DSH credentials。Pi 的工具选择写入会话日志，保存的预设默认工具使用 `pi_tools_defaults`。工作时间线的快照随会话日志里的 `work_update` 工具结果保存。AI 吉祥物的位置和显示偏好保存在浏览器 localStorage。存储上限和隐私说明见各包 README。
 
 ## 文档
 

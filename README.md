@@ -56,6 +56,7 @@ English | [中文](README.zh.md)
 | [`dsh-web-access`](packages/web-access) | Adds `grok_search` (web and X) and `openai_search`, using hosted search on an existing Responses provider. | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | Adds `openai_image` and `grok_image`, using hosted image generation on an existing Responses provider and saving the images to files. | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi's original coding tools and system prompt, QuickJS codemode, per-session tool selection, saved preset defaults and MCP refresh. No DSH source changes. | Host + Web |
+| [`dsh-work-timeline`](packages/work-timeline) | A session work plan, revision history and linked artifacts in a composer summary and side panel. Replaces the Pi preset's TODO list; `dsh-pi-tools` mounts its `work_read` and `work_update` tools. | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | Registers the MCP servers in Pi's `~/.pi/agent/mcp.json` with the DSH MCP manager and follows file edits live. | Host |
 | [`dsh-orbit-bridge`](packages/orbit-bridge) | Read-only watch over Orbit projects: complete paging, local run history, and change lists against the last processed check. Never writes to Orbit. | Host + Web |
 | [`dsh-paseo-hub`](packages/paseo-hub) | Run Paseo Hub triggers as DSH sessions, inspect local runs and activity, or manage organization triggers and manual dispatch through the API console and tools. | Host + Web |
@@ -91,7 +92,7 @@ dsh plugin --profile web add link:$PWD/packages/model-reference
 
 Most settings are made in the GUI and saved to the profile's `cordis.patch.yml` through DSH's config editor. This covers `model-reference` efforts, `service-tier` fast models, the `auto-review-model` model and prompt, the native title generator’s model through `title-model`, the `message-actions` explanation model, and `web-access` search settings.
 
-Session groups, review logs, reply explanations, and Orbit bridge routines and runs live in Host storage domains (`session_groups`, `auto_review_log`, `message_actions`, `orbit_bridge`). Roles and selections use the `roles` domain. Paseo Hub keeps its daemon relationship, local runs and activity in `paseo_hub`; daemon credentials and the separately saved organization API key use DSH credentials. Pi tool selections are written to the session log, while saved preset defaults use `pi_tools_defaults`. AI Mascot keeps its position and display preferences in browser localStorage. Each package README lists its storage limits and privacy notes.
+Session groups, review logs, reply explanations, and Orbit bridge routines and runs live in Host storage domains (`session_groups`, `auto_review_log`, `message_actions`, `orbit_bridge`). Roles and selections use the `roles` domain. Paseo Hub keeps its daemon relationship, local runs and activity in `paseo_hub`; daemon credentials and the separately saved organization API key use DSH credentials. Pi tool selections are written to the session log, while saved preset defaults use `pi_tools_defaults`. Work timeline snapshots travel in the session log's `work_update` tool results. AI Mascot keeps its position and display preferences in browser localStorage. Each package README lists its storage limits and privacy notes.
 
 ## Documentation
 
