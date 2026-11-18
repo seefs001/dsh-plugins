@@ -330,6 +330,9 @@ window.__ModuleLoader__.load({
 .aw-task-lane{min-width:0;border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:8px;margin-inline-start:5px}.aw-task-origin{font-size:11px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}.aw-task-nav{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}.aw-task-nav>.aw-strong{overflow-wrap:anywhere}.aw-task-scope{display:grid;gap:4px;padding:7px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.aw-task-progress{min-width:0;font-size:13px}.aw-task-progress .aw-text{max-height:12em;overflow:auto}
 .aw-trace{margin:2px 0;min-width:0}
 .aw-trace-head{display:flex;align-items:center;gap:8px;min-height:28px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.aw-trace-toggle{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;min-height:28px;padding:0 6px;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+@media (hover:hover){.aw-trace-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.aw-trace-chevron{flex:none;margin-left:auto;color:var(--dsw-alias-label-tertiary)}
 .aw-trace-body{display:flex;flex-direction:column;gap:8px;padding:4px 0 6px;min-width:0}
 .aw-trace-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);min-width:0}
 .aw-trace-meta .aw-path{max-width:min(100%,360px)}
@@ -982,8 +985,8 @@ window.__ModuleLoader__.load({
         const useOnline = () => React.useSyncExternalStore(watchOnline, () => feed.online)
         ctx.effect(() => () => { feed.stream?.close(); feed.stream = null; feed.listeners.clear(); feed.watchers.clear() }, 'acp-workbench: live updates')
 
-        // The mounted, writable composer owns the catalog pointer. Ordinary DSH drafts,
-        // inline slash text and other sessions never fetch or claim CLI commands.
+        // Only a mounted writable composer fetches its CLI catalog. The reserved
+        // leading /cli: spelling stays inert on paste or restore, even without a catalog.
         const commandScopes = new Map()
         function useCommandScope(sessionId, id, revision, label) {
           React.useEffect(() => {
@@ -1891,9 +1894,10 @@ window.__ModuleLoader__.load({
         }
 
         /** Inline execution steps beside the native reply; transport diagnostics are opt-in. */
-        function NativeTrace({ sessionId, turn, step, messageId, reference, openFile }) {
+        function NativeTrace({ sessionId, turn, step, messageId, reference, openFile, collapsible = !reference, defaultOpen = !!reference }) {
           const tt = useT()
           const view = useNative(sessionId)
+          const [open, setOpen] = React.useState(defaultOpen)
           const [fallback, setFallback] = React.useState(null)
           const [events, setEvents] = React.useState(EMPTY)
           const [ready, setReady] = React.useState(false)
@@ -1983,20 +1987,30 @@ window.__ModuleLoader__.load({
             run.tools ? (run.tools === 1 ? tt('traceTool') : tt('traceTools', { n: run.tools })) : null,
             files ? (files === 1 ? tt('traceFile') : tt('traceFiles', { n: files })) : null,
           ].filter(Boolean).join(' · ')
+          const expanded = !collapsible || open
+          const headMeta = h(React.Fragment, null,
+            h(StateDot, { state: settle(DOT[state] ?? 'idle', active) }),
+            h('span', null, tt('trace', { name })),
+            summary ? h('span', { className: 'aw-ellipsis', title: summary }, summary) : null)
           return h('section', { className: 'acpw aw-trace', 'aria-label': tt('trace', { name }) },
             h('div', { className: 'aw-trace-head' },
-              h(StateDot, { state: DOT[state] ?? 'idle' }),
-              h('span', null, tt('trace', { name })),
-              summary ? h('span', { className: 'aw-ellipsis', title: summary }, summary) : null, h('span', { className: 'aw-grow' }),
-              h(Button, { size: 'sm', variant: 'ghost', 'aria-pressed': raw, onClick: () => setRaw(!raw) }, tt(raw ? 'viewTimeline' : 'viewRaw'))),
-            h('div', { className: 'aw-trace-body' },
+              collapsible
+                ? h('button', { type: 'button', className: 'aw-trace-toggle', 'aria-expanded': open, 'aria-label': tt(open ? 'collapse' : 'expand') + ' · ' + tt('trace', { name }), onClick: () => setOpen(v => !v) },
+                  headMeta,
+                  h(open ? IconChevronUpOutlineRegular : IconChevronDownOutlineRegular, { size: 14, className: 'aw-trace-chevron' }))
+                : h(React.Fragment, null, headMeta, h('span', { className: 'aw-grow' })),
+              expanded ? h(Button, { size: 'sm', variant: 'ghost', 'aria-pressed': raw, onClick: () => setRaw(!raw) }, tt(raw ? 'viewTimeline' : 'viewRaw')) : null),
+            expanded ? h('div', { className: 'aw-trace-body' },
               raw ? h('div', { className: 'aw-trace-meta' }, h(PathLabel, { path: session.cwd, className: 'aw-path' }),
                 run.handoff !== undefined ? h('span', null, tt(run.handoff ? 'handoff' : 'sameContext')) : null,
                 events[0]?.seq > from ? h(Button, { size: 'sm', variant: 'ghost', disabled: loadingOlder, onClick: older }, tt('older')) : null) : null,
               run.stopReason && run.stopReason !== 'end_turn' ? h('p', { className: 'aw-note' }, tt('stopReason', { reason: run.stopReason })) : null,
               (raw ? ready || events.length : traceReady) ? h(TraceList, { key: `${session.id}:${run.id}`, recordId: session.id, events, folded: raw ? undefined : fallback.rows, raw, interactions: current?.interactions ?? EMPTY, live: active, conversation: true, openFile, cwd: session.cwd }) : h('p', { className: 'aw-note' }, tt('loading')),
               run.error ? h('p', { className: 'aw-error', role: 'alert' }, run.error) : null,
-              error || view.error ? h('p', { className: 'aw-error', role: 'alert' }, error || view.error) : null))
+              error || view.error ? h('p', { className: 'aw-error', role: 'alert' }, error || view.error) : null) : (
+              (run.error || error || view.error) ? h('div', { className: 'aw-trace-body' },
+                run.error ? h('p', { className: 'aw-error', role: 'alert' }, run.error) : null,
+                error || view.error ? h('p', { className: 'aw-error', role: 'alert' }, error || view.error) : null) : null))
         }
 
         function conversationTarget(s) {

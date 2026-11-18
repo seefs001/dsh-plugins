@@ -455,10 +455,10 @@ export class NativeAcp {
     if (this.closing || !agent || agent.status !== 'idle') throw new Error('The DSH session must be open and idle')
     if (typeof args !== 'string' || args.length > MAX_HANDOFF) throw new Error('Invalid external command arguments')
     const route = agent.model.current()?.provider
-    const session = this.sessions(sessionId, false).find(s => s.native.route === route && !s.native.retired)
-    if (externalId && session?.id !== externalId) throw new Error('Select this record’s ACP provider in the DSH model picker before running a command')
-    const report = session && this.manager.commandReport(session)
-    if (stamp != null && stamp !== report?.stamp) throw new Error('The CLI command list changed; select the command again')
+    const session = this.sessions(sessionId, false).findLast(s => s.native.route === route && !s.native.retired)
+    if (!externalId || session?.id !== externalId) throw new Error('Select this record’s ACP provider in the DSH model picker before running a command')
+    const report = this.manager.commandReport(session)
+    if (!stamp || stamp !== report?.stamp) throw new Error('The CLI command list changed; select the command again')
     if (!session || session.archived || session.state !== 'idle' || !report?.commands.some(command => command.name === name)) throw new Error('Connect the selected engine and choose one of its advertised commands')
     // The human chose an external command. Bypass DSH slash-command parsing,
     // but submit ordinary identified input through the native Agent inbox.
