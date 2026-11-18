@@ -301,6 +301,7 @@ const summaryOf = r => ({ id: r.id, name: r.name, icon: r.icon, description: r.d
 
 export function apply(ctx) {
   let closed = false
+  let tail = Promise.resolve()
   /** Synchronous snapshot for prompt assembly; empty until the domain opens. */
   let library = { version: 1, roles: [] }
   let sessions = new Map()
@@ -310,9 +311,11 @@ export function apply(ctx) {
     return domain
   })
   ready.catch(error => ctx.logger?.warn?.(`roles: cannot open storage: ${error?.message ?? error}`))
-  ctx.effect(() => () => {
+  ctx.effect(() => async () => {
     closed = true
-    ready.then(domain => domain.close()).catch(() => {})
+    await tail
+    const domain = await ready.catch(() => null)
+    await domain?.close()
   }, 'roles: storage domain')
 
   // Providers installed before the domain opened saw an empty library.
@@ -325,7 +328,10 @@ export function apply(ctx) {
 
   // ── Skill providers: one per live agent, on that agent's own scope. ──────
   const providers = new Map() // agent -> { fiber, control, key }
-  const skillKey = sessionId => JSON.stringify(roleOfSession(sessionId)?.skills ?? [])
+  const skillKey = sessionId => {
+    const role = roleOfSession(sessionId)
+    return role?.skills.length ? JSON.stringify([role.id, role.name, role.skills]) : ''
+  }
   const refreshSkills = () => {
     for (const [agent, entry] of providers) {
       const key = skillKey(agent.session.id)
@@ -420,7 +426,6 @@ export function apply(ctx) {
     for (const res of streams) res.write(frame)
   }
 
-  let tail = Promise.resolve()
   const run = async (op, callerSessionId, fromTool = false) => {
     // Read-only draft/catalog operations do not wait behind storage mutations.
     if (op?.action === 'preview') return applyOp(library, op).result
@@ -524,6 +529,8 @@ export function apply(ctx) {
       try { await ready } catch (error) {
         return sendJson(res, 503, { message: `storage unavailable: ${error?.message ?? error}` })
       }
+      if (res.destroyed) return
+      if (closed) return sendJson(res, 503, { message: 'roles are unloading' })
       res.writeHead(200, {
         'content-type': 'text/event-stream; charset=utf-8',
         'cache-control': 'no-store',
@@ -534,8 +541,7 @@ export function apply(ctx) {
       streams.add(res)
       const heartbeat = setInterval(() => res.write(': ping\n\n'), HEARTBEAT_MS)
       const drop = () => { clearInterval(heartbeat); streams.delete(res) }
-      req.on('close', drop)
-      res.on('close', drop)
+      res.once('close', drop)
     },
   }), `roles: GET ${EVENTS_PATH}`)
 

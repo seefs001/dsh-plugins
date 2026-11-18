@@ -653,7 +653,7 @@ window.__ModuleLoader__.load({
             if (!open) return undefined
             const down = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
             const key = e => {
-              if (e.key === 'Escape') {
+              if (!e.isComposing && e.keyCode !== 229 && e.key === 'Escape') {
                 e.stopPropagation()
                 setOpen(false)
                 ref.current?.querySelector('button')?.focus()
@@ -681,7 +681,7 @@ window.__ModuleLoader__.load({
               h('input', {
                 value, placeholder: t('iconCustom'), 'aria-label': t('iconCustom'), maxLength: 8,
                 onChange: e => onChange(e.target.value),
-                onKeyDown: e => { if (e.key === 'Enter') pop.setOpen(false) },
+                onKeyDown: e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) pop.setOpen(false) },
               })) : null)
         }
 
@@ -786,7 +786,7 @@ window.__ModuleLoader__.load({
               h('label', { className: 'rlp-field' },
                 h('span', { className: 'rlp-hint' }, t('localCwd')),
                 h('input', { value: cwd, placeholder: '/path/to/project', onChange: e => setCwd(e.target.value),
-                  onKeyDown: e => { if (e.key === 'Enter') { e.preventDefault(); void load() } } })),
+                  onKeyDown: e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); void load() } } })),
               h('button', { type: 'button', className: 'rlp-btn', disabled: catalog.status === 'loading', onClick: () => void load() }, t('localLoad'))),
             h('label', { className: 'rlp-field' },
               h('input', { type: 'search', value: query, placeholder: t('localSearch'), 'aria-label': t('localSearch'), onChange: e => setQuery(e.target.value) })),
@@ -1032,7 +1032,9 @@ window.__ModuleLoader__.load({
           const exists = key => isNewKey(key) ? drafts[key] !== undefined : roles.some(r => r.id === key)
           React.useEffect(() => {
             if (status !== 'ready') return
-            if (selected === null || !exists(selected)) ui.set({ selected: roles[0]?.id ?? newKeys[0] ?? null })
+            if (selected !== null && exists(selected)) return
+            const fallback = roles[0]?.id ?? newKeys[0] ?? null
+            if (fallback !== selected) ui.set({ selected: fallback })
           })
 
           if (status === 'loading') return h('div', { className: 'rlp' }, h('style', null, PAGE_CSS), h('div', { className: 'rlp-blank' }, t('loading')))
