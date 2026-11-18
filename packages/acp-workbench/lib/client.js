@@ -6,7 +6,7 @@ window.__ModuleLoader__.load({
     const {
       Button, CodeBlock, DiffBlock, DisclosureRow, Input, JsonBlock, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, WebBlock, diffTotals,
       IconBranchOutlineRegular, IconBrowseOutlineRegular, IconChecklistOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconPlayOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular,
-      IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular,
+      IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular,
       IconStopFillRegular, IconWarningTriangleOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const NS = 'acp-workbench'
@@ -31,7 +31,7 @@ window.__ModuleLoader__.load({
       attention: 'Needs you', working: 'In progress', review: 'Review', recent: 'Recent', history: 'History', all: 'Current',
       attentionHint: 'A response here goes to the waiting CLI. Opening the conversation does not answer it.',
       recoveryHint: 'Check the last turn before sending anything else. Reconnecting does not resend your message.',
-      firstTurn: 'Send your first message here. The CLI uses its own tools and file access.', resumeHint: 'Your external context is saved. Reconnect without sending a task, or continue with a new message.',
+      firstTurn: 'Send your first message in the composer to get started. The CLI uses its own tools and file access.', resumeHint: 'Your external context is saved. Reconnect without sending a task, or continue with a new message.',
       readyAfterError: 'The connection is ready. Review the last turn, then use the composer for a new instruction.', archivedHint: 'This binding is archived. Restore it to continue using its context.',
       openConversation: 'Open conversation', openRoot: 'Open parent tree', retry: 'Refresh', connectingFeed: 'Connecting…',
       cliOptions: 'CLI settings', hideOptions: 'Close CLI settings', connectOnly: 'Connect without sending a message',
@@ -149,7 +149,7 @@ window.__ModuleLoader__.load({
       attention: '等你回应', working: '进行中', review: '需查看', recent: '最近活动', history: '历史', all: '当前记录',
       attentionHint: '在这里操作会直接把决定发给等待中的 CLI；只打开会话看一眼不会触发审批。',
       recoveryHint: '先核对最后一轮，再决定是否发送新消息。重新连接不会重发原任务。',
-      firstTurn: '在这里发送第一条消息即可开始。CLI 使用自己的工具和文件权限。', resumeHint: '外部上下文已保留。你可以只重新连接，也可以直接发送新消息继续。',
+      firstTurn: '在输入框发送第一条消息即可开始。CLI 使用自己的工具和文件权限。', resumeHint: '外部上下文已保留。你可以只重新连接，也可以直接发送新消息继续。',
       readyAfterError: '连接仍然可用。请先核对上一轮，再在输入框给出新的指令。', archivedHint: '此绑定已归档。恢复后可以继续使用原外部上下文。',
       openConversation: '打开会话', openRoot: '打开所属会话树', retry: '刷新', connectingFeed: '正在连接…',
       cliOptions: 'CLI 设置', hideOptions: '收起 CLI 设置', connectOnly: '仅连接，不发送消息',
@@ -398,10 +398,20 @@ window.__ModuleLoader__.load({
 .aw-tags{display:flex;flex-wrap:wrap;gap:6px}
 .aw-found{display:flex;flex-direction:column;gap:2px}
 .aw-previous{max-height:12rem;overflow:auto;overscroll-behavior:contain}
-.aw-dock .aw-found{max-height:12rem;overflow:auto;overscroll-behavior:contain}
-.aw-dock .aw-options{padding:8px 12px;max-height:min(40vh,22rem);overflow:auto;overscroll-behavior:contain}
-.aw-menu-option{display:flex;align-items:center;gap:8px;width:100%;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;text-align:start;padding:7px 10px;cursor:pointer}
-.aw-menu-option:hover{background:var(--dsw-alias-interactive-bg-hover)}
+:is(.aw-dock,.aw-options) .aw-found{max-height:12rem;overflow:auto;overscroll-behavior:contain}
+/* Match the native model menu cells, including the trailing value and chevron. */
+.aw-menu-option{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:100%;height:34px;padding:0 8px;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:400;line-height:20px;text-align:start;white-space:nowrap;cursor:pointer;outline:none}
+.aw-menu-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:end;color:var(--dsw-alias-label-tertiary)}
+.aw-menu-option>svg{flex:none;color:var(--dsw-alias-menu-icon)}
+.aw-menu-option:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
+@media (hover:hover){.aw-menu-option:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+/* The popover's top layer escapes the composer's containment; the slot anchors it to the card. */
+.aw-options{position:fixed;position-area:top span-left;align-self:end;justify-self:end;inset:auto;margin:0 0 8px;
+  width:min(420px,anchor-size(width));max-height:min(22rem,calc(100% - 8px - max(12px,var(--dsh-frame-overlay-top,12px))));
+  padding:12px;border:0;border-radius:var(--dsw-radius-lg);background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));
+  backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);
+  overflow:auto;overscroll-behavior:contain;pointer-events:auto}
+.aw-options:not(:popover-open){display:none}
 .aw-found li{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:8px;min-width:0}
 @media (hover:hover){.aw-found li:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .aw-empty{padding:24px 12px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px}
@@ -409,7 +419,7 @@ window.__ModuleLoader__.load({
 .aw-filter .aw-input{flex:1 1 220px}
 .aw-inbox-row{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 .aw-inbox-row>.aw-item{flex:1 1 180px;min-width:0}
-.aw-dock details>summary{cursor:pointer;font-size:12px;color:var(--dsw-alias-label-secondary)}
+:is(.aw-dock,.aw-options) details>summary{cursor:pointer;font-size:12px;color:var(--dsw-alias-label-secondary)}
 `
 
     const ACTIVE_RUN = new Set(['preparing', 'running', 'waiting', 'canceling'])
@@ -2122,8 +2132,9 @@ window.__ModuleLoader__.load({
           const view = useNative(sessionId)
           const provider = view.data?.providers.find(p => p.route === view.data.selected?.provider)
           if (!provider) return null
-          return h('button', { type: 'button', role: 'menuitem', className: 'acpw aw-menu-option', onClick: () => { view.setOptions(provider.route); dismiss() } },
-            h('span', { className: 'aw-grow' }, tt('cliOptions')), h('span', { className: 'aw-muted' }, provider.label))
+          return h('button', { type: 'button', role: 'menuitem', className: 'aw-menu-option', 'aria-haspopup': 'dialog', onClick: () => { dismiss(); view.setOptions(provider.route) } },
+            h('span', null, tt('cliOptions')), h('span', { className: 'aw-menu-value' }, provider.label),
+            h(IconChevronRightOutlineRegular, { size: 12, 'aria-hidden': true }))
         }
 
         function WorkspaceTools({ sessionId }) {
@@ -2140,60 +2151,83 @@ window.__ModuleLoader__.load({
           } }, tt(label))))
         }
 
+        function CliSettingsOverlay({ sessionId, useAccess }) {
+          const view = useNative(sessionId)
+          const canWrite = useAccess('session/prompt')
+          const data = view.data
+          const provider = data?.providers.find(p => p.route === data.selected?.provider && p.route === view.optionsRoute)
+          if (!provider) return null
+          const binding = data.sessions.findLast(s => s.native.sessionId === sessionId && s.native.route === provider.route && !s.native.retired)
+          return h(CliOptions, { key: `${sessionId}:${provider.route}`, sessionId, provider, binding, view, canWrite })
+        }
+
         function CliOptions({ sessionId, provider, binding, view, canWrite }) {
           const tt = useT()
-          const [info, setInfo] = React.useState(null)
+          const popup = React.useRef(null)
+          const anchorName = '--aw-cli-' + React.useId().replace(/[^\w-]/g, '')
+          const [detail, setDetail] = React.useState(null)
           const [error, setError] = React.useState('')
+          const info = detail?.id === binding?.id ? detail?.data : null
+          const close = () => popup.current?.hidePopover()
+          React.useLayoutEffect(() => {
+            const panel = popup.current
+            panel.showPopover()
+            panel.focus({ preventScroll: true })
+            return () => panel.hidePopover()
+          }, [])
           // Fetch configuration only while the panel is open. No model catalogs in token updates.
           const revision = binding?.state === 'idle' ? binding.eventSeq : null
           React.useEffect(() => {
             if (!binding) return
             const controller = new AbortController()
-            api({ action: 'get', sessionId: binding.id }, controller.signal).then(data => { if (!controller.signal.aborted) { setInfo(data); setError('') } }, failure => { if (!controller.signal.aborted) setError(failure.message) })
+            api({ action: 'get', sessionId: binding.id }, controller.signal).then(data => { if (!controller.signal.aborted) { setDetail({ id: binding.id, data }); setError('') } }, failure => { if (!controller.signal.aborted) setError(failure.message) })
             return () => controller.abort()
           }, [binding?.id, revision])
           const blocked = !canWrite || view.busy || view.data.status !== 'idle'
           const enabled = !blocked && binding?.state === 'idle' && !binding.archived
           const entries = info ? configEntries(info, tt).filter(e => e.category !== 'model' && (e.category !== 'thought_level' || view.data.selected?.model === 'default')) : []
-          return h('section', { className: 'aw-card aw-options aw-section', 'aria-label': tt('cliOptions') },
-            h('div', { className: 'aw-row' }, h('strong', { className: 'aw-grow' }, `${provider.label} · ${tt('cliOptions')}`), binding ? h(Status, { state: binding.state }) : null,
-              h(Button, { size: 'sm', variant: 'ghost', onClick: () => view.setOptions(null) }, tt('hideOptions'))),
+          const title = `${provider.label} · ${tt('cliOptions')}`
+          return h(React.Fragment, null, h('div', { style: { anchorName }, 'aria-hidden': true }),
+            h('section', { ref: popup, className: 'acpw aw-options aw-section', style: { positionAnchor: anchorName },
+              popover: 'auto', role: 'dialog', 'aria-label': title, tabIndex: -1,
+              onToggle: e => { if (e.target === e.currentTarget && e.newState === 'closed') view.setOptions(null) } },
+            h('div', { className: 'aw-row' }, h('strong', { className: 'aw-grow' }, title), binding ? h(Status, { state: binding.state }) : null,
+              h(Button, { size: 'sm', variant: 'ghost', onClick: close }, tt('hideOptions'))),
             binding ? h('p', { className: 'aw-note aw-ellipsis', title: binding.cwd }, binding.title, ' · ', binding.cwd) : null,
             h(WorkspaceTools, { sessionId }),
             h(ForkOrigin, { binding }), binding?.native.imported ? h(PreviousMessages, { binding }) : null,
             !binding || !CONNECTED.has(binding.state) ? h(React.Fragment, null,
-              h('p', { className: 'aw-note' }, tt(binding?.archived ? 'archivedHint' : 'noConfig')),
+              h('p', { className: 'aw-note' }, tt(!binding ? 'firstTurn' : binding.archived ? 'archivedHint' : 'noConfig')),
               h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'outline', disabled: blocked || binding?.archived, onClick: () => view.run({ action: 'native-connect', dshSessionId: sessionId, externalId: binding?.id, route: provider.route }) }, tt('connectOnly'))),
               !binding ? h(CliHistory, { key: sessionId + ':' + provider.route, sessionId, provider, view, disabled: blocked }) : null) : null,
             binding && !info && !error ? h('p', { className: 'aw-note', role: 'status' }, tt('loading')) : null,
             entries.length ? h('div', { className: 'aw-config' }, entries.map(entry => h(ConfigControl, { key: entry.id, entry, disabled: !enabled, onChange: values => view.run({ action: 'configure', sessionId: binding.id, ...values }) }))) : null,
             info?.commands?.length ? h(CommandForm, { session: info, disabled: !enabled, onRun: async (command, args) => {
               const result = await view.run({ action: 'native-command', dshSessionId: sessionId, externalId: binding.id, commandStamp: info.commandStamp, command, arguments: args })
-              if (result) view.setOptions(null)
+              if (result) close()
               return !!result
             } }) : null,
             info?.usage && view.data?.contextReport?.externalId !== binding?.id ? h('p', { className: 'aw-note' }, usageText(info.usage)) : null,
-            error ? h('p', { role: 'alert', className: 'aw-error' }, error) : null)
+            error || view.error ? h('p', { role: 'alert', className: 'aw-error' }, error || view.error) : null))
         }
 
         /** Contextual help only. The native composer still owns all new input and the Stop button. */
         function EngineHint({ provider, binding, sessionId, view, canWrite }) {
           const tt = useT()
           const blocked = !canWrite || view.busy || view.data.status !== 'idle'
-          const issue = binding?.activity.issue
-          const disconnected = binding && !CONNECTED.has(binding.state)
-          const freshCopy = binding?.native.forkedFrom && binding.state === 'disconnected' && !binding.native.runs.length && !binding.lastError && !binding.stopReason
+          const issue = binding.activity.issue
+          const disconnected = !CONNECTED.has(binding.state)
+          const freshCopy = binding.native.forkedFrom && binding.state === 'disconnected' && !binding.native.runs.length && !binding.lastError && !binding.stopReason
           return h('section', { className: 'aw-card aw-engine-hint', 'aria-label': tt('connection') },
             h('div', { className: 'aw-row' }, h(StateDot, { size: 8, state: issue ? 'warning' : 'idle' }), h('strong', null, provider.label),
-              binding ? h(Status, { state: binding.state }) : null),
-            h('p', { className: 'aw-note' }, tt(!binding ? 'firstTurn' : binding.archived ? 'archivedHint' : freshCopy ? 'forkReady' : binding.state === 'idle' ? (binding.activity.group === 'review' ? 'readyAfterError' : 'importedReady') : binding.activity.group === 'review' ? 'recoveryHint' : 'resumeHint', { name: binding?.title })),
-            h(ForkOrigin, { binding }), binding?.native.imported && binding.state === 'idle' && !binding.native.runs.length ? h(PreviousMessages, { key: binding.id, binding }) : null,
+              h(Status, { state: binding.state })),
+            h('p', { className: 'aw-note' }, tt(binding.archived ? 'archivedHint' : freshCopy ? 'forkReady' : binding.state === 'idle' ? (binding.activity.group === 'review' ? 'readyAfterError' : 'importedReady') : binding.activity.group === 'review' ? 'recoveryHint' : 'resumeHint', { name: binding.title })),
+            h(ForkOrigin, { binding }), binding.native.imported && binding.state === 'idle' && !binding.native.runs.length ? h(PreviousMessages, { key: binding.id, binding }) : null,
             issue ? h('p', { className: 'aw-error' }, issue) : null,
-            !binding ? h(CliHistory, { key: sessionId + ':' + provider.route, provider, sessionId, view, disabled: blocked }) : null,
-            binding ? h('div', { className: 'aw-row' },
+            h('div', { className: 'aw-row' },
               binding.archived ? h(Button, { size: 'sm', variant: 'outline', disabled: blocked, onClick: () => view.run({ action: 'restore', sessionId: binding.id }) }, tt('unarchive')) : null,
               !binding.archived && disconnected ? h(Button, { size: 'sm', variant: 'outline', disabled: blocked, onClick: () => view.run({ action: 'native-connect', dshSessionId: sessionId, externalId: binding.id }) }, tt(binding.remoteId && !freshCopy ? 'reconnect' : 'connect')) : null,
-              !binding.archived && binding.activity.group === 'review' ? h(Button, { size: 'sm', variant: 'ghost', disabled: blocked, onClick: () => { if (window.confirm(tt('newContextConfirm'))) void view.run({ action: 'native-reset', externalId: binding.id }) } }, tt('newContext')) : null) : null)
+              !binding.archived && binding.activity.group === 'review' ? h(Button, { size: 'sm', variant: 'ghost', disabled: blocked, onClick: () => { if (window.confirm(tt('newContextConfirm'))) void view.run({ action: 'native-reset', externalId: binding.id }) } }, tt('newContext')) : null))
         }
 
         function CheckoutSwitcher({ sessionId, workspaceId, providers }) {
@@ -2273,19 +2307,17 @@ window.__ModuleLoader__.load({
           const provider = data?.providers.find(p => p.route === data.selected?.provider)
           const binding = provider ? sessions.findLast(s => s.native.sessionId === props.sessionId && s.native.route === provider.route && !s.native.retired) : null
           useCommandScope(props.sessionId, canWrite && data?.status === 'idle' && !view.error && binding?.state === 'idle' && !binding.archived ? binding.id : null, data?.commandStamp, provider?.label)
-          const hint = provider && !own.length && (!binding || binding.archived || binding.activity.group === 'review' || (binding.state === 'disconnected' && binding.activity.group === 'recent') || (binding.native.imported && !binding.native.runs.length && binding.state === 'idle'))
+          const hint = binding && !own.length && (binding.archived || binding.activity.group === 'review' || (binding.state === 'disconnected' && binding.activity.group === 'recent') || (binding.native.imported && !binding.native.runs.length && binding.state === 'idle'))
           const children = sessions.filter(s => s.native.sessionId !== props.sessionId && !s.native.retired && !s.archived)
           const visible = children.filter(s => ['attention', 'working', 'review'].includes(s.activity.group)).toSorted((a, b) => GROUPS.indexOf(a.activity.group) - GROUPS.indexOf(b.activity.group))
           const quiet = children.filter(s => s.activity.group === 'recent')
-          const showOptions = provider && view.optionsRoute === provider.route
           const contextReport = binding && !binding.archived && data.contextReport?.externalId === binding.id ? data.contextReport : null
           const notices = binding && !binding.archived && data.noticeFeed?.externalId === binding.id && data.noticeFeed.remoteId === binding.remoteId && data.noticeFeed.items.length ? data.noticeFeed : null
-          if (!notices && !contextReport && !showOptions && !hint && !own.length && !children.length && !data?.checkoutGroup && !view.error && !navigationError) return null
+          if (!notices && !contextReport && !hint && !own.length && !children.length && !data?.checkoutGroup && !view.error && !navigationError) return null
           const childRow = child => h(ChildRow, { key: child.id, child, sessionId: props.sessionId, view, canWrite })
           return h('div', { className: 'acpw aw-dock' },
             own.flatMap(s => s.interactions.map(item => h(InteractionCard, { key: item.id, item, sessionId: s.id, cwd: s.cwd, run: view.run, disabled: view.busy || !canWrite }))),
-            showOptions ? h(CliOptions, { key: `${props.sessionId}:${provider.route}:${binding?.id ?? ''}`, sessionId: props.sessionId, provider, binding, view, canWrite })
-              : hint ? h(EngineHint, { key: `${props.sessionId}:${provider.route}`, provider, binding, sessionId: props.sessionId, view, canWrite }) : null,
+            hint ? h(EngineHint, { key: `${props.sessionId}:${provider.route}`, provider, binding, sessionId: props.sessionId, view, canWrite }) : null,
             notices ? h(ConnectionNotices, { key: 'notice:' + binding.id + ':' + notices.connection, report: notices }) : null,
             contextReport ? h(ContextReport, { key: 'context:' + binding.id, report: contextReport, title: tt('contextRecent') }) : null,
             data?.checkoutGroup ? h(CheckoutSwitcher, { key: props.sessionId, sessionId: props.sessionId, workspaceId: data.checkoutGroup, providers: data.providers }) : null,
@@ -2325,6 +2357,7 @@ window.__ModuleLoader__.load({
           return h(NativeTrace, { sessionId: props.sessionId, openFile: props.openFile, ...props.node.data })
         }
         ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, CliMenuOption))
+        ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({ name: 'conversation.input.overlay', id: 'acp-settings', order: 40 }, CliSettingsOverlay))
         ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'acp-native', order: 40 }, NativeDock))
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, NativeNode))
 
