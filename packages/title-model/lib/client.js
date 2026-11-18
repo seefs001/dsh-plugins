@@ -70,7 +70,7 @@ window.__ModuleLoader__.load({
         const subscribeLocale = listener => ctx.locale.subscribe(listener)
         const localeSnapshot = () => ctx.locale.getSnapshot()
 
-        function Generator({ generator, catalog, onSaved, onBusy }) {
+        function Generator({ generator, catalog, saving, onSaved, onBusy }) {
           const [value, setValue] = React.useState(routeKey(generator.provider, generator.model))
           const [status, setStatus] = React.useState({ kind: 'idle' })
           const savedValue = routeKey(generator.provider, generator.model)
@@ -108,7 +108,7 @@ window.__ModuleLoader__.load({
             h('label', null, h('span', null, t('model')),
               h('select', { value, disabled: busy, onChange: event => { setValue(event.target.value); setStatus({ kind: 'idle' }) } }, options)),
             h('div', { className: 'dsh-title-model__actions' },
-              h('button', { type: 'button', disabled: busy || !dirty || !known(value), onClick: save }, t(busy ? 'saving' : 'save')),
+              h('button', { type: 'button', disabled: saving || !dirty || !known(value), onClick: save }, t(busy ? 'saving' : 'save')),
               h('span', { role: status.kind === 'error' ? 'alert' : 'status', className: status.kind === 'error' ? 'error' : 'success' },
                 status.kind === 'ok' ? t('saved') : status.kind === 'error' ? `${t('saveFailed')}${status.message}` : '')))
         }
@@ -128,13 +128,15 @@ window.__ModuleLoader__.load({
             }).catch(error => {
               if (alive) setState({ status: 'error', generators: [], error: error.message })
             })
+            let catalogRequest = 0
             const loadCatalog = async () => {
+              const id = ++catalogRequest
               try {
                 const result = await ctx.remote.session.modelCatalog()
                 if (!result.ok) throw new Error(result.error?.message ?? 'Model catalog unavailable')
-                if (alive) setCatalog({ groups: result.value.groups, partial: result.value.failures.length > 0, error: '' })
+                if (alive && id === catalogRequest) setCatalog({ groups: result.value.groups, partial: result.value.failures.length > 0, error: '' })
               } catch (error) {
-                if (alive) setCatalog(current => ({ ...current, error: error.message }))
+                if (alive && id === catalogRequest) setCatalog(current => ({ ...current, error: error.message }))
               }
             }
             loadCatalog()
@@ -154,7 +156,7 @@ window.__ModuleLoader__.load({
             catalog.error ? h('p', { className: 'error', role: 'alert' }, `${t('catalogFailed')}${catalog.error}`) : null,
             catalog.partial ? h('p', null, t('partial')) : null,
             state.status !== 'ready' ? null : state.generators.map(generator => h(Generator, {
-              key: `${epoch}:${generator.id}`, generator, catalog, onBusy: setBusy,
+              key: `${epoch}:${generator.id}`, generator, catalog, saving: busy, onBusy: setBusy,
               onSaved: result => setState({ status: 'ready', generators: result.generators }),
             })),
             h('p', null, t('cadence')), h('p', null, t('privacy')), h('p', null, t('persist')))
