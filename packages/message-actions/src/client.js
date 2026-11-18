@@ -206,7 +206,9 @@ export default {
         try {
           const value = await perform({ action: 'get_settings' })
           if (!alive.current || !value) return
-          setData(value); setDraft(v => v ?? value.settings)
+          const unsaved = draft && ['provider', 'model', 'reasoningEffort'].some(f => draft[f] !== data.settings[f])
+          setData(value)
+          if (!unsaved) setDraft(value.settings)
         } catch (e) { if (alive.current) setError(e.message) }
         finally { if (alive.current) setPhase('idle') }
       }
