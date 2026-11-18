@@ -14,7 +14,7 @@ window.__ModuleLoader__.load({
         plan: 'Plan', process: 'Process', artifacts: 'Artifacts', views: 'Work views',
         pending: 'Pending', in_progress: 'In progress', blocked: 'Blocked', completed: 'Completed', canceled: 'Canceled',
         'work.active': 'Active', 'work.blocked': 'Blocked', 'work.completed': 'Reported complete', 'work.canceled': 'Canceled',
-        progress: '{done} of {total} done', progressEmpty: 'No steps yet',
+        progress: '{done} of {total} done', progressEmpty: 'No steps yet', progressCanceled: 'All steps canceled',
         countBlocked: '{n} blocked', countCanceled: '{n} canceled',
         now: 'Current', waitingOn: 'Waiting on', blockedBy: 'Blocked: {reason}', blockedMany: '{n} blocked · {reason}',
         details: 'Details', 'attn.blocked': 'Blocked · {n}', 'attn.in_progress': 'Reported in progress · {n}', 'attn.next': 'Next step',
@@ -43,7 +43,7 @@ window.__ModuleLoader__.load({
         plan: '计划', process: '过程', artifacts: '产物', views: '工作视图',
         pending: '待开始', in_progress: '进行中', blocked: '受阻', completed: '已完成', canceled: '已取消',
         'work.active': '推进中', 'work.blocked': '受阻', 'work.completed': '报告已完成', 'work.canceled': '已取消',
-        progress: '已完成 {done}/{total}', progressEmpty: '尚无步骤',
+        progress: '已完成 {done}/{total}', progressEmpty: '尚无步骤', progressCanceled: '所有步骤均已取消',
         countBlocked: '{n} 项受阻', countCanceled: '{n} 项取消',
         now: '当前', waitingOn: '等待', blockedBy: '受阻：{reason}', blockedMany: '{n} 项受阻：{reason}',
         details: '详情', 'attn.blocked': '受阻 · {n}', 'attn.in_progress': '报告进行中 · {n}', 'attn.next': '下一步',
@@ -292,7 +292,7 @@ window.__ModuleLoader__.load({
     const focusOf = steps => steps.find(step => step.status === 'blocked') ?? steps.find(step => step.status === 'in_progress') ?? steps.find(step => step.status === 'pending')
     const toneOf = snapshot => snapshot.status !== 'active' ? snapshot.status : snapshot.steps.some(step => step.status === 'blocked') ? 'blocked' : 'active'
     const glyphOf = tone => tone === 'active' ? 'in_progress' : tone
-    const progressText = (sum, t) => sum.total + sum.canceled === 0 ? t('progressEmpty') : t('progress', { done: sum.completed, total: sum.total })
+    const progressText = (sum, t) => sum.total === 0 ? t(sum.canceled ? 'progressCanceled' : 'progressEmpty') : t('progress', { done: sum.completed, total: sum.total })
     function Meter({ steps }) {
       // One segment per step keeps order visible; long plans collapse into proportional runs.
       const segments = steps.length <= 24
@@ -324,7 +324,7 @@ window.__ModuleLoader__.load({
                 h('span', { className: 'wt-glyph', 'aria-hidden': true }, h(WorkGlyph, { size: 16 })),
                 h('span', { className: 'wt-dock-title wt-ellipsis' }, t('legacy')),
                 h('span', { className: 'wt-dock-focus wt-ellipsis' }, focusOf(todos)?.content ?? ''),
-                h('span', { className: 'wt-dock-count' }, `${sum.completed}/${sum.total}`),
+                h('span', { className: 'wt-dock-count' }, sum.total ? `${sum.completed}/${sum.total}` : progressText(sum, t)),
                 h(Chevron, { up: !open, down: open })),
               open && h('ul', { className: 'wt-legacy-list' }, todos.map((item, index) => h('li', { key: `${index}:${item.content}` },
                 h(StatusGlyph, { status: item.status }), h('span', { className: 'wt-sr' }, t(item.status)),
