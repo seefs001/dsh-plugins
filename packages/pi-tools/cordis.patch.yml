@@ -164,8 +164,14 @@
             group: true
             isolate:
               compaction: true
+              toolResultPruner: true
             config:
+              - id: pi-tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
               - id: pi-compaction-basic
                 name: '@deepseek-ai/dsh-compaction-basic'
+                config:
+                  summarizationProvider: !!js "process.env.DSH_PI_SUMMARY_PROVIDER ?? ''"
+                  summarizationModel: !!js "process.env.DSH_PI_SUMMARY_MODEL ?? ''"
               - id: pi-command-compact
                 name: '@deepseek-ai/dsh-command-compact'
