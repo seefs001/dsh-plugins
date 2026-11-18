@@ -79,8 +79,15 @@ export class PiLoadout {
     })
     this.sync()
     ctx.on('tools/change', () => this.sync())
-    ctx.tools.guard(exec => this.enabled(this.internal.get(exec.name) ?? exec.name, exec.agent)
-      ? undefined : `Tool is disabled for this Pi session: ${exec.name}`)
+    ctx.tools.guard(exec => {
+      if (this.enabled(this.internal.get(exec.name) ?? exec.name, exec.agent)) return undefined
+      const lowercase = exec.name.toLowerCase()
+      if (lowercase !== exec.name && this.enabled(lowercase, exec.agent)
+        && ctx.tools.executable(lowercase, exec.agent, exec.toolSet)) {
+        return `Tool names are case-sensitive. Use ${lowercase}, not ${exec.name}.`
+      }
+      return `Tool is disabled for this Pi session: ${exec.name}`
+    })
   }
 
   stateOf(agent) {
