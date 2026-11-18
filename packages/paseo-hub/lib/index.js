@@ -183,6 +183,7 @@ class Connector {
     this.connectedAt = null
     this.login = null
     this.loginAbort = null
+    this.enrolling = null
     this.socket = null
     this.bridge = null
     this.retryTimer = null
@@ -205,7 +206,7 @@ class Connector {
     this.connect()
   }
 
-  stop() {
+  async stop() {
     this.stopped = true
     this.generation += 1
     clearTimeout(this.retryTimer)
@@ -214,6 +215,7 @@ class Connector {
     this.bridge?.close()
     this.socket = null
     this.bridge = null
+    await this.enrolling
   }
 
   snapshot() {
@@ -235,20 +237,28 @@ class Connector {
 
   async signIn({ origin: rawOrigin, apiKey }) {
     if (this.relationship !== null) throw new Error('This Host is already enrolled; disconnect first to switch Hubs')
-    if (this.state === 'signing_in') throw new Error('A sign-in is already in progress')
+    if (this.stopped || this.state === 'signing_in' || this.enrolling) throw new Error('Sign-in is unavailable or already in progress')
     const origin = normalizeHubOrigin(rawOrigin)
     this.lastError = null
+    // Claim before the first await. Opening/waiting are cancelable; after enrollment
+    // starts the credential and relationship must settle together before another attempt.
+    this.state = 'signing_in'
     if (typeof apiKey === 'string' && apiKey.trim()) {
-      this.state = 'signing_in'
       this.login = { origin, method: 'api-key' }
       this.journal.add({ kind: 'connection.sign-in', message: `Signing in to ${origin} with an API key` })
-      void this.finishEnrollment(origin, apiKey.trim())
+      void this.enroll(origin, apiKey.trim())
       return
     }
-    const started = await startDeviceLogin(origin)
     const abort = new AbortController()
     this.loginAbort = abort
-    this.state = 'signing_in'
+    this.login = { origin, method: 'starting' }
+    let started
+    try { started = await startDeviceLogin(origin, abort.signal) } catch (error) {
+      if (abort.signal.aborted) return
+      this.failSignIn(error)
+      throw error
+    }
+    if (abort.signal.aborted) return
     this.login = {
       origin,
       method: 'browser',
@@ -262,6 +272,7 @@ class Connector {
   }
 
   cancelSignIn() {
+    if (this.enrolling) throw new Error('Enrollment is being saved; wait for it to finish before disconnecting')
     if (this.state !== 'signing_in') return
     this.loginAbort?.abort()
     this.loginAbort = null
@@ -278,11 +289,11 @@ class Connector {
         await new Promise(resolve => { const t = setTimeout(resolve, interval * 1000); t.unref?.() })
         if (signal.aborted) return
         if (Date.now() > deadline) throw new Error('The sign-in request expired; start again')
-        const poll = await pollDeviceLogin(origin, started.deviceCode)
+        const poll = await pollDeviceLogin(origin, started.deviceCode, signal)
         if (signal.aborted) return
         if (poll.status === 'pending') continue
         if (poll.status === 'slow_down') { interval = Math.max(interval + 5, poll.interval ?? interval); continue }
-        if (poll.status === 'authorized') return await this.finishEnrollment(origin, poll.credential)
+        if (poll.status === 'authorized') return await this.enroll(origin, poll.credential)
         if (poll.status === 'denied') throw new Error('The sign-in was denied in Hub')
         throw new Error(poll.status === 'expired' ? 'The sign-in request expired; start again' : `Sign-in ended: ${poll.status}`)
       }
@@ -299,6 +310,12 @@ class Connector {
     this.login = null
     this.loginAbort = null
     this.state = 'not_connected'
+  }
+
+  enroll(origin, credential) {
+    this.login = { origin, method: 'enrolling' }
+    this.enrolling = this.finishEnrollment(origin, credential).finally(() => { this.enrolling = null })
+    return this.enrolling
   }
 
   async finishEnrollment(origin, credential) {
@@ -348,8 +365,10 @@ class Connector {
 
   async connect() {
     if (this.stopped) return
+    const generation = ++this.generation
     const rel = this.relationship
     const secret = rel === null ? undefined : await this.secret()
+    if (generation !== this.generation || this.stopped) return
     if (rel === null) { this.state = 'not_connected'; return }
     if (secret === undefined) {
       this.state = 'revoked'
@@ -357,7 +376,6 @@ class Connector {
       this.journal.add({ kind: 'connection.revoked', level: 'error', message: this.lastError })
       return
     }
-    const generation = ++this.generation
     this.state = this.connectedAt === null && this.state !== 'reconnecting' ? 'connecting' : 'reconnecting'
     this.socket = openDaemonSocket({ webSocketUrl: rel.webSocketUrl, daemonId: rel.daemonId, secret }, {
       connected: socket => {
@@ -548,7 +566,9 @@ export function apply(ctx, config) {
   let journal
   const api = new HubApi(ctx.credentials, { add: entry => journal?.add(entry) })
   const fibers = new Map()
+  let closing = false
   const ready = ctx.storageDomain.open(DOMAIN_SPEC).then(async domain => {
+    if (closing) return domain
     store = new RunStore(domain)
     journal = new Journal(domain, (level, msg) => ctx.logger?.[level]?.(`paseo-hub: ${msg}`))
     connector = new Connector(ctx, config, domain, store, journal)
@@ -557,6 +577,7 @@ export function apply(ctx, config) {
     if (config.listWorkspaces !== false) {
       const paths = new Set(store.list().filter(run => run.archivedAt === null).map(run => run.cwd))
       for (const path of paths) {
+        if (closing) break
         await ctx.workspaceController.create({ path })
           .catch(error => ctx.logger?.warn?.(`paseo-hub: could not add ${path} to the workspace list: ${error?.message ?? error}`))
       }
@@ -565,20 +586,22 @@ export function apply(ctx, config) {
   })
   ready.catch(error => ctx.logger?.error?.(`paseo-hub: storage unavailable: ${error?.message ?? error}`))
   registerApiTools(ctx, api, ready)
-  ctx.effect(() => () => {
-    connector?.stop()
-    for (const fiber of fibers.values()) void Promise.resolve(fiber?.dispose?.()).catch(() => {})
+  ctx.effect(() => async () => {
+    closing = true
+    await connector?.stop()
+    await Promise.allSettled(Array.from(fibers.values(), fiber => fiber?.dispose?.()))
     fibers.clear()
-    void ready.then(domain => domain.close()).catch(() => {})
+    await ready.then(domain => domain.close())
   }, 'paseo-hub: connector')
 
   // Mount Hub's MCP server on a Hub session's own Agent scope, for fresh and resumed Agents.
   const mount = async (agent) => {
     const run = store?.bySession(agent.id)
-    if (run?.hub == null || fibers.has(agent)) return
+    if (closing || run?.hub == null || fibers.has(agent)) return
     fibers.set(agent, null)
     try {
       const fiber = await mountHubMcp(agent, run)
+      if (closing || !fibers.has(agent)) { await fiber?.dispose?.(); return }
       fibers.set(agent, fiber)
       agent.ctx.effect(() => () => { fibers.delete(agent) }, 'paseo-hub: hub mcp owner')
     } catch (error) {

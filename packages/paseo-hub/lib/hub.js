@@ -36,9 +36,8 @@ async function request(origin, path, { method = 'POST', bearer, body, signal } =
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   timer.unref?.()
   const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal
-  let response
   try {
-    response = await fetch(`${origin}${path}`, {
+    const response = await fetch(`${origin}${path}`, {
       method,
       headers: {
         accept: 'application/json',
@@ -48,32 +47,32 @@ async function request(origin, path, { method = 'POST', bearer, body, signal } =
       ...body === undefined ? {} : { body: JSON.stringify(body) },
       signal: combined,
     })
+    const text = await response.text()
+    let payload = null
+    if (text) { try { payload = JSON.parse(text) } catch { /* A non-JSON Hub error still has an HTTP status. */ } }
+    return { status: response.status, ok: response.ok, payload }
   } catch (error) {
     if (controller.signal.aborted) throw new Error(`Hub did not answer ${path} in time`, { cause: error })
     throw new Error(`Hub is unreachable: ${error?.cause?.code ?? error?.message ?? error}`, { cause: error })
   } finally {
     clearTimeout(timer)
   }
-  let payload = null
-  const text = await response.text()
-  if (text) {
-    try { payload = JSON.parse(text) } catch { payload = null }
-  }
-  return { status: response.status, ok: response.ok, payload }
 }
 
 /** Start the CLI device login: the user approves `verificationUriComplete` in a browser. */
-export async function startDeviceLogin(origin) {
-  const { status, payload } = await request(origin, '/api/v1/cli-authorizations', { body: {} })
+export async function startDeviceLogin(origin, signal) {
+  const { status, payload } = await request(origin, '/api/v1/cli-authorizations', { body: {}, signal })
   if (status === 429) throw new HubHttpError('Hub is rate limiting sign-ins; try again in a few seconds', status)
   if (status === 404) throw new HubHttpError('This address does not serve Paseo Hub (no CLI sign-in endpoint)', status)
   if (status !== 201 || typeof payload?.deviceCode !== 'string') throw new HubHttpError(`Hub sign-in could not start (HTTP ${status})`, status)
+  const link = new URL(payload.verificationUriComplete)
+  if (!['https:', 'http:'].includes(link.protocol) || link.username || link.password || typeof payload.userCode !== 'string' || !Number.isFinite(Date.parse(payload.expiresAt))) throw new Error('Hub returned an invalid device sign-in response')
   return payload
 }
 
 /** One poll: `pending`, `slow_down`, `authorized` (with credential), `denied`, `expired`, or `disclosed`. */
-export async function pollDeviceLogin(origin, deviceCode) {
-  const { status, payload } = await request(origin, '/api/v1/cli-authorizations/poll', { body: { deviceCode } })
+export async function pollDeviceLogin(origin, deviceCode, signal) {
+  const { status, payload } = await request(origin, '/api/v1/cli-authorizations/poll', { body: { deviceCode }, signal })
   if (status !== 200 || typeof payload?.status !== 'string') {
     if (status === 429) return { status: 'slow_down', interval: 10 }
     throw new HubHttpError(`Hub sign-in polling failed (HTTP ${status})`, status)

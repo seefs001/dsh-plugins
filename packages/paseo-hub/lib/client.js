@@ -637,25 +637,31 @@ window.__ModuleLoader__.load({
         function usePoll(load, deps, fast) {
           React.useEffect(() => {
             const controller = new AbortController()
-            void load(controller.signal)
-            const timer = setInterval(() => { if (document.visibilityState === 'visible') void load(controller.signal) }, fast ? 2_000 : 10_000)
-            return () => { clearInterval(timer); controller.abort() }
+            let timer
+            const poll = async () => {
+              if (document.visibilityState === 'visible' || !timer) await load(controller.signal)
+              if (!controller.signal.aborted) timer = setTimeout(poll, fast ? 2_000 : 10_000)
+            }
+            void poll()
+            return () => { clearTimeout(timer); controller.abort() }
           }, [...deps, fast])
         }
 
         function useResource(path, params, fast = false) {
           const [state, setState] = React.useState({ data: null, error: null, loading: true })
-          const key = `${path}?${qs(params)}`
+          const { n, ...selection } = params
+          const identity = `${path}?${qs(selection)}`
+          const key = `${identity}&n=${encodeURIComponent(n ?? 0)}`
           const load = React.useCallback(async signal => {
             try {
               const data = await request(key, { signal })
-              setState({ data, error: null, loading: false, at: new Date().toISOString() })
+              if (!signal?.aborted) setState({ identity, data, error: null, loading: false, at: new Date().toISOString() })
             } catch (error) {
-              if (error?.name !== 'AbortError') setState(prev => ({ ...prev, error: String(error?.message ?? error), loading: false }))
+              if (!signal?.aborted && error?.name !== 'AbortError') setState(prev => ({ ...(prev.identity === identity ? prev : { identity, data: null }), error: String(error?.message ?? error), loading: false }))
             }
           }, [key])
           usePoll(load, [load], fast)
-          return { ...state, reload: load }
+          return state.identity === identity ? state : { data: null, loading: true, error: null }
         }
 
         // ---- primitives ----
@@ -695,8 +701,8 @@ window.__ModuleLoader__.load({
             h('p', null, text),
             error ? h('p', { className: 'ph-error', role: 'alert' }, `${t('opFailed')}: ${error}`) : null,
             h('footer', null,
-              h(Btn, { size: 'md', onClick: onClose, disabled: busy }, t('cancel')),
-              h(Btn, { size: 'md', variant: destructive ? 'destructive' : 'primary', onClick: run, disabled: busy, 'aria-busy': busy, autoFocus: true }, confirmLabel)))
+              h(Btn, { size: 'md', onClick: onClose, disabled: busy, autoFocus: destructive }, t('cancel')),
+              h(Btn, { size: 'md', variant: destructive ? 'destructive' : 'primary', onClick: run, disabled: busy, 'aria-busy': busy, autoFocus: !destructive }, confirmLabel)))
         }
 
         function Menu({ items }) {
@@ -1240,7 +1246,9 @@ window.__ModuleLoader__.load({
         function Pending({ data }) {
           const { op, copy } = useApp()
           const login = data.login
-          if (login?.method !== 'browser') return h('section', { className: 'ph-section', 'aria-live': 'polite' }, h(Tag, { tone: 'warning', pulse: true }, t('enrolling')))
+          if (login?.method !== 'browser') return h('section', { className: 'ph-section', 'aria-live': 'polite' },
+            h(Tag, { tone: 'warning', pulse: true }, t(login?.method === 'starting' ? 'signingIn' : 'enrolling')),
+            login?.method === 'starting' ? h(Btn, { size: 'md', onClick: () => op({ action: 'cancel-sign-in' }) }, t('cancel')) : null)
           return h('section', { className: 'ph-section', 'aria-live': 'polite', 'aria-labelledby': 'ph-pending' },
             h('div', { className: 'ph-sechead' }, h('h2', { className: 'ph-sectitle', id: 'ph-pending' }, t('signingIn')), h(Tag, { tone: 'warning', pulse: true }, t('state_signing_in'))),
             h('p', { className: 'ph-note' }, t('code')),
