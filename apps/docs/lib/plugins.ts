@@ -58,6 +58,7 @@ const entries: Entry[] = [
   { slug: 'orbit-bridge', category: 'tools', surface: 'Host + Web', summary: '只读巡检 Orbit 项目，对比上次检查列出新增和变动任务，不写 Orbit。', requires: ['Orbit MCP 服务器', '@deepseek-ai/dsh-storage-domain'] },
   { slug: 'acp-workbench', category: 'conversation', surface: 'Host + Web', summary: '把本机 ACP 工具直接接入 DSH 会话，或委派可续聊的原生子任务，就地看轨迹和批权限。', requires: ['已安装并登录的 ACP CLI'] },
   { slug: 'paseo-hub', category: 'tools', surface: 'Host + Web', summary: '把 Paseo Hub 触发作为 DSH 会话跑在本机，查看运行与活动，或直接通过组织 API 管理触发器。', requires: ['支持 dsh provider 的 Paseo Hub', '@deepseek-ai/dsh-permission-presets'] },
+  { slug: 'bark-notify', category: 'tools', surface: 'Host + Web', summary: '智能体提问、审阅计划或请求工具审批时，顺便通过 Bark 发送手机推送。' },
 ]
 
 export interface PluginInfo extends Entry {

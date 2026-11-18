@@ -64,6 +64,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-pi-mcp`](packages/pi-mcp) | 在 DSH 里共用 Pi 的 `~/.pi/agent/mcp.json`，改文件热更新生效。 | Host |
 | [`dsh-orbit-bridge`](packages/orbit-bridge) | 只读巡检 Orbit 项目，对比上次检查列出新增和变动任务，不写 Orbit。 | Host + Web |
 | [`dsh-paseo-hub`](packages/paseo-hub) | 把 Paseo Hub 触发作为 DSH 会话跑在本机，查看运行与活动，或直接通过组织 API 管理触发器。 | Host + Web |
+| [`dsh-bark-notify`](packages/bark-notify) | 智能体提问、审阅计划或请求权限审批时，顺便通过 Bark 发送手机推送。 | Host + Web |
 
 按需安装即可。同时装了 `dsh-model-reference` 和 `dsh-service-tier` 时，`#` 标签会带上 ⚡。
 

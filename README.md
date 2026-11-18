@@ -64,6 +64,7 @@ English | [中文](README.zh.md)
 | [`dsh-pi-mcp`](packages/pi-mcp) | Shares Pi's `~/.pi/agent/mcp.json` with DSH and follows file edits live. | Host |
 | [`dsh-orbit-bridge`](packages/orbit-bridge) | Read-only watch over Orbit projects tracking new, changed, and missing tasks against the last check. Never writes to Orbit. | Host + Web |
 | [`dsh-paseo-hub`](packages/paseo-hub) | Run Paseo Hub triggers locally as DSH sessions, inspect runs and activity, or manage triggers via the organization API. | Host + Web |
+| [`dsh-bark-notify`](packages/bark-notify) | Send a Bark push notification when an agent asks a question, submits a plan for review, or requests approval. | Host + Web |
 
 Install only what you need. With both `dsh-model-reference` and `dsh-service-tier` installed, `#` chips also carry ⚡.
 

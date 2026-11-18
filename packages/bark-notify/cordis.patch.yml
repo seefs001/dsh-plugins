@@ -1,0 +1,19 @@
+# Bundle patch layer: loads lib/index.js as the Host half (Bark webhook
+# notifications on user-questions/request and approval/request plus settings/test
+# routes); `dsh.client` loads lib/client.js on the Plugins page.
+# The Bark device key is stored in DSH credentials (`bark-notify/device`) or
+# `DSH_BARK_KEY`, never in this file.
+- insert:
+    - id: bark-notify
+      name: dsh-bark-notify
+      config:
+        enabled: true
+        serverUrl: https://api.day.app
+        method: get
+        notifyQuestions: true
+        notifyApprovals: true
+        delayMs: 0
+        sound: alarm
+        group: dsh
+        includeContent: true
+        openUrl: ''
