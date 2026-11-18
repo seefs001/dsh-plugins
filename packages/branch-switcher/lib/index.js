@@ -64,8 +64,8 @@ export class BranchSwitcher {
       }
     }
     const current = async () => {
-      const result = await git(['symbolic-ref', '--quiet', '--short', 'HEAD'], [0, 1])
-      return result.exitCode === 0 ? result.text : null
+      const result = await git(['symbolic-ref', '--quiet', 'HEAD'], [0, 1])
+      return result.exitCode === 0 ? result.text.replace(/^refs\/heads\//, '') : null
     }
     const root = (await git(['rev-parse', '--show-toplevel'])).text
     if (args.action === 'list') {

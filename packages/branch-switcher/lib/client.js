@@ -14,7 +14,7 @@ window.__ModuleLoader__.load({
       local: 'Existing local branches only. No fetch, branch creation, stash, or force.',
       worktree: 'New worktree', worktreeHint: 'Create an isolated checkout when the first message is sent.',
       readonly: 'Branch switching is unavailable in read-only mode.',
-      changed: 'Switched to {branch}', choose: 'Switch to {branch}',
+      refreshFailed: 'The branch was switched, but the panel did not refresh:', changed: 'Switched to {branch}', choose: 'Switch to {branch}',
     }
     const ZH = {
       switch: '切换分支', search: '搜索本地分支', loading: '正在加载分支…', switching: '正在切换分支…',
@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
       local: '只切换已有本地分支，不拉取、不建分支、不暂存、不强制覆盖。',
       worktree: '新建工作树', worktreeHint: '发送首条消息时创建独立工作目录。',
       readonly: '只读模式下不能切换分支。',
-      changed: '已切换到 {branch}', choose: '切换到 {branch}',
+      refreshFailed: '分支已切换，但面板刷新失败：', changed: '已切换到 {branch}', choose: '切换到 {branch}',
     }
     const CSS = `
 .dbs-root{display:inline-flex;flex:none;align-items:center;gap:2px;min-width:0}
@@ -62,7 +62,7 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, 'en', EN))
         ctx.effect(() => ctx.locale.register(NS, 'zh', ZH))
         const t = ctx.locale.bind(NS)
-        const tf = (key, branch) => t(key).replace('{branch}', branch)
+        const tf = (key, branch) => t(key).replace('{branch}', () => branch)
         async function request(sessionId, args) {
           const response = await ctx.remote.commands.execute(sessionId, `/branch-switcher ${JSON.stringify(args)}`, [])
           if (!response.ok) throw new Error(response.error.message)
@@ -83,6 +83,7 @@ window.__ModuleLoader__.load({
           const button = React.useRef(null)
           const popup = React.useRef(null)
           const search = React.useRef(null)
+          const latestList = React.useRef(0)
           const mounted = React.useRef(true)
           React.useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
           const readonly = panel?.worktree.blocker === 'read-only'
@@ -92,12 +93,14 @@ window.__ModuleLoader__.load({
           const rows = (listed?.branches ?? []).filter(name => name.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
           const close = () => { popup.current?.hidePopover(); button.current?.focus() }
           async function load() {
+            const id = ++latestList.current
+            const active = () => mounted.current && latestList.current === id
             setLoading(true); setError(null); setListed(null); setCandidate(null)
             try {
               const result = await request(props.sessionId, { action: 'list' })
-              if (mounted.current) setListed(result)
-            } catch (failure) { if (mounted.current) setError(failure.message) }
-            finally { if (mounted.current) setLoading(false) }
+              if (active()) setListed(result)
+            } catch (failure) { if (active()) setError(failure.message) }
+            finally { if (active()) setLoading(false) }
           }
           function show() {
             if (popup.current.matches(':popover-open')) { close(); return }
@@ -116,7 +119,11 @@ window.__ModuleLoader__.load({
             try {
               const result = await request(props.sessionId, { action: 'switch', branch: candidate, root: listed.root, current: listed.current })
               // Re-read the native panel, so both this seat and the later worktree base use Git's answer.
-              await ctx.remote.forgePanel.refresh(props.sessionId)
+              if (mounted.current) { setListed(null); setCandidate(null) }
+              try {
+                const refreshed = await ctx.remote.forgePanel.refresh(props.sessionId)
+                if (!refreshed.ok) throw new Error(refreshed.error.message)
+              } catch (failure) { throw new Error(`${t('refreshFailed')} ${failure.message}`, { cause: failure }) }
               if (mounted.current) { setMessage(tf('changed', result.current)); close() }
             } catch (failure) { if (mounted.current) setError(failure.message) }
             finally { if (mounted.current) setPending(false) }
@@ -128,7 +135,7 @@ window.__ModuleLoader__.load({
             finally { if (mounted.current) setPending(false) }
           }
           function keys(event) {
-            if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return
+            if (event.nativeEvent.isComposing || event.keyCode === 229 || !['ArrowDown', 'ArrowUp'].includes(event.key)) return
             const buttons = [...popup.current.querySelectorAll('[data-dbs-branch]')]
             if (!buttons.length) return
             const index = buttons.indexOf(document.activeElement)
@@ -152,7 +159,7 @@ window.__ModuleLoader__.load({
               h('div', { className: 'dbs-heading' }, t('switch'), h('button', { type: 'button', className: 'dbs-btn', 'aria-label': t('close'), onClick: close }, '×')),
               h('input', { ref: search, type: 'search', className: 'dbs-search', placeholder: t('search'), 'aria-label': t('search'), value: query, disabled: pending,
                 onChange: event => { setQuery(event.target.value); setCandidate(null) },
-                onKeyDown: event => { if (event.key === 'Enter' && rows[0]) { event.preventDefault(); setCandidate(rows[0]) } } }),
+                onKeyDown: event => { if (!event.nativeEvent.isComposing && event.keyCode !== 229 && event.key === 'Enter' && rows[0]) { event.preventDefault(); setCandidate(rows[0]) } } }),
               h('div', { className: 'dbs-list', 'aria-busy': loading || pending },
                 loading ? h('p', { className: 'dbs-hint', role: 'status' }, t('loading')) : rows.map(name => h('button', {
                   key: name, type: 'button', className: 'dbs-row', title: name, 'data-dbs-branch': '', 'aria-pressed': candidate === name,
@@ -167,11 +174,12 @@ window.__ModuleLoader__.load({
                 h('button', { type: 'button', className: 'dbs-btn dbs-primary', disabled: !candidate || candidate === listed?.current || pending || readonly,
                   title: candidate ? tf('choose', candidate) : undefined, onClick: () => void switchBranch() }, pending ? t('switching') : t('switch')))))
         }
+        const SessionSeat = props => h(BranchSeat, { ...props, key: props.sessionId })
         ctx.slots.inject(SLOT, () => {
           let dispose
           let base
           const sync = () => {
-            const next = ctx.slots.entries(SLOT).find(entry => entry.options.id === ENTRY && entry.component !== BranchSeat)
+            const next = ctx.slots.entries(SLOT).find(entry => entry.options.id === ENTRY && entry.component !== SessionSeat)
             if (next === base) return
             dispose?.(); dispose = undefined; base = next
             if (!base) return
@@ -179,7 +187,7 @@ window.__ModuleLoader__.load({
             dispose = ctx.slots.register({
               name: SLOT, id: ENTRY, priority: -10, order: base.options.order,
               locale: base.locale, inject: sessionId => ({ ...base.inject(sessionId), original }),
-            }, BranchSeat)
+            }, SessionSeat)
           }
           const unsubscribe = ctx.slots.subscribe(SLOT, sync)
           sync()
