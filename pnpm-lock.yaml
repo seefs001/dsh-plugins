@@ -112,6 +112,8 @@ importers:
         specifier: workspace:^
         version: link:../work-timeline
 
+  packages/prompt-shortcut: {}
+
   packages/quote-jump: {}
 
   packages/recent-sessions: {}

@@ -55,6 +55,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
+| [`dsh-prompt-shortcut`](packages/prompt-shortcut) | 收藏常用说法，按名称或正文搜索，点一下插入光标处，不自动发送。 | Web |
 | [`dsh-cheat-sheet`](packages/cheat-sheet) | 搜索当前会话可主动调用的技能，置顶常用项，默认按实际使用频次降序，把命令写入输入框，不自动发送或执行技能。 | Host + Web |
 | [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页和 X）与 `openai_search`，使用已有 Responses provider 的托管搜索。 | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | 新增 `openai_image` 与 `grok_image`，使用已有 Responses provider 的托管画图工具，并把图片保存为文件。 | Host + Web |
