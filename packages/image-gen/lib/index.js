@@ -14,7 +14,7 @@
  * model receives the images only when its route declares image input.
  */
 import { mkdir, writeFile } from 'node:fs/promises'
-import { isAbsolute, join, relative, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 export const name = 'image-gen'
 export const inject = ['tools', 'webServer', 'connection']
@@ -63,7 +63,10 @@ export function backendOf(kind, raw) {
 /** A relative output directory may not climb out of the working directory. */
 export function outputDirOf(raw) {
   const dir = str(raw) || DEFAULTS.outputDir
-  if (!isAbsolute(dir) && relative('.', dir).startsWith('..')) return DEFAULTS.outputDir
+  if (!isAbsolute(dir)) {
+    const path = relative('.', dir)
+    if (path === '..' || path.startsWith(`..${sep}`)) return DEFAULTS.outputDir
+  }
   return dir
 }
 
@@ -505,14 +508,14 @@ export function apply(ctx, config) {
     return true
   }
   const strip = ({ kind: _k, ...rest }) => rest
-  const state = async () => {
+  const state = async (selected = settings) => {
     const providers = piAiProviders(ctx.get('configEditor'))
     const status = {}
     for (const kind of Object.keys(KINDS)) {
-      const b = settings[kind]
+      const b = selected[kind]
       status[kind] = unusable(b) ?? ((await ready(ctx, b)) ? 'ready' : 'route or key missing')
     }
-    return { outputDir: settings.outputDir, openai: strip(settings.openai), grok: strip(settings.grok), responsesProviders: responsesProviders(providers), status }
+    return { outputDir: selected.outputDir, openai: strip(selected.openai), grok: strip(selected.grok), responsesProviders: responsesProviders(providers), status }
   }
 
   ctx.effect(() => ctx.webServer.register({
@@ -540,14 +543,16 @@ export function apply(ctx, config) {
       const entry = ctx.fiber.entry
       const editor = ctx.get('configEditor')
       if (entry === undefined || editor === undefined) return sendJson(res, 500, { message: 'configuration cannot be saved in this profile' })
+      // Resolve display metadata while this instance still owns its services.
+      const confirmed = await state(settingsOf(parsed.value))
       try {
-        // Saving restarts this plugin, which re-registers the tools.
+        // Saving reconciles this plugin and re-registers the tools.
         await editor.edit(entry, current => ({ ...current, ...parsed.value }))
       } catch (error) {
         ctx.logger?.warn?.(`image-gen: failed to save settings: ${error?.message ?? error}`)
         return sendJson(res, 409, { message: String(error?.message ?? error) })
       }
-      sendJson(res, 200, parsed.value)
+      sendJson(res, 200, confirmed)
     },
   }), `image-gen: POST ${SET_PATH}`)
 }
