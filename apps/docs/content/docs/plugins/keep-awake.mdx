@@ -1,21 +1,21 @@
 ---
 title: 保持唤醒
-description: DSH Host 运行期间阻止 macOS 闲置休眠，屏幕仍可熄灭和锁定。
+description: DSH Host 运行期间阻止 Mac 闲置休眠，屏幕仍照常熄灭和锁屏。
 ---
 
 <PluginFacts slug="keep-awake" />
 
-启用后，运行 DSH Host 的 Mac 不会因为闲置而自动休眠。显示器仍可熄灭，屏幕仍可锁定。不需要管理员权限、依赖或配置，也不改永久电源设置。
+启用后，运行 DSH Host 的 Mac 不会因为闲置而自动休眠，同时屏幕照常熄灭和锁屏。无需额外配置或管理员权限，也不会修改系统的永久电源设置。
 
 ## 安装
 
 <InstallCommand slug="keep-awake" />
 
-需要 macOS 自带的 `/usr/bin/caffeinate`。插件作用于 Host 所在的电脑，不是浏览器所在的设备。在其他操作系统上，它记录一条警告，不做任何事。
+依赖 macOS 自带的 `/usr/bin/caffeinate`，只作用于运行 Host 的那台 Mac（不是打开网页的设备）。在其他系统上启用只会记一条警告，不做任何事。
 
 ## 使用
 
-在 Plugins 页启用 **保持唤醒**，没有设置项和浏览器控件。停用插件或退出 DSH Host 就不再阻止休眠。关闭浏览器标签页不会停止后台的 Host。
+在 Plugins 页开启 **保持唤醒** 即可生效，没有额外的设置项或浏览器按钮。停用插件或退出 DSH Host 后自动恢复正常；单纯关掉浏览器标签页不会停止后台的 Host。
 
 ## 生命周期
 

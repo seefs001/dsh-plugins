@@ -14,8 +14,8 @@ window.__ModuleLoader__.load({
       },
       zh: {
         label: '子代理模型',
-        readOnly: '只读：模型由主代理指定。',
-        unrecorded: '尚无模型记录',
+        readOnly: '只读：由主代理决定使用的模型。',
+        unrecorded: '还没记录到模型',
         providerDefault: '提供方默认',
       },
     }

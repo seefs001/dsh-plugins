@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Inbox",
-    "description": "Review requests and deliverables, defer individual questions, and return to your place. Optional summaries are off by default."
+    "description": "A quiet inbox for sessions waiting on your input and recent turn results, rolling subtasks up under their parent. Optional per-directory AI summaries are off by default."
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "dsh-paseo-hub",
   "version": "0.1.0",
-  "description": "Connect the DSH Host to Paseo Hub as a daemon: Hub triggers from GitHub, Slack, Discord, Linear, and Telegram run as DSH sessions, with the Hub reply and finish tools mounted per run.",
+  "description": "Connect the DSH Host to Paseo Hub so Hub triggers run locally as DSH sessions.",
   "keywords": [
     "dsh-plugin",
     "dsh",

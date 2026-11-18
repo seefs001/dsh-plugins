@@ -10,20 +10,20 @@ window.__ModuleLoader__.load({
     const EN = {
       switch: 'Switch branch', search: 'Search local branches', loading: 'Loading branches…', switching: 'Switching branch…',
       current: 'Current', detached: 'Detached HEAD', empty: 'No matching local branches.', retry: 'Retry', close: 'Close',
-      hint: 'Switch the existing checkout. Other sessions using this directory see the same branch. Uncommitted changes are kept unless Git refuses the switch.',
-      local: 'Existing local branches only. No fetch, branch creation, stash, or force.',
+      hint: 'Switches the branch in this working directory (other sessions sharing it will see the change). Uncommitted changes stay unless Git blocks the switch.',
+      local: 'Existing local branches only.',
       worktree: 'New worktree', worktreeHint: 'Create an isolated checkout when the first message is sent.',
       readonly: 'Branch switching is unavailable in read-only mode.',
-      refreshFailed: 'The branch was switched, but the panel did not refresh:', changed: 'Switched to {branch}', choose: 'Switch to {branch}',
+      refreshFailed: 'Switched branches, though the panel failed to refresh:', changed: 'Switched to {branch}', choose: 'Switch to {branch}',
     }
     const ZH = {
       switch: '切换分支', search: '搜索本地分支', loading: '正在加载分支…', switching: '正在切换分支…',
       current: '当前', detached: '游离 HEAD', empty: '没有匹配的本地分支。', retry: '重试', close: '关闭',
-      hint: '切换当前工作目录，共用此目录的其他会话也会受影响。未提交改动会保留；可能覆盖改动时，Git 会拒绝切换。',
-      local: '只切换已有本地分支，不拉取、不建分支、不暂存、不强制覆盖。',
+      hint: '会切换当前目录的分支，共用同一目录的其他会话也会跟着变。未提交改动会保留，有冲突时 Git 会拦下。',
+      local: '只切换本地已有分支，不会拉取、新建或强切。',
       worktree: '新建工作树', worktreeHint: '发送首条消息时创建独立工作目录。',
       readonly: '只读模式下不能切换分支。',
-      refreshFailed: '分支已切换，但面板刷新失败：', changed: '已切换到 {branch}', choose: '切换到 {branch}',
+      refreshFailed: '分支已切好，但面板没刷新过来：', changed: '已切换到 {branch}', choose: '切换到 {branch}',
     }
     const CSS = `
 .dbs-root{display:inline-flex;flex:none;align-items:center;gap:2px;min-width:0}

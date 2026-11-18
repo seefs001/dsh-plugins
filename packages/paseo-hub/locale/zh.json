@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Paseo Hub",
-    "description": "把这台 DSH Host 作为 daemon 接入 Paseo Hub。在侧栏打开 Paseo Hub，填 Hub 地址，在浏览器里批准登录。之后 Hub 来自 GitHub、Slack、Discord、Linear 和 Telegram 的触发在 DSH 会话里运行：provider 为 `dsh`，模型用你的模型，mode 用你的权限预设。每次运行挂上 Hub 的 reply 和 finish 工具，只在该会话内预先批准。仅在 Host 运行期间工作。"
+    "description": "把这台 DSH Host 接入 Paseo Hub：在侧栏输入 Hub 地址并完成登录授权后，来自 GitHub、Slack、Discord、Linear 和 Telegram 的触发就会作为 DSH 会话在本地跑起来，并按需挂载 reply / finish 工具。"
   }
 }

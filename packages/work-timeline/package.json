@@ -1,7 +1,7 @@
 {
   "name": "dsh-work-timeline",
   "version": "0.1.0",
-  "description": "Session work plans, revision timelines and explicit artifact references for DSH.",
+  "description": "Session work plans, revision timelines, and linked artifacts for DSH.",
   "keywords": [
     "dsh-plugin",
     "dsh",

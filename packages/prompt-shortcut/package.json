@@ -1,7 +1,7 @@
 {
   "name": "dsh-prompt-shortcut",
   "version": "0.1.0",
-  "description": "Save personal text snippets and insert them at the composer cursor without sending.",
+  "description": "Save personal prompt snippets in the browser and insert them at the composer cursor.",
   "keywords": [
     "dsh-plugin",
     "dsh",

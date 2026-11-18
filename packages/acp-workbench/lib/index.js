@@ -149,7 +149,7 @@ export async function apply(ctx) {
           case 'native-fork': result = await native.maintainConnection(sessionId, { fork: op }); break
           case 'native-adopt': result = await native.maintainConnection(sessionId, { adoption: op }); break
           case 'native-connect': result = await native.connect(sessionId, op.externalId, op.route); break
-          case 'native-command': result = await native.command(sessionId, op.command, op.arguments, op.externalId); break
+          case 'native-command': result = await native.command(sessionId, op.command, op.arguments, op.externalId, op.commandStamp); break
           case 'native-stop': result = await native.stop(sessionId, op.externalId, op.stopId); break
           case 'native-reset': result = await native.reset(op.externalId); break
           case 'native-trace': result = native.trace(op); break

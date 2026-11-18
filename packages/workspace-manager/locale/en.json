@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Workspace manager",
-    "description": "Remove saved workspaces and clean up missing directory entries. Files and sessions are kept. Directory checks run on the Host, not in the browser."
+    "description": "Remove saved workspace records and clean up entries whose directories are gone on the Host. Keeps all disk files and sessions intact."
   }
 }

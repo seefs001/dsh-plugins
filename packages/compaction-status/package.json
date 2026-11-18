@@ -1,8 +1,14 @@
 {
   "name": "dsh-compaction-status",
   "version": "0.1.0",
-  "description": "Shows context compaction and elapsed time above the DSH composer while summarization is running.",
-  "keywords": ["dsh-plugin", "dsh", "deepseek-harness", "compaction", "status"],
+  "description": "Show context compaction status and elapsed time above the DSH composer.",
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "deepseek-harness",
+    "compaction",
+    "status"
+  ],
   "license": "MIT",
   "author": "seefs001",
   "repository": {
@@ -19,17 +25,28 @@
     "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
-  "files": ["lib", "locale", "icon.svg", "cordis.patch.yml", "README.md"],
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
   "engines": {
     "node": "^22.19.0 || >=24.0.0",
     "dsh": ">=0.2.2-rc.1 <0.3.0"
   },
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-ui-conversation"]
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
     }
   }
 }

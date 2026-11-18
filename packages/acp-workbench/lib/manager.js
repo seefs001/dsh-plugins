@@ -8,6 +8,7 @@ import { WorkbenchStore } from './store.js'
 import { advertisedModels, inputModalities } from './models.js'
 
 import { contextWindow } from './usage.js'
+import { rememberNotice } from './notices.js'
 import { formFields, formResponse } from './forms.js'
 import { activityOf } from './activity.js'
 import { anchorCompaction, cliParentOf } from './trace.js'
@@ -117,9 +118,17 @@ export class Workbench {
     return { ...summary(session, runtime), interactions }
   }
 
+  // session/new may advertise before its reply identifies the remote. Only that remote's
+  // latest list from this live process is actionable; the journal remains historical.
+  commandReport(session) {
+    const rt = this.runtimes.get(session.id)
+    return rt && !rt.closing && session.remoteId ? rt.commandReports?.get(session.remoteId) : null
+  }
+
   detail(session) {
+    const report = this.commandReport(session)
     return { ...this.overview(session), capabilities: session.capabilities ?? {}, authMethods: session.authMethods ?? [], modes: session.modes ?? null,
-      models: session.models ?? null, configOptions: session.configOptions ?? [], commands: session.commands ?? [], usage: session.lastContext?.window ?? session.usage ?? null,
+      models: session.models ?? null, configOptions: session.configOptions ?? [], commands: report?.commands ?? [], commandStamp: report?.stamp ?? null, usage: session.lastContext?.window ?? session.usage ?? null,
       storageError: this.store.failure?.message ?? null }
   }
 
@@ -365,7 +374,7 @@ export class Workbench {
       if (!this.isCurrent(session, runtime)) { await connection.stop(); throw new Error('Connection was canceled during startup') }
       // The picker selects opaque CLI variant IDs, not separate model parameters.
       const info = await connection.request('initialize', {
-        protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false, plan: {}, elicitation: { form: {} }, session: { compaction: {} },
+        protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false, plan: {}, elicitation: { form: {} }, session: { compaction: {}, notices: {} },
           // Display-only notifications. No terminal/create, write, filesystem or execution capability.
           _meta: { terminal_output: true, terminal_output_delta: true } }, clientInfo: CLIENT_INFO,
       })
@@ -392,7 +401,11 @@ export class Workbench {
       session.historyLoaded = true
       // Preserve just a range, not another copy of the old transcript. Later reconnects do not extend it.
       if (captureImport) session.native.replayRange = { from, to: session.eventSeq }
-      if (!session.remoteId) session.remoteId = str(result.sessionId, 'ACP sessionId', 1000)
+      if (!session.remoteId) {
+        session.remoteId = str(result.sessionId, 'ACP sessionId', 1000)
+        for (const id of runtime.commandReports?.keys() ?? []) if (id !== session.remoteId) runtime.commandReports.delete(id)
+        for (const id of runtime.noticeHeads?.keys() ?? []) if (id !== session.remoteId) runtime.noticeHeads.delete(id)
+      }
       session.modes = result.modes ?? session.modes ?? null
       session.models = result.models ?? session.models ?? null
       session.configOptions = result.configOptions ?? session.configOptions ?? []
@@ -411,7 +424,8 @@ export class Workbench {
     if (!this.isCurrent(session, runtime)) return
     if (params.sessionId && session.remoteId && params.sessionId !== session.remoteId) return
     const owner = method === 'session/update' ? anchorCompaction(session, runtime, params, session.eventSeq + 1) : undefined
-    const event = this.record(session, 'notification', { method, params, replay: runtime.replaying, turnId: runtime.turnId, ...(owner !== undefined && { compactionOwner: owner }) })
+    const event = this.record(session, 'notification', { method, params, replay: runtime.replaying, turnId: runtime.turnId, ...(owner !== undefined && { compactionOwner: owner }),
+      ...(params.update?.sessionUpdate === 'notice' && session.state === 'starting' && { noticePhase: 'connect' }) })
     if (method === '$/cancel_request') {
       // Only an unanswered request is withdrawable. Once the human response is being
       // journaled, do not manufacture a second, contradictory withdrawal receipt.
@@ -436,12 +450,23 @@ export class Workbench {
       else if (update.sessionUpdate === 'tool_call_update' && parent && starts.has(callId) && starts.get(callId)?.parent !== parent) starts.set(callId, null)
     }
     switch (update.sessionUpdate) {
+      case 'notice': if (session.native && !runtime.turnId) rememberNotice(runtime, event); break
       case 'config_option_update':
         session.configOptions = update.configOptions ?? []
         await this.noteAdvertised(session.providerId, advertisedModels({ models: session.models, configOptions: session.configOptions }, session.capabilities))
         break
       case 'current_mode_update': session.modes = { ...session.modes, currentModeId: update.currentModeId }; break
-      case 'available_commands_update': session.commands = update.availableCommands ?? []; break
+      case 'available_commands_update': {
+        if (typeof params.sessionId !== 'string' || !params.sessionId || cliParentOf(update) || !Array.isArray(update.availableCommands)) break
+        const commands = [], seen = new Set()
+        for (const item of update.availableCommands) {
+          if (typeof item?.name !== 'string' || !item.name || /[\s\p{Cc}]/u.test(item.name) || item.name.startsWith('/') || seen.has(item.name)) continue
+          seen.add(item.name)
+          commands.push({ name: item.name, description: typeof item.description === 'string' ? item.description : '', ...(typeof item.input?.hint === 'string' && { input: { hint: item.input.hint } }) })
+        }
+        ;(runtime.commandReports ??= new Map()).set(params.sessionId, { stamp: runtime.generation + ':' + event.seq, commands })
+        break
+      }
       case 'usage_update': {
         const window = contextWindow(update)
         if (window && !runtime.replaying && session.remoteId && params.sessionId === session.remoteId && !cliParentOf(update)) {

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Work timeline",
-    "description": "Track a session’s plan, revision history, and explicitly linked artifacts. Opens current files in the host preview; references are not version snapshots. The Pi preset supplies work_read and direct-only work_update."
+    "description": "Shows a session’s plan, revisions, and linked deliverables in chat and lets you preview the current files. Replaces the Pi preset’s TODO list."
   }
 }

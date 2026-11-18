@@ -1,7 +1,7 @@
 {
   "name": "dsh-web-access",
   "version": "0.1.0",
-  "description": "Web search tools for dsh: pick a local Responses model and hosted web_search / x_search per backend, configured from the Plugins page.",
+  "description": "Adds grok_search and openai_search tools backed by hosted search on a local Responses model.",
   "keywords": [
     "dsh-plugin",
     "dsh",

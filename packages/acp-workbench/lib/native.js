@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { applyLateCompactions, cliParentOf, createTrace, foldEvents } from './trace.js'
 import { replyExcerpt } from './review.js'
+import { connectionNotices } from './notices.js'
 import { guardManagedCheckout } from './checkouts.js'
 import { modelDetails, reasoningInfo, reasoningSelection } from './models.js'
 
@@ -114,6 +115,16 @@ export class NativeAcp {
           .catch(error => this.manager.log?.(`ACP trace reference: ${error.message}`))
           .finally(() => this.manager.changed(session.id))
       }
+    }))
+    // DSH's non-forcing archive asks all activity providers inside its registry mutation.
+    // An ACP connection can be starting or awaiting input even if a catalog snapshot looks idle.
+    this.disposers.push(this.ctx.on('workspace/session-activity', async ({ sessionId }, next) => {
+      const rest = await next()
+      const active = this.active.has(sessionId) || this.sessions(sessionId, false).some(s => {
+        const rt = this.manager.runtimes.get(s.id)
+        return rt && (rt.turnId || rt.interactions.size || s.state === 'starting')
+      })
+      return active ? [...rest, { kind: 'acp-session' }] : rest
     }))
     this.disposers.push(this.ctx.on('workspace/session-archived', async ({ sessionId }) => {
       await Promise.all(this.sessions(sessionId, false).map(s => this.manager.disconnect(s, 'native-session-archived')))
@@ -232,6 +243,8 @@ export class NativeAcp {
     return {
       // Never put a sibling's or an old engine's occupancy next to this composer's model.
       contextReport: !binding?.archived && report && report.remoteId === binding.remoteId ? { externalId: binding.id, at: report.at, window: report.window } : null,
+      commandStamp: binding?.state === 'idle' && !binding.archived ? this.manager.commandReport(binding)?.stamp ?? null : null,
+      noticeFeed: connectionNotices(binding, binding && this.manager.runtimes.get(binding.id)),
       // A navigation hint only. Opening it checks live project membership and effective directories again.
       checkoutGroup: this.manager.store.sharedGroups.get(sessionId) ?? null,
       providers: [...this.manager.store.providers.values()].map(p => ({ id: p.id, label: p.label, route: this.route(p.id) })),
@@ -273,7 +286,7 @@ export class NativeAcp {
     let after = Math.max(cached.through, from - 1)
     while (after < end) {
       const page = this.manager.store.events(session, after, 200)
-      foldEvents(cached, page.events.filter(event => event.seq >= from && event.seq <= end))
+      foldEvents(cached, page.events.filter(event => event.seq >= from && event.seq <= end), session.remoteId, run.id)
       if (page.next <= after) break
       after = Math.min(page.next, end)
       cached.through = Math.max(cached.through, after)
@@ -437,14 +450,16 @@ export class NativeAcp {
     }
   }
 
-  async command(sessionId, name, args = '', externalId) {
+  async command(sessionId, name, args = '', externalId, stamp) {
     const agent = await this.openAgent(sessionId)
     if (this.closing || !agent || agent.status !== 'idle') throw new Error('The DSH session must be open and idle')
     if (typeof args !== 'string' || args.length > MAX_HANDOFF) throw new Error('Invalid external command arguments')
     const route = agent.model.current()?.provider
     const session = this.sessions(sessionId, false).find(s => s.native.route === route && !s.native.retired)
     if (externalId && session?.id !== externalId) throw new Error('Select this record’s ACP provider in the DSH model picker before running a command')
-    if (!session || session.state !== 'idle' || !session.commands?.some(command => command.name === name)) throw new Error('Connect the selected engine and choose one of its advertised commands')
+    const report = session && this.manager.commandReport(session)
+    if (stamp != null && stamp !== report?.stamp) throw new Error('The CLI command list changed; select the command again')
+    if (!session || session.archived || session.state !== 'idle' || !report?.commands.some(command => command.name === name)) throw new Error('Connect the selected engine and choose one of its advertised commands')
     // The human chose an external command. Bypass DSH slash-command parsing,
     // but submit ordinary identified input through the native Agent inbox.
     agent.followup({ id: randomUUID(), role: 'user', source: { kind: 'user' },

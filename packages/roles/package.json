@@ -1,7 +1,7 @@
 {
   "name": "dsh-roles",
   "version": "0.1.0",
-  "description": "Role manager for dsh: roles with detailed prompts and their own skills, switched per session from the composer's model menu.",
+  "description": "Manage reusable roles with custom prompts and skills and switch them per DSH session.",
   "keywords": [
     "dsh-plugin",
     "dsh",

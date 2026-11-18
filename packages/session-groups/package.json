@@ -1,7 +1,7 @@
 {
   "name": "dsh-session-groups",
   "version": "1.0.0",
-  "description": "Custom session groups for the dsh Web UI, stored on the Host, with pinned sessions leading each group.",
+  "description": "Custom session groups and per-group pins for DSH, shared across browsers and agents.",
   "keywords": [
     "dsh-plugin",
     "dsh",

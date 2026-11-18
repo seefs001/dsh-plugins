@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Message edit",
-    "description": "Hover one of your messages and click the pencil icon next to Copy. By default, overwrite the message and clear later model context without switching sessions or rerunning anything. Uncheck Clear later context to keep it. The message bubble and Copy use the saved text; later chat history remains visible. Fork and resend is an explicit alternative that creates a separate session."
+    "description": "Hover your message and click the pencil icon to edit it. Overwrites the message and clears later model context by default (uncheck to keep it), or fork and resend into a new session."
   }
 }

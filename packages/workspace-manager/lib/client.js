@@ -7,11 +7,11 @@ window.__ModuleLoader__.load({
     const NS = 'workspace-manager'
     const EN = {
       panel: 'Workspace manager',
-      description: 'Remove saved workspace entries, not files or sessions. Changes also update the built-in workspace picker.',
+      description: 'Remove saved workspace records without touching files or sessions on disk. Also updates the built-in workspace picker.',
       scan: 'Check directories',
       scanning: 'Checking directories…',
-      cleanup: 'Clean up invalid entries',
-      cleanupHint: 'Cleanup checks all workspaces, regardless of the search filter. Disconnected drives may look missing. Review the paths before confirming.',
+      cleanup: 'Clean up missing entries',
+      cleanupHint: 'Checks all workspaces regardless of your search filter. Disconnected external drives can look missing, so double-check paths before confirming.',
       search: 'Search names or paths',
       empty: 'No saved workspaces.',
       noMatches: 'No matching workspaces.',
@@ -34,11 +34,11 @@ window.__ModuleLoader__.load({
     }
     const ZH = {
       panel: '工作区管理',
-      description: '只移除工作区记录，不删除磁盘文件或会话。移除后，原生工作区选择器也会同步更新。',
+      description: '只移除工作区记录，不会删除磁盘上的文件和会话。原生工作区选择器也会同步更新。',
       scan: '检查目录',
       scanning: '正在检查目录…',
       cleanup: '清理失效记录',
-      cleanupHint: '清理会检查全部工作区，不受搜索条件影响。断开的磁盘也可能显示为不存在，确认前请核对路径。',
+      cleanupHint: '会检查全部工作区（不受搜索过滤影响）。外接磁盘断开时也会显示“目录不存在”，确认前先核对一下路径。',
       search: '搜索名称或路径',
       empty: '没有已保存的工作区。',
       noMatches: '没有匹配的工作区。',

@@ -1,7 +1,7 @@
 {
   "name": "dsh-title-model",
   "version": "0.1.0",
-  "description": "Choose a separate model for DSH session titles without changing the title strategy or conversation model.",
+  "description": "Choose a separate model for DSH session title generation without changing the conversation model.",
   "keywords": [
     "dsh-plugin",
     "dsh",

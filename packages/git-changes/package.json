@@ -1,7 +1,7 @@
 {
   "name": "dsh-git-changes",
   "version": "0.1.0",
-  "description": "A Git changes entry below the dsh composer: branch, added and deleted lines, and changed files; click to open the diff in the right Sidebar.",
+  "description": "Show branch and uncommitted diff stats below the DSH composer and open the diff in the sidebar.",
   "keywords": [
     "dsh-plugin",
     "dsh",

@@ -5,6 +5,7 @@
  * `session/load` history replays are excluded because they belong to earlier turns.
  * Folding is incremental: `through` is the last sequence applied.
  */
+import { noticeReceipt } from './notices.js'
 import { contextWindow, sessionTotals, recordWindow } from './usage.js'
 
 const MAX_LOG_CHARS = 64 * 1024
@@ -151,7 +152,7 @@ export function anchorCompaction(session, runtime, params, seq) {
     if (last && last.to === seq - 1) last.to = seq
     else ranges.push({ from: seq, to: seq })
     const run = session.native.runs.find(r => r.id === anchor.owner)
-    if (run) run.compactionRevision = seq
+    if (run) { run.compactionRevision = seq; session.native.compactionRevision = seq }
   }
   return anchor.owner // null: the entity opened outside a DSH run
 }
@@ -182,7 +183,7 @@ export function createTrace() {
   return { through: 0, section: 0, rows: [], tools: new Map(), plans: new Map(), compactions: new Map(), windows: new Map(), questions: new Map(), log: null }
 }
 
-export function foldEvents(trace, events) {
+export function foldEvents(trace, events, remoteId, runId) {
   for (const event of events) {
     if (event.seq <= trace.through) continue
     trace.through = event.seq
@@ -211,6 +212,9 @@ export function foldEvents(trace, events) {
       if (['Agent', 'Task'].includes(update._meta?.claudeCode?.toolName)) row.cliTask = true
     } else if (parent && (kind === 'agent_message_chunk' || kind === 'user_message_chunk')) {
       taskProgress(trace, update, event.seq, parent)
+    } else if (kind === 'notice') {
+      const row = data.turnId && data.turnId === runId && noticeReceipt(event, remoteId)
+      if (row) { trace.rows.push(row); trace.section = event.seq }
     } else if (kind === 'compaction_update' || kind === 'compaction_summary_chunk') {
       if (data.turnId && (!Object.hasOwn(data, 'compactionOwner') || data.compactionOwner === data.turnId)) foldCompaction(trace.rows, trace.compactions, data.turnId, event, update)
       trace.section = event.seq

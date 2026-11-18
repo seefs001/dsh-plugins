@@ -1,7 +1,7 @@
 {
   "name": "dsh-keep-awake",
   "version": "0.1.0",
-  "description": "Prevents macOS idle sleep while the DSH Host is running, without keeping the display on or changing power settings.",
+  "description": "Prevent macOS idle sleep while the DSH Host runs, without keeping the display awake.",
   "keywords": [
     "dsh-plugin",
     "dsh",

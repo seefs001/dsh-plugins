@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Title model",
-    "description": "Open Plugins → Title model to choose a separate model for the active first-prompt or conversation-following title generator. Save writes the generator’s native provider/model settings; Same as session clears that override. Human prompts used for titles are sent to the selected provider in separate, billable requests. The conversation model, title strategy and user-pinned titles are unchanged. Disabling this settings plugin keeps saved choices; reset them before removing it to restore the session model."
+    "description": "Pick a separate model for session title generation without changing your conversation model or title strategy. Note: disabling the plugin keeps the saved setting, so switch back to Same as session before removing it."
   }
 }

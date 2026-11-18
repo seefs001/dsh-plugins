@@ -1,8 +1,15 @@
 {
   "name": "dsh-subagent-model",
   "version": "1.0.0",
-  "description": "Shows the addressed subagent's recorded model and reasoning effort beside the composer, without enabling model switching.",
-  "keywords": ["dsh-plugin", "dsh", "deepseek-harness", "subagent", "model", "composer"],
+  "description": "Show an addressed subagent’s recorded model and reasoning effort beside its composer.",
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "deepseek-harness",
+    "subagent",
+    "model",
+    "composer"
+  ],
   "license": "MIT",
   "author": "seefs001",
   "homepage": "https://github.com/seefs001/dsh-plugins/tree/main/packages/subagent-model#readme",
@@ -11,7 +18,9 @@
     "url": "git+https://github.com/seefs001/dsh-plugins.git",
     "directory": "packages/subagent-model"
   },
-  "bugs": { "url": "https://github.com/seefs001/dsh-plugins/issues" },
+  "bugs": {
+    "url": "https://github.com/seefs001/dsh-plugins/issues"
+  },
   "type": "module",
   "icon": "icon.svg",
   "main": "lib/index.js",
@@ -22,14 +31,24 @@
     "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
-  "files": ["lib", "locale", "icon.svg", "cordis.patch.yml", "README.md"],
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
   "engines": {
     "node": "^22.19.0 || >=24.0.0",
     "dsh": ">=0.2.2-rc.1 <0.3.0"
   },
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "immediately": true,

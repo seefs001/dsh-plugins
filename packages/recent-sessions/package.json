@@ -1,7 +1,7 @@
 {
   "name": "dsh-recent-sessions",
   "version": "1.0.0",
-  "description": "Lists sessions in the dsh @ reference menu by last activity, newest first.",
+  "description": "Sort sessions in the DSH @ reference menu by recent activity.",
   "keywords": [
     "dsh-plugin",
     "dsh",

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Remember last model",
-    "description": "Saves the model and reasoning effort you pick in a session as the default, so new sessions start on it."
+    "description": "Remembers the model and reasoning effort you picked last and starts new sessions with them."
   }
 }

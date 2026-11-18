@@ -1,7 +1,7 @@
 {
   "name": "dsh-auto-review-model",
   "version": "1.0.0",
-  "description": "Routes dsh Auto review requests to a model you pick from the locally available models, instead of the session's own model.",
+  "description": "Route DSH Auto review requests to a chosen local model and customize the review prompt.",
   "keywords": [
     "dsh-plugin",
     "dsh",

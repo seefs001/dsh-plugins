@@ -1,7 +1,7 @@
 {
   "name": "dsh-model-reference",
   "version": "1.3.0",
-  "description": "Type # in the dsh composer to insert a model chip carrying that model's last reasoning effort and fast mode.",
+  "description": "Type # in the DSH composer to insert a model chip with its last reasoning effort and fast mode.",
   "keywords": [
     "dsh-plugin",
     "dsh",

@@ -19,51 +19,51 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
-| [`dsh-model-reference`](packages/model-reference) | 在输入框输入 `#` 插入模型标签，带上该模型上次的推理强度和快速模式。 | Host + Web |
-| [`dsh-service-tier`](packages/service-tier) | 为 OpenAI Responses 请求选择快速档，支持的模型还可选择超快档。 | Host + Web |
-| [`dsh-remember-model`](packages/remember-model) | 新会话使用你最近选择的模型和推理强度。 | Host |
-| [`dsh-title-model`](packages/title-model) | 为对话标题单独选择模型，保留标题生成策略和主对话模型。 | Host + Web |
-| [`dsh-subagent-model`](packages/subagent-model) | 在子代理输入框显示它记录的模型和推理强度。只读，主代理的选择器不变。 | Web |
-| [`dsh-auto-review-model`](packages/auto-review-model) | 为 Auto review 选择模型和提示词，查看每个会话的审查日志。需要 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
-| [`dsh-roles`](packages/roles) | 在独立侧栏管理页编辑角色提示词、自带技能和本地技能引用，在输入框的模型菜单里为会话切换角色。 | Host + Web |
+| [`dsh-model-reference`](packages/model-reference) | 输入 `#` 插入模型标签，自动带上该模型上次的推理强度和快速模式。 | Host + Web |
+| [`dsh-service-tier`](packages/service-tier) | 给 OpenAI Responses 请求切换快速档，支持的模型还可选超快档。 | Host + Web |
+| [`dsh-remember-model`](packages/remember-model) | 记住你在会话里刚选好的模型和推理强度，开新会话直接沿用。 | Host |
+| [`dsh-title-model`](packages/title-model) | 为对话标题单独选一个模型，不影响主对话模型和标题策略。 | Host + Web |
+| [`dsh-subagent-model`](packages/subagent-model) | 在子代理输入框右下角显示它记录的模型和推理强度（只读，不影响主代理）。 | Web |
+| [`dsh-auto-review-model`](packages/auto-review-model) | 为 Auto review 单独选模型和审查提示词，还能看每个会话的审查日志。需要 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
+| [`dsh-roles`](packages/roles) | 在侧栏管理常用角色、提示词和技能，在模型菜单里按会话切换。 | Host + Web |
 
 ### 会话与工作区
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
-| [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序。 | Web |
-| [`dsh-inbox`](packages/inbox) | 跨会话收件箱，只有需要人的请求计入角标，worker 归到父任务。 | Host + Web |
-| [`dsh-session-groups`](packages/session-groups) | 自定义会话分组和组内置顶，所有浏览器和 Agent 共享。 | Host + Web |
-| [`dsh-workspace-manager`](packages/workspace-manager) | 移除保存的工作区记录，清理目录已不存在的条目，不删文件和会话。 | Host + Web |
-| [`dsh-branch-switcher`](packages/branch-switcher) | 新会话发出首条消息前，在新建会话页切换到已有的本地分支。需要 Change requests & worktrees。 | Host + Web |
-| [`dsh-git-changes`](packages/git-changes) | 输入框下方显示分支和未提交改动，点击打开 diff。需要 Change requests & worktrees。 | Web |
-| [`dsh-keep-awake`](packages/keep-awake) | Host 运行期间阻止 macOS 闲置休眠，屏幕仍可熄灭和锁定。 | Host |
+| [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序，刚聊过的排最前。 | Web |
+| [`dsh-inbox`](packages/inbox) | 跨会话收件箱，只把需要你拍板或回答的会话计入角标，子任务自动归到主会话下。 | Host + Web |
+| [`dsh-session-groups`](packages/session-groups) | 自定义会话分组和组内置顶，所有浏览器和 Agent 同步共享。 | Host + Web |
+| [`dsh-workspace-manager`](packages/workspace-manager) | 移除保存过的工作区记录、清理失效目录条目，不动磁盘文件和会话。 | Host + Web |
+| [`dsh-branch-switcher`](packages/branch-switcher) | 新会话发第一条消息前，直接在页面里切换到已有本地分支。需要 Change requests & worktrees。 | Host + Web |
+| [`dsh-git-changes`](packages/git-changes) | 输入框下方显示当前分支和未提交改动，点一下打开右侧 diff。需要 Change requests & worktrees。 | Web |
+| [`dsh-keep-awake`](packages/keep-awake) | Host 运行期间阻止 Mac 闲置休眠，屏幕仍照常熄灭和锁屏。 | Host |
 
 ### 对话阅读
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
-| [`dsh-compaction-status`](packages/compaction-status) | 上下文压缩时，在输入框上方显示一行状态和已等待时间。 | Host + Web |
-| [`dsh-quote-jump`](packages/quote-jump) | 用户消息里的引用变成可点击的块，跳回原文并高亮。 | Web |
-| [`dsh-tool-lens`](packages/tool-lens) | 工具调用行可以打开技能文件、完整输出、结果文件和子代理对话。 | Web |
-| [`dsh-message-actions`](packages/message-actions) | 回复旁的 **Wait, what?** 用独立模型调用解释这条回复，不写入对话。 | Host + Web |
-| [`dsh-message-edit`](packages/message-edit) | 在自己的消息上点 **编辑**：默认清空后续模型上下文，也可选择保留；另支持分叉重发。 | Host + Web |
-| [`dsh-ai-mascot`](packages/ai-mascot) | 可拖动的 GPT / Claude 角色，跟随当前显示的对话。角色素材另有非商业条款。 | Web |
-| [`dsh-acp-workbench`](packages/acp-workbench) | 让会话改由 Cursor、Antigravity 等本机 ACP Agent 执行，或委派可续聊的原生 ACP 子任务；工具轨迹和审批留在当前会话。外部 CLI 不受 DSH 沙箱约束。 | Host + Web |
+| [`dsh-compaction-status`](packages/compaction-status) | 压缩上下文时，在输入框上方显示状态和已等待时间。 | Host + Web |
+| [`dsh-quote-jump`](packages/quote-jump) | 把消息里的引用变成可点击卡片，点一下跳回原文并高亮。 | Web |
+| [`dsh-tool-lens`](packages/tool-lens) | 点工具调用行就能打开技能文件、完整输出、结果文件和子代理对话。 | Web |
+| [`dsh-message-actions`](packages/message-actions) | 回复旁的 **Wait, what?** 用独立模型把话重新讲明白，不写进主对话。 | Host + Web |
+| [`dsh-message-edit`](packages/message-edit) | 悬停自己的消息点 **编辑**，默认在当前会话改写并清空后续上下文；也支持分叉重发。 | Host + Web |
+| [`dsh-ai-mascot`](packages/ai-mascot) | 可拖动的 GPT / Claude 小伙伴，跟着当前对话做动作。角色素材另有非商业条款。 | Web |
+| [`dsh-acp-workbench`](packages/acp-workbench) | 让会话改由 Cursor、Antigravity 等本机 ACP 工具执行，或委派可续聊的原生子任务；轨迹和审批留在当前会话。外部 CLI 不受 DSH 沙箱限制。 | Host + Web |
 
 ### 工具与集成
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
-| [`dsh-prompt-shortcut`](packages/prompt-shortcut) | 收藏常用说法，按名称或正文搜索，点一下插入光标处，不自动发送。 | Web |
-| [`dsh-cheat-sheet`](packages/cheat-sheet) | 搜索当前会话可主动调用的技能，置顶常用项，默认按实际使用频次降序，把命令写入输入框，不自动发送或执行技能。 | Host + Web |
-| [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页和 X）与 `openai_search`，使用已有 Responses provider 的托管搜索。 | Host + Web |
-| [`dsh-image-gen`](packages/image-gen) | 新增 `openai_image` 与 `grok_image`，使用已有 Responses provider 的托管画图工具，并把图片保存为文件。 | Host + Web |
-| [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具和系统提示词、QuickJS codemode、会话工具选择、预设默认工具保存和 MCP 刷新。不需要改 DSH 源码。 | Host + Web |
-| [`dsh-work-timeline`](packages/work-timeline) | 会话里的工作计划、修订过程和关联产物，显示在输入框摘要条和右侧面板。替换 Pi 预设的 TODO 清单，`work_read` 和 `work_update` 由 `dsh-pi-tools` 挂载。 | Host + Web |
-| [`dsh-pi-mcp`](packages/pi-mcp) | 把 Pi 的 `~/.pi/agent/mcp.json` 里的 MCP 服务器注册到 DSH MCP 管理器，改文件即时生效。 | Host |
-| [`dsh-orbit-bridge`](packages/orbit-bridge) | 只读巡检 Orbit 项目：完整分页、本地运行记录、相对上次已处理检查的变化列表。不写 Orbit。 | Host + Web |
-| [`dsh-paseo-hub`](packages/paseo-hub) | 把 Paseo Hub 触发作为 DSH 会话运行，查看本机运行与活动，或通过组织 API 控制台和工具管理触发器、手动触发任务。 | Host + Web |
+| [`dsh-prompt-shortcut`](packages/prompt-shortcut) | 收藏常用话术，搜一搜插到光标处，留给你补完再发。 | Web |
+| [`dsh-cheat-sheet`](packages/cheat-sheet) | 搜索可用技能、置顶常用项（按实际使用次数排序），点一下把命令填进输入框。 | Host + Web |
+| [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页和 X）与 `openai_search`，走已有 Responses provider 的托管搜索。 | Host + Web |
+| [`dsh-image-gen`](packages/image-gen) | 新增 `openai_image` 与 `grok_image`，走已有 Responses provider 的托管画图，并把图片保存为文件。 | Host + Web |
+| [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具与提示词、QuickJS codemode、会话工具选择、预设默认工具保存和 MCP 刷新。不需要改 DSH 源码。 | Host + Web |
+| [`dsh-work-timeline`](packages/work-timeline) | 会话里的工作计划、修订记录和关联产物（显示在输入框摘要条和右侧面板，替换 Pi 预设的 TODO 清单；`work_read` 和 `work_update` 由 `dsh-pi-tools` 提供）。 | Host + Web |
+| [`dsh-pi-mcp`](packages/pi-mcp) | 在 DSH 里共用 Pi 的 `~/.pi/agent/mcp.json`，改文件热更新生效。 | Host |
+| [`dsh-orbit-bridge`](packages/orbit-bridge) | 只读巡检 Orbit 项目，对比上次检查列出新增和变动任务，不写 Orbit。 | Host + Web |
+| [`dsh-paseo-hub`](packages/paseo-hub) | 把 Paseo Hub 触发作为 DSH 会话跑在本机，查看运行与活动，或直接通过组织 API 管理触发器。 | Host + Web |
 
 按需安装即可。同时装了 `dsh-model-reference` 和 `dsh-service-tier` 时，`#` 标签会带上 ⚡。
 

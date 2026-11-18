@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Paseo Hub",
-    "description": "Connect this DSH Host to Paseo Hub as a daemon. Open Paseo Hub in the sidebar, enter the Hub address, and approve the sign-in in the browser. Hub triggers from GitHub, Slack, Discord, Linear, and Telegram then run as DSH sessions with the provider `dsh`, your models, and your permission presets as modes. Each run gets Hub's reply and finish tools, preapproved for that session only. Runs only while this Host is running."
+    "description": "Connect this DSH Host to Paseo Hub as a daemon. Triggers from GitHub, Slack, Discord, Linear, and Telegram run locally as DSH sessions using your models and permission presets, with Hub reply and finish tools mounted per run."
   }
 }

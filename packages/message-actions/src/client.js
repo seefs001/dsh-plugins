@@ -26,7 +26,7 @@ const ZH = {
   settingsTitle: '解释模型',
   followOriginal: '沿用每条原回复的模型', selectModel: '模型', effort: '推理强度', modelDefault: '模型默认',
   unavailable: '（不可用）', save: '保存模型', saveAndExplain: '保存并解释', saving: '正在保存…', saved: '模型已保存',
-  refresh: '刷新模型列表', unsaved: '未保存', restart: '请重启 DSH 以加载更新后的 Wait, what? 插件。',
+  refresh: '刷新模型列表', unsaved: '未保存', restart: '重启一下 DSH 就能加载新版 Wait, what? 插件。',
 }
 const CSS = `
 .dma-entry{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}

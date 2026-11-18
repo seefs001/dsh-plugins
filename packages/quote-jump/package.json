@@ -1,7 +1,7 @@
 {
   "name": "dsh-quote-jump",
   "version": "1.0.0",
-  "description": "Shows quotes in dsh user messages as blocks; clicking one scrolls to the quoted text and highlights it.",
+  "description": "Render quotes in DSH user messages as clickable blocks that jump to and highlight the source.",
   "keywords": [
     "dsh-plugin",
     "dsh",

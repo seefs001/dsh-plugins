@@ -13,7 +13,7 @@ window.__ModuleLoader__.load({
       },
       zh: {
         title: '正在压缩上下文',
-        hint: '正在整理历史对话摘要，完成后继续；这一步可能需要一些时间。',
+        hint: '正在把之前的对话压成摘要，马上继续，可能要等一会儿。',
         elapsed: '已等待 {duration}',
       },
     }

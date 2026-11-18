@@ -75,6 +75,12 @@ Invariants:
 9. Missing usage is unknown. Context-window usage is not relabeled as input token usage.
 10. Unload and cancellation await owned subprocess cleanup; stale generation callbacks cannot mutate a new connection.
 
+## Composer command ownership
+
+Paseo's provider-command pick edits the input. Here the writable native composer supplies one leading slash source to DSH inputTriggers. Offer only the selected idle record; load descriptions and argument hints on demand. A pick claims a namespaced chip, never sends input. DSH owns the arguments, selection and submit. An explicitly submitted chip calls the same user-only native-command operation as the existing options form, carrying the original record and advertisement revision. Restored chips know only their spelling: they cannot reauthorize a new connection. Plain DSH commands and inline text are outside this source.
+
+Command advertisements are live process state, not executable journal history. During startup keep the latest list per reporting remote until new/load resolves; ignore other remotes and child tool updates. Disconnect removes the usable list. A superseded selection fails rather than dispatching a command to another engine.
+
 ## Activity inbox and conversation navigation
 
 The sidebar used to start in the provider editor; a waiting turn, an interrupted run and an intentionally disconnected record looked alike in a chronological list. The comparison point is Paseo's `packages/app/src/components/agent-list.tsx` and `packages/app/src/utils/agent-attention.ts`: a user can locate a conversation that needs them, and focusing it does not answer a permission request. We adopt those interaction properties, not Paseo's daemon or a second inbox for messages.
@@ -122,6 +128,24 @@ Keep a 32 Ki-character tail per display terminal; snapshots replace both text an
 The execution connection advertises ACP v1 `elicitation.form: {}`, not URL elicitation. `elicitation/create` must identify the bound CLI session during an active prompt. The Host parses the reported form once: single string enums, string-enum lists and free text, including required fields and size constraints. Unsupported schema variants return JSON-RPC `-32602` without creating a partial form. Defaults are not submitted silently. The client renders option descriptions and Claude’s optional preview as inert text. It uses the same human-only response route, activity inbox and chat controls as other requests. Permission presets never answer questions.
 
 `accept` carries only validated field values, `decline` carries no response, and `cancel` dismisses. A `$/cancel_request` for an unanswered form matches the exact incoming JSON-RPC ID on that connection; session shutdown expires remaining forms. The action receipt survives disconnects. It does not persist the form response content or re-create active controls, although later CLI output can echo an answer. This is not an authentication prompt, general-purpose schema editor, or support for request-scoped or foreign-session elicitation.
+
+### Project conversation housekeeping
+
+Bulk archive/restore is a Client workflow over the existing `uiWorkspace.archiveSession(id, {stopActivity:false})` and `unarchiveSession(id)` commands, not a privileged Host batch endpoint. Use the selected workspace and filtered member rows, with per-session DSH access hooks. Never preselect items. Switching project, query or archive view drops the checklist. Confirm explicit titles and IDs, then process sequentially and return a result per item. Unmount aborts any preflight and abandons **remaining** items; it does not roll back a native command already issued.
+
+Re-read current membership and archive state before each command. Bulk archive requires checkout inspection and omits any recorded tree (including shared/inherited records); the single-session action retains the path and cleanup warning. The DSH registry remains authoritative for concurrent activity and pin removal. The ACP execution provider contributes its active request, startup or pending interaction to the native `workspace/session-activity` check. No stop-on-archive escalation, pin restoration, worktree recreation, new prompt or external record archive is part of this operation.
+
+### Provider notices without impersonating the assistant
+
+Execution connections advertise `clientCapabilities.session.notices: {}`; discovery, model probes and fork-only connections do not. In the installed Claude ACP v1 adapter, `noticeOrTranscriptUpdate` switches from a synthetic chat line to a typed `notice` when this capability is present. Only that explicit frame gets a notice row. Treat the title and optional description as inert text. Preserve unknown severity strings without escalating them to errors. Each receive is distinct even if the text is identical. A notice cannot start, settle or authorize a tool call, change the DSH model route, or become a final reply.
+
+Native runs show receipts matching their prompt and exact remote session. During setup and between prompts, the selected composer shows at most eight lightweight heads from its current connection. A notice delivered during `session/load` reports what the CLI is telling the connected client now; it is not an imported historical chat message. Resolve an expanded off-turn description from its pinned local event, not another request to the provider. Disconnect/reload discards the live heads. The local journal still shows what this Host received; it does not promise delivery, an unread count, acknowledgements, cross-device notifications or historical replay by the provider.
+
+### Explicit CLI context compaction
+
+Execution connections advertise `clientCapabilities.session.compaction: {}` (ACP v1 draft). `compaction_update` creates or patches a stable session-scoped marker; `compaction_summary_chunk` appends to it and can open it without a start frame. Status does not imply a summary. Omitted summary/error/metadata keep their prior values; explicit null and empty summary arrays clear them. Only a supported, explicitly reported extension supplies trigger, before/after counts or duration. Do not advertise an AIR client identity to obtain them. Older Claude `think` tool reports with the actual `claudeCode.toolName: compact` marker retain their tool identity. An English title, usage drop or DSH checkpoint alone is not a compaction.
+
+In the record timeline a live marker retains its first position across prompts; a load replay has a separate scope. In native chat a marker belongs to the run that first received it. Persist this owner and the sequence ranges of late patches, not duplicate content. Read those ranges only for the owning trace and mark late updates as such. Idle-only markers remain in the external record. A finished turn with only `in_progress` is not a completed compression. The reported summary stays in the trace, not the assistant message. Render text/resources as inert text; media buttons resolve a specific local journal frame only on request. Unsupported attachments remain labeled, raw frames remain in diagnostics.
 
 ### Context occupancy and accounting
 

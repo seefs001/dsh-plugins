@@ -1,7 +1,7 @@
 {
   "name": "dsh-service-tier",
   "version": "1.2.0",
-  "description": "Choose Fast or, on supported models, Ultrafast for OpenAI Responses requests beside the dsh model picker.",
+  "description": "Choose Fast or Ultrafast service tiers for OpenAI Responses requests beside the DSH model picker.",
   "keywords": [
     "dsh-plugin",
     "dsh",

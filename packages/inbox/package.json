@@ -1,7 +1,7 @@
 {
   "name": "dsh-inbox",
   "version": "0.2.0",
-  "description": "A quiet DSH inbox for decisions, scoped reminders, verified turn sources, and optional model-selected summaries.",
+  "description": "A quiet DSH inbox for pending decisions, deferred questions, turn results, and optional AI summaries.",
   "keywords": [
     "dsh-plugin",
     "dsh",

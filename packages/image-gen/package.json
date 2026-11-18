@@ -1,7 +1,7 @@
 {
   "name": "dsh-image-gen",
   "version": "0.1.0",
-  "description": "Image generation tools for dsh: openai_image and grok_image call the hosted image_generation tool through a local Responses model, configured from the Plugins page.",
+  "description": "Adds openai_image and grok_image tools backed by hosted image_generation on a local Responses model.",
   "keywords": [
     "dsh-plugin",
     "dsh",

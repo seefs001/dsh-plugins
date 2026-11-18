@@ -1,7 +1,7 @@
 {
   "name": "dsh-orbit-bridge",
   "version": "0.1.0",
-  "description": "Read-only Orbit project watch for the dsh Host: complete paging, local runs with observed and processed baselines, and a restricted agent interface.",
+  "description": "Read-only Orbit project watch for DSH with change tracking and a restricted agent interface.",
   "keywords": [
     "dsh-plugin",
     "dsh",

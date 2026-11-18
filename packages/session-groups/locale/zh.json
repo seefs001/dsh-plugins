@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "会话分组",
-    "description": "把会话放进自定义分组，每个分组内可置顶会话；分组保存在 Host，所有浏览器和 agent 共享。"
+    "description": "给会话建自定义分组、组内置顶，分组保存在 Host 上，所有浏览器和 Agent 都能同步看到。"
   }
 }

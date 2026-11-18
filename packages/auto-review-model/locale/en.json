@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Auto review model",
-    "description": "Lets Auto review judge tool calls with a model you pick from the locally available models, and add your own rules to its review prompt or replace it."
+    "description": "Pick a separate local model for Auto review tool checks, and append rules to or replace the built-in review prompt."
   }
 }

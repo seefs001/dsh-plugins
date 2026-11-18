@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "工作时间线",
-    "description": "在会话中查看计划、修订过程和显式关联的产物。复用宿主预览当前文件，引用不是历史快照。Pi preset 提供 work_read 和仅限直接调用的 work_update。"
+    "description": "在会话里展示任务计划、修订记录和关联产物，点产物直接在宿主预览当前文件（替换 Pi 预设里的 TODO 清单）。"
   }
 }

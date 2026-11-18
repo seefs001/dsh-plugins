@@ -19,51 +19,51 @@ English | [中文](README.zh.md)
 
 | Package | What it does | Runs in |
 |---|---|---|
-| [`dsh-model-reference`](packages/model-reference) | Type `#` in the composer to insert a model chip that carries that model's last reasoning effort and fast mode. | Host + Web |
-| [`dsh-service-tier`](packages/service-tier) | Choose Fast or, on supported models, Ultrafast for OpenAI Responses requests. | Host + Web |
-| [`dsh-remember-model`](packages/remember-model) | New sessions start on the model and reasoning effort you picked last. | Host |
-| [`dsh-title-model`](packages/title-model) | Choose a separate model for session titles without changing the title strategy or conversation model. | Host + Web |
-| [`dsh-subagent-model`](packages/subagent-model) | Shows a subagent's recorded model and reasoning effort in its composer. Read-only; the main agent's picker is unchanged. | Web |
-| [`dsh-auto-review-model`](packages/auto-review-model) | Choose the model and prompt that Auto review uses, and read each session's review log. Needs `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
-| [`dsh-roles`](packages/roles) | Edit roles in a sidebar manager with prompts, role-owned skills and local skill references; pick one per session from the composer's model menu. | Host + Web |
+| [`dsh-model-reference`](packages/model-reference) | Type `#` in the composer to insert a model chip carrying that model's last reasoning effort and fast mode. | Host + Web |
+| [`dsh-service-tier`](packages/service-tier) | Pick Fast or Ultrafast (on supported models) for OpenAI Responses requests. | Host + Web |
+| [`dsh-remember-model`](packages/remember-model) | Remembers the model and reasoning effort you picked last and starts new sessions with them. | Host |
+| [`dsh-title-model`](packages/title-model) | Pick a separate model for session titles without changing the conversation model or title strategy. | Host + Web |
+| [`dsh-subagent-model`](packages/subagent-model) | Shows a subagent's recorded model and reasoning effort beside its composer (read-only). | Web |
+| [`dsh-auto-review-model`](packages/auto-review-model) | Pick a separate model and custom prompt for Auto review, and browse each session's review log. Needs `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
+| [`dsh-roles`](packages/roles) | Manage roles with custom prompts and skills in the sidebar, and switch them per session from the model menu. | Host + Web |
 
 ### Sessions and workspaces
 
 | Package | What it does | Runs in |
 |---|---|---|
-| [`dsh-recent-sessions`](packages/recent-sessions) | Sorts sessions in the `@` menu by last activity. | Web |
-| [`dsh-inbox`](packages/inbox) | A quiet cross-session inbox for decisions and turn updates; workers stay under their parent. | Host + Web |
-| [`dsh-session-groups`](packages/session-groups) | Custom session groups with per-group pins, shared by every browser and the agent. | Host + Web |
-| [`dsh-workspace-manager`](packages/workspace-manager) | Removes saved workspace entries and cleans up ones whose directory is gone. Files and sessions stay. | Host + Web |
-| [`dsh-branch-switcher`](packages/branch-switcher) | Switches to an existing local branch from the New Session screen before the first message. Needs Change requests & worktrees. | Host + Web |
-| [`dsh-git-changes`](packages/git-changes) | Branch and uncommitted-change counts below the composer; click to open the diff. Needs Change requests & worktrees. | Web |
-| [`dsh-keep-awake`](packages/keep-awake) | Prevents macOS idle sleep while the Host runs. The display can still sleep and the screen can still lock. | Host |
+| [`dsh-recent-sessions`](packages/recent-sessions) | Sorts sessions in the `@` menu by recent activity, newest first. | Web |
+| [`dsh-inbox`](packages/inbox) | A quiet inbox for sessions waiting on you and recent turn results; subtasks roll up under their parent. | Host + Web |
+| [`dsh-session-groups`](packages/session-groups) | Custom session groups with per-group pins, shared across browsers and agents. | Host + Web |
+| [`dsh-workspace-manager`](packages/workspace-manager) | Removes saved workspace entries and cleans up missing directories without touching files or sessions. | Host + Web |
+| [`dsh-branch-switcher`](packages/branch-switcher) | Switch to an existing local branch right from the New Session page before your first message. Needs Change requests & worktrees. | Host + Web |
+| [`dsh-git-changes`](packages/git-changes) | Shows the current branch and uncommitted changes below the composer; click to open the diff. Needs Change requests & worktrees. | Web |
+| [`dsh-keep-awake`](packages/keep-awake) | Keeps your Mac from idle sleeping while the Host runs, while still letting the display sleep and lock. | Host |
 
 ### Reading conversations
 
 | Package | What it does | Runs in |
 |---|---|---|
-| [`dsh-compaction-status`](packages/compaction-status) | A one-line status and elapsed timer above the composer during context compaction. | Host + Web |
-| [`dsh-quote-jump`](packages/quote-jump) | Quotes in your messages become blocks that scroll to the quoted text and highlight it. | Web |
-| [`dsh-tool-lens`](packages/tool-lens) | Tool-call rows that open the skill file, full output, result files, or the subagent's conversation. | Web |
-| [`dsh-message-actions`](packages/message-actions) | **Wait, what?** beside each reply explains it in an isolated model call that never enters the conversation. | Host + Web |
-| [`dsh-message-edit`](packages/message-edit) | **Edit** your messages in place: clear later model context by default, or keep it. Fork and resend is also available. | Host + Web |
-| [`dsh-ai-mascot`](packages/ai-mascot) | Draggable GPT / Claude companions that follow the displayed conversation. The artwork has separate non-commercial terms. | Web |
-| [`dsh-acp-workbench`](packages/acp-workbench) | Run a conversation through a local ACP agent such as Cursor or Antigravity, or delegate to native, continuable ACP subagents. Tool traces and approvals stay in the conversation. External CLIs are not sandboxed by DSH. | Host + Web |
+| [`dsh-compaction-status`](packages/compaction-status) | Shows compaction status and elapsed time above the composer during context compaction. | Host + Web |
+| [`dsh-quote-jump`](packages/quote-jump) | Turns quotes in your messages into clickable blocks that jump back to and highlight the source. | Web |
+| [`dsh-tool-lens`](packages/tool-lens) | Adds quick actions to tool-call rows to open skill files, full outputs, result files, or subagent chats. | Web |
+| [`dsh-message-actions`](packages/message-actions) | **Wait, what?** beside each reply explains it in an isolated model call without touching the conversation. | Host + Web |
+| [`dsh-message-edit`](packages/message-edit) | **Edit** your messages in place (clearing later context by default, or keeping it), or fork and resend. | Host + Web |
+| [`dsh-ai-mascot`](packages/ai-mascot) | Draggable GPT / Claude companions that react to the active conversation. Artwork has separate non-commercial terms. | Web |
+| [`dsh-acp-workbench`](packages/acp-workbench) | Run Cursor, Antigravity, or other local ACP agents directly in DSH conversations or as continuable subagents, with traces and approvals in place. External CLIs run outside the DSH sandbox. | Host + Web |
 
 ### Tools and integrations
 
 | Package | What it does | Runs in |
 |---|---|---|
 | [`dsh-prompt-shortcut`](packages/prompt-shortcut) | Save personal snippets in this browser and insert them at the cursor without sending. | Web |
-| [`dsh-cheat-sheet`](packages/cheat-sheet) | Search the current session's user-invocable skills, pin favorites, sort by actual usage frequency, and insert slash commands into the composer without submitting them. | Host + Web |
-| [`dsh-web-access`](packages/web-access) | Adds `grok_search` (web and X) and `openai_search`, using hosted search on an existing Responses provider. | Host + Web |
-| [`dsh-image-gen`](packages/image-gen) | Adds `openai_image` and `grok_image`, using hosted image generation on an existing Responses provider and saving the images to files. | Host + Web |
-| [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi's original coding tools and system prompt, QuickJS codemode, per-session tool selection, saved preset defaults and MCP refresh. No DSH source changes. | Host + Web |
-| [`dsh-work-timeline`](packages/work-timeline) | A session work plan, revision history and linked artifacts in a composer summary and side panel. Replaces the Pi preset's TODO list; `dsh-pi-tools` mounts its `work_read` and `work_update` tools. | Host + Web |
-| [`dsh-pi-mcp`](packages/pi-mcp) | Registers the MCP servers in Pi's `~/.pi/agent/mcp.json` with the DSH MCP manager and follows file edits live. | Host |
-| [`dsh-orbit-bridge`](packages/orbit-bridge) | Read-only watch over Orbit projects: complete paging, local run history, and change lists against the last processed check. Never writes to Orbit. | Host + Web |
-| [`dsh-paseo-hub`](packages/paseo-hub) | Run Paseo Hub triggers as DSH sessions, inspect local runs and activity, or manage organization triggers and manual dispatch through the API console and tools. | Host + Web |
+| [`dsh-cheat-sheet`](packages/cheat-sheet) | Search available skills, pin favorites, sort by actual usage, and insert slash commands into the composer. | Host + Web |
+| [`dsh-web-access`](packages/web-access) | Adds `grok_search` (web and X) and `openai_search` using hosted search on an existing Responses provider. | Host + Web |
+| [`dsh-image-gen`](packages/image-gen) | Adds `openai_image` and `grok_image` using hosted image generation on an existing Responses provider, saving images to files. | Host + Web |
+| [`dsh-pi-tools`](packages/pi-tools) | An isolated `pi` preset with Pi coding tools, QuickJS codemode, per-session tool selection, saved defaults, and MCP refresh. | Host + Web |
+| [`dsh-work-timeline`](packages/work-timeline) | Shows a session's work plan, revisions, and linked artifacts in chat (replaces the Pi preset's TODO list; `work_read` and `work_update` come from `dsh-pi-tools`). | Host + Web |
+| [`dsh-pi-mcp`](packages/pi-mcp) | Shares Pi's `~/.pi/agent/mcp.json` with DSH and follows file edits live. | Host |
+| [`dsh-orbit-bridge`](packages/orbit-bridge) | Read-only watch over Orbit projects tracking new, changed, and missing tasks against the last check. Never writes to Orbit. | Host + Web |
+| [`dsh-paseo-hub`](packages/paseo-hub) | Run Paseo Hub triggers locally as DSH sessions, inspect runs and activity, or manage triggers via the organization API. | Host + Web |
 
 Install only what you need. With both `dsh-model-reference` and `dsh-service-tier` installed, `#` chips also carry ⚡.
 

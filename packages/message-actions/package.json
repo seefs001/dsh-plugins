@@ -1,7 +1,7 @@
 {
   "name": "dsh-message-actions",
   "version": "0.1.0",
-  "description": "One-click Wait, what? explanations of replies without changing the conversation, with a dedicated selectable model and persistent Host-side caching.",
+  "description": "Explain replies with a one-click Wait, what? dialog using an isolated model call and Host cache.",
   "keywords": [
     "dsh-plugin",
     "dsh",
