@@ -1,78 +1,80 @@
 ---
 title: 安装
-description: 从 GitHub 或本地仓库安装插件，并确认它已经生效。
+description: 从 GitHub 或本地仓库安装插件，并确认它已经在目标 profile 中生效。
 ---
 
 ## 环境要求
 
-使用最新的 DeepSeek Harness 和本仓库 `main` 分支。带 Web 部分的插件需要 `dsh web`。
+- 最新版 DeepSeek Harness 与本仓库 `main` 分支（不维护旧版本兼容）。
+- 带有 Web 界面的插件需要在 `dsh web` 下使用。
 
-下文命令以 `web` profile 为例。安装时用的 profile 必须和你实际启动的 profile 一致。
+下文命令均以 `web` profile 为例；安装时的 `--profile` 必须与实际启动使用的 profile 一致。
 
 ## 从 GitHub 安装
 
 <Steps>
 <Step>
 
-### 选一个插件
+### 选定插件目录名
 
-在 [插件目录](/docs/plugins) 里找到插件，记下目录名，例如 `model-reference`。
+在 [插件目录](/docs/plugins) 找到想装的插件，记下目录名（例如 `model-reference`）。
 
 </Step>
 <Step>
 
-### 安装
+### 执行安装命令
 
 <InstallCommand slug="model-reference" />
 
-`path:` 指向本仓库里的一个包，只会安装这一个插件，不需要构建。也可以打开 Web 界面的 **Plugins** 页，粘贴 `github:` 开头的地址。
+`path:` 参数指定只安装仓库中的这一个包，无需手动构建。也可以直接打开 Web 界面的 **Plugins** 页面，粘贴上面的 `github:` 地址安装。
 
 </Step>
 <Step>
 
 ### 确认生效
 
-安装成功后，Plugin Manager 会选中这个 bundle。profile 启用了 HMR 时，改动立即生效，结果显示 `applied`。结果是 `restart-required` 时，重启这个 profile 的 DSH。Web 部分的更新在刷新页面后加载。
+安装完成后 Plugin Manager 会选中该 bundle：
+
+- profile 开启了 HMR 且返回 `applied`：Host 侧立即生效；
+- 返回 `restart-required`：重启该 profile 的 DSH 进程；
+- 包含 Web 部分的插件：刷新浏览器页面即可加载新版前端。
 
 </Step>
 </Steps>
 
-`#main` 安装的是 GitHub `main` 分支上已经推送的版本。要试本地还没推送的改动，用下面的 `link:` 方式。
-
-## 从本地仓库安装
+## 从本地仓库安装（开发或试新改动）
 
 ```bash
 git clone https://github.com/seefs001/dsh-plugins.git
 cd dsh-plugins
-dsh plugin --profile web add link:$PWD/packages/model-reference
+dsh plugin --profile web add "link:$PWD/packages/model-reference"
 ```
 
-`link:` 让 profile 直接使用仓库里的源码。修改后的加载方式见 [开发与发布](/docs/development)。
+`link:` 直接引用本地源码目录（`dsh-message-actions` 如修改 `src/client.js` 需先执行 `pnpm --filter dsh-message-actions build`，其余包均为原生 ES 模块）。详见 [开发与发布](/docs/development)。
 
-## 一次装多个
+## 批量安装命令参考
 
-按用途分组的全部命令，可以只复制需要的行：
+按四大分类整理的完整安装命令，按需复制对应行即可：
 
 <InstallAll />
 
-<Callout type="warn" title="先确认额外依赖">
-有些插件需要先启用别的 bundle 或准备外部条件，例如 Auto review、Change requests & worktrees、Responses provider 或 macOS。安装前看一下 [依赖与边界](/docs/compatibility) 的表格。
+<Callout type="warn" title="先核对额外依赖">
+部分插件依赖特定 DSH bundle（如 Auto review、Forge worktrees、storage domain）或外部环境（如 macOS、本机 ACP CLI、`rg`/`fd`）。安装前请对照 [依赖与边界](/docs/compatibility)。
 </Callout>
 
-## 安装后没有变化
+## 排查未生效
 
-- 确认安装用的 profile 就是正在运行的 profile，并在 Plugins 页确认 bundle 已启用、没有报错。
-- Plugin Manager 返回 `restart-required` 时，重启后再看。
-- Web 部分在刷新页面后才会加载新代码。
-- 有些入口只在特定场景出现：⚡ 只出现在 `openai-responses` 模型旁；子代理模型只在子代理会话里显示；Git 变更需要 Git 仓库和 Change requests & worktrees；AI 吉祥物只在 GPT 或 Claude 模型的对话里出现。
-- Plugin Manager 拒绝安装时，先把 DSH 更新到最新。
+1. 检查安装时的 `--profile` 是否就是当前启动的 profile，在 **Plugins** 页面确认 bundle 已开启且无报错。
+2. 确认是否需要重启 DSH（`restart-required`）并刷新浏览器页面。
+3. 核对触发条件：`⚡` 只在 `openai-responses` 模型旁显示；子代理模型只出现在子代理会话；Git 变更与分支切换需要 Git 仓库及 Forge bundle；AI 吉祥物只匹配 GPT / Claude 模型 ID；`pi` 工具只在选用 `pi` 预设的新会话中加载。
+4. 若 Plugin Manager 拒绝安装，请先将 DSH 更新至最新版本。
 
-## 移除
+## 移除插件
 
-在 Plugins 页停用或移除对应 bundle，或在命令行运行：
+在 **Plugins** 页面停用或移除对应 bundle，或运行命令行：
 
 ```bash
 dsh plugin --profile web remove dsh-model-reference
 ```
 
-移除插件不会删除它在 Host 存储里留下的数据，例如会话分组或审查日志。各插件页的“数据”一节写明了这些数据的位置。
+移除插件不会删除已经写入 Host storage domain（如会话分组、角色库、ACP 记录、审查日志）或 DSH 原生配置的数据。

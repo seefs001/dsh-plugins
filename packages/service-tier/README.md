@@ -1,32 +1,46 @@
 # dsh-service-tier
 
-Use ⚡ beside the model picker in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) to set a model’s service tier. For `gpt-6.2-sol`, `gpt-6.2-astra`, `gpt-6.1-sol`, and `gpt-6-astra`, choose **Default speed**, **Fast** (`priority`), or **Ultrafast** (`ultrafast`). Default shows an outline bolt, Fast shows one filled bolt, and Ultrafast shows two. Default removes the override and leaves the provider in control. For other models, clicking ⚡ directly toggles Fast. Existing Fast selections stay on `priority`.
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）输入框右侧模型选择器旁增加 `⚡` 档位按钮，为 OpenAI Responses 协议请求设置 `service_tier`（快速 `priority` 或超快 `ultrafast`）。
 
-The control appears only when the current model's provider uses the OpenAI Responses API: either `api: openai-responses` in `llm-pi-ai`, or a pi-ai catalog route such as `openai` that sets no `api` of its own and inherits the catalog's Responses protocol.
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Host + Web |
+| 生效范围 | 仅限使用 `openai-responses` 协议的 provider |
+| 数据保存 | profile 的 `cordis.patch.yml`（`tiers` 字段） |
 
-## How it works
+## 安装
 
-| Half | File | Role |
-|---|---|---|
-| Host | `lib/index.js` | Adds the selected `service_tier` for `provider/model` pairs on Responses routes. The plugin wraps `streamSimple` on the prototype of the pi-ai `Models` collection that `@deepseek-ai/dsh-llm-pi-ai` uses and sets the field through `onPayload` (`lib/pi-ai-hook.js`). This depends on DSH internals; if the layout changes, the Host log shows `service-tier: service tier overrides are unavailable`. Serves `GET /service-tier/state` and `POST /service-tier/set`. |
-| Browser | `lib/client.js` | Renders the service tier control in `conversation.input.right` and shows whether the change was saved. |
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/service-tier"
+```
 
-Both routes use the same authentication as the rest of the Web API. `GET /service-tier/state` includes the `ultrafastModels` list. `POST /service-tier/set` accepts `provider`, `model`, and `tier` (`"priority"`, `"ultrafast"`, or `null` to clear), up to 16 KiB. The original `fast: true` / `false` form still sets priority or clears the override.
+本地开发链接：
 
-The control waits for the config editor to save the change to the profile's `cordis.patch.yml`. If saving fails, the control keeps its previous state and shows the error.
+```bash
+dsh plugin --profile web add "link:$PWD/packages/service-tier"
+```
 
-## Configuration
+## 用法
+
+- 当当前模型所属的 provider 使用 `openai-responses` 协议时，模型选择器旁会出现 `⚡` 按钮：
+  - **支持 Ultrafast 的模型**（`gpt-6.2-sol`、`gpt-6.2-astra`、`gpt-6.1-sol`、`gpt-6-astra`）：点击弹出菜单选择 **默认速度**（空心闪电）、**快速**（单实心闪电，`priority`）或 **超快**（双实心闪电，`ultrafast`）。
+  - **其他 Responses 模型**：点击直接切换 **快速**（`priority`）与 **默认速度**。
+- 仅在配置编辑器内 `api: openai-responses` 或 pi-ai 目录中默认走 Responses 协议的路由上显示；其他路由不显示图标也不修改请求。
+
+## 配置与边界
+
+设置通过 `POST /service-tier/set` 保存到 `cordis.patch.yml`：
 
 ```yaml
 - id: service-tier
   config:
-    # Default speed has no entry.
     tiers:
       responses/gpt-6.1-sol: priority
       responses/gpt-6.2-sol: ultrafast
 ```
 
-## Notes
+- 通过包装 `@deepseek-ai/dsh-llm-pi-ai` 请求入口的 `onPayload` 注入 `service_tier`（同时兼容旧版 `llm-pi-ai/model-defaults` waterfall）。
+- 选择 **默认速度** 会移除该模型的覆盖项，由提供方默认策略接管。
+- 使用 `priority` 或 `ultrafast` 档位需由上游模型服务支持，并可能产生对应档位计费。
 
-- [Ultrafast](https://developers.openai.com/api/docs/guides/ultrafast-mode) has separate pricing and rate limits. The model list does not guarantee access through your account or gateway.
-- [`dsh-model-reference`](../model-reference) reads this plugin's state to add ⚡ to `#` chips.
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/service-tier)。

@@ -1,66 +1,23 @@
 ---
 title: AI 吉祥物
-description: 右下角的 GPT / Claude Q 版角色，跟随当前显示对话的真实活动。
+description: 右下角可拖拽的 GPT / Claude Q 版小伙伴，跟随当前所查看对话的真实活动。
 ---
 
 <PluginFacts slug="ai-mascot" />
 
-在 Web 界面右下角显示 GPT 或 Claude 的 Q 版角色。它只跟随当前显示的对话，切换动作、提示和小道具，不会被后台其他会话的活动带跑。
+在 Web 界面右下角显示一只可爱的 GPT / Claude Q 版小伙伴，实时跟着你正在查看的对话切换状态动作（思考、写回复、读文件、搜索、写代码、跑命令、协作、等待确认与完成庆祝）。
+
+<Callout type="warn" title="素材授权说明">
+插件代码和包图标采用 MIT 协议，**角色形象与参考图不属于 MIT 授权范围**。原设计来自 [ZipZipPipe](https://www.pixiv.net/users/18604994)（[原作合集](https://www.pixiv.net/artworks/148186519)，禁止商业使用），参考图托管于 [AI Moe Atlas](https://selinlee.github.io/ai-moe-atlas/zh/chibi/)。如需商业使用或二次分发，请先取得原作者授权或自行替换图片地址。
+</Callout>
 
 ## 安装
 
 <InstallCommand slug="ai-mascot" />
 
-安装后刷新页面，打开使用受支持模型的对话。
+## 行为与特性
 
-<Callout type="warn" title="素材授权">
-插件代码和图标使用 MIT 许可，角色设计和参考图不是。安装插件不代表获得素材的使用权，公开或商业使用前请先看下文的“素材与授权”。
-</Callout>
-
-## 哪些模型会显示
-
-插件按模型 ID 识别角色，不按 provider 名称：GPT、ChatGPT、Codex 和 OpenAI o1/o3/o4 的模型 ID 显示 GPT 角色，Claude 的模型 ID 显示 Claude 角色，其他模型不显示。所以 OpenAI 兼容 provider 下的其他模型不会被当作 GPT。切到全局面板或离开对话时角色隐藏。
-
-## 动作
-
-| 当前活动 | 表现 |
-| --- | --- |
-| 空闲 | 安静呼吸，没有气泡和徽章 |
-| 思考 | 微微歪头，思考点渐隐渐现 |
-| 读文件、图片、技能、网页 | 慢慢点头，手里一本打开的书 |
-| 搜索、grep、glob | 左右张望，带扫描徽章 |
-| 写入、编辑 | 小幅打字动作，带代码道具 |
-| 回复 | 拿着纸条和移动的铅笔，与写代码区分开 |
-| Shell、终端、作业工具 | 凑近绿色终端，提示符闪烁 |
-| 子代理、协作者 | 轻轻摇摆，连接徽章跳动 |
-| 等待批准或回答问题 | 慢速呼吸，徽章常亮，带输入提示，不闪烁提醒 |
-| 回复成功完成 | 小跳一下加闪光，然后回到空闲 |
-| 提示或 Agent 出错 | 轻轻摇两下，提示“看一下对话” |
-
-- 动作来自真实的 Chat projection：进行中的工具调用和部分回复，加上会话的运行、错误和待处理交互状态。准备中的工具调用在派发前仍算“思考”。多个工具并发时以最近的活动调用为准，包括嵌套调用。
-- 停止和报错不会触发庆祝。
-- 每条消息对应真实活动，没有假进度，也不轮播闲聊。GPT 的文案干脆一些（如“理理思路…”），Claude 温和一些（如“想一想…”）。
-- 动画是用 CSS 和道具让一张静态正面参考图动起来，不是逐帧精灵图或 Live2D 模型。
-
-## 操作与偏好
-
-- 拖动角色即可移动，位置限制在视口内并记在当前浏览器。收起后的 40px 状态按钮也可以拖动，不拖动直接点击则展开。
-- 聚焦角色或收起按钮后，用方向键调整位置，按住 Shift 移动更大的步长。状态文字不拦截点击。
-- 设置里有两种尺寸和一个动画开关，按 Esc 关闭设置。系统开启减少动态效果时同样生效。没有声音。
-- 偏好（包括位置）保存在浏览器 localStorage 的 `dsh-ai-mascot:preferences`，不写入 profile，也不在设备之间同步。
-- 齿轮按钮里可以看到素材来源。
-
-## 外部请求与边界
-
-- 两张参考图从 `selinlee.github.io` 加载，首次使用需要能访问这个站点，浏览器会向它发出普通的图片请求，不带对话内容或 referrer。图片加载失败时，模型名和活动仍然显示。
-- 正面裁切图在浏览器内存里去掉与边缘相连的近白背景，保留封闭的白色细节。处理后的图片不打包、不上传。
-- 没有 Host 进程、轮询或对话上传，不额外保留会话，不改模型，不执行工具。头部观察器不渲染界面，角色挂在附加的 `shell.overlay` 位置。
-
-## 素材与授权
-
-- GPT / Claude 原始角色设计：[ZipZipPipe](https://www.pixiv.net/users/18604994)，[原作合集](https://www.pixiv.net/artworks/148186519)。
-- Q 版参考图与托管：[AI Moe Atlas](https://selinlee.github.io/ai-moe-atlas/zh/chibi/) 的 `super-chibi-v1` 合集。
-- 引用的图片：[GPT](https://selinlee.github.io/ai-moe-atlas/generated/super-chibi-v1/openai/preview.webp)、[Claude](https://selinlee.github.io/ai-moe-atlas/generated/super-chibi-v1/claude/preview.webp)。
-- [Atlas 权利声明](https://github.com/SelinLee/ai-moe-atlas/blob/main/RIGHTS.md)：站点的 MIT 许可只覆盖代码，不覆盖素材。ZipZipPipe 的设计要求署名，并按 `LicenseRef-ZipZipPipe-NC` 条款禁止商业使用。生成的 Q 版参考图只是参考，不是原始素材或动画骨骼，展示它们不授予额外的改编或再分发权利。
-
-插件引用这些已托管的图片并在显示时裁切正面，不把它们复制进发布包。署名和远程引用不能代替授权，分发动画或改编版本的更广权利也没有取得。商业使用、再分发图片或更大范围发布前，请先取得许可，或把 `ART` 里的地址换成你有权使用的素材。这些角色和插件都不是 OpenAI 或 Anthropic 的官方产品。
+- **按模型 ID 匹配**：当前会话的模型 ID 匹配 `claude` 时显示 Claude，匹配 `gpt`、`chatgpt`、`codex` 或 `o1`/`o3`/`o4` 时显示 GPT；其他模型或全局管理面板自动隐藏。
+- **只看当前会话**：仅响应画面正在展示的对话（并发工具时显示最近发起的调用，包括子调用），忽略后台其他会话；正常回复结束会庆祝 2.4 秒，手动停止或报错不庆祝。
+- **交互与偏好**：支持拖拽移动、键盘方向键微调（配合 `Shift` 大步移动）、收起为 40px 圆按钮、切换「小 / 标准」尺寸与关闭动作动画，并遵守系统 `prefers-reduced-motion`。位置和偏好保存在浏览器 `localStorage`（`dsh-ai-mascot:preferences`）。
+- **外部请求**：首次显示时浏览器直接从 `selinlee.github.io` 加载角色参考图（无对话内容、无 referrer），并在浏览器内存中自动去除外围白底，不打包也不上传图片。

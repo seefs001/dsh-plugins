@@ -1,33 +1,39 @@
 # dsh-web-access
 
-Web search tools for DSH. On the Plugins page, pick a local Responses model and a search type for each tool. The tool calls that model's hosted search and returns an answer with cited sources.
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）新增 `grok_search`（网页与 X/Twitter 搜索）和 `openai_search` 工具，直接复用 `llm-pi-ai` 中已有 OpenAI Responses provider 的地址、Headers 与密钥，无需重复配置 API Key。
 
-| Tool | Hosted search types | Parameters the model can pass |
-|---|---|---|
-| `grok_search` | `web_search`, `x_search`, or both | domains (web), X handles and dates (X) |
-| `openai_search` | `web_search` | allowed domains, context size, location |
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Host + Web |
+| 前置依赖 | `llm-pi-ai` 中配置有 `api: openai-responses` 的 provider 及对应密钥 |
+| 数据保存 | profile 的 `cordis.patch.yml` |
 
-There are two tools because xAI and OpenAI hosted search take different parameters. Each tool's schema lists only the options for the search types you enabled.
-
-## Install
+## 安装
 
 ```bash
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/web-access"
 ```
 
-## Configure
+本地开发链接：
 
-Open **Plugins → dsh-web-access**. For each tool:
+```bash
+dsh plugin --profile web add "link:$PWD/packages/web-access"
+```
 
-- **Enabled**: turning it off removes the tool.
-- **Model**: any model on an `openai-responses` provider in llm-pi-ai. The endpoint (`baseURL`), key (`apiKeyEnv`), and extra `headers` come from that provider, so you do not enter them twice.
-- **Search type**: Grok can use web, X, or both. OpenAI uses web.
+## 工具与参数
 
-Saving restarts the plugin and re-registers the tools. A tool is offered to the model only while its provider route exists and its key resolves; the page shows **Ready** or the reason it is not.
+| 工具 | 托管搜索能力 | 模型可传参数 |
+| --- | --- | --- |
+| `grok_search` | xAI 托管 `web_search` 与 `x_search` | `query`、`sources`（`["web"]` / `["x"]`）、`allowed_domains` / `excluded_domains`（最多 5 个）、`allowed_x_handles` / `excluded_x_handles`（最多 10 个）、`from_date` / `to_date`（`YYYY-MM-DD`） |
+| `openai_search` | OpenAI 托管 `web_search` | `query`、`allowed_domains`（最多 100 个）、`search_context_size`（`low` / `medium` / `high`）、`user_location`（`country` / `city` / `region` / `timezone`） |
 
-When an agent is created or resumed, an available custom web search hides the built-in `web_search` before the first model step, so the tool timeline does not add it only to remove it on the next step. The plugin refreshes this restriction at each model step. Disabling every custom web search, losing their route or key, or unloading this plugin lifts the restriction, and the built-in tool is available as usual. An X-only Grok search does not replace general web search. `web_fetch` and the built-in providers are unchanged. Readiness checks do not probe whether the upstream supports search, and a tool does not fall back after an HTTP error.
+## 配置与边界
 
-The same settings in `cordis.patch.yml`:
+1. 打开 **Plugins → dsh-web-access**，为 Grok 与 OpenAI 分别开启开关、选择 `openai-responses` provider 与模型（Grok 可勾选 `web_search` / `x_search` 子工具），点击 **保存**。
+2. 插件从对应 provider 读取 `baseURL`、`headers` 和 `apiKeyEnv`（优先从 DSH credentials 解析，其次环境变量），并在参数验证与错误日志中自动脱敏密钥。
+3. **自动隐藏冗余内置搜索**：当某会话中至少一个托管 `web_search` 工具就绪可用时，插件会自动在该会话隐藏 DSH 内置 `web_search`，避免模型混淆；`web_fetch` 保持不变。
+
+配置示例（写入 `cordis.patch.yml`）：
 
 ```yaml
 - id: web-access
@@ -35,26 +41,14 @@ The same settings in `cordis.patch.yml`:
     timeoutMs: 120000
     grok:
       enabled: true
-      provider: responses
-      model: grok-4.7-build-fast
+      provider: xai
+      model: grok-4
       tools: [web_search, x_search]
     openai:
       enabled: true
-      provider: responses
-      model: gpt-6.1-sol
+      provider: openai
+      model: gpt-5
       tools: [web_search]
 ```
 
-## Result
-
-The model receives the answer text and up to 10 sources. Sources are the answer's citations (`url_citation` annotations, response `citations`, or markdown links in the answer); raw search-call results are used only when the answer cites nothing. The Chat shows the native search row: a short Grok or OpenAI title, the query, the search channel, and the source count. Expand it to read the formatted answer and source links. Running, stopped, and failed calls keep the native status indicators. Inspect opens the original tool call.
-
-## Optional search parameters
-
-Only `query` is required. Every optional field can be omitted or set to `null`, including each location field, so strict Responses clients do not have to invent dates or locations. For web-only Grok searches, set X filters to `null`. For non-localized OpenAI searches, set `user_location` to `null`. An empty string does not count as `null`, and contradictory or malformed filters still return errors.
-
-## Caveats
-
-- Whether a gateway forwards hosted `web_search` / `x_search` depends on the gateway and the upstream account. An unsupported type returns the endpoint's HTTP error.
-- `allowed_x_handles` / `excluded_x_handles` follow xAI's documented `x_search` fields; a gateway may ignore them.
-- The plugin only adds search. DSH's built-in `web_fetch` keeps working alongside it.
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/web-access)。

@@ -1,84 +1,80 @@
 ---
 title: 开发与发布
-description: 链接本地源码、运行检查、维护文档和发布插件包。
+description: 链接本地源码、运行检查、维护文档站与发布 npm 插件包。
 ---
 
-## 准备
+## 环境准备
 
-在仓库根目录安装依赖。包管理器是根 `package.json` 的 `packageManager` 字段指定的 pnpm。
+在仓库根目录使用根 `package.json` 指定的 `pnpm` 版本安装依赖：
 
 ```bash
 pnpm install
 ```
 
-## 包结构
+## 包目录结构
 
 ```text
 packages/<name>/
-├── package.json        # name = dsh-<name>，dsh.bundle，可选的 dsh.client
-├── cordis.patch.yml    # bundle patch，至少插入一行 name = dsh-<name>
-├── lib/index.js        # Host 入口，原生 ES 模块
-├── lib/client.js       # 可选的浏览器入口（window.__ModuleLoader__）
-├── locale/{en,zh}.json # Plugins 页的 meta.title 和 meta.description
-├── icon.svg
-├── test/*.test.js      # 已有的 node:test 测试（不是每个包都有）
-└── README.md
+├── package.json        # name 必须为 dsh-<name>，含 dsh.bundle 与可选 dsh.client
+├── cordis.patch.yml    # bundle patch，至少插入名为 dsh-<name> 的行
+├── lib/index.js        # Host 入口（ESM）
+├── lib/client.js       # 可选浏览器入口（window.__ModuleLoader__.load）
+├── locale/{en,zh}.json # Plugins 页面显示的 meta.title 与 meta.description
+├── icon.svg            # 包图标
+├── test/*.test.js      # node:test 单元测试（可选）
+└── README.md           # 包说明文档
 ```
 
-大多数插件是不需要构建的纯 JavaScript，`link:` 安装直接运行源码。例外：
+绝大多数插件都是无需构建的原生 ES 模块，`link:` 安装即直接执行源码。两个例外：
 
-- `pi-tools` 的浏览器入口在包根目录的 `client.js`，patch 除了自己的行，还插入一个 `pi` Agent 预设。
-- `message-actions` 的浏览器源码在 `src/client.js`，用 `pnpm --filter dsh-message-actions build` 打包成 `lib/client.js`，`prepack` 会自动构建。
+- `pi-tools`：浏览器入口位于包根目录 `client.js`，`cordis.patch.yml` 同时挂载 `work-timeline` 与完整的 `pi` 预设。
+- `message-actions`：浏览器源码位于 `src/client.js`，需执行 `pnpm --filter dsh-message-actions build` 生成 `lib/client.js`（`prepack` 会自动运行）。
 
-## 链接本地插件
+## 本地链接调试
 
 ```bash
-dsh plugin --profile web add link:$PWD/packages/model-reference
+dsh plugin --profile web add "link:$PWD/packages/model-reference"
 ```
 
-在 Plugins 页确认 bundle 已启用。profile 启用了 HMR 时，Plugin Manager 和 HMR 的重新组合会替换文件已变化的插件；否则按 Plugin Manager 返回的 `restart-required` 重启 DSH。浏览器部分刷新页面后加载。
+在 **Plugins** 页面确认 bundle 已开启。若 profile 开启了 HMR，改动会触发重组合；若返回 `restart-required` 则重启 DSH 进程。浏览器部分刷新页面后生效。
 
-## 检查
+## 静态检查与测试
 
 ```bash
-pnpm run check     # oxlint + manifest 校验 + node:test
-pnpm run pack:dry  # 只检查 packages/* 的 npm 打包内容
+pnpm run check     # 依次运行 oxlint + validate.mjs + node:test
+pnpm run pack:dry  # 演练所有包的 npm pack
 ```
 
-`pnpm run validate` 检查：
+`pnpm run validate` 会强制校验：
 
-- 包名是 `dsh-<目录名>`，`repository.directory` 指向包目录，`type` 是 `module`，`keywords` 包含 `dsh-plugin`，设置了 `engines.dsh`。
-- `dsh.bundle.patch` 存在，并插入名为包名的行。
-- 每个导出都指向存在的文件；只有声明了 `dsh.client` 才导出 `./client`，并且浏览器 bundle 的 ID 等于包名。
-- `en` 和 `zh` locale 都存在，`meta` 键一致，并且都有 `meta.title` 和 `meta.description`。
-- 有 README 和图标。
+- 包名为 `dsh-<目录名>`，`repository.directory` 匹配目录，`type` 为 `module`，`keywords` 含 `dsh-plugin`，且声明了 `engines.dsh`；
+- `dsh.bundle.patch` 文件存在，且插入了同名条目；
+- 所有 `exports` 指向真实文件；仅当声明 `dsh.client` 时导出 `./client`，且其 `id` 与包名一致；
+- `locale/en.json` 与 `locale/zh.json` 存在、`meta` 键一致且含 `title` 与 `description`；
+- `README.md` 与 `icon.svg` 均存在。
 
-这些检查覆盖源码和包元数据。界面效果需要在装了插件的 DSH 里实际查看。
-
-## 维护文档
+## 文档站开发
 
 ```bash
-pnpm run docs:dev        # http://localhost:3000
-pnpm run docs:typecheck  # fumadocs-mdx、next typegen 和 tsc --noEmit
+pnpm run docs:dev        # 启动本地预览（http://localhost:3000）
+pnpm run docs:typecheck  # 运行 fumadocs-mdx、next typegen 与 tsc
 pnpm run docs:build      # 静态导出到 apps/docs/out
 ```
 
-| 位置 | 内容 |
+| 路径 | 职责 |
 | --- | --- |
-| `apps/docs/content/docs/**/*.mdx` | 页面正文，frontmatter 必须有 `title`，建议写 `description` |
-| `meta.json` | 侧边栏顺序和分组 |
-| `apps/docs/lib/plugins.ts` | 插件的分组、一句话简介、运行位置和额外要求 |
-| `apps/docs/components/plugins.tsx` | 插件信息框、目录、依赖表和安装命令 |
-| `apps/docs/app/page.tsx` | 首页 |
+| `apps/docs/content/docs/**/*.mdx` | 文档正文（frontmatter 必须有 `title` 与 `description`） |
+| `apps/docs/content/docs/**/meta.json` | 侧边栏分组与排序 |
+| `apps/docs/lib/plugins.ts` | 登记插件分类、简介、运行位置与依赖；包名和标题在构建时自动从 `packages/*` 读取 |
+| `apps/docs/components/plugins.tsx` | 提供 `<PluginFacts>`、`<InstallCommand>`、`<PluginDirectory>`、`<RequirementsTable>` 等 MDX 组件 |
+| `apps/docs/app/page.tsx` | 文档站首页 |
 
-插件的包名和中文标题在构建时从 `packages/*/package.json` 和 `locale/zh.json` 读取，不要在页面里手写。新增插件时，在 `lib/plugins.ts` 加一条记录并新建 `content/docs/plugins/<name>.mdx`，再把它加进 `plugins/meta.json`。漏掉记录时文档构建会失败。
+新增插件时必须在 `apps/docs/lib/plugins.ts` 添加记录、在 `apps/docs/content/docs/plugins/` 新建 `.mdx` 文件并列入 `plugins/meta.json`，否则构建会直接报错失败。
 
-修改插件行为时，同时更新包的 README 和站点上的插件页。
+## 发布包
 
-## 发布插件
+1. 更新 `packages/<name>/package.json` 的 `version` 并在 `CHANGELOG.md` 补充记录。
+2. 运行 `pnpm run check` 确保全部通过。
+3. 在对应包目录执行 `npm publish`。
 
-1. 修改包的 `package.json` 里的 `version`，在 `CHANGELOG.md` 加一条。
-2. 运行 `pnpm run check`。
-3. 在包目录运行 `npm publish`。
-
-文档部署是独立的工作流，见 [GitHub Pages](/docs/deployment)。
+文档站通过独立工作流部署到 GitHub Pages，见 [GitHub Pages 部署](/docs/deployment)。

@@ -1,24 +1,21 @@
 ---
 title: 插件目录
-description: 全部插件按用途分组，每个都可以单独安装。
+description: 全部 31 个插件按用途分为四大类，每个插件都可以单独安装。
 ---
 
-所有插件的 GitHub 安装地址结构相同，把 `<name>` 换成目录名：
+所有插件都通过相同的 GitHub 地址规则安装，只需把 `<name>` 替换为对应插件目录名：
 
 ```text
 github:seefs001/dsh-plugins#main&path:/packages/<name>
 ```
 
-标签依次是运行位置和额外要求，详见 [依赖与边界](/docs/compatibility)。
+每行标签分别标明了插件运行位置与前置要求，详细说明见 [依赖与边界](/docs/compatibility)。
 
 <PluginDirectory />
 
-## 插件之间的关系
+## 插件之间的配合
 
-- # 引用模型会读取快速模式的状态，让 `#` 标签带上 ⚡。不装快速模式也能用。
-- 最近会话优先原来是 # 引用模型的一部分，现在是独立插件。
-- 子代理模型、# 引用模型和记住上次模型互不依赖。
-- 自动审查模型扩展的是实验性的 Auto review，不会自己开启审查。
-- 联网搜索的 `grok_search` 和 `openai_search` 也可以出现在 Pi 工具的选择面板里，前提是两个插件都已安装、搜索已配置好。
-- Pi 工具依赖工作时间线，并在 `pi` 预设里挂载它的 `work_read` 和 `work_update`。单独安装工作时间线只有投影和面板，不带工具。
-- Git 变更和分支切换都依赖 Change requests & worktrees，但彼此独立。
+- **# 引用模型 + 快速模式**：两者同时启用时，`#` 模型标签会自动带上并传递 `⚡` 快速模式标记；各自也可独立使用。
+- **Pi 工具 + 工作时间线 + Pi MCP 服务器 + 联网搜索 / 画图**：`pi` 预设内置挂载 `dsh-work-timeline/tools`（提供 `work_read` / `work_update`），同时自动桥接 `dsh-pi-mcp` 导入的全局 MCP 服务器，并在默认列表里透传 `grok_search`、`openai_search`、`openai_image`、`grok_image`。
+- **最近会话优先** 原先包含在 `# 引用模型` 内，现已拆分为独立插件，互相不依赖。
+- **工具透镜 + 编辑消息 + 引用跳转 + Wait, what?**：四者分别增强对话时间线的工具行、用户消息、引用块与助手回复操作栏，可自由组合安装。

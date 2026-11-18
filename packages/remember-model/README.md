@@ -1,12 +1,35 @@
 # dsh-remember-model
 
-New [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) sessions start on the model and reasoning effort you picked most recently.
+记住你在顶层会话中刚切换的模型与推理强度，并在保存后通知所有已连接的浏览器刷新模型目录，让新建会话立即沿用上次选择。
 
-## How it works
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Host |
+| 生效条件 | 仅顶层会话（排除子代理会话） |
+| 数据保存 | DSH 原生的 `agent-default-model` 配置 |
 
-The plugin is Host only (`lib/index.js`), with no browser half and no configuration.
+## 安装
 
-1. When a top-level session records a `model/selection` event, the plugin saves that selection through `agentDefaultModel.saveSelection()`, unless it already is the default. Subagent sessions are skipped because they pick their own models.
-2. Browsers cache the model catalog, which carries the default, and reload it only on a few events. So 400 ms after each selection the plugin emits `llm/models-updated`, and connected browsers reload the catalog. Without this, a new session's selector would keep showing the old default.
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/remember-model"
+```
 
-The saved default is the normal `agent-default-model` config, so you can still change it by hand.
+本地开发链接：
+
+```bash
+dsh plugin --profile web add "link:$PWD/packages/remember-model"
+```
+
+## 工作方式
+
+1. 监听会话的 `model/selection` 事件。
+2. 过滤掉子代理会话，只记录用户在主会话做出的模型与推理强度选择。
+3. 写入 DSH 原生的 `agentDefaultModel.saveSelection(...)`。
+4. 延迟 400 ms 去抖后触发 `llm/models-updated`，让已连接的浏览器同步刷新默认模型显示。
+
+## 边界
+
+- 不提供 Web 界面或独立配置项。
+- 停用或卸载本插件后，已写入 DSH 的默认模型仍然保留。
+
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/remember-model)。

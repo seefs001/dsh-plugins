@@ -1,17 +1,28 @@
 # dsh-quote-jump
 
-Shows quotes in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) user messages as blocks. Click a block, or focus it and press Enter, to scroll to the quoted text earlier in the conversation and highlight it for about 2.4 seconds.
+将 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）用户消息中的引用渲染为可点击的引用块；点击（或聚焦后按回车/空格）直接滚动回原文位置并高亮约 2.4 秒。
 
-## How it works
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Web（Host 入口仅用于加载 bundle） |
+| 数据保存 | 无独立配置或存储 |
 
-The plugin runs in the browser (`lib/client.js`). Its Host half is empty; the Loader needs it for the bundle row.
+## 安装
 
-- It registers the `quote` key of `conversation.user.text.node` at priority 50, which shadows the built-in renderer from `dsh-message-quotes` (priority 100). Disabling the plugin brings back the built-in pill.
-- Matching ignores whitespace, so Markdown layout differences do not matter. When several places match, the closest one above the quote wins. Long quotes are matched by their first 48 characters.
-- The highlight uses the CSS Custom Highlight API and falls back to an outline.
-- Folded rows (`hidden="until-found"` and `<details>`) are opened before scrolling.
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/quote-jump"
+```
 
-## Limits
+本地开发链接：
 
-- Only text already loaded in the page can be found. If the original message is in history that has not loaded yet, the block shows a short "not found" hint. Scroll up to load it and click again.
-- Quotes taken from code blocks or tables are matched as text, which fails when the rendered text differs from the copied selection.
+```bash
+dsh plugin --profile web add "link:$PWD/packages/quote-jump"
+```
+
+## 工作方式与边界
+
+- 替换 `conversation.user.text.node` 中的 `quote` 节点（单行/预览场景保持紧凑内联摘录）。
+- 匹配时自动忽略空白字符和换行差异，只在当前消息**之前**的对话节点中查找（优先完整匹配，过长时回退前 48 个非空字符），遇到折叠区块（`details` 或 `hidden="until-found"`）会自动展开。
+- 使用 `CSS.highlights` 与边框闪烁高亮定位结果。如果原文尚未加载（需向上滚动加载更早消息），会提示「原文不在当前已加载的对话里」。
+
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/quote-jump)。

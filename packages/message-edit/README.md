@@ -1,27 +1,37 @@
 # dsh-message-edit
 
-Edit your earlier messages in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Hover one of your messages and click the pencil icon next to Copy, change the text, then save. Editing defaults to the current session: it does not create or open a fork. Two modes are available:
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）中编辑自己发送过的消息。悬停任意一条你发出的消息即可点击 **编辑**，默认在当前会话就地改写并清空后续模型上下文，也支持保留后续上下文或分叉并重发。
 
-| Mode | What happens |
-|---|---|
-| **Overwrite in this session** (default) | Rewrites the message in place in the current session's model context without switching sessions. **Clear later context** is checked by default: all later messages and tool results are removed from model context. Uncheck it to keep them. Nothing reruns, and completed actions are not undone. The original message bubble displays the saved text with an **Edited** badge, and Copy copies that text. |
-| **Fork and resend** (explicit alternative) | Forks the session at the last completed turn before the message, sends the edited message there, and opens the new session. The original session is unchanged. The forked prefix is byte-identical, so provider prompt caches still hit. |
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Host + Web |
+| 数据保存 | 直接写入 DSH 原生会话事件日志（无额外存储域） |
 
-Images and files attached to the message keep their place; only the text is replaced.
+## 安装
 
-## How it works
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/message-edit"
+```
 
-- Browser half (`lib/client.js`): replaces the `user` renderer in `conversation.chat.node`, resolving saved edits by `source.rpcId`. It passes the edited text and original attachments to the built-in `conversation.chat.user.content` factory, and owns the Copy and Edit controls. The `conversation.chat.user.before` decoration slot remains available; no DOM patching or portals are needed.
-- Host half (`lib/index.js`): owner-only `POST /message-edit/op`.
-  - Overwrite mode appends a `user/message` with `surfaceOp: { op: 'replace' }` covering this message through the last current surface node (or just this message when **Clear later context** is unchecked), inside `agent.runMaintenance()` so it never races a turn. This is the same core mechanism compaction and the tool-result pruner use, so sessions stay readable without the plugin.
-  - Only the explicitly selected Fork mode uses the Client's `sessions.fork({ atSeq })` and then `agent.followup()` on the child.
+本地开发链接：
 
-## Limits
+```bash
+dsh plugin --profile web add "link:$PWD/packages/message-edit"
+```
 
-- Overwrite mode needs an idle agent. Stop the running turn first.
-- Overwrite mode is refused once the message has been compacted or cleared from context. It never silently switches to Fork mode.
-- Unchanged text can still be saved to clear later context. With clearing unchecked, unchanged text is not submitted.
-- While this plugin is enabled, the bubble and Copy use the saved text, including after a page reload. Disabling it restores the built-in renderer's original text; the saved model-context edit remains in the session log.
-- Clearing later context does not visually drop later messages or undo completed actions.
-- Only messages you typed (source kind `user`) get the control; steering rows, injected context and scheduled prompts do not.
-- Editing a message invalidates the provider prompt cache from that message onward in Overwrite mode.
+## 三种编辑模式
+
+| 模式 | 发生什么 | 适用场景 |
+| --- | --- | --- |
+| **在当前会话修改**（默认勾选 **清空后续上下文**） | 通过原生 `replace` 节点替换该消息并从模型可见上下文中移除后续节点；聊天界面历史可见，**不自动触发新回复** | 纠正错别字或重写提示词后，再手动决定如何继续 |
+| **在当前会话修改**（取消勾选 **清空后续上下文**） | 仅替换该条消息本身，保留后面的对话与工具结果上下文 | 只修正该条表述，保留后续进展 |
+| **分叉并重发** | 从该消息之前的已结束轮次创建新会话，并自动发送修改后的消息；原会话保持不变 | 想保留原路线并开分支重跑 |
+
+## 边界说明
+
+- **只能编辑纯文本部分**：原有图片和文件附件在原位置保留，暂不支持在编辑弹窗中增删附件；空消息不可保存。
+- **已压缩或清除的消息**：如果目标消息已因上下文压缩移出当前 `surface.nodes`，弹窗会提示无法就地改写，此时仍可使用 **分叉并重发**。
+- **不撤回副作用**：清空上下文只影响模型后续看到的历史，不会撤回已经执行的终端命令或文件修改。
+- **已编辑标记**：在当前会话改写过的消息会显示「已编辑」标签。
+
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/message-edit)。

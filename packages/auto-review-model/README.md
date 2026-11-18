@@ -1,44 +1,46 @@
 # dsh-auto-review-model
 
-Choose which model, and optionally which review prompt, Auto review (`@deepseek-ai/dsh-experimental-auto-review`) uses to judge tool calls. By default Auto review uses the session's own model. This plugin reroutes only the review requests (`purpose: "auto-review"`) to the provider and model you choose, and the main conversation is unaffected.
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 实验性的 Auto review（`purpose: "auto-review"`）单独指定审查模型、推理强度和审查提示词，并在会话内提供实时审查日志面板。
 
-## Use
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Host + Web |
+| 前置依赖 | `@deepseek-ai/dsh-experimental-auto-review`、`@deepseek-ai/dsh-storage-domain` |
+| 数据保存 | profile 的 `cordis.patch.yml`（设置） + Host `auto_review_log` storage domain（日志） |
 
-1. Enable `@deepseek-ai/dsh-experimental-auto-review` and install this bundle.
-2. Open **Plugins → dsh-auto-review-model**. The model list is the Host's live model catalog, the same one the composer's model picker uses.
-3. Choose a model and, optionally, a reasoning effort, then click **Save**. **Same as session** restores the built-in behavior.
-4. While a session's permission mode is Auto review, the composer tool row shows a **Review: <model>** chip with the number of reviews in this session. When any review denied or failed, the count turns red and reads `denied/total`. Hover the chip for the provider, effort, and prompt mode. The chip turns amber when the configured provider is not loaded and reviews fall back to the session model.
-5. Click the chip to open the session's review log. Each entry shows the time, tool, verdict and risk, and the deny reason or failure; expand it for the reviewer model, latency, and reviewed arguments. **Review settings** in the header opens this plugin's settings, and **Clear** deletes the session's records.
+## 安装
 
-## Review log
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/auto-review-model"
+```
 
-Every Auto review request carries its session ID. The Host half passes the reviewer stream through unchanged, and when the stream ends it appends one entry to the `auto_review_log` storage domain. With the JSON backend the domain uses a `per-record` layout under `~/.dsh/storages`, one document per session. The log keeps the latest 200 reviews per session and the 300 most recently reviewed sessions. Arguments are cut to 4,000 characters and reasons to 2,000. Arguments can contain sensitive values; they stay on this machine, and **Clear** removes them.
+本地开发链接：
 
-The verdict follows Auto review's own parser. A review that fails before or after the reviewer answers, for example because it was aborted, is recorded as failed.
+```bash
+dsh plugin --profile web add "link:$PWD/packages/auto-review-model"
+```
 
-Click a log entry to scroll its tool call into view and briefly highlight it. For an inner PTC call, the jump may land on the outer tool card. If the call is not in the loaded history, the UI says so; it does not fetch older messages automatically.
+## 用法与配置
 
-## Config
+### 1. 选择模型与提示词
 
-| Field | Meaning |
-|---|---|
-| `provider` | Provider route ID. Empty keeps the session model. |
-| `model` | Model ID. Set it together with `provider`. |
-| `reasoningEffort` | Effort ID for that model. Empty uses the model's default. |
-| `promptMode` | `default` keeps the built-in review policy; `append` adds `prompt` after it; `replace` uses `prompt` in its place. |
-| `prompt` | Your extra rules for `append`, or your complete policy for `replace`. |
+打开 **Plugins → dsh-auto-review-model**：
 
-## Review prompt
+- **模型与推理强度**：选择专用审查模型，或保持 **跟随会话**。若所选 provider 当前不可用，Host 会自动回退到当前会话模型并记警告。
+- **审查提示词**：支持三种模式：
+  - `default`（内置）：保留 Auto review 原生审查规则。
+  - `append`（追加规则）：在内置规则末尾追加自定义规则，保留内置风险分级与 JSON 输出要求。
+  - `replace`（替换）：整段替换内置规则；必须保留严格 JSON 输出格式（`allow`/`deny` + `risk`），否则审查会被判定失败并拦下工具调用。
 
-**Append** is the safer choice. Your rules follow the built-in policy under an `ADDITIONAL USER POLICY` heading, and the built-in risk levels and output format stay in force.
+### 2. 查看会话审查日志
 
-**Replace** sends your text as the reviewer's whole system prompt. Auto review still parses the answer strictly, so the prompt must make the reviewer return exactly one JSON object: `low+allow`, `medium+allow`, `medium+deny`, or `high+deny`, with an optional `reason` only on deny. Any other answer fails the review and blocks the call. **Load built-in prompt** fills the text box with the policy from the latest Auto review request, which exists only after Auto review has run once since the Host started.
+- 输入框左侧显示当前生效的审查模型标签（点击跳转设置），以及本会话的审查计数标签（点击打开实时日志弹窗）。
+- 弹窗通过 SSE 实时更新每次审查的工具名、风险级别、允许/拒绝结果、耗时与理由，并支持一键跳转到对应工具调用（含 `run_code` PTC 父调用）或 **Clear** 清空当前会话日志。
 
-## How it works
+## 数据与边界
 
-A prepended `llm/stream` listener matches `purpose === "auto-review"`, copies the frozen request with the configured route and system prompt, and starts a new `llm.stream()` for the copy. The copy drops `temperature`: Auto review pins it to 0, and reasoning models reject a sampling temperature. Every other `llm/stream` listener still sees the rerouted request once. If the configured provider is not loaded, the review keeps the session model and the Host logs a warning.
+- **日志上限**：`auto_review_log` 采用 `per-record` 布局，每个会话最多保留最近 **200** 条记录，Host 最多保留 **300** 个会话（旧会话按更新时间淘汰）；工具参数截断至 4000 字符，理由截断至 2000 字符。
+- **隐私**：日志只保存在本机 Host，参数中可能包含工具输入里的敏感信息，可随时在弹窗点 **Clear** 删除。
+- 插件不会自行开启 Auto review，也不会影响主对话或其他非 `auto-review` 模型请求。
 
-## Caveats
-
-- The reviewer must return strict JSON (`{"risk":…,"decision":…}`). Weak models fail often, and a failed review blocks the call (`AUTO_REVIEW_FAILED`).
-- Auto review is experimental. If it changes its `purpose` tag or request shape, this plugin needs an update.
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/auto-review-model)。

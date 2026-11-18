@@ -1,109 +1,29 @@
 ---
 title: 工作时间线
-description: 会话里的工作计划、修订过程和产物面板，替换 Pi 预设的 TODO。
+description: 会话内的工作计划、修订过程与产物面板，替换 Pi 预设的 TODO 清单。
 ---
 
 <PluginFacts slug="work-timeline" />
 
-在会话里记录一项工作的计划步骤、每次修订的原因和显式关联的产物文件，显示在输入框上方的摘要条和右侧面板里。它替换 Pi 预设原来的 TODO 清单，不运行工作流，也不代替 goal、权限审批或计划模式。
+在输入框上方摘要条与右侧详情面板中展示会话级的工作计划、修订历史和关联产物（交付物与证据文件），在 `pi` 预设中替代传统扁平的 TODO 清单。
 
-<Callout type="info" title="状态是 Agent 的报告">
-面板显示的是 Agent 最后一次报告的值，不是实际运行状态，完成也不等于验收通过。产物引用只打开文件的当前内容，不保存版本，也不验证内容。
+<Callout type="info" title="工具与界面拆分">
+本包的主入口提供投影与右侧面板视图；`work_read` 与 `work_update` 工具由子入口 `dsh-work-timeline/tools` 提供，已默认挂载在 [Pi 工具](/docs/plugins/pi-tools) 的 `pi` 预设中。
 </Callout>
 
 ## 安装
 
-[Pi 工具](/docs/plugins/pi-tools) 依赖本包，并在 `pi` 预设里挂载 `work_read` 和 `work_update`，通常不需要单独安装。
-
 <InstallCommand slug="work-timeline" />
 
-单独安装的 bundle 只提供投影和界面，不带工具。其他预设要使用时，需要在预设里挂载 `dsh-work-timeline/tools` 并放行这两个工具。
+## 界面视图
 
-更新 bundle 后要新建 `pi` 会话。已有会话保留原来的预设版本和工具选择。保存过自定义默认工具时，检查 `work_read` 和 `work_update` 是否已勾选。
+- **输入框摘要条**：显示当前工作标题、完成进度、受阻项数量及下一步任务，点按打开右侧详情面板。
+- **计划**：查看所有步骤状态（待开始 / 进行中 / 受阻 / 已完成 / 已取消）、受阻原因与阶段结果。
+- **过程**：按修订号（`revision`）回看每轮调整原因及步骤/产物的增删改明细（保留最近 20 次修订，支持标识从分叉前继承的工作）。
+- **产物**：按步骤过滤 `deliverable`（交付物）和 `evidence`（证据），点击文件直接在文件侧栏打开当前磁盘上的文件。
 
-## 使用
+## 数据与边界
 
-- 输入框上方的摘要条显示标题、当前步骤或阻塞原因、完成数和进度。点击打开右侧详情，也可以从右侧面板的工作时间线入口打开。
-- 详情顶部是概览：报告状态、标题、目标和进度。取消的步骤单独计数，不算完成。
-- 概览下面列出需要关注的步骤：受阻的排在最前，其次是进行中的，然后是下一步。首屏最多 2 项并提示剩余数量，点击定位到计划。
-- `role: deliverable` 的产物作为交付物排在前面，最多 3 个，其余在产物视图里。
-- 修订号、更新时间、状态来源和继承说明收在 **详情** 里，展开后同时显示完整的标题、目标和结果。
-- **计划** 用步骤轨道展示状态、阻塞和结果，当前步骤高亮，步骤下的关联文件可以直接预览。
-- **过程** 按修订倒序展示原因以及步骤和产物的状态变化，可以跳回对应的步骤或产物。
-- **产物** 按交付物和依据分组，可以按步骤筛选，点击文件使用宿主的预览。
-- 视图标签支持方向键、Home 和 End。
-- 没有 Work 的旧会话，输入区继续显示原来的 todos 清单。
-
-## 工具
-
-| 工具 | 说明 |
-| --- | --- |
-| `work_update` | 创建或更新当前工作。必须直接调用，不能放进 codemode，因为嵌套的工具结果不会提交状态 |
-| `work_read` | 返回当前的完整快照和 revision；`history: true` 同时返回最近 20 次修订 |
-
-第一次写入：
-
-```json
-{
-  "action": "create",
-  "expectedRevision": 0,
-  "reason": "开始定位登录回归",
-  "snapshot": {
-    "title": "修复登录回归",
-    "objective": "定位回调失败原因，完成修复并说明验证范围",
-    "status": "active",
-    "steps": [
-      { "id": "diagnose", "content": "复现并定位原因", "status": "in_progress" },
-      { "id": "fix", "content": "实施修复", "status": "pending" }
-    ],
-    "artifacts": []
-  }
-}
-```
-
-之后用 `action: "replace"`，传入返回的 `workId`、当前的 `expectedRevision` 和完整的 snapshot。改名和重排要保留原来的 ID。创建下一项工作也要传当前的修订号，不能每次都用 0。
-
-产物写在 snapshot 的 `artifacts` 里，路径是当前会话里的绝对路径：
-
-```json
-{
-  "id": "report",
-  "title": "问题定位报告",
-  "path": "/absolute/workspace/reports/login.md",
-  "stepId": "diagnose",
-  "role": "deliverable",
-  "description": "记录复现条件、原因和后续验证范围"
-}
-```
-
-`role: "evidence"` 表示支撑结论的依据。文件缺失、被删除或无权限时，由宿主预览报告错误。
-
-## 状态规则
-
-| 情况 | 行为 |
-| --- | --- |
-| 首次 `create` | 创建 Work，revision 为 1 |
-| 当前 Work 还是 active 时再 `create` | 拒绝，先结束或取消原来的工作 |
-| `replace` 的身份和修订号都对 | 校验完整快照，有变化时 revision 加 1 |
-| 快照和当前相同 | 不产生新修订 |
-| 修订号过期 | 拒绝，不会静默覆盖 |
-| 修改、取消或重开 | 必须写 `reason`，旧历史保留 |
-| 步骤变为 blocked 或 completed | blocked 必须写 `blocker`，completed 必须写 `outcome`；离开 blocked 时清除 `blocker` |
-| 删除已有的步骤或产物 ID | 拒绝；不做的步骤改成 canceled 并保留 |
-| Work 变为 completed 或 canceled | 必须写 `outcome`，不能留有未结束的步骤；之后可以带理由重开 |
-| 工具出错、被取消，或在 codemode 里嵌套调用 | 不提交状态 |
-| 回合开始、结束或停止 | 不改变状态 |
-| 会话分叉 | 子会话继承分叉点的快照，之后的写入只属于子会话 |
-
-## 数据
-
-- 会话日志是唯一来源。成功的 `tool/result` 在 `meta.dshWorkTimeline` 里带完整的 Work 快照，没有独立的 storage domain，也不写自定义会话事件。
-- `dsh-work-timeline` projection 提供当前状态和最近 100 次修订的摘要，浏览器只订阅这个投影。
-- 文件预览使用当前会话的资源地址，文件权限和预览由宿主负责。
-
-## 限制
-
-- 界面只读，不能直接编辑步骤或产物。
-- 每个会话只有一个当前 Work。开始下一项后，原来的 Work 留在工具记录里，详情不提供跨 Work 浏览。
-- 不保存文件的历史版本，不运行任意 HTML 或 React，也不做任务归属或共享调度。
-- 回滚到旧的 TODO 需要恢复 `pi` 预设里的配置并新建会话，只卸载界面不会恢复旧工具。
+- 状态直接随会话日志里成功的 `work_update` 工具结果（`meta.dshWorkTimeline`）保存，不使用单独的 storage domain。
+- `work_update` 带有 `expectedRevision` 并发保护，需由模型直接调用（禁止在 `codemode` 脚本内嵌套调用）。
+- 仅反映 Agent 主动汇报的进展，不自动执行工作流，也不替代权限审批、`exit_plan_mode` 或 Goal。

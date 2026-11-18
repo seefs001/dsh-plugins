@@ -1,22 +1,29 @@
 # dsh-git-changes
 
-Adds a Git changes entry below the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) composer, next to the activity and usage pills. It shows the checked-out branch, the added and deleted lines, and the number of uncommitted files. Click it to open the diff in the right sidebar, already on the Uncommitted scope.
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）输入框下方显示当前 Git 分支名、未提交的增删行数与变更文件数，点击直接打开右侧 Forge 变更面板（默认切到「未提交」范围）。
 
-## Requirements
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Web（Host 入口仅用于加载 bundle） |
+| 前置依赖 | `Change requests & worktrees`（`@deepseek-ai/dsh-experimental-forge-bundle`） |
+| 数据保存 | 无独立配置或存储 |
 
-Enable **Change requests & worktrees** (`@deepseek-ai/dsh-experimental-forge-bundle`) on the Plugins page. This plugin reads that panel's data and opens its Local changes tab; without it, the entry does not appear.
+## 安装
 
-## How it works
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/git-changes"
+```
 
-The plugin runs in the browser (`lib/client.js`). Its Host half is empty; the Loader needs it for the bundle row.
+本地开发链接：
 
-- It registers the `git-changes` entry in the `conversation.composer.dock` slot at order 2, after the shipped pills.
-- It follows `forgePanel.follow` for the current session to learn the branch and when the checkout changes, then reads `forgePanel.localDiff({ kind: 'uncommitted' })`, debounced by 400 ms, for the numbers. They count changes against HEAD, including untracked files.
-- Clicking opens `dsh-resource://forge-changes/<session>/local`, the same tab the panel's Local changes card opens.
-- It wraps the forge changes tab body (`sidebar.right.pane.tab`, priority -10) so that each new Local changes tab switches from Branch to Uncommitted once. A scope you pick afterwards stays.
-- A clean checkout shows "No changes". Outside a Git checkout the entry is hidden.
+```bash
+dsh plugin --profile web add "link:$PWD/packages/git-changes"
+```
 
-## Limits
+## 工作方式
 
-- The default scope relies on the forge tab's internal store (`byTab[tab].scope` and its `scoped` action). If a DSH upgrade changes them, the tab opens on Branch again; the entry keeps working.
-- While the diff is loading the entry shows "Reading changes…". If the read fails, including when the diff exceeds `maxDiffBytes`, it shows "Diff unavailable" instead of reporting a clean checkout.
+- 订阅 `forgePanel.follow` 流，并在仓库状态变化时以 400 ms 防抖调用 `forgePanel.localDiff({ kind: 'uncommitted' })` 计算 `+新增 / -删除` 与文件数（含未跟踪文件提示）。
+- 点击胶囊通过 `sidebarRight.openResource('dsh-resource://forge-changes/<sessionId>/local')` 打开右侧本地变更面板，并把新开标签的默认对比范围从分支对比调整为 **未提交**。
+- 当工作目录不是 Git 仓库或未启用 Forge bundle 时自动隐藏，不执行任何外部 `git` 子进程。
+
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/git-changes)。

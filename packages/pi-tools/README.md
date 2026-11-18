@@ -1,226 +1,57 @@
-# pi
+# dsh-pi-tools（`pi` 预设）
 
-An isolated `pi` Agent preset for DeepSeek Harness. It runs Pi's original coding tools and QuickJS codemode inside DSH's sessions, permissions, sandbox, model routing, and MCP connections. The default preset and other sessions are unchanged.
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）提供一个独立的 `pi` Agent 预设：把 Pi 原版的编程工具、系统提示词和 QuickJS `codemode` 沙箱接入 DSH 原有的会话、权限、沙箱、模型路由与 MCP 连接中，不改 DSH 源码，也不影响默认预设和其他会话。
 
-The Chinese guide is on the [documentation site](https://seefs001.github.io/dsh-plugins/docs/plugins/pi-tools/).
-
-## Requirements
-
-- No DSH source changes are required. The package uses an ignorable `plugin:dsh-pi-tools/selection` Session record, the `conversation.hero.options` slot, and keyed `tool.call.toolview` entries. Codemode grammar sampling also wraps an internal pi-ai entry point; see [Codemode strings](#codemode-strings).
-- `rg` and `fd` available in DSH's execution environment, or configured with `rgCommand` and `fdCommand`. The adapter does not download binaries.
-- No global Pi CLI, Pi login, or Pi model configuration.
-
-The package bundles `@earendil-works/pi-coding-agent` and `@earendil-works/pi-ai`. It imports private Pi modules, so upgrading Pi needs a compatibility review.
-
-## Tools
-
-### Original Pi tools
-
-- `read`, `bash`, `edit`, `write`, `ls`, `find`, and `grep`, with Pi's original names, descriptions, and JSON parameter schemas.
-- `codemode`: Pi's original codemode extension and QuickJS worker sandbox, with its original `{ "code": string }` parameter. Scripts can call tools, use `Promise.allSettled`, curate output, emit images, and use `store`/`load`, `ALL_TOOLS`, `searchTools`, `describeTool`, and `describeNamespace`.
-- `tool_search`: Pi's original BM25 search. A successful search makes the matching tools directly callable from the next model call.
-
-Most tool bodies are Pi's own code. `ls` and `find` use Pi's operation-injection hooks. Pi's `grep` has no subprocess-injection hook, so its search driver is adapted while the public definition and formatting helpers stay original.
-
-### Native DSH features mounted in the preset
-
-The bundle mounts these native DSH plugins inside the `pi` preset. Their tools keep their native registrations and conditions:
-
-| Area | Tools and features |
+| 项目 | 说明 |
 | --- | --- |
-| Subagents | `subagent`, `subagent_fork`, `list_subagent_models`, `send_message`, `list_agents`, `wait_agent` |
-| Questions and skills | `ask_user_question`; the `skill` tool; `/` completion for project, user, and DSH bundled skill directories; `/name` injects the skill through the native pre-step pipeline with model/user invocation policies unchanged |
-| Jobs, schedules, goals | `job_list`, `job_output`, `job_kill`; `schedule_create`, `schedule_list`, `schedule_view`, `schedule_edit`; `create_goal`, `get_goal`, `update_goal` and the `/goal` command |
-| Work and plans | `work_read`, `work_update` from [Work timeline](../work-timeline); an isolated plan mode with `exit_plan_mode` |
-| Web and presentation | `web_fetch`, `web_search`, `present` |
-| Office | `office_render`, `office_convert`, `office_recalculate` |
-| Plugin development | `plugin_manager`, `plugin_market`, `cordis_inspect_list`, `cordis_inspect_query` (the creator preset's runtime inspection; the Host side comes from the web-app bundle), the `dsh-doc` skill |
-| Other | `workflow` (isolated workflow engine), time context, project instructions (up to 64 KiB), compaction and `/compact` |
+| 运行位置 | Host + Web |
+| 前置依赖 | 运行环境中可用的 `rg` 与 `fd`（可通过 `rgCommand` / `fdCommand` 配置）；同时联动 `dsh-work-timeline` |
+| 数据保存 | 会话选择写入会话日志（`plugin:dsh-pi-tools/selection`）；保存的预设默认工具存于 Host `pi_tools_defaults` storage domain |
 
-The bundled skill directory is located through `DSH_INSTALL_DIR`, or the process entry point when that variable is unset, never through an external bundle's base URL.
+## 安装
 
-`workflow` is DSH's native tool and runs on DSH's PTC runtime. It is separate from Pi's `codemode`, which stays on QuickJS with `{ code: string }`.
-
-Work timeline replaces `todo_write` in new Pi sessions. It keeps stable steps across turns, records revisions and explicit artifact references, and provides a Plan / Timeline / Artifacts sidebar from the former TODO dock. Call `work_update` directly: codemode writes are rejected because nested results do not independently persist their metadata. `work_read` restores the current revision after compaction. File references open current contents, not immutable versions. The UI preserves legacy TODO lists in existing sessions. Updating an installed bundle and starting a new Pi session are required; old sessions retain their original preset revision.
-
-Under context pressure, Pi uses DSH’s tool-result pruner before requesting a summary. Results over 8,192 text characters retain their first 4,096 and last 1,024 characters plus a marker; the original stays in the session log. If this relieves pressure, no summary call is made. Otherwise DSH writes a portable text checkpoint, including for models with no provider-native compact endpoint. The summary follows the last routed model by default. To use another route, set both `DSH_PI_SUMMARY_PROVIDER` and `DSH_PI_SUMMARY_MODEL` for the DSH Host; leave both unset to follow the session. This selects the summary model, not the conversation model.
-
-Provider-native Responses compaction is not enabled by this preset. To check one exact endpoint/model separately, run `node scripts/probe-responses-compaction.mjs <base-url> <model> <key-env-name>` from the repository root. Pass the **name** of an environment variable, not a key. The probe makes up to three potentially billable requests with synthetic data: compact, continue, then recall a different fact using the saved window. A pass verifies the wire protocol for that route/model, not DSH resume or support on other models. A failure does not change session behavior.
-
-Plan mode retains the standard planning rules, with `work_update` excluded from tracking the planning phase. The preset does not copy the standard preset's same-name file and terminal tools or its persona. Like the creator preset, it enables the read-only plugin market tool and runtime inspection.
-
-The global `grok_search` and `openai_search` from [`dsh-web-access`](../web-access), and `openai_image` and `grok_image` from [`dsh-image-gen`](../image-gen), pass through unchanged when configured and ready.
-
-### Native conditions still apply
-
-A tool that appears in the picker is not necessarily callable right now:
-
-- `schedule_*` tools register only when the Host provides the schedule service.
-- `plugin_manager` and `plugin_market` load only when a profile context exists; `plugin_market` also needs the Host plugin market service.
-- `cordis_inspect_query` needs a connected page for Client providers.
-- Office tools become available on the step after the matching Office skill is loaded. Without the Office service they report unavailable, as in native DSH.
-- `exit_plan_mode` follows the native plan state.
-- `grok_search` and `openai_search` are callable only while their route and credentials are ready. `web_search` follows the native web provider's availability. Registered search tools can remain visible in the picker while they are unavailable to the model.
-
-The picker shows the catalog the Host actually returns, so the count varies by environment. Codemode calls go through the current step's real tool admission and never use an alias that bypasses Office or plan conditions.
-
-### MCP
-
-Selected existing DSH MCP connections are bridged, including resource helpers. The supplied preset selects every global namespace with `'*'`, so servers added later through the DSH MCP manager, such as those `dsh-pi-mcp` reads from Pi's `mcp.json`, appear without a config change. The plugin does not start a second MCP client or read or copy MCP credentials. Remote MCP access is not limited by the local filesystem sandbox.
-
-## Choosing tools for a session
-
-Select **pi** on the new-conversation screen, then open **Tools**. The dialog groups Pi tools, DSH tools by purpose, and MCP tools by server.
-
-- The dialog opens in a simple view: one row per section with a checkbox, a selected count, and **Restore defaults**. Hover a row to see its tool names. **Per-tool settings** switches to the detailed view below; **Simple view** switches back. The browser remembers the last view.
-
-In the detailed view:
-
-- The filter matches tool names, descriptions, and section names. While filtering, every section with a match is shown expanded and its fold button is disabled; clearing the filter restores the previous fold state.
-- Each section header has a checkbox. Without a filter it selects or clears the whole section. With a filter it acts only on the visible matches and says so in its label, so hidden tools are never changed.
-- Folding or expanding a section never changes a selection.
-- **Selected only** narrows the list to selected tools. **Expand all** / **Collapse all** toggle every section. Large catalogs start with only the Pi section expanded.
-- **Restore defaults**, **Select all**, and **Clear** act on the whole catalog. Tools outside the defaults are tagged **opt-in**.
-- A warning appears when MCP tools are selected but neither `codemode` nor `tool_search` is.
-
-**Cancel** discards the dialog's edits. **Save** applies them to this conversation only. The selection locks when the first turn starts, and later saves are refused.
-
-The defaults are the Pi tools, the configured MCP tools, the native tools mounted in the preset except those listed in `optInTools`, and the two passthrough searches. The supplied preset lists `present`, the Office tools, and the plugin development tools (`plugin_manager`, `plugin_market`, `cordis_inspect_list`, `cordis_inspect_query`) as opt-in. Other global DSH tools on the Host are opt-in. New tools are not added to an existing explicit selection; a new session or **Restore defaults** picks up the new defaults.
-
-### Saved defaults
-
-**Set as default** saves the dialog's current checks as the Host default for this preset. New sessions and **Restore defaults** then use it. The saved default records only the differences from the configured defaults, so a tool that appears later, such as a new MCP tool, follows the configured rule unless you changed that tool. **Use preset defaults** appears while a saved default exists and deletes it. Saved defaults live in the `pi_tools_defaults` storage domain, keyed by preset id.
-
-A session without an explicit selection follows the current default until its first step. That step writes the default into the session as a selection record, so later edits to the default reach only new sessions.
-
-### Refreshing MCP
-
-**Refresh MCP** restarts every MCP server the preset bridges through the DSH MCP manager. It waits up to 20 seconds for each server to settle, then reloads the catalog and reports each server's state and tool count. Use it after you change an MCP server so the dialog lists its new tools. It refreshes only servers already known to the MCP manager. A server added to Pi's `mcp.json` reaches the manager through `dsh-pi-mcp`'s file watcher. Restarting a server also reconnects it for every other session that uses it.
-
-## How the selection applies
-
-- The **Tools** button appears in the new-session row of a blank Pi session. Saving appends an ignorable `plugin:dsh-pi-tools/selection` record through `POST /pi-tools/options`; the Host refuses it once the first turn has started. Refresh and replay restore the committed selection, forks inherit the log, and switching presets resets it. A DSH build without this plugin still opens the session and skips the record.
-- A selected preset-scoped native tool keeps its original registration and condition. A deselected one is blocked by an agent-level `false` shadow registration, so no same-name global tool falls through. Global passthrough tools keep their registrations and use per-agent restrictions for selection.
-- Pi owns its nine tool names, so deselecting a Pi tool never exposes a same-name DSH tool.
-- Deselected tools are excluded from model declarations, QuickJS discovery, and dispatch.
-- Selecting tools does not enable another MCP connection or change permissions.
-
-## Configuration
-
-The bundle supplies this configuration in its preset:
-
-```yaml
-mcpServers: ['*']
-mcpExposure: codemode
-scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent,
-  ask_user_question, skill, job_list, job_output, job_kill, schedule_create, schedule_list,
-  schedule_view, schedule_edit, create_goal, get_goal, update_goal, work_read, work_update, web_fetch,
-  web_search, present, office_render, office_convert, office_recalculate, exit_plan_mode,
-  workflow, plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
-globalTools: [grok_search, openai_search, openai_image, grok_image, subagent_agy, subagent_cursor]
-optInTools: [present, office_render, office_convert, office_recalculate,
-  plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/pi-tools"
 ```
 
-| Option | Plugin default | Meaning |
-| --- | --- | --- |
-| `tools` | All seven coding tools | Which Pi coding tools to enable. |
-| `codemode` | `true` | Enable original QuickJS scripts. |
-| `toolSearch` | `true` | Enable deferred-tool discovery and loading. |
-| `scopedTools` | `[]` | Native DSH tools mounted in this preset. Selected by default, keeping their native registration and conditions. Cannot name Pi or MCP tools. |
-| `globalTools` | `[]` | Named global native tools enabled by default through passthrough, keeping their own admission conditions. |
-| `optInTools` | `[]` | Names from `scopedTools` or `globalTools` that stay in the picker but are off by default. |
-| `mcpServers` | `[]` | Global DSH MCP tool namespaces to bridge. `'*'` bridges every namespace, including ones registered later. |
-| `mcpExposure` | `codemode` | `direct`, `codemode`, `deferred`, or `hidden`. |
-| `maxParallel` | `10` | Limit for concurrent safe root calls and script subcalls. |
-| `rgCommand` | `rg` | Executable name or absolute path in DSH's execution environment. |
-| `fdCommand` | `fd` | Executable name or absolute path in DSH's execution environment. |
+本地开发链接：
 
-Exposure follows Pi's native MCP mapping. Both `codemode` and `deferred` become deferred callable tools: their schemas start hidden, scripts discover them with `searchTools`/`describeTool`, and `tool_search` can promote them. `direct` tools have public schemas from the start. `hidden` tools are neither callable nor searchable. `codemode` and `tool_search` themselves are model-only and cannot recurse through scripts.
-
-Namespace aliases use the selected DSH server names. Descriptions and full instructions come from each server's public `mcp:<server>` prompt section, captured during successful scoped prompt assembly without changing it. Each scope has its own snapshot, and removed sections clear old metadata. Instructions stay discoverable through `describeNamespace` and are not added to every prompt.
-
-Ordinary MCP bridges select configured unconditional global registrations by namespace. Resource calls must name a selected server. A disconnected or replaced MCP registration cannot be used through an old binding.
-
-Updating this local bundle does not apply its new preset entries to an already installed profile. Existing sessions keep their composition revision.
-
-## Subagents and questions
-
-The existing Host `spawn` and `fork` providers own subagent creation, conversation inheritance, depth and model policy, messages, completion notices, and cleanup. No second backend, profile, or model client is created.
-
-Subagent creation returns `{ kind: 'activation', name }`, not the final result. Codemode may start children and return their names, but it should not stay alive polling for completion. DSH delivers native completion notices and handles follow-up messages.
-
-`ask_user_question` uses the native schema and answer service, directly or from codemode. Root sessions wait for the UI, including skip and cancellation. Native DSH rejects subagents asking the human directly; children should send the question to their parent with `send_message`. Explicit codemode timeout options also bound any wait inside a script.
-
-## Session state and execution
-
-The session log is the state authority. Successful `tool/result` metadata carries `store` writes or loaded tool names, and a projection derives each session's current values. Sessions share no mutable state.
-
-```text
-idle -> running -> successful result committed -> projection advances
-                -> failure / cancellation      -> no state change
-restore / fork  -> fold the retained session log
+```bash
+dsh plugin --profile web add "link:$PWD/packages/pi-tools"
 ```
 
-Separate internal bindings make selected deferred MCP tools part of the real DSH step admission without advertising them to the model. A custom executor hides those internal names and rejects direct calls to them. Nested calls use the shared DSH pipeline under their original public names, with input validation, guards, pre/post policy, cancellation, and canonical outputs.
+安装后在「新建会话」页面选择 **`pi`** 预设即可使用。
 
-Scripts receive Pi's structured `read` and `bash` values. A nonzero `bash` exit is still a failed tool result but resolves to its structured value inside scripts; check `exit_code`. Permission refusals, cancellation, and policy-rewritten errors are not recovered through this bridge.
+## 核心能力
 
-Safe calls may overlap. Mutations form exclusive barriers, and policy preparation and result completion keep submission order. Script cancellation, permission-mode changes, and plugin disposal abort and drain started nested work. Pi's compact nested-call summaries stay in result metadata; individual nested outputs are not added to the model's history.
+### 1. Pi 原版工具与 QuickJS codemode
 
-## System prompt
+- **基础编程工具**：`read`、`bash`、`edit`、`write`、`ls`、`find`、`grep`，保留 Pi 原版的工具名称、描述与参数 Schema，底层全部通过 DSH 的 `ctx.fs`、`ctx.subprocess` 与 `ctx.sandbox` 执行。
+- **`codemode`**：Pi 的 QuickJS Worker 沙箱（仅接受 `{ code: string }`），脚本内可使用 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool`、`describeNamespace` 调用当前步已放行的工具。无 Node/文件系统/网络直连权限，一切外调走受控 DSH 工具管线。
+- **`tool_search`**：BM25 延迟工具发现工具，搜索命中后从下一轮模型调用起即可直接调用对应工具。
+- **语法采样恢复**：通过 `lib/pi-ai-hook.js` 为支持 OpenAI grammar tools 的路由恢复 `constrainedSampling`（不支持的路由保持 JSON `{ code }` 传输），并在遇到孤立 `SyntaxError` / `ReferenceError` 时附带 `String.raw` 与转义提示。
 
-The preset calls Pi 1.5.0's original complete system-prompt builder. Its preamble, selected-tool list, rules, documentation links, and current working directory are rendered by Pi itself. Deferred MCP servers use Pi's original `mcp_servers` section renderer. The plugin does not replace the preamble with a DSH identity or append custom codemode, permission, delegation, or MCP paragraphs to the system prompt.
+### 2. 挂载的原生 DSH 能力
 
-For the same tool definitions, working directory, and MCP server names/exposure, this generated text matches Pi's builder byte for byte. This does not make the entire model request identical to the Pi CLI: DSH still supplies tool declarations, project instructions, skills, runtime facts, and other plugins' context through its own mechanisms. Permissions, sandbox enforcement, and subagent execution remain DSH-owned. Pi's documentation links describe Pi, not the DSH-specific extensions.
+`cordis.patch.yml` 在 `pi` 预设内独立挂载了 DSH 原生能力（不污染其他预设）：
 
-## Codemode strings
+- **工作时间线与计划模式**：`work_read`、`work_update`（由 `dsh-work-timeline/tools` 提供，取代旧 `todo_write`）以及隔离的 `planMode`（`exit_plan_mode`）。
+- **子代理、技能与工作流**：`subagent`、`subagent_fork`、`list_subagent_models`、`send_message`、`list_agents`、`wait_agent`、`ask_user_question`、`skill`（含 `/` 补全）、`workflow`（DSH PTC）。
+- **后台任务、定时与目标**：`job_*`、`schedule_*`、`create_goal` / `get_goal` / `update_goal`、`/goal`。
+- **联网、演示与 Office（部分默认需在选择器勾选）**：`web_fetch`、`web_search`、`present`、`office_*`、`plugin_manager`、`plugin_market`、`cordis_inspect_*`。
+- **全局工具透传**：`grok_search`、`openai_search`、`openai_image`、`grok_image`、`subagent_agy`、`subagent_cursor`。
+- **上下文裁剪与压缩**：内置 `tool-result-pruner` 与 `compaction-basic`（可通过环境变量 `DSH_PI_SUMMARY_PROVIDER` / `DSH_PI_SUMMARY_MODEL` 单独指定压缩摘要模型）。
 
-Codemode keeps Pi's original parameter schema, description, and `constrainedSampling` policy. Stock DSH drops that policy before the request reaches pi-ai, so the root companion entry re-attaches it to the exact Pi codemode declaration by wrapping `streamSimple` on the prototype of the pi-ai `Models` collection that `@deepseek-ai/dsh-llm-pi-ai` uses (`lib/pi-ai-hook.js`). pi-ai then uses raw-JavaScript grammar transport where the model's compat enables OpenAI grammar tools, and JSON `{ "code": "..." }` otherwise. DSH does not let a profile set that compat flag, so custom routes stay on JSON. The hook depends on DSH internals; if the layout changes, the Host log shows `pi-tools: codemode grammar sampling is unavailable` and codemode uses JSON. There is no extra `input` parameter, source wrapper, guessed repair, or automatic replay. Raw transport removes the JSON-string layer, but scripts must still be valid JavaScript.
+### 3. 会话工具选择器、默认配置与 MCP 刷新
 
-Codemode syntax/reference error feedback includes string guidance for file contents, edit text, paths, regex and glob patterns, and MCP fields, with nested Python, literal shell expansion, and multiline heredoc examples. This guidance is not appended to the system prompt.
+在空白 `pi` 新会话顶部点击 **Tools** 打开配置弹窗（首轮开始后锁定）：
 
-- Ordinary JavaScript strings interpret backslashes. Use `String.raw` for literal backslashes when the text has no backticks or `${...}`.
-- `String.raw` still evaluates `${...}`. Escaping interpolation or backticks inside it keeps the extra backslashes. Build literal delimiters from ordinary quoted strings or concatenated raw chunks.
-- Template line endings normalize to LF, including inside `String.raw`. Use explicit escapes for exact CRLF or CR.
-- Pass objects and arrays directly when the schema expects them, and use `JSON.stringify` to produce JSON text. `code` contains source, not an already JSON-encoded string literal; double-encoded source can run without calling any tool and is not reinterpreted.
-- Use an available direct tool for a single operation that does not need a script. This does not authorize enabling tools or changing permissions.
+- **简洁视图 / 逐工具视图**：按 Pi 工具、DSH 分类与 MCP 服务分组筛选和勾选，支持「仅看已选」与 **设为默认**（保存预设级默认差异至 `pi_tools_defaults`）。
+- **刷新 MCP**：按需重启已桥接的 DSH MCP 服务器并等待就绪，刷新目录中的新工具列表。
+- **MCP 曝光模式**：支持 `codemode`（默认）、`deferred`、`direct`、`hidden`；`'*'` 自动桥接所有全局 DSH MCP 命名空间（包括 `dsh-pi-mcp` 同步过来的服务器）。
 
-`SyntaxError` and `ReferenceError` results get specific recovery guidance only when no nested call was attempted and the run was not cancelled. Syntax feedback separates source errors from malformed input to `JSON.parse` or `eval`; reference feedback covers undeclared names and unintended template interpolation. The original error and metadata stay intact, and nothing is rewritten, retried, or replayed. The guidance helps models recover; it cannot guarantee they follow it.
+## 预设配置项
 
-## Web tool cards
+`cordis.patch.yml` 中 `dsh-pi-tools` 支持的字段包括 `tools`、`codemode`、`toolSearch`、`scopedTools`、`globalTools`、`optInTools`、`mcpServers`、`mcpExposure`、`maxParallel`（默认 `10`）、`rgCommand`、`fdCommand`；前端伴侣入口通过 `presentationOnly: true` 挂载 `/pi-tools/options` 与 `codemode` / `tool_search` 结果卡片。
 
-The Web half claims the keyed `codemode` and `tool_search` views, which have no DSH built-in view. Successful Pi text results show codemode call summaries with durations and errors, and loaded tool names. Pending and failed calls show a plain status row; failed calls keep a visible failure label and put error text behind a disclosure that starts collapsed. Pi `read`, `write` and `edit` keep DSH's built-in rows. Disclosure follows DSH's turn controls, and cards do not show live script progress.
-
-The root companion entry sets `presentationOnly: true`, which registers no Host tools, prompt sections, executor, or session state. It serves the `/pi-tools/options` route for the owner, which finds the live Pi preset generation that owns the session. The Pi tools exist only inside the `pi` preset. Styles and locale registrations go away when the companion unloads.
-
-## Compatibility boundaries
-
-- File access uses `ctx.fs`; writes use DSH's atomic write with the calling session's sandbox policy. The profile must mount the sandbox-enforcing filesystem provider. DSH replaces a destination symlink instead of writing through it.
-- Shell and search processes use DSH's managed subprocess service. Restricted sessions require `ctx.sandbox.confine`, and a failure never falls back to an unrestricted process. The environment stays DSH-owned and scrubbed.
-- Omitting `bash.timeout` adds no timeout. A supplied timeout terminates the command; it does not create a background job. Pi shell settings and fictitious `PI_*` session metadata are not loaded.
-- QuickJS scripts get no Node, filesystem, network, or timer APIs. Files and network go through the provided tools.
-- Pi's worker limits and output formatting stay in force. Pi owns its temporary spill files; DSH stores returned images as durable attachments with its own admission and normalization limits.
-- MCP scripts receive the canonical result envelope, including protocol content and optional structured content. DSH stays authoritative for MCP transport errors and server error results.
-- `models.*`, classifiers, image-model routing, PowerShell, arbitrary Pi extensions, and Pi's agent loop are not loaded.
-- Pi's complete system prompt replaces DSH's static identity and tool guidance in this preset. DSH still owns model routing, runtime context, project instructions, session persistence, and compaction. Pi tools do not accept DSH escalation parameters; a permission denial needs a human permission change.
-
-## Installation and development
-
-Install this directory through DSH Plugin Manager, then select **pi** for a new session. The bundle keeps the preset id `pi` and entry id `preset-pi`. It does not rename the profile, change the default preset, or modify the shipped presets.
-
-The package is plain ESM with no build or installation scripts. It resolves DSH's public exports from the running installation and does not install a second copy of the runtime. Use the repository's pnpm lockfile and do not update Pi automatically.
-
-The validated target is a local macOS DSH installation. Remote filesystem and process combinations, live provider requests, Web card rendering in an installed GUI, and sessions created before an update need separate checks. After installing a new version, verify in a new `pi` session.
-
-The reported multiline Python failure is kept in [the original input](../../scripts/fixtures/pi-multiline-python.json) and [the corrected input](../../scripts/fixtures/pi-multiline-python-corrected.json). The correction uses `String.raw` for both commands, because plain backticks accept the line breaks but turn Python's `r'\s+'` into `r's+'`. The check reproduces the exact QuickJS error, exercises the public recovery feedback, compares captured arguments byte for byte, and parses the shell and Python syntax without running the network operations. It adds no production rewriting or retries.
-
-Run it from the repository root inside DSH, which supplies `DSH_INSTALL_DIR`:
-
-```sh
-node scripts/check-pi-multiline.mjs
-```
-
-Outside DSH, set `DSH_INSTALL_DIR` to the runtime package directory that contains DSH's dependencies. In a source checkout this is `apps/cli`, not the monorepo root.
-
-The icon is original artwork under this repository's MIT license.
+更多使用说明、系统提示词与兼容边界见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/pi-tools)。

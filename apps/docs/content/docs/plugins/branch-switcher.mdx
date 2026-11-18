@@ -1,49 +1,27 @@
 ---
 title: 分支切换
-description: 新会话发出首条消息前，切换到已有的本地分支，保留原生的新建工作树功能。
+description: 新会话发出第一条消息前，直接在页面里切换到已有的本地分支。
 ---
 
 <PluginFacts slug="branch-switcher" />
 
-在 **新建会话** 页面，不必先勾选“新建工作树”，直接点分支名就能切换到另一个已有的本地分支。勾选“新建工作树”后，仍然使用 DSH 原生的基准分支选择和创建流程。
+在「新会话」页面发第一条消息之前，点击分支标签就能直接切换当前目录的本地分支，不用专门开终端敲 `git switch`；如果勾选 **新建工作树**，仍沿用 DSH 原生的工作树创建流程。
+
+<Callout type="info" title="依赖 Forge 服务">
+需要启用 `Change requests & worktrees`（`@deepseek-ai/dsh-experimental-forge-bundle`）。
+</Callout>
 
 ## 安装
 
 <InstallCommand slug="branch-switcher" />
 
-先启用 Change requests & worktrees（`@deepseek-ai/dsh-experimental-forge-bundle`），插件不会自动启用它。工作区必须是 Git 仓库，并且在会话的沙箱策略下可写。
+## 用法
 
-## 使用
+- **页面按钮**：在尚未开始对话的新会话页顶部，点击分支胶囊展开本地分支列表（按最近提交时间排序，支持搜索），选定分支即可切换。
+- **命令与工具**：同时注册 `/branch-switcher` 用户命令与 `branch_switcher` 工具（`list` / `switch`），在底层共用同一套沙箱 Git 逻辑。
 
-1. 新建会话并选择一个 Git 工作区。
-2. 发出首条消息前，点“新建工作树”旁边的分支名。
-3. 搜索本地分支，选中一个，点 **切换分支**。
-4. Git 成功后分支名更新。发送消息即在这个分支上开始；也可以勾选“新建工作树”改用隔离的工作树。
+## 边界说明
 
-菜单支持 Esc 和点击外部关闭、键盘焦点和方向键，悬停显示完整分支名，Git 失败时就地显示错误并可重试。只读模式下不能切换。分离 HEAD 会明确标出。
-
-<Callout type="warn" title="切换的是真实目录">
-共用这个目录的其他会话和终端都会看到新分支。未提交的改动遵循 `git switch` 的规则：兼容的改动保留，可能被覆盖时 Git 会拒绝切换。插件不会 fetch、新建分支、stash、reset、merge 或强制切换。
+<Callout type="warn" title="切换的是当前工作目录的真实分支">
+所有指向同一工作目录的会话和终端都会立即看到新分支。插件只切换本地已有分支，不执行 `fetch`、不建新分支、不 `stash`、不强制覆盖；遇到冲突或处于只读权限模式时会明确拒绝。第一条消息发出后不可再通过此入口切换。
 </Callout>
-
-已在其他工作树里检出的分支由 Git 拒绝。检出钩子被禁用，Git 的内容过滤器照常生效。
-
-## 命令与 Agent
-
-界面调用的是带认证的会话命令接口，不是自定义的文件系统接口：
-
-```text
-/branch-switcher {"action":"list"}
-/branch-switcher {"action":"switch","branch":"feature/example","root":"/absolute/checkout","current":"main"}
-```
-
-`branch_switcher` 工具向 Agent 提供相同的操作，`root` 和可为空的 `current` 取自列表结果。切换只允许在空白且空闲的会话里进行；正在运行的 Agent 可以列出分支，但不能用这个工具切换自己正在使用的目录。两个入口都调用 `BranchSwitcher.run`，使用会话的工作目录和沙箱，返回相同的结果或错误。
-
-切换期间插件占用会话维护状态，这时到达的首条消息会等切换结束。所选目录或当前分支已经过时时会被拒绝。Git 以参数数组的形式通过 DSH 的托管子进程服务运行，输出有上限，可以取消，每条命令 15 秒超时。不绕过会话沙箱，也不请求提权。
-
-## 限制
-
-- 只替换 `conversation.hero.options` 里原生的 `forge-panel.worktree` 条目，保留它注入的面板来源。依赖 DSH 自带的条目约定，Forge API 将来不兼容时插件需要更新。
-- 只列已有的本地分支，当前分支之后按最近提交排序。列表输出上限 1 MiB。
-- 原生面板刷新后会更新当前会话。其他会话显示的分支可能稍后才刷新，但它们共用的文件系统已经变了。
-- 没有设置，也没有插件自己的持久存储。分支状态归 Git 管，命令和工具记录在会话日志里。

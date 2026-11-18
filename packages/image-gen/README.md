@@ -1,58 +1,36 @@
 # dsh-image-gen
 
-Image generation tools for DSH. On the Plugins page, pick a local Responses model for each tool. The tool calls that model's hosted `image_generation` tool, saves the image to a file, and shows it in the conversation. No image model id is needed; the server picks it.
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）新增 `openai_image` 与 `grok_image` 画图工具，复用 `llm-pi-ai` 中已有 `openai-responses` provider 的接口与密钥调用托管 `image_generation`，并将生成的图片保存为本地文件及 DSH 会话附件。
 
-| Tool | Hosted tool | Parameters the model can pass |
-|---|---|---|
-| `openai_image` | OpenAI `image_generation` | size, quality, background, output format |
-| `grok_image` | xAI `image_generation` (Grok Imagine) | aspect ratio |
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Host + Web |
+| 前置依赖 | `llm-pi-ai` 中配置有 `api: openai-responses` 的 provider 及对应密钥 |
+| 数据保存 | profile 的 `cordis.patch.yml` + 磁盘目录（默认 `generated-images/`）与 DSH 附件存储 |
 
-There are two tools because the vendors' hosted tools take different parameters. xAI's tool has no size field, so `aspect_ratio` is appended to the prompt. Only `prompt` is required; every optional field can be omitted or set to `null`. One call generates one image.
-
-## Install
+## 安装
 
 ```bash
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/image-gen"
 ```
 
-## Configure
+本地开发链接：
 
-Open **Plugins → dsh-image-gen**:
-
-- **Output directory**: where images are written, relative to the session working directory or absolute. Default `generated-images`.
-- **Enabled**: turning it off removes the tool.
-- **Model**: any model on an `openai-responses` provider in llm-pi-ai that can call hosted `image_generation`, for example a GPT model for OpenAI or a Grok model for xAI. The endpoint (`baseURL`), key (`apiKeyEnv`), and extra `headers` come from that provider.
-
-Saving restarts the plugin and re-registers the tools. A tool is offered only while its provider route exists and its key resolves; the page shows **Ready** or the reason it is not. Readiness does not probe whether the upstream supports `image_generation`.
-
-The same settings in `cordis.patch.yml`:
-
-```yaml
-- id: image-gen
-  config:
-    timeoutMs: 300000
-    outputDir: generated-images
-    openai:
-      enabled: true
-      provider: responses
-      model: gpt-6.1-sol
-    grok:
-      enabled: true
-      provider: responses
-      model: grok-4.7-build-fast
+```bash
+dsh plugin --profile web add "link:$PWD/packages/image-gen"
 ```
 
-## Request
+## 工具与参数
 
-OpenAI requests force the tool with `tool_choice: {"type": "image_generation"}` and `action: "generate"`. xAI documents no `tool_choice` for this tool, so Grok requests use `action: "generate"` and an instruction to call it once. If the model answers without an image, the tool fails with the model's text.
+| 工具 | 托管能力 | 模型可传参数 |
+| --- | --- | --- |
+| `openai_image` | OpenAI `image_generation` | `prompt`、`size`（`auto` / `1024x1024` / `1536x1024` / `1024x1536`）、`quality`（`auto` / `low` / `medium` / `high`）、`background`（`auto` / `opaque` / `transparent`）、`output_format`（`png` / `jpeg` / `webp`；透明背景需 `png` 或 `webp`） |
+| `grok_image` | xAI `image_generation` | `prompt`、`aspect_ratio`（`1:1`、`16:9`、`9:16`、`4:3`、`3:4`、`3:2`、`2:3`、`2:1`、`1:2`、`21:9`） |
 
-## Result
+## 配置与边界
 
-Each image is written as `<tool>-<UTC time>-<id>.<ext>` and stored in DSH's attachment store. The model receives the file path and the prompt the image model used (OpenAI `revised_prompt`, xAI `prompt`). It also receives the image when its route declares image input; a text-only model gets the path only. The Chat shows the built-in image row with the result.
+- 在 **Plugins → dsh-image-gen** 分别启用 `OpenAI` / `Grok` 后端，选择对应的 `openai-responses` provider、模型以及图片输出目录（`outputDir`，相对路径不能越出工作目录，默认 `generated-images`）。
+- 仅支持实际魔数为 PNG、JPEG、WebP 或 GIF 的图片输出。
+- 图片会写入会话工作目录下的 `outputDir` 并存入 DSH 附件以在界面中显示；只有当前对话模型声明支持 `image` 输入时，工具才会把图片块一并回传给该模型（否则仅返回文件路径与改写后的提示词）。
 
-## Caveats
-
-- Whether a gateway forwards hosted `image_generation` depends on the gateway and the upstream account. An unsupported tool returns the endpoint's HTTP error.
-- Each call bills the chosen Responses model plus the image generation.
-- Files are written with Node on the Host machine. Remote execution worlds such as SSH are not supported.
-- Only new images; editing and reference images are not exposed.
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/image-gen)。

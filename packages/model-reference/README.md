@@ -1,54 +1,50 @@
 # dsh-model-reference
 
-Type `#` in the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) composer to pick a model and insert it as a chip, the same way `@` inserts a file or session reference.
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）输入框键入 `#` 选择模型并插入引用标签，自动带上该模型上次使用的推理强度与快速模式状态，方便在提示词里点名调度子代理或对比模型。
 
-The chip carries the reasoning effort that model was last used with, plus fast mode when [`dsh-service-tier`](../service-tier) has it switched on. You can then write a prompt such as *"ask #GPT-6.1 Sol · xhigh ⚡ to review this diff in a subagent"*.
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Host + Web |
+| 可选联动 | 安装 [`dsh-service-tier`](../service-tier) 后，标签同步携带 `⚡` |
+| 数据保存 | profile 的 `cordis.patch.yml`（`efforts` 字段） |
 
-Switching models in the composer picker or with `/model` also restores the selected model's saved effort. Choosing Default for the current model clears its saved effort. A saved effort the model no longer supports is ignored, and the model's normal default applies.
+## 安装
 
-## What the model sees
-
-A chip is serialized into the prompt as:
-
-```text
-#model(provider=responses, model=gpt-6.1-sol, reasoning_effort=xhigh, service_tier=priority)
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/model-reference"
 ```
 
-This is text for the model; it does not switch the current session's model. Copying a chip puts `#provider/model` on the clipboard.
+本地开发链接：
 
-Sent messages, queued rows, and history show the same chip instead of this text. Hover the chip to see the full `#model(...)` form.
+```bash
+dsh plugin --profile web add "link:$PWD/packages/model-reference"
+```
 
-## Usage
+## 用法
 
-| Key | Action |
-|---|---|
-| `#` + text | Open the picker and filter by model name, model ID, provider name, or provider ID. Every word must match; `/` and spaces separate words. |
-| `↑` / `↓` | Move the highlight. |
-| `Enter` / `Tab` | Insert the highlighted model. |
-| `Esc` | Close the picker for this query. |
+1. 在输入框中输入 `#`（前面为空格或位于行首），按模型名或 provider 筛选，回车或点击插入标签，例如 `#GPT-6.1 Sol · xhigh ⚡`。
+2. 退格可整块删除标签，复制标签会得到 `#provider/model`。
+3. 发送给模型时，标签序列化为结构化文本：
 
-## How it works
+```text
+#model(provider=..., model=..., reasoning_effort=..., service_tier=priority)
+```
 
-| Half | File | Role |
-|---|---|---|
-| Host | `lib/index.js` | Listens for `model/selection` events in top-level sessions, saves the effort per `provider/model` in this plugin's config, and serves it at `GET /model-reference/state`. Subagent selections are ignored. |
-| Browser | `lib/client.js` | Renders the `#` menu in `conversation.input.overlay`, registers the chip codec on the input-trigger pipeline, and restores saved efforts when the model changes. |
+4. Host 监听顶层会话的 `model/selection` 事件，按 `provider/model` 记住你最近选用的推理强度（子代理会话不会覆盖该偏好）。
 
-The state route uses the same authentication as the rest of the Web API.
+## 配置与边界
 
-## Configuration
+Host 配置由插件自动写入 `cordis.patch.yml`：
 
 ```yaml
 - id: model-reference
   config:
-    # provider/model -> last reasoning effort. Filled in automatically.
     efforts:
-      responses/gpt-6.1-sol: xhigh
+      openai/gpt-6.1-sol: xhigh
 ```
 
-The plugin maintains this map; you normally do not edit it.
+- 插入 `#` 引用不会切换当前会话自己的模型。
+- 复制包含 `#` 标签的历史消息再粘贴时，仅粘贴为文本（可再通过 `#` 重新插入）。
+- 暴露只读接口 `GET /model-reference/state`（需 owner 鉴权）。
 
-## Related
-
-- [`dsh-service-tier`](../service-tier) adds the ⚡ marker to chips.
-- [`dsh-recent-sessions`](../recent-sessions) sorts `@` session references newest first.
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/model-reference)。

@@ -1,24 +1,18 @@
 ---
 title: 最近会话优先
-description: '@ 菜单里的会话按最近活动排序，最新的在前。'
+description: 输入框 @ 菜单里的会话按最近活动时间排序，刚聊过的排在最前。
 ---
 
 <PluginFacts slug="recent-sessions" />
 
-在输入框输入 `@` 引用会话时，会话按最后活动时间排序，最新的排在最前面。文件行和其他分组不受影响。
+在输入框键入 `@` 引用历史会话时，默认列表可能按创建时间或目录分组排序。本插件把每个连续的会话区块按最近活动时间（`updatedAt`）从新到旧重新排列。
 
 ## 安装
 
 <InstallCommand slug="recent-sessions" />
 
-## 原理
+## 工作方式
 
-只有 Web 部分，Host 入口是空的。
-
-插件包装内置 `@` 来源（`dsh-client-ui-reference` 中名为 `reference` 的来源）的 `candidates()`。同一分组里连续的会话行按会话的 `updatedAt` 排序，时间相同时保持原顺序。停用插件会恢复原函数。
-
-这个来源是异步注册的，插件每 500 ms 查找一次，30 秒后放弃。
-
-## 兼容性
-
-插件依赖 `dsh-client-ui-reference` 的内部约定：来源名 `reference`、`icon: 'session'` 的行结构，以及 `dsh-session:` 引用编码。DSH 改变这些约定后，插件不做任何事，不会报错。
+- 自动包装 `@` 引用源（`reference`），解码每条会话的 `dsh-session:` 引用 ID，并对照实时会话目录的时间戳稳定排序。
+- 同活动时间的条目保持原顺序；文件引用和其他非会话条目完全不动。
+- 纯 Web 端生效，无需配置，也不保存额外状态。

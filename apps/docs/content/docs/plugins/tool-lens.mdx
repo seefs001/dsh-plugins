@@ -1,38 +1,27 @@
 ---
 title: 工具透镜
-description: 工具调用行可直接打开技能文件、完整输出、结果文件和子代理对话。
+description: 在工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理对话。
 ---
 
 <PluginFacts slug="tool-lens" />
 
-让对话里的工具调用行多一些可点击的入口。每个透镜只替换一种工具的内置行，停用插件即恢复原样。
+为聊天流里的常见工具调用行增加直达右侧边栏的快捷按钮，不用先展开整段原始参数或手动去文件树里翻找。
 
 ## 安装
 
 <InstallCommand slug="tool-lens" />
 
-## 透镜
+## 支持的工具行快捷操作
 
-| 工具 | 变化 |
+| 工具 | 增强效果 |
 | --- | --- |
-| `skill` | 技能名变成链接，点击在右侧边栏打开该技能的 `SKILL.md`。展开后的说明卡片标题栏也有同样的按钮 |
-| 输出被截断的工具（`bash`、`job_output`、`terminal_read`、`cordis_inspect_*`、`session_*`、`workflow`、`lsp`、网页工具） | 结果末尾带有落盘提示时，出现 **Full output** 按钮，在右侧边栏打开保存的文件 |
-| `subagent`、`send_message`、`interrupt_agent` | **Conversation** 按钮在右侧边栏打开子代理的对话 |
-| `grep`、`glob` | 只有一个结果文件时，标签直接打开它（定位到第一处匹配）；多个时显示 **N files**，点开列表再选 |
-| `web_search`、`web_fetch` | **N sources** / **Browse** 在右侧边栏浏览器里打开网页，Cmd/Ctrl 点击则在新标签页打开 |
+| `skill` | 替换内置行，点击技能名直接在右侧文件侧栏打开对应的 `SKILL.md`（点击空白处展开参数与说明） |
+| `grep` / `glob` | 行尾显示命中文件或文件数量按钮，点击直接打开对应文件并定位到首个命中行号 |
+| `web_search` / `web_fetch` | 行尾显示网页来源链接，默认在右侧 Browser 面板打开（按住 `Cmd`/`Ctrl` 在浏览器新标签打开） |
+| `subagent` / `send_message` / `interrupt_agent` | 一键在右侧面板打开或聚焦对应子代理会话 |
+| `bash`、`job_output`、`terminal_read`、`workflow`、`lsp`、`cordis_inspect_*`、`session_*` | 输出被写入 spill 文件时，行尾浮动 **完整输出** 按钮，点击直接在右侧预览完整日志 |
 
-## 原理
+## 边界说明
 
-只有 Web 部分，Host 入口是空的。
-
-- 每个透镜在带键的 `tool.call.toolview` slot 里以 priority -10 注册工具名，遮住内置视图（priority 0）。
-- skill 透镜自己绘制整行。其他透镜保留内置行：通过 `ctx.slots.entries()` 找到被遮住的条目，用相同的 props 渲染，再把按钮浮在行的右端（悬停或聚焦时显示）。它们只注册内置视图使用 `conversation` locale、且没有条目级 `inject` 的键，保证 props 一致。透镜崩溃时，slot 运行时会丢掉它，只渲染内置行。
-- skill 透镜通过会话的技能目录（`skills/list`）找文件，单文件技能也能打开。技能已经卸载时，退回到工具输出里记录的 `<base directory>/SKILL.md`。
-- 文件通过 `ctx.sidebarRight.openResource` 打开，和用户消息里 `/skill` 标签走同一条路径。
-
-## 限制
-
-- 调用之后被删除、且输出里没有记录基础目录的技能无法打开，行内会给出简短提示。
-- 增强型透镜依赖 `ctx.slots.entries()`。这是 slots 服务的公开方法，但 Client inspector 不列出它。没有这个方法时透镜不启用，内置行照常渲染。
-- 很多网站拒绝在框架里加载。侧边栏浏览器显示空白时，用 Cmd/Ctrl 点击。
-- 没有内置视图的工具（MCP 工具和其他通用行）不在覆盖范围内。
+- 在 `tool.call.toolview` 槽位包装或替换默认视图，停用后立即还原原生行样式。
+- 仅读取已有工具结果与会话元数据，不会重新执行工具。对于外部模式（`external`）子代理不提供原生子代理面板打开按钮。

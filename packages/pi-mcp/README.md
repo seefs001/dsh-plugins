@@ -1,31 +1,30 @@
 # dsh-pi-mcp
 
-Use the MCP servers configured for Pi in DeepSeek Harness. One file, `~/.pi/agent/mcp.json`, configures both.
+把 Pi 的用户级 MCP 配置文件（`~/.pi/agent/mcp.json`，支持 `PI_CODING_AGENT_DIR` 环境变量重定向）共享给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH），并实时监听文件修改自动热同步。
 
-## What it does
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Host |
+| 前置依赖 | `@deepseek-ai/dsh-mcp-manager`（默认 profile 已包含） |
+| 数据保存 | 读取本地 `mcp.json`，不另存配置或复制密钥 |
 
-- Reads `$PI_CODING_AGENT_DIR/mcp.json`, defaulting to `~/.pi/agent/mcp.json`.
-- Registers each enabled server with the DSH MCP manager (`ctx.mcpManager.register`). Tools appear as `mcp__<server>__<tool>`.
-- Watches the file. Adding, changing, disabling, or removing a server takes effect without a restart. An invalid file keeps the current servers.
-- Disabling or removing the plugin withdraws every server it registered.
+## 安装
 
-## Field mapping
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/pi-mcp"
+```
 
-| Pi field | DSH |
-|---|---|
-| `command`, `args`, `env`, `cwd` | stdio entry; a leading `~/` expands to the home directory |
-| `url`, `headers` | Streamable HTTP entry |
-| `${VAR}` in any string | `${credential:VAR}`: a stored DSH credential, otherwise the launch environment |
-| `timeout` (seconds) | `toolCallTimeoutMs` |
-| `enabled: false` | not registered |
-| `description`, `exposure`, `toolExposure` | ignored; the agent preset decides exposure |
+本地开发链接：
 
-Skipped with a log warning: `oauth`, `!command` values, `sse`, invalid names, and names that collide after `-`/`_` normalization or with an existing DSH server. Project `.pi/mcp.json` files are not read; the DSH MCP manager serves the whole Host.
+```bash
+dsh plugin --profile web add "link:$PWD/packages/pi-mcp"
+```
 
-Stdio servers start with DSH's scrubbed environment plus their `env`. Pass credentials explicitly through `env` with `${VAR}`.
+## 转换与同步规则
 
-Prefer `${VAR}` over literal tokens in `headers`: diagnostics redact only resolved credential values.
+- **支持的传输**：`stdio`（带 `command`，展开 `~/` 并映射 `args` / `env` / `cwd`）以及 `streamable-http`（带 `url` 与 `headers`），支持 `timeout`（秒转毫秒）。
+- **凭据安全引用**：自动把 Pi 写法 `${VAR}` 转换为 DSH 的 `${credential:VAR}`，由 DSH credentials 与运行环境解析，密钥不落入日志或配置文件。
+- **跳过项与冲突**：`enabled: false`、带 `oauth` 配置、`!command` 外部命令求值、非法服务名，以及仅 `-` 与 `_` 不同的重名条目会被安全跳过并记警告日志。
+- **原子保存保护**：监听 `mcp.json` 所在目录（300 ms 去抖）；如果文件正在写入或 JSON 临时损坏，保留当前已注册的服务器列表不中断服务。
 
-## Use with the pi preset
-
-Set `mcpServers: ['*']` on `dsh-pi-tools` to bridge every global MCP namespace, including servers this plugin adds later.
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/pi-mcp)。

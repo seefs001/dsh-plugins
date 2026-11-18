@@ -1,47 +1,44 @@
 ---
 title: 快速模式（service tier）
-description: 为 Responses 模型选择服务档位，支持的模型可选超快（ultrafast）。
+description: 为 OpenAI Responses 请求切换快速（priority）与超快（ultrafast）档位。
 ---
 
 <PluginFacts slug="service-tier" />
 
-点击模型选择器旁的 ⚡，为当前 `provider/model` 设置服务档位。选择「默认速度」会移除覆盖，由 provider 决定；「快速」发送 `service_tier: "priority"`，「超快」发送 `service_tier: "ultrafast"`。
-
-只有当前模型的 provider 使用 OpenAI Responses API 时才显示这个控件：`llm-pi-ai` 里写了 `api: openai-responses`，或者是没写 `api`、沿用 pi-ai 目录协议的目录路由（如 `openai`）。
+当当前会话选用使用 OpenAI Responses 协议的模型时，输入框右侧模型选择器旁会出现 `⚡` 按钮，允许按 `provider/model` 切换服务档位。
 
 ## 安装
 
 <InstallCommand slug="service-tier" />
 
-## 使用
+## 显示条件与档位
 
-`gpt-6.2-sol`、`gpt-6.2-astra`、`gpt-6.1-sol` 和 `gpt-6-astra` 点击 ⚡ 展开三档菜单。其他 Responses 模型仍点一下 ⚡ 直接切换快速模式。默认显示空心闪电，快速显示一个实心闪电，超快显示两个。悬停可看当前档位。已有的快速配置不会自动升级为超快。
+插件从配置编辑器读取 `llm-pi-ai` 的 provider 列表，仅当模型路由满足以下任一条件时才显示 `⚡` 按钮：
 
-保存期间控件不可用。config editor 写入 profile 后才显示新档位；写入失败会保留原状态并显示原因。
+- provider 显式配置了 `api: openai-responses`；
+- provider 使用 pi-ai 内置目录中默认走 `openai-responses` 的路由（例如未覆写 `api` 的 `openai`）。
 
-<Callout type="warn">
-[Ultrafast 有独立的计费和限流规则](https://developers.openai.com/api/docs/guides/ultrafast-mode)。模型支持不代表当前账号或兼容网关已开通，请先确认权限和价格。
+### 可选档位
+
+| 模型范围 | 图标状态 | 可选档位 |
+| --- | --- | --- |
+| 支持 Ultrafast 的模型（`gpt-6.2-sol`、`gpt-6.2-astra`、`gpt-6.1-sol`、`gpt-6-astra`） | 空心闪电 / 单实心闪电 / 双实心闪电 | **默认速度**（不覆写）、**快速**（`priority`）、**超快**（`ultrafast`） |
+| 其他 Responses 模型 | 空心闪电 / 单实心闪电 | 点击直接切换 **默认速度** 与 **快速**（`priority`） |
+
+<Callout type="warn" title="服务档位与计费">
+开启 `priority` 或 `ultrafast` 会通过请求体里的 `service_tier` 字段传给上游模型服务，可能产生对应档位费用。选择 **默认速度** 会删除该模型的覆盖配置。
 </Callout>
 
-## 配置
+## 配置与联动
+
+- 选择会实时通过 `POST /service-tier/set` 写入 profile 的 `cordis.patch.yml`（`tiers` 字段）：
 
 ```yaml
 - id: service-tier
   config:
     tiers:
       responses/gpt-6.1-sol: priority
-      responses/gpt-6.2-sol: ultrafast
 ```
 
-选择默认速度时，插件会删除对应的配置项。
-
-## 原理
-
-| 部分 | 作用 |
-| --- | --- |
-| Host（`lib/index.js`） | 为选了快速或超快档的 Responses 请求写入对应的 `service_tier`。插件包装 DSH 内部 pi-ai `Models` 原型上的 `streamSimple`，通过 `onPayload` 写入字段（`lib/pi-ai-hook.js`）。这依赖 DSH 内部结构，失效时 Host 日志会出现 `service-tier: service tier overrides are unavailable`。提供 `GET /service-tier/state` 和 `POST /service-tier/set` |
-| Web（`lib/client.js`） | 在 `conversation.input.right` 渲染 ⚡ 按钮，为支持超快的模型展开档位菜单，显示保存结果 |
-
-两个路由都使用 Web API 的常规认证。`GET /service-tier/state` 返回的 `ultrafastModels` 列出支持超快档的模型 ID。`POST /service-tier/set` 接受 `provider`、`model` 和 `tier`（`"priority"`、`"ultrafast"` 或用于清除覆盖的 `null`），也兼容旧的 `fast: true` / `false`。请求体上限 16 KiB。
-
-[# 引用模型](/docs/plugins/model-reference) 读取这里的状态，给 `#` 标签加上 ⚡。
+- 同时安装 [# 引用模型](/docs/plugins/model-reference) 时，`#` 模型标签也会显示并携带对应的 `⚡` 状态。
+- 若使用新版 DSH（无 `llm-pi-ai/model-defaults` waterfall），插件通过包装 pi-ai 请求入口的 `onPayload` 注入 `service_tier`。

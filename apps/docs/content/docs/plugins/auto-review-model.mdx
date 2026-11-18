@@ -1,54 +1,49 @@
 ---
 title: 自动审查模型
-description: 为 Auto review 单独选择审查模型和提示词，并查看每个会话的审查日志。
+description: 为实验性 Auto review 单独指定审查模型与提示词，并在会话内实时查看审查日志。
 ---
 
 <PluginFacts slug="auto-review-model" />
 
-Auto review（`@deepseek-ai/dsh-experimental-auto-review`）默认用会话自己的模型审查工具调用。这个插件把审查请求（`purpose: "auto-review"`）改道到你选的 provider 和模型，也可以追加或替换审查提示词。主对话不受影响。
+`dsh-auto-review-model` 把 Auto review 发出的审查请求（`purpose: "auto-review"`）改道到你指定的模型与推理强度，并支持在内置审查规则后追加条款或整段替换，同时为每个会话记录可实时查看的审查日志。
+
+<Callout type="warn" title="前置要求">
+需要已启用实验性 Auto review bundle（`@deepseek-ai/dsh-experimental-auto-review`）及 `@deepseek-ai/dsh-storage-domain`。本插件不会自行开启 Auto review。
+</Callout>
 
 ## 安装
 
 <InstallCommand slug="auto-review-model" />
 
-先在 Plugins 页启用 `@deepseek-ai/dsh-experimental-auto-review`。
+## 配置模型与审查提示词
 
-## 使用
+打开 **Plugins → dsh-auto-review-model**：
 
-1. 打开 **Plugins → dsh-auto-review-model**。模型列表就是 Host 的实时模型目录，和输入框的模型选择器相同。
-2. 选择模型，按需选择推理强度，点 **Save**。选“Same as session”恢复内置行为。
-3. 会话的权限模式是 Auto review 时，输入框工具行会出现 **Review: 模型名** 标签，显示这个会话的审查次数。有审查拒绝或失败时，数字变红，显示为“拒绝数/总数”。配置的 provider 没有加载、审查退回会话模型时，标签变成琥珀色。
-4. 点标签打开审查日志：时间、工具、结论和风险、拒绝理由或失败原因；展开后可以看到审查模型、耗时和被审查的参数。标题栏的 **Review settings** 打开插件设置，**Clear** 删除这个会话的记录。
+1. **审查模型**：选择专用审查模型与推理强度，或选择 **跟随会话**（保持内置默认行为）。若保存的 provider 临时不可用，Host 会回退到当前会话模型并记警告，不会阻塞会话。
+2. **审查提示词**：支持三种模式：
+   - **内置（`default`）**：使用 Auto review 自带策略。
+   - **追加规则（`append`）**：把你的补充条款接在内置规则后方，保留原有风险分级与输出规范。
+   - **替换（`replace`）**：整段替换内置策略，界面支持点击 **载入内置提示词** 作为起草基准。
 
-点一条日志会滚动到对应的工具调用并短暂高亮。PTC 里的内层调用可能跳到外层工具卡片。目标不在已加载的历史里时，界面会提示，不会自动加载更早的消息。
+<Callout type="warn" title="替换模式必须保持严格的 JSON 输出">
+Auto review 要求模型只输出 `{"risk":"low|medium","decision":"allow"}` 或 `{"risk":"medium|high","decision":"deny","reason":"..."}`。替换提示词或选用过小模型导致输出格式不合法时，工具调用会按审查失败被直接拦截。
+</Callout>
 
-## 配置
+## 查看会话审查日志
 
-| 字段 | 含义 |
-| --- | --- |
-| `provider` | provider 路由 ID。留空沿用会话模型 |
-| `model` | 模型 ID，必须和 `provider` 一起设置 |
-| `reasoningEffort` | 该模型的推理强度 ID。留空用模型默认值 |
-| `promptMode` | `default` 使用内置审查策略；`append` 在内置策略后追加 `prompt`；`replace` 用 `prompt` 替换内置策略 |
-| `prompt` | 追加的规则，或替换用的完整策略 |
+启用后，输入框左侧会显示两个快捷标签：
 
-## 审查提示词
+- **审查模型标签**：显示当前生效的审查模型（与提示词模式），点击跳转设置。
+- **审查计数标签**：显示本会话允许/拒绝/失败统计，点击打开实时日志弹窗（通过 SSE 自动刷新）。
 
-追加（append）更安全：你的规则放在内置策略之后，标题是 `ADDITIONAL USER POLICY`，风险等级和输出格式保持内置。
+在日志弹窗中，你可以展开每次调用的完整工具参数与模型判断理由，支持点击直接跳回对话里的对应工具调用（含 `run_code` PTC 父调用），或点击 **Clear** 清空当前会话的记录。
 
-替换（replace）会把你的文本作为审查者的完整系统提示词。Auto review 仍然严格解析回答，所以提示词必须让审查者只返回一个 JSON 对象，组合限于 `low+allow`、`medium+allow`、`medium+deny`、`high+deny`，只有 deny 时可以带 `reason`。其他输出都算审查失败，工具调用会被拦下。**Load built-in prompt** 会填入最近一次 Auto review 请求里的策略，Host 启动后至少要跑过一次 Auto review 才有内容。
+## 数据与隐私
 
-## 数据
-
-每次审查结束后，Host 把一条记录追加到 `auto_review_log` storage domain，每个会话一个 JSON 文档。每个会话保留最近 200 条，最多保留最近 300 个会话。参数截断到 4000 个字符，理由截断到 2000 个字符。参数可能包含敏感值，只保存在这台机器上。
-
-日志里的结论按 Auto review 自己的解析规则得出。在审查者回答前后失败的审查（例如被中止）记为失败。
-
-## 原理
-
-一个前置的 `llm/stream` 监听器匹配 `purpose === "auto-review"`，复制这个冻结的请求，换上配置的路由和系统提示词，再为副本发起新的 `llm.stream()`。副本去掉 `temperature`：Auto review 把它固定为 0，而推理模型不接受采样温度。其他 `llm/stream` 监听器仍然只看到一次改道后的请求。配置的 provider 没有加载时，审查沿用会话模型，并记录一条警告。
-
-## 限制
-
-- 审查者必须返回严格的 JSON（`{"risk":…,"decision":…}`）。能力较弱的模型经常失败，失败的审查会拦下调用（`AUTO_REVIEW_FAILED`）。
-- Auto review 是实验功能。它改变 `purpose` 标记或请求结构时，这个插件需要更新。
+- 配置保存在 profile 的 `cordis.patch.yml`。
+- 审查日志保存在 Host 的 `auto_review_log` storage domain（`per-record` 布局，每会话一份文件）：
+  - 每个会话最多保留最近 **200** 条记录；
+  - 最多保留最近 **300** 个会话的记录；
+  - 工具参数截断到 4000 字符，理由截断到 2000 字符。
+- 参数可能包含工具输入中的敏感内容，日志仅存于本机 Host，可随时在弹窗内清除。
+- 主对话模型及其他非 `auto-review` 请求完全不受影响。

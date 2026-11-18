@@ -1,39 +1,23 @@
 ---
 title: Pi MCP 服务器
-description: 在 DSH 里直接使用 Pi 的 ~/.pi/agent/mcp.json，一份文件配置两边的 MCP 服务器。
+description: 在 DSH 里共用 Pi 的 ~/.pi/agent/mcp.json，修改配置文件后自动热同步。
 ---
 
 <PluginFacts slug="pi-mcp" />
 
-启用后，DSH 读取 Pi 的用户级 MCP 配置，把其中每个启用的服务器注册到 DSH 自带的 MCP 管理器。工具名和 Pi 一样是 `mcp__<server>__<tool>`。服务器列表不写在插件里，改 `mcp.json` 即可增删。
+直接读取 Pi 的用户级 MCP 配置文件（`~/.pi/agent/mcp.json`，支持通过 `PI_CODING_AGENT_DIR` 指定目录），将其中启用的服务器注册到 DSH 原生 MCP 管理器，并持续监听目录变更实时同步。
 
 ## 安装
 
 <InstallCommand slug="pi-mcp" />
 
-需要 profile 里有 `@deepseek-ai/dsh-mcp-manager`，Web 和 Desktop profile 默认自带。
+纯 Host 插件，依赖默认 profile 自带的 `@deepseek-ai/dsh-mcp-manager`。
 
-## 使用
+## 配置转换规则
 
-- 读取 `$PI_CODING_AGENT_DIR/mcp.json`，默认 `~/.pi/agent/mcp.json`。不读项目级 `.pi/mcp.json`，因为 DSH 的 MCP 管理器作用于整个 Host。
-- 监听文件变化。新增、修改、停用或删除服务器约 0.3 秒后生效，不用重启；只重建变化的那一个。文件写坏时保留当前服务器。
-- 停用或卸载插件时，撤下它注册的全部服务器和工具。
-- 配合 `dsh-pi-tools` 时，把 `mcpServers` 设为 `['*']`（随包预设已是如此），后加的服务器会自动出现在 pi 预设里。
-
-## 字段映射
-
-| Pi 字段 | DSH |
-|---|---|
-| `command`、`args`、`env`、`cwd` | stdio 服务器；开头的 `~/` 展开为家目录 |
-| `url`、`headers` | Streamable HTTP 服务器 |
-| 任意字符串里的 `${VAR}` | `${credential:VAR}`：先查 DSH 保存的凭据，再查 DSH 启动时的环境变量 |
-| `timeout`（秒） | `toolCallTimeoutMs` |
-| `enabled: false` | 不注册 |
-| `description`、`exposure`、`toolExposure` | 忽略，暴露方式由 Agent 预设决定 |
-
-## 限制
-
-- 跳过并记录警告：`oauth`、`!command` 值、`sse`、非法名称、按 `-`/`_` 归一后重名的名称，以及和 DSH 已有服务器同名的条目。
-- DSH 启动 stdio 服务器时会清理继承的环境变量。服务器需要的变量要写进它的 `env`。
-- 诊断信息只遮盖通过 `${VAR}` 解析出的值。写在 `headers` 里的明文 token 可能出现在日志中，建议改用 `${VAR}`。
-- 修改一个服务器时，DSH 先卸载再重新连接，期间它的工具短暂不可用。
+- **支持的传输方式**：
+  - `stdio`：支持 `command`、`args`、`env`、`cwd`，自动展开开头 `~/` 路径；
+  - `streamable-http`：支持 `url` 与 `headers`，可将秒级 `timeout` 转为毫秒超时。
+- **安全凭据引用**：Pi 写法 `${VAR}` 会自动转换为 DSH 的 `${credential:VAR}`，运行时从 DSH credentials 或环境变量解析，避免明文密钥进入日志或配置快照。
+- **跳过条目**：`enabled: false`、带 `oauth` 字段、`!command` 动态命令、不合法的服务名，以及仅 `-` 与 `_` 差异的重复服务名会被跳过并记录警告。
+- **安全热更新**：通过监听目录配合 300 ms 去抖识别原子替换保存；如果文件正在写入或临时存在语法错误，插件会保留当前已注册的服务，不中断现有会话。

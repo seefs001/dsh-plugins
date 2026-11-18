@@ -1,206 +1,60 @@
 ---
 title: Pi 工具
-description: 独立的 pi 预设：Pi 原版编程工具、QuickJS codemode，以及按会话选择的 DSH 与 MCP 工具。
+description: 独立的 pi 预设：Pi 原版编程工具、QuickJS codemode，以及按会话勾选的 DSH 与 MCP 工具。
 ---
 
 <PluginFacts slug="pi-tools" />
 
-新增一个名为 `pi` 的 Agent 预设。它使用 Pi 原版的编程工具和 QuickJS codemode，同时保留 DSH 的会话、权限、沙箱、模型路由和 MCP 连接。默认预设和其他会话不受影响。
+为 DSH 新增一个独立的 **`pi`** Agent 预设：把 Pi 原版的编程工具、系统提示词与 QuickJS `codemode` 沙箱接入 DSH 原生的会话、权限、沙箱、模型路由和 MCP 连接中，同时完全保留默认预设和其他会话不变。
 
-<Callout type="info" title="不需要改 DSH 源码">
-插件只用原版 DSH 的接口：可忽略的 `plugin:dsh-pi-tools/selection` 会话记录、`conversation.hero.options` slot 和按工具名分派的 `tool.call.toolview`。原版 DSH 会在请求到达 pi-ai 前丢掉 Pi 的 `constrainedSampling`，插件包装 DSH 内部 pi-ai `Models` 原型上的 `streamSimple`，把它补回 Pi 的 codemode 声明。模型 compat 开启 OpenAI grammar 工具时走原始 JavaScript 语法传输，否则走 JSON `{ "code": "..." }`；DSH 不允许 profile 设置这个 compat，自定义路由仍走 JSON。这一步依赖 DSH 内部结构，失效时 Host 日志会出现 `pi-tools: codemode grammar sampling is unavailable`。更新本地源码不会重启正在运行的 Host；安装新版本后，要新开一个 `pi` 会话检查。
+<Callout type="info" title="环境要求与联动">
+运行环境中需提供 `rg` 与 `fd`（也可通过配置 `rgCommand` / `fdCommand` 指定路径）。安装本包时会自动一并启用 [工作时间线](/docs/plugins/work-timeline) 作为 `pi` 预设的计划与产物工具。
 </Callout>
 
 ## 安装
 
 <InstallCommand slug="pi-tools" />
 
-插件自带 `@earendil-works/pi-coding-agent` 和 `@earendil-works/pi-ai`。不需要全局安装 Pi CLI、登录 Pi 或配置 Pi 的模型。`rg` 和 `fd` 必须已经能在 DSH 的执行环境里找到，或在配置里写明路径，插件不会自动下载。
+安装后在「新建会话」页面选择 **`pi`** 预设即可使用。
 
-安装后在新建会话页选择 **pi** 预设。已有会话保持原来的组合。
+## 预设包含哪些工具
 
-## 包含的工具
+<Tabs items={['Pi 原版工具', '挂载的 DSH 能力', '会话工具选择器与 MCP']}>
+<Tab value="Pi 原版工具">
 
-### Pi 原版工具
+- **文件与命令行**：`read`、`bash`、`edit`、`write`、`ls`、`find`、`grep`，保持 Pi 原版名称、描述与参数格式，底层全部受 DSH 的 `ctx.fs`、`ctx.subprocess` 和 `ctx.sandbox` 约束（如写入符号链接目标时会按 DSH 规则替换）。
+- **`codemode`**：Pi 的 QuickJS Worker 沙箱（仅接受 `{ code: string }`），脚本内可使用 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool` 与 `describeNamespace`。脚本无 Node、文件系统或直连网络 API，所有动作均经过当前步受控 DSH 工具管线。
+- **`tool_search`**：Pi 的 BM25 工具检索，命中后从下一轮模型请求起变为直接可调用工具。
+- **语法采样与恢复**：通过 `lib/pi-ai-hook.js` 在兼容路由上恢复 `constrainedSampling`（其他路由沿用 JSON `{ code }`），并在无嵌套调用的孤立 `SyntaxError` / `ReferenceError` 中附带 `String.raw` 等修正指引。
 
-| 工具 | 说明 |
+</Tab>
+<Tab value="挂载的 DSH 能力">
+
+`cordis.patch.yml` 在 `pi` 预设内部独立挂载以下 DSH 原生能力：
+
+| 类别 | 工具与功能 |
 | --- | --- |
-| `read`、`bash`、`edit`、`write`、`ls`、`find`、`grep` | Pi 原版的名称、描述和 JSON 参数 schema |
-| `codemode` | Pi 原版的 codemode 扩展和 QuickJS worker 沙箱，参数仍是 `{ "code": string }`。脚本可以调用工具、使用 `Promise.allSettled`、整理输出、返回图片，并使用 `store`/`load`、`ALL_TOOLS`、`searchTools`、`describeTool`、`describeNamespace` |
-| `tool_search` | Pi 原版的 BM25 工具搜索。搜索成功后，匹配的工具从下一次模型调用起可以直接使用 |
+| 工作与计划 | `work_read`、`work_update`（取代 `todo_write`）；独立 `planMode`（`exit_plan_mode`） |
+| 子代理与提问 | `subagent`、`subagent_fork`、`list_subagent_models`、`send_message`、`list_agents`、`wait_agent`、`ask_user_question` |
+| 技能、目标与任务 | `skill`（含 `/` 补全）、`workflow`（DSH PTC）、`job_*`、`schedule_*`、`create_goal` / `get_goal` / `update_goal`、`/goal` |
+| 联网、展示与扩展 | `web_fetch`、`web_search`、可选启用 `present`、`office_*`、`plugin_manager`、`plugin_market`、`cordis_inspect_*` |
+| 全局工具透传 | `grok_search`、`openai_search`、`openai_image`、`grok_image`、`subagent_agy`、`subagent_cursor` |
+| 上下文管理 | 工具结果裁剪（超过 8,192 字符保留首尾）与文本压缩（可设 `DSH_PI_SUMMARY_PROVIDER` / `DSH_PI_SUMMARY_MODEL` 环境变量指定摘要模型） |
 
-大多数工具体是 Pi 的原始代码。`ls` 和 `find` 使用 Pi 的操作注入钩子。Pi 的 `grep` 没有子进程注入钩子，所以搜索驱动做了适配，公开定义和输出格式仍是原版。
+</Tab>
+<Tab value="会话工具选择器与 MCP">
 
-### 预设里挂载的 DSH 原生功能
+在尚未开始第一轮的空白 `pi` 会话中点击 **Tools** 打开选择器（首轮开始后锁定）：
 
-预设在自己的作用域里挂载这些 DSH 原生插件，工具保留原生的注册条件：
+- **简洁视图 / 逐工具视图**：按 Pi、DSH 分类与 MCP 服务分组筛选勾选，支持 **仅看已选** 与 **恢复默认**。
+- **设为默认**：将当前勾选与默认规则的差异保存到 Host 的 `pi_tools_defaults` storage domain，对之后新建的 `pi` 会话生效（不影响后续新加入的 MCP 工具按默认规则自动出现）。
+- **刷新 MCP**：重启已桥接的 DSH MCP 服务器（最多等待 20 秒）并重新加载新工具列表。配合 [Pi MCP 服务器](/docs/plugins/pi-mcp) 使用时，修改 `~/.pi/agent/mcp.json` 后可在此直接刷新。
 
-| 类别 | 工具或功能 |
-| --- | --- |
-| 子代理 | `subagent`、`subagent_fork`、`list_subagent_models`、`send_message`、`list_agents`、`wait_agent` |
-| 提问与技能 | `ask_user_question`；`skill` 工具，`/` 补全项目、用户和 DSH 内置技能目录里的技能，`/name` 通过原生 pre-step 注入技能说明 |
-| 作业、定时与目标 | `job_list`、`job_output`、`job_kill`；`schedule_create`、`schedule_list`、`schedule_view`、`schedule_edit`；`create_goal`、`get_goal`、`update_goal` 和 `/goal` 命令 |
-| 工作与计划 | `work_read`、`work_update`；计划 / 过程 / 产物面板；隔离的计划模式和 `exit_plan_mode` |
-| 网页与展示 | `web_fetch`、`web_search`、`present` |
-| Office | `office_render`、`office_convert`、`office_recalculate` |
-| 插件开发 | `plugin_manager`、`plugin_market`、`cordis_inspect_list`、`cordis_inspect_query`（来自创造模式的运行时检查，Host 端由 web-app bundle 提供）、`dsh-doc` skill |
-| 其他 | `workflow`（隔离的 workflow engine）、时间上下文、项目说明（AGENTS.md 等，上限 64 KiB）、上下文压缩和 `/compact` |
+</Tab>
+</Tabs>
 
-全局的 `grok_search` 和 `openai_search` 由 [联网搜索](/docs/plugins/web-access) 提供，`openai_image` 和 `grok_image` 由 [画图](/docs/plugins/image-gen) 提供。插件以原样透传的方式保留它们，配置好且 readiness 通过时才可用。
+## 边界说明
 
-`workflow` 是 DSH 原生的工具，运行在 DSH 的 PTC runtime 上，和 Pi 的 `codemode`（QuickJS、`{ code: string }`）是两套独立的机制。
-
-工作时间线替代新 Pi 会话的 `todo_write`。点击输入区工作摘要打开右侧面板，可查看稳定步骤、阻塞原因、修订过程和显式关联的产物。`work_read` 用于压缩或打断后读回状态。`work_update` 必须直接调用，不可放入 codemode，因为嵌套工具结果不会独立提交状态。文件预览展示当前内容，不是历史版本。更新 bundle 后要新建 Pi 会话，已有会话保留原 preset revision 和旧清单。
-
-计划模式保留 DSH 标准预设的规划规则，并明确不使用 `work_update` 跟踪尚待批准的实施计划。预设没有搬入标准模式的同名文件和终端工具或标准 persona。和创造模式一样，预设启用了只读的插件市场工具和运行时检查。
-
-### 上下文压缩
-
-自动压缩触发后，Pi 先用 DSH 裁剪超过 8,192 个字符的工具结果，保留头 4,096、尾 1,024 和裁剪标记。原文仍在会话日志里。重新测量后压力已解除，就不请求模型；否则生成可跨模型使用的文本摘要，不要求模型支持提供方原生 compact 接口。
-
-摘要默认跟随会话最近一次实际请求的模型。要单独指定摘要模型，可为 DSH Host 同时设置 `DSH_PI_SUMMARY_PROVIDER` 和 `DSH_PI_SUMMARY_MODEL`；两项都不设就跟随会话，不会改变主对话模型。
-
-### 原生条件仍然生效
-
-“在面板里可以选择”不等于“模型现在就能调用”。插件保留每个原生工具自己的条件：
-
-- `schedule_*` 只在 Host 提供 schedule 服务时注册。
-- `plugin_manager` 和 `plugin_market` 只在有 profile 上下文时加载；`plugin_market` 还需要 Host 提供插件市场服务。
-- `cordis_inspect_query` 查询 Client provider 时需要已连接的页面。
-- Office 工具要先加载对应的 Office 技能，下一步才可用；Office 服务不存在时按原生行为报 unavailable。
-- `exit_plan_mode` 跟随原生的计划模式状态启用。
-- `grok_search` 和 `openai_search` 需要路由和凭据就绪才能调用，`web_search` 则跟随原生网页搜索 provider 的可用性。已注册的搜索工具即使暂时不能供模型调用，也可能仍在选择面板中出现。
-
-所以面板列出的是 Host 当前实际返回的目录，条目数随环境变化。codemode 调用工具时也要经过当前步骤真实的工具准入，不会通过别名绕过这些条件。
-
-### MCP
-
-预设通过已有的 DSH MCP 连接桥接选中的 MCP 服务，自带配置用 `'*'` 选择全部全局命名空间，之后通过 DSH MCP 管理器新增的服务器（例如 `dsh-pi-mcp` 从 Pi 的 `mcp.json` 读到的）无需改配置即可出现，包括资源辅助工具。插件不启动第二个 MCP 客户端，也不读取或复制 MCP 凭据。远程 MCP 的访问不受本地文件系统沙箱限制。
-
-## 为会话选择工具
-
-在新建会话页选择 **pi**，再点 **工具**。面板按用途分组列出 Pi 工具、可选的 DSH 工具和 MCP 工具：
-
-- 面板默认是精简视图：每个分组一行，带复选框、已保留数量和 **恢复默认**。悬停分组可看到其中的工具名。点 **逐个设置** 进入下面的详细视图，点 **精简视图** 返回。浏览器会记住上次使用的视图。
-
-详细视图中：
-
-- 搜索框按工具名、描述和分组名过滤。过滤时所有有命中的分组都自动展开，分组的折叠按钮暂时停用，清空搜索后恢复原来的折叠状态。
-- 每个分组标题有一个复选框，用来批量勾选。没有过滤时它作用于整组；过滤时只作用于当前显示的匹配项，标签会写明“选中某组中显示的 N 个”，不会动到被过滤掉的工具。
-- 展开或折叠分组不会改变任何勾选。
-- **只看已保留** 只显示已勾选的工具。**全部展开** / **全部折叠** 切换所有分组。
-- **恢复默认** 回到预设默认值，**全选** 和 **清空** 作用于全部工具。不在默认值里的工具标有“非默认”。
-- 两个网关 `codemode` 和 `tool_search` 都没选、却选了 MCP 工具时，面板会提示这些 MCP 工具无法调用。
-
-**取消** 丢弃面板里的修改，**保存** 只作用于这个会话。第一轮对话开始后选择就会锁定，保存会被拒绝。
-
-默认值包括 Pi 原版工具、配置的 MCP 工具、预设里挂载的原生工具（`optInTools` 列出的除外），以及透传的两个搜索工具。随包预设把 `present`、Office 工具和插件开发工具（`plugin_manager`、`plugin_market`、`cordis_inspect_list`、`cordis_inspect_query`）设为非默认，需要时手动勾选。Host 上其他全局 DSH 工具需要手动勾选，默认不开启。DSH 之后新增的工具不会加进已经保存过的显式选择；新会话或点 **恢复默认** 时才会采用新的默认值。
-
-### 保存默认工具
-
-点 **设为默认**，会把弹窗当前勾选保存为这个预设在 Host 上的默认工具，之后的新会话和 **恢复默认** 都采用它。保存的内容只记录与预设配置默认值的差异，所以之后新出现的工具（例如新增的 MCP 工具）仍按预设配置决定是否勾选，除非你改过这个工具。存在自定义默认时会出现 **恢复预设默认**，点击后删除自定义默认。自定义默认按预设 id 存放在 `pi_tools_defaults` 存储域中。
-
-未显式选择工具的会话在第一个 step 前跟随当前默认。第一个 step 会把默认值写入会话，之后再改默认只影响新会话。
-
-### 刷新 MCP
-
-点 **刷新 MCP**，会通过 DSH MCP 管理器重启预设桥接的全部 MCP 服务，每个服务最多等待 20 秒，然后重新加载工具列表，并显示每个服务的状态和工具数。修改 MCP 服务后用它获取新工具。它只刷新 MCP 管理器已经知道的服务；Pi `mcp.json` 新增的服务由 `dsh-pi-mcp` 的文件监听接入。重启会让使用该服务的其他会话一起重连。
-
-## 选择怎样生效
-
-- 空白 `pi` 会话的新会话栏里有 **工具** 按钮。保存时通过 `POST /pi-tools/options` 追加一条可忽略的 `plugin:dsh-pi-tools/selection` 记录；第一轮开始后 Host 拒绝修改。刷新和回放会恢复已保存的选择，分叉的会话继承这份日志，切换预设会清掉它。没装这个插件的 DSH 也能打开会话，只是跳过这条记录。
-- 勾选的预设作用域原生工具直接继承它的原始注册和条件。取消勾选时，Agent 层的 `false` 影子注册会挡住调用，不会退回到同名的全局工具。全局透传工具保留原有注册，通过每个 Agent 的工具限制控制选择。
-- Pi 拥有自己 9 个工具名，取消某个 Pi 工具不会让同名的 DSH 工具顶上来。
-- 未勾选的工具既不出现在模型的工具声明里，也不会出现在 QuickJS 的工具发现结果里，调用会被拒绝。
-- 勾选工具不会启用新的 MCP 连接，也不改变权限。
-
-## 配置
-
-bundle 在预设里提供的配置：
-
-```yaml
-mcpServers: ['*']
-mcpExposure: codemode
-scopedTools: [subagent, subagent_fork, list_subagent_models, send_message, list_agents, wait_agent,
-  ask_user_question, skill, job_list, job_output, job_kill, schedule_create, schedule_list,
-  schedule_view, schedule_edit, create_goal, get_goal, update_goal, work_read, work_update, web_fetch,
-  web_search, present, office_render, office_convert, office_recalculate, exit_plan_mode,
-  workflow, plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
-globalTools: [grok_search, openai_search, openai_image, grok_image]
-optInTools: [present, office_render, office_convert, office_recalculate,
-  plugin_manager, plugin_market, cordis_inspect_list, cordis_inspect_query]
-```
-
-| 选项 | 插件默认值 | 含义 |
-| --- | --- | --- |
-| `tools` | 全部 7 个编程工具 | 启用哪些 Pi 编程工具 |
-| `codemode` | `true` | 启用原版 QuickJS 脚本 |
-| `toolSearch` | `true` | 启用延迟工具的发现和加载 |
-| `scopedTools` | `[]` | 预设作用域里挂载的原生 DSH 工具，默认勾选，保留原生注册和条件；不能写 Pi 或 MCP 工具名 |
-| `globalTools` | `[]` | 以透传方式默认启用的全局原生工具，保留原有的准入条件 |
-| `optInTools` | `[]` | 出现在工具面板但默认不勾选的工具，必须同时写在 `scopedTools` 或 `globalTools` 里 |
-| `mcpServers` | `[]` | 要桥接的全局 DSH MCP 命名空间；`'*'` 表示全部，包括之后注册的 |
-| `mcpExposure` | `codemode` | `direct`、`codemode`、`deferred` 或 `hidden` |
-| `maxParallel` | `10` | 并发安全的根调用和脚本子调用的上限 |
-| `rgCommand` | `rg` | DSH 执行环境里的可执行文件名或绝对路径 |
-| `fdCommand` | `fd` | DSH 执行环境里的可执行文件名或绝对路径 |
-
-MCP 暴露方式沿用 Pi 的原生映射：`codemode` 和 `deferred` 都是延迟可调用的工具，一开始没有公开 schema，脚本用 `searchTools`/`describeTool` 发现，`tool_search` 可以把它们提升为直接工具。`direct` 一开始就有公开 schema。`hidden` 既不能调用也搜不到。`codemode` 和 `tool_search` 本身只能由模型调用，脚本里不能递归调用。
-
-修改本地 bundle 不会把新的预设条目应用到已经安装的 profile。
-
-## 子代理
-
-子代理创建返回的是激活名称（`{ kind: 'activation', name }`），不是最终结果。codemode 可以启动子代理并返回名字，但不应该一直运行脚本轮询结果。DSH 会发送原生的完成通知，处理后续消息。模型路由和深度限制由 DSH 决定，包括正常的拒绝路径。
-
-`ask_user_question` 在根会话里等待界面回答，包括跳过和取消。DSH 原生规则不允许子代理直接向用户提问，子代理应该用 `send_message` 把问题交给父代理。
-
-## 系统提示词
-
-预设直接调用 Pi 1.5.0 原版的完整提示词构建器，保留原版开场、已选工具列表、规则、文档入口和当前工作目录。延迟暴露的 MCP 服务也使用 Pi 原版的 `mcp_servers` 段落生成器。不再换成 DSH 身份，也不在系统提示词里追加自定义的 codemode、权限、子代理或 MCP 说明。
-
-传入相同的工具定义、工作目录和 MCP 服务名称及暴露方式时，生成文本与 Pi 构建器逐字节一致。但整个模型请求不等同于 Pi CLI：工具声明、项目说明、技能、运行时事实和其他插件上下文仍由 DSH 提供；权限、沙箱和子代理执行机制也不变。提示词里的 Pi 文档入口描述 Pi 本身，不涵盖 DSH 的扩展功能。
-
-## codemode 的字符串规则
-
-codemode 的语法和引用错误反馈会附带字符串构造说明，不再把这些说明追加到系统提示词。文件内容、编辑文本、路径、正则和 glob、MCP 字段都受同样的 JavaScript 边界约束。
-
-- 普通 JavaScript 字符串会解释反斜杠。文本里没有反引号和 `${...}` 时，用 `String.raw` 保留字面反斜杠。
-- `String.raw` 仍然会求值 `${...}`。需要字面分隔符时，用普通引号字符串或拼接多段 raw 字符串。
-- 模板字符串里的换行会变成 LF，`String.raw` 也一样。需要精确的 CRLF/CR 时，用显式转义。
-- schema 要对象或数组时直接传。需要 JSON 文本时用 `JSON.stringify`。`code` 里放的是源码，不是已经 JSON 编码的字符串。
-- 单个操作如果有可直接调用的工具，就不必用 codemode。
-
-没有发起嵌套调用、也没有被取消的 `SyntaxError` 和 `ReferenceError`，会附带有针对性的修复提示。原始错误和元数据保持不变，插件不会自动改写、重试或重放。这些提示改善生成和恢复，但不能保证模型一定照做。
-
-## 会话状态与执行
-
-会话日志是状态的唯一来源。成功的 `tool/result` 元数据带上 `store` 写入或已加载的工具名，一个 projection 从中推导每个会话的当前值，会话之间不共享可变状态。失败和取消不改变状态；恢复和分叉时重放保留的日志。
-
-可以并发的调用会重叠执行。修改类调用形成独占屏障；策略准备和结果完成保持提交顺序。脚本取消、权限模式变化和插件卸载会中止并收尾已经开始的嵌套调用。脚本里 `bash` 非零退出仍是失败结果，但在脚本内会解析成原始的结构化值，请检查 `exit_code`。权限拒绝、取消和被策略改写的错误不会通过这个桥接恢复。
-
-## Web 结果卡片
-
-Web 部分接管 `codemode` 和 `tool_search` 这两个没有 DSH 内置视图的工具名。Pi 成功的纯文本结果显示 codemode 的调用摘要（含耗时和错误）和已加载的工具名；进行中和失败的调用显示简单的状态行；失败标记始终可见，错误文本默认收起，点击工具名旁的箭头可以展开或再次折叠。Pi 的 `read`、`write`、`edit` 使用 DSH 内置视图。卡片不显示脚本的实时进度。
-
-根上的展示条目设置 `presentationOnly: true`，不注册 Host 工具、提示词、执行器或会话状态，只给 owner 提供 `/pi-tools/options` 路由，按会话找到所属的 Pi 预设实例。真正的 Pi 工具只在 `pi` 预设里。
-
-## 兼容边界
-
-- 文件访问通过 `ctx.fs`，写入使用 DSH 的原子写和调用会话的沙箱策略。profile 必须挂载执行沙箱的文件系统 provider。目标是符号链接时，DSH 替换链接本身，不写穿到目标。
-- shell 和搜索进程使用 DSH 的托管子进程服务。受限会话需要 `ctx.sandbox.confine`，失败时不会退回到不受限的进程。
-- 不传 `bash.timeout` 时没有超时。传了超时，命令到时会被终止，不会转成后台作业。不加载 Pi 的 shell 设置，也不注入虚构的 `PI_*` 会话元数据。
-- QuickJS 脚本拿不到 Node、文件系统、网络或定时器 API，文件和网络访问只能通过提供的工具。
-- Pi 的 worker 限制和输出格式保持不变。DSH 把返回的图片存为持久附件，有自己的准入和规范化限制。
-- 不加载 `models.*`、分类器、图像模型路由、PowerShell、任意 Pi 扩展和 Pi 的 agent loop。
-- Pi 的完整系统提示词替换这个预设里的 DSH 静态身份与工具说明。模型路由、运行时上下文、项目说明、会话持久化和压缩仍由 DSH 负责。Pi 工具不接受 DSH 的提权参数，权限被拒时需要人工修改权限。
-
-## 验证范围
-
-已验证的目标是本地 macOS 上的 DSH。远程文件系统和进程组合、真实的 provider 请求、Web 结果卡片的渲染，以及已经运行的 GUI 和旧会话，都需要另外验证。仓库自带一个离线检查，复现多行 Python 命令的转义问题：
-
-```bash
-node scripts/check-pi-multiline.mjs
-```
-
-在 DSH 里运行时，`DSH_INSTALL_DIR` 已经设好。在 DSH 外运行时，把它设为包含 DSH 依赖的运行时包目录；源码仓库里是 `apps/cli`，不是 monorepo 根目录。
+- 默认配置 `mcpServers: ['*']`、`mcpExposure: codemode`、`maxParallel: 10`，将全局 DSH MCP 工具默认收入 `codemode` / `tool_search` 延迟发现目录。
+- `codemode`、`tool_search`、`work_update` 等工具均遵守 DSH 原生权限、沙箱与当前步条件（例如 Office 工具需先加载对应技能，`planMode` 下不允许越权执行写操作）。
+- 选中工具后记录写入会话日志的 `plugin:dsh-pi-tools/selection`，更新包后需新开 `pi` 会话才会应用新版预设配置。

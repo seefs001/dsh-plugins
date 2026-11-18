@@ -1,61 +1,37 @@
 # dsh-bark-notify
 
-Sends a [Bark](https://bark.day.app/) push notification when a DSH agent pauses for human input:
+当 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）智能体暂停等待你介入时，通过 [Bark](https://bark.day.app/) 向手机发送推送通知，避免切走窗口或离开电脑时漏掉提问、计划审阅与权限审批。
 
-- `user-questions/request` (`ask_user_question`, `exit_plan_mode` plan reviews, and UI approval cards)
-- `approval/request` (tool permission approvals when the session policy is not `never`)
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Host + Web |
+| 前置依赖 | 可用的 Bark 服务器或 App Device Key |
+| 数据保存 | 普通配置写入 `cordis.patch.yml`；Device Key 仅存于 Host 凭据 `bark-notify/device`（或 `DSH_BARK_KEY`） |
 
-It prepends non-blocking listeners onto DSH's Cordis waterfalls, dispatches the HTTP push asynchronously, and immediately delegates to `next()` so the native UI, SDK bridge, and timed-question timers behave identically.
-
-## Install
+## 安装
 
 ```bash
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/bark-notify"
 ```
 
-From a local clone:
+本地开发链接：
 
 ```bash
 dsh plugin --profile web add "link:$PWD/packages/bark-notify"
 ```
 
-## Configure
+## 配置
 
-Open **Plugins → dsh-bark-notify**:
+打开 **Plugins → dsh-bark-notify**：
 
-1. Paste a Bark URL template into **Quick fill from Bark URL** (such as `https://your-bark-host/YOUR_KEY/{{title}}/{{content}}?sound=alarm&group=channel_update`) and click **Fill fields**, or enter **Server URL** and **Device key** directly.
-2. Click **Save**. The device key is saved in DSH credentials (`bark-notify/device`) and never written to `cordis.patch.yml`.
-3. Click **Send test notification** to verify delivery.
+1. 在 **从 Bark URL 快速填入** 粘贴你的完整 Bark 链接点击 **解析填入**，或直接填写 **服务器地址**（默认 `https://api.day.app`）和 **Device Key**。
+2. 点击 **保存** 后点击 **发送测试通知** 确认手机可达。
+3. 可按需调整：**请求方式**（`GET` / `POST` JSON）、**触发场景**（`user-questions/request` 与 `approval/request` 独立开关）、**延迟推送（毫秒）**（`0`–`600000`，超时前已在界面处理则自动取消推送）、**声音与分组**、**正文包含问题或审批摘要**（关闭仅发送会话名与类型）以及 **点击通知跳转链接**。
 
-For headless profiles without the Web GUI, you can also supply the device key via `DSH_BARK_KEY` in the process environment or DSH credentials (`ctx.credentials.resolve('DSH_BARK_KEY')`).
+## 边界与隐私
 
-### Settings
+- 监听器以 `prepend` 方式旁路触发并立即 `next()`，推送失败仅记警告日志，绝不阻塞或打断原生交互与超时计时。
+- Device Key 从不写入 `cordis.patch.yml`，配置接口仅返回脱敏预览，日志与错误自动抹去密钥；三个本地路由（`/bark-notify/state`、`set`、`test`）仅允许 `owner` 访问。
+- `dsh-acp-workbench` 中的外部 ACP CLI 使用独立交互通道，不触发本插件。
 
-- **Enabled**: Master switch.
-- **Server URL**: Bark server origin (default `https://api.day.app`). Only `http://` and `https://` URLs without embedded credentials are accepted.
-- **Request mode**:
-  - `get`: `GET <serverUrl>/<key>/<title>/<content>?sound=...&group=...`
-  - `post`: `POST <serverUrl>/<key>` with JSON `{ title, body, sound, group, url }`
-- **Notify on**: Toggle `user-questions/request` and `approval/request` independently.
-- **Delay (ms)**: Optional grace period (0 to 600,000 ms). If `delayMs > 0` and you answer or the request aborts before the timer fires, no Bark push is sent.
-- **Sound / Group**: Optional Bark `sound` and `group` parameters (defaults: `alarm` and `dsh`).
-- **Include question/tool summary in body**: When disabled, sends only the session name and request kind without question text, options, or tool reasons.
-- **Click-through URL**: Optional `url` parameter passed to Bark so tapping the notification opens your DSH URL.
-
-## Storage and privacy
-
-- Non-secret settings live in the profile's `cordis.patch.yml`.
-- The Bark device key is stored in DSH Host credentials (`bark-notify/device`) and is masked in `GET /bark-notify/state` and redacted from logs and error messages.
-- HTTP endpoints (`/bark-notify/state`, `/bark-notify/set`, `/bark-notify/test`) accept `owner` principal connections only.
-- When `includeContent` is enabled, truncated question titles/options or approval tool names/reasons are sent to the configured Bark server. Disable `includeContent` if you do not want prompt details sent over push notifications.
-
-## Limitations
-
-- External ACP agents inside `dsh-acp-workbench` use their own interaction state machine instead of `user-questions/request` or `approval/request`, so they do not trigger this plugin.
-- Push errors are logged as warnings and never block or fail the agent turn.
-
-## 中文
-
-当 DSH 智能体通过 `user-questions/request`（提问、计划审阅、界面授权）或 `approval/request`（工具权限审批）等待你操作时，顺便向手机发送 Bark 推送。监听器只做前置旁路通知并立即 `next()`，不阻塞、不改写原生交互链路。
-
-在 **Plugins → dsh-bark-notify** 页面粘贴 Bark URL 模板点击「解析填入」，或分别填写服务器地址与 Device Key 后点击「保存」即可。Device Key 只存在 Host 凭据（`bark-notify/device`）或环境变量 `DSH_BARK_KEY` 中，不会写入配置文件或仓库。
+更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/bark-notify)。
