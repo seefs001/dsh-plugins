@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "ACP Conversation Integration",
-    "description": "Use local ACP agents inside the normal DSH conversation, or delegate to native, continuable Cursor and Antigravity children. Keep the composer, timeline and stop controls; inspect tools and answer human interactions in place. The sidebar is for provider settings. External CLI tools are not sandboxed by DSH."
+    "description": "Use local ACP agents inside the normal DSH conversation, or delegate to native, continuable Cursor, Antigravity and Claude Code children. Resume a CLI session in this project and change CLI settings from the model menu. Keep the composer, timeline and stop controls; inspect tools and answer human interactions in place. The activity inbox surfaces pending decisions and interrupted turns and links back to DSH conversations. External CLI tools are not sandboxed by DSH."
   }
 }

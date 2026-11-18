@@ -21,7 +21,7 @@
       name: '@deepseek-ai/dsh-tool-subagent'
       config:
         provider: acp-claude-code
-        toolName: subagent_claude_code
+        toolName: subagent_acp_claude_code
         agentOptions:
           provider: acp-claude-code
           model: default

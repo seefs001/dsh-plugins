@@ -79,7 +79,7 @@ export class AcpConnection {
     if (typeof message.method === 'string') {
       if (message.id !== undefined && message.id !== null) {
         // Requests can wait for humans; they must not block streaming notifications.
-        void Promise.resolve().then(() => this.handlers.onRequest(message.method, message.params ?? {})).then(
+        void Promise.resolve().then(() => this.handlers.onRequest(message.method, message.params ?? {}, message.id)).then(
           result => this.reply(message.id, { result: result ?? {} }),
           error => this.reply(message.id, { error: { code: error.code ?? -32603, message: error.message ?? 'Request failed' } }),
         ).catch(error => this.fail(error))

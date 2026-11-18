@@ -1,7 +1,7 @@
 {
   "name": "dsh-acp-workbench",
   "version": "0.2.0",
-  "description": "Native ACP execution and continuable Cursor/Antigravity subagents in DSH conversations, with tool traces and human approvals.",
+  "description": "Run or resume Cursor, Antigravity and Claude Code in native DSH conversations, with continuable subagents, CLI controls, tool traces and human approvals.",
   "keywords": [
     "dsh-plugin",
     "dsh",
@@ -33,7 +33,8 @@
     "icon.svg",
     "cordis.patch.yml",
     "README.md",
-    "DESIGN.md"
+    "DESIGN.md",
+    "PASEO-PARITY.md"
   ],
   "engines": {
     "node": "^22.19.0 || >=24.0.0",

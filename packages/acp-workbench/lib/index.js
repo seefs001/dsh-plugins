@@ -1,3 +1,9 @@
+import { WorkspaceScripts } from './scripts.js'
+import { ProjectFiles } from './project-files.js'
+import { ProjectLauncher } from './projects.js'
+import { ProjectReview } from './review.js'
+import { ProjectCheckouts } from './checkouts.js'
+import { CheckoutSharing } from './shared.js'
 import { DOMAIN_SPEC } from './store.js'
 import { Workbench } from './manager.js'
 import { NativeAcp } from './native.js'
@@ -6,7 +12,8 @@ export const name = 'acp-workbench'
 export const inject = ['storageDomain', 'subprocess', 'webServer', 'connection', 'tools', 'llm', 'agents', 'sessions', 'subagents', 'attachments']
 const BASE = '/acp-workbench'
 const TOOL_ACTIONS = ['list', 'create', 'get', 'events', 'connect', 'prompt', 'cancel', 'disconnect', 'rename', 'archive', 'restore']
-const USER_ONLY = new Set(['provider-save', 'provider-remove', 'diagnose', 'models', 'discover', 'import', 'respond', 'configure', 'native-stop', 'native-reset', 'native-connect', 'native-command'])
+const SCRIPT_ACTIONS = ['script-list', 'script-start', 'script-stop', 'script-log', 'script-health']
+const USER_ONLY = new Set([...SCRIPT_ACTIONS, 'checkout-restore', 'project-reviewed', 'profile-save', 'profile-remove', 'project-launch', 'provider-save', 'provider-remove', 'diagnose', 'models', 'discover', 'import', 'respond', 'configure', 'native-stop', 'native-reset', 'native-connect', 'native-discover', 'native-adopt', 'native-fork', 'native-command'])
 
 function send(res, status, value) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
@@ -51,12 +58,26 @@ export async function apply(ctx) {
   let changeTimer
   let closed = false
   const streams = new Set()
-  const changed = () => {
+  const changedRecords = new Set()
+  let globalChange = false
+  const changedConversations = new Set()
+  const changed = (recordId, conversationId) => {
     if (closed) return
+    if (typeof recordId === 'string') changedRecords.add(recordId)
+    else if (typeof conversationId === 'string') changedConversations.add(conversationId)
+    else globalChange = true
     revision++
     if (!changeTimer) changeTimer = setTimeout(() => {
       changeTimer = undefined
-      const frame = `data: ${JSON.stringify({ revision })}\n\n`
+      const conversations = new Set(changedConversations)
+      changedConversations.clear()
+      for (const id of changedRecords) {
+        const binding = manager.store.sessions.get(id)?.native
+        if (binding) { conversations.add(binding.sessionId); if (binding.rootSessionId) conversations.add(binding.rootSessionId) }
+      }
+      const frame = `data: ${JSON.stringify({ revision, ...(globalChange ? {} : { conversations: [...conversations], activityChanged: changedRecords.size > 0 }) })}\n\n`
+      globalChange = false
+      changedRecords.clear()
       for (const res of streams) {
         // A stalled browser reconnects from persisted sequence, not an unbounded socket queue.
         if (res.writableLength > 1024 * 1024) res.end()
@@ -71,6 +92,11 @@ export async function apply(ctx) {
     log: message => ctx.logger.warn(message),
     autoApprove: (session, params) => native?.autoApprove(session, params) ?? null })
   native = new NativeAcp(ctx, manager)
+  const checkouts = new ProjectCheckouts(ctx, native)
+  const launcher = new ProjectLauncher(ctx, native, new CheckoutSharing(ctx, native, checkouts))
+  const scripts = new WorkspaceScripts(ctx, native)
+  const review = new ProjectReview(ctx, manager)
+  const files = new ProjectFiles(ctx)
   try { await manager.initialize(); await native.initialize() } catch (error) { await native.close(); await manager.close(); throw error }
 
   const admit = (req, res) => {
@@ -81,9 +107,10 @@ export async function apply(ctx) {
   }
   const register = (path, handler) => ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: BASE + path, handler }), `acp-workbench: ${path}`)
   register('/state', async (req, res) => {
-    if (!admit(req, res)) return
+    const peer = admit(req, res)
+    if (!peer) return
     if (req.method !== 'GET') return send(res, 405, { message: 'GET only' })
-    send(res, 200, manager.snapshot({ kind: 'user' }))
+    send(res, 200, { ...manager.snapshot({ kind: 'user' }), projects: { ...launcher.capabilities(), fileSearch: files.enabled(), scripts: scripts.enabled(), schedule: !!ctx.get('schedule'), review: !!ctx.get('workspaceRegistry'), reviewWritable: peer.interactions === 'answer', changes: !!ctx.get('forgePanel'), checkouts: checkouts.enabled() } })
   })
   register('/op', async (req, res) => {
     const peer = admit(req, res)
@@ -93,14 +120,37 @@ export async function apply(ctx) {
       const op = await body(req)
       if (USER_ONLY.has(op?.action) && peer.interactions !== 'answer') return send(res, 403, { message: 'Open the workbench as the human user to perform this operation' })
       let result
-      if (op?.action?.startsWith('native-')) {
+      if (['project-file-search', 'project-file-locate', 'project-file-directory'].includes(op?.action)) {
+        if (res.destroyed) return
+        const cancel = new AbortController(), stop = () => cancel.abort()
+        res.once('close', stop)
+        try { result = await files.run(op, AbortSignal.any([cancel.signal, files.life.signal])) } finally { res.off('close', stop) }
+        if (res.destroyed) return
+      } else if (op?.action === 'checkout-info') {
+        result = await checkouts.details(op)
+      } else if (op?.action === 'checkout-restore') {
+        result = await checkouts.restore(op)
+      } else if (op?.action === 'project-results') {
+        result = review.list(op)
+      } else if (op?.action === 'project-reviewed') {
+        result = await review.acknowledge(op)
+      } else if (SCRIPT_ACTIONS.includes(op?.action)) {
+        result = await scripts.operate(op)
+      } else if (op?.action === 'project-launch') {
+        result = await launcher.launch(op)
+      } else if (op?.action === 'profile-save' || op?.action === 'profile-remove') {
+        result = await launcher.profile(op)
+      } else if (op?.action?.startsWith('native-')) {
         const sessionId = op.dshSessionId
         if (!['native-reset', 'native-trace'].includes(op.action) && (typeof sessionId !== 'string' || !sessionId.length || sessionId.length > 256)) throw new Error('A native DSH session id is required')
         switch (op.action) {
           case 'native-snapshot': result = native.snapshot(sessionId); break
-          case 'native-connect': result = await native.connect(sessionId, op.externalId); break
+          case 'native-discover': result = await native.discover(sessionId, op.route, op.cursor); break
+          case 'native-fork': result = await native.maintainConnection(sessionId, { fork: op }); break
+          case 'native-adopt': result = await native.maintainConnection(sessionId, { adoption: op }); break
+          case 'native-connect': result = await native.connect(sessionId, op.externalId, op.route); break
           case 'native-command': result = await native.command(sessionId, op.command, op.arguments, op.externalId); break
-          case 'native-stop': result = await native.stop(sessionId); break
+          case 'native-stop': result = await native.stop(sessionId, op.externalId, op.stopId); break
           case 'native-reset': result = await native.reset(op.externalId); break
           case 'native-trace': result = native.trace(op); break
           default: throw new Error('Unknown native ACP operation')
@@ -125,7 +175,7 @@ export async function apply(ctx) {
 
   ctx.tools.register({
     name: 'acp_workbench',
-    description: 'Advanced ACP history and standalone-session diagnostics. For normal delegation, prefer subagent_cursor or subagent_antigravity: they create native continuable DSH children visible in this conversation. This legacy tool creates separate external sessions; prompt returns acceptance, not completion. Conversations bound to DSH are read-only here (get/events). Records are scoped to this DSH session. Human permissions and configuration stay in the UI. External CLI tools are not sandboxed by DSH.',
+    description: 'Advanced ACP history and standalone-session diagnostics. For normal delegation, prefer subagent_cursor, subagent_antigravity or subagent_acp_claude_code: they create native continuable DSH children visible in this conversation. This legacy tool creates separate external sessions; prompt returns acceptance, not completion. Conversations bound to DSH are read-only here (get/events). Records are scoped to this DSH session. Human permissions and configuration stay in the UI. External CLI tools are not sandboxed by DSH.',
     parameters: {
       type: 'object', properties: {
         action: { type: 'string', enum: TOOL_ACTIONS },
@@ -152,9 +202,12 @@ export async function apply(ctx) {
   ctx.effect(() => async () => {
     if (closed) return
     closed = true
+    files.life.abort()
     clearTimeout(changeTimer)
     for (const res of streams) res.end()
     streams.clear()
+    await checkouts.close()
+    await scripts.close()
     await native.close()
     await manager.close()
     clearTimeout(changeTimer)

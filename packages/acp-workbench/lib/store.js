@@ -8,6 +8,8 @@ export const DOMAIN_SPEC = {
   name: 'acp_workbench', version: 1, layout: 'per-record',
   global: { schema: schema(v => object(v) && typeof v.initialized === 'boolean'), initial: { initialized: false } },
   tables: {
+    checkout_links: { valueSchema: schema(v => object(v) && ['workspaceId', 'sessionId', 'ownerId', 'path', 'branch', 'baseCommit', 'repositoryRoot', 'marker'].every(k => typeof v[k] === 'string') && typeof v.ready === 'boolean') },
+    scripts: { valueSchema: schema(v => object(v) && typeof v.terminalId === 'string' && typeof v.key === 'string' && typeof v.sessionId === 'string') },
     providers: { valueSchema: schema(v => object(v) && typeof v.id === 'string' && typeof v.command === 'string' && Array.isArray(v.args)) },
     sessions: { valueSchema: schema(v => object(v) && typeof v.id === 'string' && typeof v.cwd === 'string' && typeof v.providerId === 'string') },
     chunks: { valueSchema: schema(v => object(v) && typeof v.sessionId === 'string' && Array.isArray(v.events)) },
@@ -21,6 +23,9 @@ export class WorkbenchStore {
     this.onError = onError
     this.sessions = new Map([...domain.table('sessions').entries()].map(([key, value]) => [key, structuredClone(value)]))
     this.providers = new Map([...domain.table('providers').entries()].map(([key, value]) => [key, structuredClone(value)]))
+    // Native snapshots are polled while calls stream; never rescan every project link for a composer badge.
+    this.sharedGroups = new Map()
+    for (const [, link] of domain.table('checkout_links').entries()) this.indexCheckoutLink(link)
     this.dirty = new Map()
     // Keep the latest chunk while its previous snapshot is still being written.
     this.chunks = new Map()
@@ -44,6 +49,17 @@ export class WorkbenchStore {
       this.onError?.(error)
     })
     return task
+  }
+
+  indexCheckoutLink(link) {
+    if (!link.ready) return
+    this.sharedGroups.set(link.ownerId, link.workspaceId)
+    this.sharedGroups.set(link.sessionId, link.workspaceId)
+  }
+
+  async saveCheckoutLink(link) {
+    await this.enqueue(() => this.domain.table('checkout_links').put(link.sessionId, link))
+    this.indexCheckoutLink(link)
   }
 
   async saveProvider(provider) {
