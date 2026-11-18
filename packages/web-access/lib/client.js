@@ -184,19 +184,22 @@ window.__ModuleLoader__.load({
           const [draft, setDraft] = React.useState(null)
           const [status, setStatus] = React.useState({ kind: 'idle' })
 
+          const catalogRead = React.useRef(0)
           const loadCatalog = React.useCallback(async () => {
+            const id = ++catalogRead.current
             setCatalog(c => ({ ...c, status: 'loading' }))
             try {
               const res = await ctx.remote.session.modelCatalog()
+              if (id !== catalogRead.current) return
               if (!res.ok) throw res.error ?? new Error('catalog')
               setCatalog({ status: 'ready', groups: res.value.groups })
             } catch {
-              setCatalog(c => ({ ...c, status: 'error' }))
+              if (id === catalogRead.current) setCatalog(c => ({ ...c, status: 'error' }))
             }
           }, [])
           const loadState = React.useCallback(() => getJson('web-access/state')
-            .then(raw => { const s = normalize(raw); setSaved(s); setDraft({ grok: s.grok, openai: s.openai }) })
-            .catch(e => setStatus({ kind: 'err', message: e.message })), [])
+            .then(raw => { const s = normalize(raw); setSaved(s); setDraft({ grok: s.grok, openai: s.openai }); setStatus({ kind: 'idle' }) })
+            .catch(e => setStatus({ kind: 'loadError', message: e.message })), [])
 
           React.useEffect(() => {
             loadCatalog()
@@ -218,10 +221,9 @@ window.__ModuleLoader__.load({
           const save = async () => {
             setStatus({ kind: 'saving' })
             try {
-              await getJson('web-access/set', { method: 'POST', body: JSON.stringify(draft) })
-              setStatus({ kind: 'ok' })
-              // The save restarts the Host half; read back its fresh status.
-              setTimeout(loadState, 800)
+              const raw = await getJson('web-access/set', { method: 'POST', body: JSON.stringify(draft) })
+              const s = normalize({ responsesProviders: saved.responsesProviders, ...raw })
+              setSaved(s); setDraft({ grok: s.grok, openai: s.openai }); setStatus({ kind: 'ok' })
             } catch (e) {
               setStatus({ kind: 'err', message: e.message })
             }
@@ -281,6 +283,8 @@ window.__ModuleLoader__.load({
               h('button', { type: 'button', className: 'wa-btn primary', disabled: busy || !dirty, onClick: save },
                 status.kind === 'saving' ? t('saving') : t('save')),
               status.kind === 'ok' ? h('span', { className: 'wa-note ok' }, t('saved')) : null,
+              status.kind === 'loadError' ? h('span', { className: 'wa-note err', role: 'alert' }, t('loadFailed'), ' ', status.message, ' ',
+                h('button', { type: 'button', className: 'wa-btn', onClick: loadState }, t('retry'))) : null,
               status.kind === 'err' ? h('span', { className: 'wa-note err' }, t('saveFailed') + status.message) : null))
         }
 

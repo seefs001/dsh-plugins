@@ -578,16 +578,16 @@ export function apply(ctx, config) {
     res.end()
     return true
   }
-  const state = async () => {
+  const state = async (selected = settings) => {
     const providers = piAiProviders(ctx.get('configEditor'))
     const status = {}
     for (const kind of Object.keys(KINDS)) {
-      const b = settings[kind]
+      const b = selected[kind]
       const reason = unusable(b)
       status[kind] = reason ?? ((await ready(ctx, b)) ? 'ready' : 'route or key missing')
     }
     const strip = ({ kind: _k, ...rest }) => rest
-    return { grok: strip(settings.grok), openai: strip(settings.openai), responsesProviders: responsesProviders(providers), status }
+    return { grok: strip(selected.grok), openai: strip(selected.openai), responsesProviders: responsesProviders(providers), status }
   }
 
   ctx.effect(() => ctx.webServer.register({
@@ -615,14 +615,16 @@ export function apply(ctx, config) {
       const entry = ctx.fiber.entry
       const editor = ctx.get('configEditor')
       if (entry === undefined || editor === undefined) return sendJson(res, 500, { message: 'configuration cannot be saved in this profile' })
+      // Resolve display metadata while this instance still owns its services.
+      const confirmed = await state(settingsOf(parsed.value))
       try {
-        // Saving restarts this plugin, which re-registers the tools.
+        // Saving reconciles this plugin and re-registers the tools.
         await editor.edit(entry, current => ({ ...current, ...parsed.value }))
       } catch (error) {
         ctx.logger?.warn?.(`web-access: failed to save settings: ${error?.message ?? error}`)
         return sendJson(res, 409, { message: String(error?.message ?? error) })
       }
-      sendJson(res, 200, { ...parsed.value, responsesProviders: responsesProviders(piAiProviders(editor)) })
+      sendJson(res, 200, confirmed)
     },
   }), `web-access: POST ${SET_PATH}`)
 }
