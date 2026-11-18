@@ -74,7 +74,7 @@ window.__ModuleLoader__.load({
       stderr: 'CLI log output', stopReason: 'Turn ended: {reason}', turnError: 'Agent error: {message}', configError: 'Setting refused: {message}',
       planItems: 'Task checklist', planDocument: 'Plan document', planRemoved: 'Plan removed by CLI', planRecorded: 'Content reported by the CLI at this point in the conversation.', planOpenFile: 'View current file', planDone: 'Done', planDoing: 'In progress', planPending: 'Pending', planEmpty: 'No listed steps.', morePlanItems: 'Show more steps',
       plan: 'Plan', highPriority: 'High', planProgress: '{done} of {total}',
-      'call.read': 'Read file', 'call.search': 'Search', 'call.edit': 'Edit file', 'call.delete': 'Delete', 'call.move': 'Move',
+      'call.read': 'Read file', 'call.search': 'Search', 'call.edit': 'Edit file', 'call.write': 'Write file', writeView: 'Write details', writeInput: 'Requested file content', writePatch: 'Reported patch', writeEmpty: 'The requested content is empty.', 'call.delete': 'Delete', 'call.move': 'Move',
       'call.execute': 'Terminal', 'call.fetch': 'Web', 'call.think': 'Reasoning', 'call.switch_mode': 'Switch mode',
       'call.pending': 'Queued', 'call.in_progress': 'Running', 'call.unfinished': 'No final status', 'call.completed': 'Completed', 'call.failed': 'Failed',
       'patch.launch': 'Launch preview', 'patch.update': 'Patch from a CLI update', 'patch.completed': 'Patch in completion report', 'patch.failed': 'Patch in failure report', 'patch.permission': 'Patch in this permission request', 'patch.recorded': 'Reported patch', patchCurrent: 'Open current file at a reported location', patchFiles: 'Patch files ({n})', patchAll: 'All reported fragments', patchParts: '{n} fragments', patchNoParts: 'No structured text diff for this file.', 'patch.add': 'Add file', 'patch.delete': 'Delete file', 'patch.move': 'Move file', 'patch.updateFile': 'Edit file',
@@ -192,7 +192,7 @@ window.__ModuleLoader__.load({
       stderr: 'CLI 日志输出', stopReason: '本轮结束：{reason}', turnError: 'Agent 报错：{message}', configError: '设置被拒绝：{message}',
       planItems: '任务清单', planDocument: '方案正文', planRemoved: 'CLI 已移除计划', planRecorded: '以下是 CLI 在此次对话中回报的原文。', planOpenFile: '查看当前文件', planDone: '已完成', planDoing: '进行中', planPending: '待开始', planEmpty: '没有列出步骤。', morePlanItems: '显示更多步骤',
       plan: '计划', highPriority: '高', planProgress: '{done}/{total} 项完成',
-      'call.read': '读取文件', 'call.search': '搜索', 'call.edit': '编辑文件', 'call.delete': '删除', 'call.move': '移动',
+      'call.read': '读取文件', 'call.search': '搜索', 'call.edit': '编辑文件', 'call.write': '写入文件', writeView: '写入详情', writeInput: '请求写入的正文', writePatch: '报告的补丁', writeEmpty: '请求写入的正文为空。', 'call.delete': '删除', 'call.move': '移动',
       'call.execute': '运行命令', 'call.fetch': '访问网页', 'call.think': '思考', 'call.switch_mode': '切换模式',
       'call.pending': '等待执行', 'call.in_progress': '执行中', 'call.unfinished': '未报告最终状态', 'call.completed': '已完成', 'call.failed': '失败',
       'patch.launch': '启动时的预览', 'patch.update': 'CLI 更新中的补丁', 'patch.completed': '完成回报中的补丁', 'patch.failed': '失败回报中的补丁', 'patch.permission': '本次审批中的补丁', 'patch.recorded': '报告的补丁', patchCurrent: '在当前文件中查看报告的位置', patchFiles: '补丁文件（{n}）', patchAll: '全部报告片段', patchParts: '{n} 个片段', patchNoParts: '该文件没有结构化文本差异。', 'patch.add': '新增文件', 'patch.delete': '删除文件', 'patch.move': '移动文件', 'patch.updateFile': '修改文件',
@@ -697,6 +697,15 @@ window.__ModuleLoader__.load({
       }
       return null
     }
+    // Claude's Write sends file text in rawInput. A null old side on its launch diff is not proof of creation.
+    function writeIntent(tool, input) {
+      const wire = tool.name, meta = tool._meta?.claudeCode?.toolName
+      if (tool.kind !== 'edit' || (wire ?? meta) !== 'Write' || (meta != null && meta !== 'Write')) return null
+      const path = typeof input.file_path === 'string' ? input.file_path : input.path
+      if (!firstText(path)) return null
+      const content = input.content ?? input.file_text ?? input.file_content
+      return { path, content: typeof content === 'string' ? content : undefined }
+    }
     function toolFace(tool, terminal, approval = false) {
       const input = tool.rawInput ?? {}, out = tool.rawOutput ?? {}
       const blocks = Array.isArray(tool.content) ? tool.content.filter(Boolean) : []
@@ -718,7 +727,7 @@ window.__ModuleLoader__.load({
       const lastExit = tool.toolCallId && tool._meta?.terminal_exit?.terminal_id === tool.toolCallId ? tool._meta.terminal_exit : null
       const exitCode = terminal?.exitCode ?? (out.call_id == null || out.call_id === tool.toolCallId ? [out.exitCode, out.exit_code, out.return_code].find(Number.isInteger) : undefined) ?? (Number.isInteger(lastExit?.exit_code) ? lastExit.exit_code : undefined)
       const signal = terminal?.signal ?? firstText(lastExit?.signal)
-      return { kind, mcp, web, input, blocks, targets, command, focus, exitCode: mcp ? undefined : exitCode, signal: mcp ? undefined : signal, hasTerminal: !!terminal }
+      return { kind, mcp, web, write: !mcp && writeIntent(tool, input), input, blocks, targets, command, focus, exitCode: mcp ? undefined : exitCode, signal: mcp ? undefined : signal, hasTerminal: !!terminal }
     }
 
     const explorationKinds = new Set(['read', 'search', 'fetch'])
@@ -1190,6 +1199,18 @@ window.__ModuleLoader__.load({
             locations.length ? h('div', { className: 'aw-section' }, openFile ? h('span', { className: 'aw-note' }, t('patchCurrent')) : null, h(ToolTargets, { key: all ? 'all:' : 'file:' + file.path, targets: locations, cwd, openFile })) : null)
         }
 
+        function WritePreview({ write, inventory, frame, targets, cwd, openFile, labels }) {
+          const [selection, select] = React.useState(null)
+          const hasPatch = inventory.files.size > 0
+          const view = hasPatch ? selection ?? (frame?.stage === 'launch' ? 'input' : 'patch') : 'input'
+          return h('section', { className: 'aw-section aw-write', 'aria-label': t('writeView') },
+            h('div', { className: 'aw-row' }, hasPatch ? h('label', null, t('writeView'), ' ', h('select', { className: 'aw-select', value: view, onChange: e => select(e.target.value) },
+              h('option', { value: 'input' }, t('writeInput')), h('option', { value: 'patch' }, t('writePatch')))) : h(Tag, { tone: 'quiet' }, t('writeInput')),
+              view === 'input' && h(PathLabel, { path: write.path })),
+            view === 'patch' ? h(PatchPreview, { inventory, frame, targets, cwd, openFile }) : write.content === '' ? h('p', { className: 'aw-note' }, t('writeEmpty')) :
+              h('div', { className: 'aw-code-window' }, h(CodeBlock, { code: write.content, lang: write.path.match(/\.([a-z0-9]+)$/iu)?.[1].toLowerCase() ?? 'text', copyLabel: labels.copy, copiedLabel: labels.copied, toolbarLabels: labels })))
+        }
+
         function Block({ block }) {
           const content = block.type === 'content' ? block.content : block
           if (block.type === 'terminal') return h('p', { className: 'aw-note' }, t('terminal', { id: block.terminalId ?? '' }))
@@ -1393,12 +1414,13 @@ window.__ModuleLoader__.load({
           return h('div', { className: 'aw-detail aw-call-detail' },
             !approval && legacyCompaction(tool) ? h(CompactionFacts, { facts: compactionFacts(tool.rawOutput) }) : null,
             locations.length ? h(ToolTargets, { targets: locations, cwd: directory, openFile }) : null,
-            !face.mcp && (kind === 'other' || approval) ? h(FieldList, { value: input, label: t('input'), omit: [command, ...(face.web ? [face.web.url, face.web.query, face.web.prompt, face.web.offset] : []), ...targets.map(l => l.path), ...(proposed || extras.some(validDiff) ? [input.old_string, input.new_string] : [])] }) : null,
+            !face.mcp && (kind === 'other' || approval) ? h(FieldList, { value: input, label: t('input'), omit: [command, ...(face.web ? [face.web.url, face.web.query, face.web.prompt, face.web.offset] : []), ...targets.map(l => l.path), face.write?.content, ...(proposed || extras.some(validDiff) ? [input.old_string, input.new_string] : [])] }) : null,
             !text && !extras.length && kind === 'other' ? h(FieldList, { value: tool.rawOutput, label: t('output') }) : null,
             proposed ? h('div', { className: 'aw-section' }, h('span', { className: 'aw-note' }, t('proposed')),
               h(DiffBlock, { labels, maxLines: 8, diffs: [{ path: targets[0].path, oldText: input.old_string, newText: input.new_string }] })) : null,
             !face.mcp && reportNote ? h('p', { className: 'aw-note aw-output' }, reportNote) : null, body,
-            h(PatchPreview, { inventory: patch, frame: evidence, targets, cwd: directory, openFile }),
+            face.write?.content !== undefined ? h(WritePreview, { write: face.write, inventory: patch, frame: evidence, targets, cwd: directory, openFile, labels }) :
+              h(PatchPreview, { inventory: patch, frame: evidence, targets, cwd: directory, openFile }),
             !face.mcp && extras.filter(b => !validDiff(b) && !(terminal && b.type === 'terminal' && b.terminalId === terminal.id)).map((block, i) => h(Block, { key: i, block })),
             tool.rawInput !== undefined || tool.rawOutput !== undefined ? h('details', { className: 'aw-tech', onToggle: event => setInspect(event.currentTarget.open) }, h('summary', null, t('inspectData')),
               inspect && tool.rawInput !== undefined ? h(Json, { label: t('input'), payload: tool.rawInput, open: true }) : null,
@@ -1413,13 +1435,13 @@ window.__ModuleLoader__.load({
           const { kind, focus, targets, exitCode } = face, target = targets[0]
           const state = callState(tool, face, live)
           const webTitle = { search: 'webSearch', page: 'webPage', find: 'webFind' }[face.web?.mode]
-          const title = task ? t('cliTask') : legacyCompaction(tool) ? t('compact.title') : webTitle ? t(webTitle) : kind === 'other' ? tool.title || t('tool') : t('call.' + kind)
+          const title = task ? t('cliTask') : legacyCompaction(tool) ? t('compact.title') : webTitle ? t(webTitle) : face.write ? t('call.write') : kind === 'other' ? tool.title || t('tool') : t('call.' + kind)
           const path = target && (cwd && target.path.startsWith(cwd + '/') ? target.path.slice(cwd.length + 1) : target.path)
           const summary = focus || (path && path + (target.line > 0 ? ':' + target.line : '')) || (tool.title !== title ? tool.title : null)
           const totals = React.useMemo(() => {
             const diffs = face.blocks.filter(validDiff)
-            return diffs.length ? diffTotals(diffs.map(b => ({ ...b, oldText: b.oldText ?? null }))) : null
-          }, [face])
+            return diffs.length && !(face.write && patchFrame?.stage === 'launch' && diffs.every(b => b.oldText == null)) ? diffTotals(diffs.map(b => ({ ...b, oldText: b.oldText ?? null }))) : null
+          }, [face, patchFrame])
           const expandable = !!(face.mcp || terminal || face.blocks.length || targets.length || focus || tool.rawInput !== undefined || tool.rawOutput !== undefined)
           return h('div', { className: 'aw-call', 'data-state': state }, h(DisclosureRow, {
             icon: h(task ? IconBranchOutlineRegular : kindIcons.get(kind) ?? IconInfoOutlineRegular, { size: 14 }), title, open, expandable, onToggle: toggle,
@@ -1430,7 +1452,7 @@ window.__ModuleLoader__.load({
               task ? h('span', { className: 'aw-count' }, t('cliCalls', { n: task.calls })) : null,
               targets.length > 1 ? h('span', { className: 'aw-count' }, t('pathMore', { n: targets.length - 1 })) : null,
               permit ? h('span', { title: permit.choice }, h(Tag, { tone: ['permitDenied', 'permitLive'].includes(permit.label) ? 'warning' : 'quiet' }, t(permit.label))) : null,
-              totals && patchFrame?.stage === 'launch' ? h(Tag, { tone: 'quiet' }, t('patch.launch')) : null,
+              patchFrame?.stage === 'launch' && (totals || (face.write && face.blocks.some(validDiff))) ? h(Tag, { tone: 'quiet' }, t('patch.launch')) : null,
               totals ? h('span', { className: 'aw-diff-totals' }, h('span', null, '+' + totals.added), ' ', h('span', null, '−' + totals.removed)) : null,
               h('span', { className: 'aw-call-status', 'data-quiet': state === 'completed' }, h(StateDot, { size: 8, state: TOOL_DOT[state] ?? 'idle' }), task ? t('cliLaunchStatus', { status: t('call.' + state) }) : t('call.' + state)),
               face.signal || (exitCode !== undefined && exitCode !== 0) ? h('span', { className: 'aw-exit' }, face.signal ? t('terminalSignal', { signal: face.signal }) : t('exitCode', { n: exitCode })) : null),
