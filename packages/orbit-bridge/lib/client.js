@@ -235,31 +235,37 @@ textarea.ob-input{height:auto;min-height:48px;padding:6px 8px;resize:vertical}
 
         function useBridge() {
           const [state, setState] = React.useState({ data: null, error: null })
+          const generation = React.useRef(0)
           const load = React.useCallback(async signal => {
+            const own = ++generation.current
             try {
               const data = await request('orbit-bridge/state', { signal })
-              setState({ data, error: null })
+              if (own === generation.current && !signal?.aborted) setState({ data, error: null })
             } catch (error) {
-              if (error?.name !== 'AbortError') setState(prev => ({ data: prev.data, error: String(error?.message ?? error) }))
+              if (own === generation.current && !signal?.aborted && error?.name !== 'AbortError') setState(prev => ({ data: prev.data, error: String(error?.message ?? error) }))
             }
           }, [])
           React.useEffect(() => {
             const controller = new AbortController()
-            void load(controller.signal)
-            const timer = setInterval(() => { if (document.visibilityState === 'visible') void load(controller.signal) }, POLL_MS)
-            return () => { clearInterval(timer); controller.abort() }
+            let timer
+            const poll = async () => {
+              if (!timer || document.visibilityState === 'visible') await load(controller.signal)
+              if (!controller.signal.aborted) timer = setTimeout(poll, POLL_MS)
+            }
+            void poll()
+            return () => { clearTimeout(timer); controller.abort(); generation.current++ }
           }, [load])
           /** Run one Host operation; returns the error message, or null on success. */
           const op = React.useCallback(async payload => {
             try {
-              const data = await request('orbit-bridge/op', { method: 'POST', body: JSON.stringify(payload) })
-              if (data?.routines) setState({ data, error: null })
+              await request('orbit-bridge/op', { method: 'POST', body: JSON.stringify(payload) })
+              await load()
               return null
             } catch (error) {
               const message = String(error?.message ?? error)
               return message.includes('changed since you loaded it') ? `${t('conflict')} (${message})` : message
             }
-          }, [])
+          }, [load])
           return { ...state, load, op }
         }
 
@@ -268,15 +274,15 @@ textarea.ob-input{height:auto;min-height:48px;padding:6px 8px;resize:vertical}
           const [busy, setBusy] = React.useState(false)
           const [error, setError] = React.useState(null)
           const mounted = React.useRef(true)
-          React.useEffect(() => () => { mounted.current = false }, [])
+          React.useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
           const click = async () => {
             if (confirmText && !window.confirm(confirmText)) return
             setBusy(true)
             setError(null)
-            const message = await onRun()
-            if (!mounted.current) return
-            setBusy(false)
-            setError(message)
+            try {
+              const message = await onRun()
+              if (mounted.current) setError(message)
+            } catch (failure) { if (mounted.current) setError(failure.message) } finally { if (mounted.current) setBusy(false) }
           }
           return h(React.Fragment, null,
             h('button', { type: 'button', className: 'ob-btn', 'data-primary': primary ? '' : undefined, disabled: disabled || busy, 'aria-busy': busy, onClick: click }, label),
@@ -313,11 +319,15 @@ textarea.ob-input{height:auto;min-height:48px;padding:6px 8px;resize:vertical}
               h('button', { type: 'button', className: 'ob-btn', onClick: onCancel }, t('cancel'))))
         }
 
+        function isWebLink(value) {
+          try { return ['https:', 'http:'].includes(new URL(value).protocol) } catch { return false }
+        }
+
         function ChangeList({ changes }) {
           if (!changes?.length) return null
           return h('ul', { className: 'ob-list' }, changes.map(c => h('li', { key: c.key },
             h('strong', null, t(c.kind)), ' ',
-            c.url ? h('a', { href: c.url, target: '_blank', rel: 'noreferrer' }, c.identifier ?? c.taskId) : (c.identifier ?? c.taskId),
+            isWebLink(c.url) ? h('a', { href: c.url, target: '_blank', rel: 'noreferrer' }, c.identifier ?? c.taskId) : (c.identifier ?? c.taskId),
             ' ', c.title,
             c.kind === 'status' ? ` (${c.from ?? '?'} → ${c.to ?? '?'})` : null,
             c.kind === 'fields' ? ` (${c.fields.join(', ')})` : null,
