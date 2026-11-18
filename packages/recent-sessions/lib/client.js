@@ -17,7 +17,7 @@ window.__ModuleLoader__.load({
     function sessionIdOf(row) {
       if (row?.icon !== 'session' || typeof row.value !== 'string') return undefined
       try {
-        const m = /dsh-session:([A-Za-z0-9_-]+)/u.exec(JSON.parse(row.value).mention ?? '')
+        const m = /\(dsh-session:([A-Za-z0-9_-]+)\)$/u.exec(JSON.parse(row.value).mention ?? '')
         if (!m) return undefined
         const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/')
         const bin = atob(b64 + '='.repeat((4 - b64.length % 4) % 4))
