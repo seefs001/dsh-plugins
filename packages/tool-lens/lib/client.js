@@ -244,7 +244,7 @@ window.__ModuleLoader__.load({
           .then(result => (result.ok ? result.value.skills : []), () => [])
         catalogs.set(sessionId, entry)
         // A failed or empty answer is retried on the next click.
-        entry.then(list => { if (list.length === 0) catalogs.delete(sessionId) })
+        entry.then(list => { if (list.length === 0 && catalogs.get(sessionId) === entry) catalogs.delete(sessionId) })
         return entry
       }
       const clear = () => catalogs.clear()
@@ -356,12 +356,17 @@ window.__ModuleLoader__.load({
     function webLinks(toolName, block) {
       if (!('kind' in block) || block.isError) return []
       const meta = metaOf(block)
+      const isWebUrl = url => {
+        if (typeof url !== 'string' || !URL.canParse(url)) return false
+        const { protocol } = new URL(url)
+        return protocol === 'https:' || protocol === 'http:'
+      }
       if (toolName === 'web_search' && Array.isArray(meta?.sources)) {
-        return meta.sources.filter(source => typeof source?.url === 'string').map(source => ({ url: source.url, title: source.title }))
+        return meta.sources.filter(source => isWebUrl(source?.url)).map(source => ({ url: source.url, title: source.title }))
       }
       if (toolName === 'web_fetch') {
         const url = typeof meta?.url === 'string' ? meta.url : parseArgs(block).args?.url
-        if (typeof url === 'string' && /^https?:\/\//i.test(url)) return [{ url }]
+        if (isWebUrl(url)) return [{ url }]
       }
       return []
     }
