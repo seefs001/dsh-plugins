@@ -75,9 +75,9 @@ window.__ModuleLoader__.load({
 @media(max-width:600px){.dme-modes{grid-template-columns:1fr}}
 `
 
-    async function op(body) {
+    async function op(body, signal) {
       const response = await fetch('message-edit/op', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal,
       })
       let data
       try { data = await response.json() } catch { throw new Error(`HTTP ${response.status}`) }
@@ -90,13 +90,14 @@ window.__ModuleLoader__.load({
     function editsStore(sessionId) {
       let entry = lists.get(sessionId)
       if (!entry) {
-        entry = { value: {}, listeners: new Set(), loading: null }
+        entry = { value: {}, listeners: new Set(), generation: 0 }
         entry.refresh = () => {
-          entry.loading = op({ action: 'list', sessionId }).then(v => {
+          const generation = ++entry.generation
+          return op({ action: 'list', sessionId }).then(v => {
+            if (generation !== entry.generation) return
             entry.value = v.edited
             for (const fn of entry.listeners) fn()
           }).catch(() => {})
-          return entry.loading
         }
         lists.set(sessionId, entry)
         void entry.refresh()
@@ -132,20 +133,21 @@ window.__ModuleLoader__.load({
           const [text, setText] = React.useState('')
           const [mode, setMode] = React.useState('keep')
           const [clearLater, setClearLater] = React.useState(true)
-          const [busy, setBusy] = React.useState(true)
+          const [busy, setBusy] = React.useState(false)
           const [error, setError] = React.useState('')
           React.useEffect(() => {
             alive.current = true
             const node = ref.current
             const previous = document.activeElement
             node.showModal()
-            op({ action: 'inspect', sessionId, rpcId }).then(v => {
-              if (!alive.current) return
+            const controller = new AbortController()
+            op({ action: 'inspect', sessionId, rpcId }, controller.signal).then(v => {
+              if (controller.signal.aborted) return
               setInfo(v); setText(v.text)
-            }).catch(e => { if (alive.current) setError(e.message) })
-              .finally(() => { if (alive.current) setBusy(false) })
+            }).catch(e => { if (!controller.signal.aborted) setError(e.message) })
             return () => {
               alive.current = false
+              controller.abort()
               node.close()
               if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true })
             }
@@ -160,12 +162,13 @@ window.__ModuleLoader__.load({
             try {
               if (mode === 'keep') {
                 await op({ action: 'rewrite', sessionId, rpcId, text, clearLater })
-                onDone(text)
+                if (alive.current) onDone(text)
               } else {
                 const childId = await ctx.sessions.fork({ sessionId, atSeq: info.forkAt, increaseTitle: true })
                 await op({ action: 'send', sessionId: childId, sourceSessionId: sessionId, rpcId, text })
-                onClose()
+                if (!alive.current) return
                 ctx.uiWorkspace.openSession(childId)
+                onClose()
               }
             } catch (e) {
               if (alive.current) { setError(e.message); setBusy(false) }
@@ -179,14 +182,14 @@ window.__ModuleLoader__.load({
             onCancel: e => { e.preventDefault(); if (!busy) onClose() },
             onKeyDown: e => {
               e.stopPropagation()
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !busy && info) { e.preventDefault(); void submit() }
+              if (!e.nativeEvent.isComposing && e.keyCode !== 229 && e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !busy && info) { e.preventDefault(); void submit() }
             },
           },
           h('div', { className: 'dme-head' }, h('h2', null, t('title')),
             h('button', { type: 'button', className: 'dme-btn dme-icon', onClick: onClose, disabled: busy, 'aria-label': t('close'), title: t('close') }, '✕')),
           h('div', { className: 'dme-body' },
             info ? h('textarea', { className: 'dme-text', value: text, autoFocus: true, disabled: busy, onChange: e => { setText(e.target.value); setError('') } })
-              : h('p', { className: 'dme-note', role: 'status' }, t('loading')),
+              : !error && h('p', { className: 'dme-note', role: 'status' }, t('loading')),
             info ? h('fieldset', { className: 'dme-modes' },
               mode_('keep', t('keep'), t('keepHint'), !canKeep, t('keepUnavailable')),
               mode_('clear', t('clear'), t('clearHint'), !canClear, t('forkUnavailable'))) : null,
@@ -204,8 +207,15 @@ window.__ModuleLoader__.load({
           useLocale()
           const data = node.data
           const rpcId = data.source?.kind === 'user' ? data.source.rpcId : undefined
-          const store = editsStore(sessionId)
-          const edited = React.useSyncExternalStore(fn => { store.listeners.add(fn); return () => store.listeners.delete(fn) }, () => store.value[rpcId])
+          const subscribe = React.useCallback(fn => {
+            const store = editsStore(sessionId)
+            store.listeners.add(fn)
+            return () => {
+              store.listeners.delete(fn)
+              if (!store.listeners.size && lists.get(sessionId) === store) lists.delete(sessionId)
+            }
+          }, [sessionId])
+          const edited = React.useSyncExternalStore(subscribe, () => lists.get(sessionId)?.value[rpcId])
           const [open, setOpen] = React.useState(false)
           const [copied, setCopied] = React.useState(false)
           const [copyError, setCopyError] = React.useState(false)
@@ -252,7 +262,9 @@ window.__ModuleLoader__.load({
                   copied ? h('path', { d: 'm5 12 4 4L19 6' }) : h(React.Fragment, null, h('rect', { x: 8, y: 8, width: 12, height: 12, rx: 2 }), h('path', { d: 'M16 8V4H4v12h4' })))),
               typeof rpcId === 'string' ? h('button', { type: 'button', className: 'dme-action', title: t('editHint'), 'aria-label': t('editHint'), 'aria-haspopup': 'dialog', onClick: () => setOpen(true) }, h(Pencil)) : null),
             copyError ? h('p', { className: 'dme-error', role: 'alert' }, t('copyFailed')) : null,
-            open ? h(Dialog, { sessionId, rpcId, onClose: () => setOpen(false), onDone: text => {
+            open ? h(Dialog, { key: JSON.stringify([sessionId, rpcId]), sessionId, rpcId, onClose: () => setOpen(false), onDone: text => {
+              const store = lists.get(sessionId)
+              if (!store) return
               store.value = { ...store.value, [rpcId]: { text, inContext: true } }
               for (const notify of store.listeners) notify()
               setOpen(false)

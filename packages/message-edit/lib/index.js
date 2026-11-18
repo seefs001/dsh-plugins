@@ -18,7 +18,8 @@ function deepFreeze(value) {
 }
 
 function checkText(value) {
-  if (typeof value !== 'string' || !value.trim() || value.length > MAX_TEXT) throw new Error('The edited message must not be empty')
+  if (typeof value !== 'string' || !value.trim()) throw new Error('The edited message must not be empty')
+  if (value.length > MAX_TEXT) throw new Error(`The edited message exceeds ${MAX_TEXT} characters`)
   return value
 }
 
@@ -106,13 +107,22 @@ export class MessageEdit {
   /** Every human message rewritten in place, keyed by rpcId, for the Chat badge. */
   async list({ sessionId }) {
     const events = await this.events(sessionId)
-    const edited = {}
+    const edited = Object.create(null)
+    const live = new Map() // current surface seq -> original human rpcId
     for (const e of events) {
-      if (!isReplace(e) || e.type !== 'user/message' || e.data.source?.kind !== 'user') continue
-      const rpcId = e.data.source.rpcId
-      if (typeof rpcId !== 'string') continue
-      const found = locate(events, rpcId)
-      if (found.edits > 0) edited[rpcId] = { text: textOf(found.current.data.content), inContext: found.inContext, time: found.current.time }
+      if (e.surfaceOp === 'append' && e.type === 'user/message' && e.data.source?.kind === 'user') {
+        live.set(e.seq, e.data.source.rpcId)
+      } else if (isReplace(e)) {
+        for (const seq of e.sourceEventSeqs ?? []) {
+          const rpcId = live.get(seq)
+          if (rpcId === undefined) continue
+          live.delete(seq)
+          if (seq === e.surfaceOp.startSeq && sameMessage(e, rpcId)) {
+            live.set(e.seq, rpcId)
+            edited[rpcId] = { text: textOf(e.data.content), inContext: true, time: e.time }
+          } else if (edited[rpcId]) edited[rpcId].inContext = false
+        }
+      }
     }
     return { edited }
   }
