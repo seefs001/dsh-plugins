@@ -3,37 +3,43 @@ import { definition, META, STATUSES, prepareUpdate } from './model.js'
 
 export const name = 'work-timeline-tools'
 export const inject = ['tools', 'sessionProjections', 'systemPrompt']
-const string = description => ({ type: 'string', required: true, description })
-const optional = description => ({ type: 'string', description })
-const enumeration = values => ({ type: 'string', required: true, enum: values })
+const string = description => ({ type: 'string', description })
+const enumeration = values => ({ type: 'string', enum: values })
+const object = (properties, required = []) => ({
+  type: 'object', properties, ...(required.length ? { required } : {}), additionalProperties: false,
+})
+const array = (description, items) => ({ type: 'array', description, items })
 
-export const parameters = {
-  action: { ...enumeration(['create', 'replace']), description: 'Create the next work after finishing the previous one, or replace the current snapshot.' },
-  workId: optional('Current work ID. Required only for replace.'),
-  expectedRevision: { type: 'integer', required: true, description: 'Revision returned by work_read, including when creating the next work. Use 0 before the first work.' },
-  reason: string('Why this revision is needed. Explain cancellations, reopening, or changed scope.'),
-  snapshot: {
-    type: 'object', required: true, additionalProperties: false,
-    properties: {
-      title: string('Short work title.'), objective: string('Goal and completion criteria.'),
-      status: enumeration(['active', 'completed', 'canceled']),
-      outcome: optional('Work result or cancellation explanation. Required to close work.'),
-      steps: { type: 'array', required: true, description: 'Complete ordered steps. Keep stable IDs when renaming. Retain canceled steps.',
-        items: { type: 'object', additionalProperties: false, properties: {
-          id: string('Stable ID within this work.'), content: string('Action to perform.'), status: enumeration(STATUSES),
-          blocker: optional('Required only when blocked; state what is needed.'),
-          outcome: optional('Required when completed; report the result without implying verification.'),
-        } } },
-      artifacts: { type: 'array', required: true, description: 'Complete explicit file references; retain existing IDs. Not every modified file is a deliverable. Empty until there are outputs.',
-        items: { type: 'object', additionalProperties: false, properties: {
-          id: string('Stable artifact ID.'), title: string('Human-readable output name.'),
-          path: string('Absolute path in the Session filesystem. Opens current contents, not a version snapshot.'),
-          role: enumeration(['deliverable', 'evidence']), stepId: optional('Associated step ID.'),
-          description: optional('What this output contains or what this evidence supports.'),
-        } } },
-    },
-  },
-}
+const stepSchema = object({
+  id: string('Stable step ID.'),
+  content: string('Action to perform.'),
+  status: enumeration(STATUSES),
+  blocker: string('Required when blocked; omit after resolving.'),
+  outcome: string('Required when completed.'),
+}, ['id', 'content', 'status'])
+const artifactSchema = object({
+  id: string('Stable artifact ID.'),
+  title: string('Human-readable name.'),
+  path: string('Absolute path in the session filesystem.'),
+  role: enumeration(['deliverable', 'evidence']),
+  stepId: string('ID of the associated step, if any.'),
+  description: string('What this file delivers or supports.'),
+}, ['id', 'title', 'path', 'role'])
+
+export const parameters = object({
+  action: { ...enumeration(['create', 'replace']), description: 'Create when no work is active; replace to update the current work.' },
+  workId: string('Current ID from work_read or the last work_update. Required for replace; omit for create.'),
+  expectedRevision: { type: 'integer', description: 'Current revision from work_read or the last work_update; 0 only before the first work.' },
+  reason: string('Why this revision is needed.'),
+  snapshot: object({
+    title: string('Short work title.'),
+    objective: string('Goal and completion criteria.'),
+    status: enumeration(['active', 'completed', 'canceled']),
+    outcome: string('Required when closing work. Close or cancel all steps first.'),
+    steps: array('Complete ordered list. On replace, retain existing IDs; cancel obsolete steps.', stepSchema),
+    artifacts: array('Complete list of deliverables and evidence. Use [] until there are files. On replace, retain existing IDs.', artifactSchema),
+  }, ['title', 'objective', 'status', 'steps', 'artifacts']),
+}, ['action', 'expectedRevision', 'reason', 'snapshot'])
 
 const content = text => [{ type: 'text', text }]
 const outputSchema = { type: 'object' }
@@ -42,8 +48,8 @@ export async function apply(ctx) {
   const projection = await ctx.sessionProjections.register(definition)
   ctx.tools.register({
     name: 'work_read',
-    description: 'Read this session’s current work, stable step IDs, revision and artifact references after interruptions or context compaction.',
-    parameters: { history: { type: 'boolean', description: 'Include the most recent 20 revisions. Defaults to false.' } },
+    description: 'Read the current work ID, revision and full snapshot. Returns current: null before the first work.',
+    parameters: object({ history: { type: 'boolean', description: 'Include the most recent 20 revisions. Defaults to false.' } }),
     output: { schema: outputSchema, render: (_args, value) => content(JSON.stringify(value)) },
     isConcurrencySafe: () => true,
     async execute(args, exec) {
@@ -57,7 +63,7 @@ export async function apply(ctx) {
   })
   ctx.tools.register({
     name: 'work_update',
-    description: 'Track substantive multi-step work instead of todo_write; skip trivial questions. Keep progress, blockers and scope current across turns using a complete snapshot. Call directly, never inside codemode or another tool. Completion is a report, not automatic verification. Returns the work ID and revision.',
+    description: 'Create or replace the session work snapshot and return its ID and revision. Call directly, not inside codemode. Use work_read if the current snapshot or revision is unknown.',
     parameters,
     output: {
       schema: outputSchema,
