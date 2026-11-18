@@ -373,7 +373,9 @@ window.__ModuleLoader__.load({
       }
 
       const usageReady = usage.phase === 'ready'
-      const view = buildSkillView(catalog.skills, usageReady ? usage.data : null, { query, sort, showAutomatic })
+      const shared = usageReady ? usage.data : null
+      const view = React.useMemo(() => buildSkillView(catalog.skills, shared, { query, sort, showAutomatic }),
+        [catalog.skills, shared, query, sort, showAutomatic])
       const { rows: shown, effectiveSort, hiddenAutomatic } = view
       const current = shown.find(skill => skill.name === selected) ?? shown[0] ?? null
 
@@ -485,7 +487,6 @@ window.__ModuleLoader__.load({
       }
 
       const renderRow = skill => {
-        const index = shown.indexOf(skill)
         const isCurrent = skill === current
         const count = skill.loads
         const summary = skill.summary
@@ -495,7 +496,7 @@ window.__ModuleLoader__.load({
             'aria-controls': ids.detail,
             onClick: () => setSelected(skill.name),
             onFocus: () => setSelected(skill.name),
-            onKeyDown: event => onRowKey(event, index),
+            onKeyDown: event => onRowKey(event, shown.indexOf(skill)),
           },
           h('span', { className: 'dcs-line' },
             h('span', { className: 'dcs-row-name' }, `/${skill.name}`),
