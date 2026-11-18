@@ -68,6 +68,7 @@ window.__ModuleLoader__.load({
       'state.canceling': 'Stopping', 'state.disconnected': 'Disconnected', 'state.error': 'Error', 'state.preparing': 'Preparing',
       'state.completed': 'Completed', 'state.interrupted': 'Interrupted', 'state.failed': 'Failed',
       trace: '{name} execution', traceTools: '{n} tool calls', traceTool: '1 tool call', traceFiles: '{n} files in diffs', traceFile: '1 file in diffs',
+      replyCollapsed: '{name} reply collapsed', replyLines: '{n} lines', replyImages: '{n} images', collapseReply: 'Collapse result', expandReply: 'Expand result', collapseExcerpt: 'Collapse reply', expandExcerpt: 'Show full excerpt', collapseTrace: 'Collapse trace',
       handoff: 'DSH context handed off', sameContext: 'Same external context',
       viewTimeline: 'Timeline', viewRaw: 'Raw events', older: 'Load earlier', loading: 'Loading…',
       noEvents: 'No execution events yet.', noActivity: 'No tool activity in this turn.',
@@ -186,6 +187,7 @@ window.__ModuleLoader__.load({
       'state.canceling': '停止中', 'state.disconnected': '已断开', 'state.error': '错误', 'state.preparing': '准备中',
       'state.completed': '已完成', 'state.interrupted': '已中断', 'state.failed': '失败',
       trace: '{name} 执行轨迹', traceTools: '{n} 次工具调用', traceTool: '1 次工具调用', traceFiles: '{n} 个文件有差异', traceFile: '1 个文件有差异',
+      replyCollapsed: '{name} 回复已折叠', replyLines: '{n} 行', replyImages: '{n} 张图片', collapseReply: '收起结果', expandReply: '展开结果', collapseExcerpt: '收起回复', expandExcerpt: '展开全文', collapseTrace: '收起轨迹',
       handoff: '已交接 DSH 上下文', sameContext: '延续外部上下文',
       viewTimeline: '时间线', viewRaw: '原始事件', older: '加载更早记录', loading: '加载中…',
       noEvents: '尚无执行事件。', noActivity: '本轮没有工具活动。',
@@ -334,6 +336,11 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.aw-trace-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 .aw-trace-chevron{flex:none;margin-left:auto;color:var(--dsw-alias-label-tertiary)}
 .aw-trace-body{display:flex;flex-direction:column;gap:8px;padding:4px 0 6px;min-width:0}
+.aw-trace-foot{display:flex;justify-content:flex-end;padding-top:2px}
+.aw-reply-toggle{display:flex;align-items:center;gap:8px;width:100%;min-height:28px;padding:0 6px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;text-align:left;cursor:pointer}
+@media (hover:hover){.aw-reply-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.aw-reply-toggle[data-open=true]{width:fit-content;padding:0 8px}
+.aw-reply-clamped{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .aw-trace-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);min-width:0}
 .aw-trace-meta .aw-path{max-width:min(100%,360px)}
 .aw-summary{color:var(--dsw-alias-label-tertiary);font-size:12px;margin-left:8px;font-weight:400}
@@ -1939,6 +1946,7 @@ window.__ModuleLoader__.load({
           const after = React.useRef(0)
           const started = React.useRef(false)
           const generation = React.useRef(0)
+          const traceRef = React.useRef(null)
           const matches = run => reference ? run.id === reference.turnId : messageId && run.messageId ? run.messageId === messageId : run.turn === turn && run.step === step
           // The snapshot carries recent runs only; an older run falls back to an exact lookup.
           const current = view.data?.sessions.find(s => (reference ? s.id === reference.sessionId : s.native.sessionId === sessionId) && s.native.runs.some(matches))
@@ -2024,7 +2032,7 @@ window.__ModuleLoader__.load({
             h(StateDot, { state: settle(DOT[state] ?? 'idle', active) }),
             h('span', null, tt('trace', { name })),
             summary ? h('span', { className: 'aw-ellipsis', title: summary }, summary) : null)
-          return h('section', { className: 'acpw aw-trace', 'aria-label': tt('trace', { name }) },
+          return h('section', { ref: traceRef, className: 'acpw aw-trace', 'aria-label': tt('trace', { name }) },
             h('div', { className: 'aw-trace-head' },
               collapsible
                 ? h('button', { type: 'button', className: 'aw-trace-toggle', 'aria-expanded': open, 'aria-label': tt(open ? 'collapse' : 'expand') + ' · ' + tt('trace', { name }), onClick: () => setOpen(v => !v) },
@@ -2039,7 +2047,8 @@ window.__ModuleLoader__.load({
               run.stopReason && run.stopReason !== 'end_turn' ? h('p', { className: 'aw-note' }, tt('stopReason', { reason: run.stopReason })) : null,
               (raw ? ready || events.length : traceReady) ? h(TraceList, { key: `${session.id}:${run.id}`, recordId: session.id, events, folded: raw ? undefined : fallback.rows, raw, interactions: current?.interactions ?? EMPTY, live: active, conversation: true, openFile, cwd: session.cwd }) : h('p', { className: 'aw-note' }, tt('loading')),
               run.error ? h('p', { className: 'aw-error', role: 'alert' }, run.error) : null,
-              error || view.error ? h('p', { className: 'aw-error', role: 'alert' }, error || view.error) : null) : (
+              error || view.error ? h('p', { className: 'aw-error', role: 'alert' }, error || view.error) : null,
+              collapsible ? h('div', { className: 'aw-trace-foot' }, h(Button, { size: 'sm', variant: 'ghost', onClick: () => { setOpen(false); requestAnimationFrame(() => traceRef.current?.scrollIntoView({ block: 'nearest' })) } }, tt('collapseTrace'))) : null) : (
               (run.error || error || view.error) ? h('div', { className: 'aw-trace-body' },
                 run.error ? h('p', { className: 'aw-error', role: 'alert' }, run.error) : null,
                 error || view.error ? h('p', { className: 'aw-error', role: 'alert' }, error || view.error) : null) : null))
@@ -2378,10 +2387,119 @@ window.__ModuleLoader__.load({
         function NativeNode(props) {
           return h(NativeTrace, { sessionId: props.sessionId, openFile: props.openFile, ...props.node.data })
         }
+
+        const collapsedRepliesKey = 'dsh-acp-workbench:collapsed-replies:v1'
+        const MAX_COLLAPSED_REPLIES = 300
+        let collapsedReplies = new Set()
+        const collapsedReplyListeners = new Set()
+        try {
+          const stored = JSON.parse(window.localStorage?.getItem(collapsedRepliesKey) ?? '[]')
+          if (Array.isArray(stored)) collapsedReplies = new Set(stored.filter(item => typeof item === 'string').slice(-MAX_COLLAPSED_REPLIES))
+        } catch { /* storage may be unavailable */ }
+        const subscribeCollapsedReplies = listener => { collapsedReplyListeners.add(listener); return () => collapsedReplyListeners.delete(listener) }
+        const isReplyCollapsed = key => collapsedReplies.has(key)
+        const setReplyCollapsed = (key, value) => {
+          if (collapsedReplies.has(key) === value) return
+          const next = new Set(collapsedReplies)
+          if (value) {
+            next.add(key)
+            while (next.size > MAX_COLLAPSED_REPLIES) next.delete(next.values().next().value)
+          } else next.delete(key)
+          collapsedReplies = next
+          try { window.localStorage?.setItem(collapsedRepliesKey, JSON.stringify([...next])) } catch { /* keep memory copy */ }
+          for (const listener of collapsedReplyListeners) listener()
+        }
+        function replyPreviewLine(text) {
+          for (const line of text.split(/\r?\n/u)) {
+            const clean = line.trim().replace(/^#{1,6}\s+|^>\s*|^[-*+]\s+|`+/gu, '').trim()
+            if (clean) return clean.length > 72 ? `${clean.slice(0, 71)}…` : clean
+          }
+          return ''
+        }
+        function AcpTurnReplyToggle({ sessionId, turn, seq }) {
+          const tt = useT()
+          const view = useNative(sessionId)
+          const btnRef = React.useRef(null)
+          const steps = (turn?.steps ?? EMPTY).map(step => step.data.get('assistant-step')).filter(Boolean)
+          const acpStep = steps.findLast(step => step.finalNode?.source?.provider?.startsWith('acp-'))
+          const matchedSession = acpStep
+            ? view.data?.sessions.find(s => s.native?.route === acpStep.finalNode.source.provider)
+            : view.data?.sessions.find(s => s.native?.sessionId === sessionId && s.native.runs.some(r => r.turn === turn?.turn))
+          const route = acpStep?.finalNode?.source?.provider ?? matchedSession?.native?.route
+          const visibleBlocks = steps.flatMap(step => (step.blocks ?? EMPTY).filter(block =>
+            block.kind !== 'reasoning' && block.kind !== 'tool-call' && (block.kind !== 'text' || block.text.trim() !== '')))
+          const isAcpReply = !!route?.startsWith('acp-') && visibleBlocks.length > 0
+          const messageId = acpStep?.finalNode?.messageId ?? steps.at(-1)?.finalNode?.messageId
+          const replyKey = `${sessionId}:${turn?.turn ?? 0}:${messageId ?? seq}`
+          const collapsed = React.useSyncExternalStore(
+            subscribeCollapsedReplies,
+            () => isAcpReply && isReplyCollapsed(replyKey),
+            () => false,
+          )
+          React.useLayoutEffect(() => {
+            const turnNo = turn?.turn
+            const container = btnRef.current?.closest('[data-chat-flow-kind="turn-tail"]')?.parentElement
+            if (!isAcpReply || turnNo == null || !container) return undefined
+            const selector = `[data-chat-flow-kind="assistant-step"][data-chat-turn="${CSS.escape(String(turnNo))}"]:not([data-chat-group-part="reasoning"])`
+            const targets = [...container.querySelectorAll(selector)]
+            const reveal = () => setReplyCollapsed(replyKey, false)
+            for (const element of targets) {
+              if (collapsed) {
+                element.setAttribute('hidden', 'until-found')
+                element.setAttribute('data-acp-reply-hidden', 'true')
+                element.addEventListener('beforematch', reveal)
+              } else if (element.hasAttribute('data-acp-reply-hidden')) {
+                element.removeAttribute('hidden')
+                element.removeAttribute('data-acp-reply-hidden')
+              }
+            }
+            return () => {
+              for (const element of targets) {
+                element.removeEventListener('beforematch', reveal)
+                if (element.hasAttribute('data-acp-reply-hidden')) {
+                  element.removeAttribute('hidden')
+                  element.removeAttribute('data-acp-reply-hidden')
+                }
+              }
+            }
+          }, [isAcpReply, collapsed, replyKey, turn?.turn, steps.length])
+          if (!isAcpReply) return null
+          const providerLabel = view.data?.providers.find(p => p.route === route)?.label ?? route.slice(4)
+          const fullText = visibleBlocks.filter(b => b.kind === 'text').map(b => b.text).join('\n\n')
+          const lineCount = fullText.trim() ? fullText.trim().split(/\r?\n/u).length : 0
+          const imageCount = visibleBlocks.filter(b => b.kind === 'image').length
+          const preview = replyPreviewLine(fullText)
+          const meta = [
+            lineCount ? tt('replyLines', { n: lineCount }) : null,
+            imageCount ? tt('replyImages', { n: imageCount }) : null,
+            preview || null,
+          ].filter(Boolean).join(' · ')
+          const toggle = () => {
+            const next = !collapsed
+            setReplyCollapsed(replyKey, next)
+            if (next) requestAnimationFrame(() => btnRef.current?.scrollIntoView({ block: 'nearest' }))
+          }
+          if (!collapsed) {
+            return h('button', {
+              ref: btnRef, type: 'button', className: 'acpw aw-reply-toggle', 'data-open': 'true',
+              'aria-expanded': true, 'aria-label': `${tt('collapseReply')} · ${providerLabel}`, onClick: toggle,
+            }, h('span', null, tt('collapseReply')), h(IconChevronUpOutlineRegular, { size: 14 }))
+          }
+          const interrupted = steps.some(step => step.finalNode?.interrupted)
+          return h('button', {
+            ref: btnRef, type: 'button', className: 'acpw aw-reply-toggle',
+            'aria-expanded': false, 'aria-label': `${tt('expandReply')} · ${providerLabel}`, onClick: toggle,
+          },
+            h(StateDot, { state: interrupted ? 'warning' : 'done', size: 8 }),
+            h('span', null, tt('replyCollapsed', { name: providerLabel })),
+            meta ? h('span', { className: 'aw-ellipsis', title: preview || meta }, meta) : null,
+            h(IconChevronDownOutlineRegular, { size: 14, className: 'aw-trace-chevron' }))
+        }
         ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, CliMenuOption))
         ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({ name: 'conversation.input.overlay', id: 'acp-settings', order: 40 }, CliSettingsOverlay))
         ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'acp-native', order: 40 }, NativeDock))
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, NativeNode))
+        ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))
 
         /* ---------------------------------------------------------------- sidebar page */
 
@@ -3156,15 +3274,19 @@ window.__ModuleLoader__.load({
         }
 
         function ResultCard({ item, catalog, providers, writable, changes, busy, mark }) {
-          const tt = useT(), [open, setOpen] = React.useState(null), [selected, select] = React.useState(null)
+          const tt = useT(), [open, setOpen] = React.useState(null), [selected, select] = React.useState(null), [replyOpen, setReplyOpen] = React.useState(false)
           const openFile = (path, options) => select(previous => ({ path, line: options?.line, request: (previous?.request ?? 0) + 1 }))
           const target = item.parentSessionId ? conversationTarget(item) : item.sessionId, opener = React.useRef(null)
           const closeFile = () => { select(null); if (opener.current?.isConnected) opener.current.focus() }
           const toggle = (key, label) => h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': open === key, onClick: () => { select(null); setOpen(open === key ? null : key) } }, tt(label))
           const name = catalog.byId[item.sessionId]?.title || item.title, provider = providers.find(p => p.id === item.providerId)?.label || item.providerId
+          const longReply = !!item.reply && (item.reply.length > 200 || item.reply.split('\n').length > 3)
           return h('article', { className: 'aw-card aw-section', onClickCapture: event => { const link = event.target.closest?.('.aw-file-link'); if (link) opener.current = link } }, h('div', { className: 'aw-row' }, h(StateDot, { state: DOT[item.state] || 'warning', size: 8 }), h('strong', { className: 'aw-grow' }, name), h(Tag, { tone: 'quiet' }, tt(item.reviewed === 'seen' ? 'reviewed' : item.reviewed === 'legacy' ? 'legacyReview' : 'unseen'))),
             h('div', { className: 'aw-note' }, [provider, tt('resultTurn', { n: item.turn }), stateText(item.state), stamp(item.at)].join(' · ')),
-            item.reply ? h('p', { className: 'aw-text' }, item.reply) : null, item.error ? h('p', { className: 'aw-error' }, item.error) : null,
+            item.reply ? h(React.Fragment, null,
+              h('p', { className: longReply && !replyOpen ? 'aw-text aw-reply-clamped' : 'aw-text' }, item.reply),
+              longReply ? h('div', null, h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': replyOpen, onClick: () => setReplyOpen(v => !v) }, tt(replyOpen ? 'collapseExcerpt' : 'expandExcerpt'))) : null) : null,
+            item.error ? h('p', { className: 'aw-error' }, item.error) : null,
             h('div', { className: 'aw-note' }, [item.cwd, item.tools ? tt('traceTools', { n: item.tools }) : null, item.fileCount ? tt('traceFiles', { n: item.fileCount }) : null].filter(Boolean).join(' · ')),
             item.files.length ? h(ToolTargets, { targets: item.files.map(path => ({ path })), cwd: item.cwd, openFile }) : null,
             h('div', { className: 'aw-row' }, toggle('trace', 'runTrace'), changes ? toggle('diff', 'checkoutDiff') : null, h(OpenConversation, { session: { native: item } }),
