@@ -1,7 +1,7 @@
 /**
  * dsh-service-tier — Host half.
  *
- * Sends `service_tier: "priority"` for the `provider/model` pairs marked fast,
+ * Sends the selected `service_tier` for each `provider/model` pair,
  * only on `openai-responses` routes. DSH 0.2.2-rc.2 removed the
  * `llm-pi-ai/model-defaults` waterfall, so the option is added by wrapping
  * pi-ai's request entry point (see pi-ai-hook.js). Two small authenticated JSON routes let the browser toggle read
@@ -18,22 +18,31 @@ export const STATE_PATH = '/service-tier/state'
 export const SET_PATH = '/service-tier/set'
 const MAX_BODY_BYTES = 16 * 1024
 
-/** Keep only `provider/model` keys marked `priority`. */
+// Model IDs listed at https://developers.openai.com/api/docs/guides/ultrafast-mode
+const ULTRAFAST_MODELS = ['gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-6.1-sol', 'gpt-6-astra']
+
+function supportsTier(model, tier) {
+  return tier === 'priority' || (tier === 'ultrafast' && ULTRAFAST_MODELS.includes(model))
+}
+
+/** Keep only explicit, supported tiers for provider/model pairs. */
 export function normalizeTiers(raw) {
   const out = {}
   if (raw === null || typeof raw !== 'object') return out
   for (const [key, value] of Object.entries(raw)) {
-    if (value === 'priority' && key.indexOf('/') > 0) out[key] = 'priority'
+    const slash = key.indexOf('/')
+    if (slash > 0 && supportsTier(key.slice(slash + 1), value)) out[key] = value
   }
   return out
 }
 
-/** Return `tiers` with `provider/model` switched on or off. */
-export function toggleTier(tiers, provider, model, fast) {
+/** Null removes the override; booleans retain the original toggle semantics. */
+export function toggleTier(tiers, provider, model, selection) {
+  const tier = typeof selection === 'boolean' ? (selection ? 'priority' : null) : selection
   const key = `${provider}/${model}`
   const next = { ...tiers }
-  if (fast) next[key] = 'priority'
-  else delete next[key]
+  if (tier === null) delete next[key]
+  else if (supportsTier(model, tier)) next[key] = tier
   return next
 }
 
@@ -76,14 +85,15 @@ async function readBody(req) {
 }
 
 /**
- * Add `service_tier: "priority"` to Responses requests of fast `provider/model`
- * pairs. pi-ai's simple-stream options drop `serviceTier`, so the field goes
+ * Apply the selected `service_tier` to Responses requests. pi-ai's simple-stream options drop `serviceTier`, so the field goes
  * in through `onPayload`, after any payload hook DSH already set.
  */
 export function serviceTierTransform(readTiers) {
   return request => {
     const { model, options } = request
-    if (model?.api !== RESPONSES_API || readTiers()[`${model.provider}/${model.id}`] === undefined) return request
+    if (model?.api !== RESPONSES_API) return request
+    const tier = readTiers()[`${model.provider}/${model.id}`]
+    if (tier === undefined) return request
     const previous = options?.onPayload
     return {
       ...request,
@@ -91,7 +101,7 @@ export function serviceTierTransform(readTiers) {
         ...options,
         onPayload: async (params, payloadModel) => {
           const next = (await previous?.(params, payloadModel)) ?? params
-          return { ...next, service_tier: 'priority' }
+          return { ...next, service_tier: tier }
         },
       },
     }
@@ -104,8 +114,9 @@ export async function apply(ctx, config) {
   // DSH 0.2.2-rc.1 still has this waterfall; later releases use the pi-ai hook below.
   ctx.on('llm-pi-ai/model-defaults', (request, next) => {
     const base = next() ?? {}
-    if (request.api !== RESPONSES_API || tiers[`${request.provider}/${request.model}`] === undefined) return base
-    return { ...base, serviceTier: 'priority' }
+    const tier = tiers[`${request.provider}/${request.model}`]
+    if (request.api !== RESPONSES_API || tier === undefined) return base
+    return { ...base, serviceTier: tier }
   })
   const hooked = addPiAiRequestTransform(serviceTierTransform(() => tiers))
   const catalogResponses = catalogProvidersWithApi(RESPONSES_API).catch(error => {
@@ -127,7 +138,7 @@ export async function apply(ctx, config) {
     handler: async (req, res) => {
       if (rejected(req, res)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
-      sendJson(res, 200, { tiers, responsesProviders: responsesProviders(ctx.get('configEditor'), await catalogResponses) })
+      sendJson(res, 200, { tiers, responsesProviders: responsesProviders(ctx.get('configEditor'), await catalogResponses), ultrafastModels: ULTRAFAST_MODELS })
     },
   }), `service-tier: GET ${STATE_PATH}`)
 
@@ -142,20 +153,27 @@ export async function apply(ctx, config) {
       let body = null
       try { body = JSON.parse(raw) } catch {}
       const { provider, model, fast } = body ?? {}
-      if (typeof provider !== 'string' || provider === '' || typeof model !== 'string' || model === '' || typeof fast !== 'boolean') {
-        return sendJson(res, 400, { message: 'expected { provider: string, model: string, fast: boolean }' })
+      const hasTier = body?.tier !== undefined
+      const valid = hasTier ? body.tier === null || supportsTier(model, body.tier) : typeof fast === 'boolean'
+      if (typeof provider !== 'string' || !provider || typeof model !== 'string' || !model || !valid) {
+        return sendJson(res, 400, { message: 'expected provider, model and a supported tier (priority, ultrafast or null), or fast: boolean' })
       }
       const entry = ctx.fiber.entry
       const editor = ctx.get('configEditor')
       if (entry === undefined || editor === undefined) {
         return sendJson(res, 500, { message: 'configuration cannot be saved in this profile' })
       }
-      const next = toggleTier(tiers, provider, model, fast)
-      // Live immediately; the config edit persists it (and restarts this plugin).
-      tiers = next
-      sendJson(res, 200, { tiers })
-      editor.edit(entry, current => ({ ...current, tiers: next }))
-        .catch(error => ctx.logger?.warn?.(`service-tier: failed to save tiers: ${error?.message ?? error}`))
+      try {
+        let next
+        await editor.edit(entry, current => {
+          next = toggleTier(normalizeTiers(current.tiers), provider, model, hasTier ? body.tier : fast)
+          return { ...current, tiers: next }
+        })
+        tiers = next
+        sendJson(res, 200, { tiers })
+      } catch (error) {
+        sendJson(res, 409, { message: error?.message ?? String(error) })
+      }
     },
   }), `service-tier: POST ${SET_PATH}`)
 
@@ -163,6 +181,6 @@ export async function apply(ctx, config) {
     const hook = await hooked
     ctx.effect(() => hook.remove, 'service-tier: pi-ai request transform')
   } catch (error) {
-    ctx.logger?.warn?.(`service-tier: priority requests are unavailable (${error instanceof Error ? error.message : error})`)
+    ctx.logger?.warn?.(`service-tier: service tier overrides are unavailable (${error instanceof Error ? error.message : error})`)
   }
 }

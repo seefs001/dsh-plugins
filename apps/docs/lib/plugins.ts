@@ -29,7 +29,7 @@ interface Entry {
 
 const entries: Entry[] = [
   { slug: 'model-reference', category: 'models', surface: 'Host + Web', summary: '输入 # 插入模型标签，带上该模型上次的推理强度和快速模式。' },
-  { slug: 'service-tier', category: 'models', surface: 'Host + Web', summary: '模型选择器旁的 ⚡ 开关，为 Responses 模型发送 service_tier: "priority"。', requires: ['openai-responses provider'] },
+  { slug: 'service-tier', category: 'models', surface: 'Host + Web', summary: '为 Responses 请求选择快速档，支持的模型还可选择超快档。', requires: ['openai-responses provider'] },
   { slug: 'remember-model', category: 'models', surface: 'Host', summary: '新会话使用你最近选择的模型和推理强度。' },
   { slug: 'title-model', category: 'models', surface: 'Host + Web', summary: '为对话标题单独选模型，保留原生标题生成策略和主对话模型。', requires: ['已启用的原生标题生成器'] },
   { slug: 'subagent-model', category: 'models', surface: 'Web', summary: '在子代理输入框显示它记录的模型和推理强度，只读。' },

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "快速模式（service tier）",
-    "description": "为 OpenAI Responses 接口的模型在模型选择器旁加一个 ⚡ 开关，开启后该模型的请求使用 service_tier \"priority\"。"
+    "description": "在模型选择器旁为 OpenAI Responses 请求设置快速档，支持的模型还可选择超快档。"
   }
 }

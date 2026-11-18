@@ -1,7 +1,7 @@
 {
   "name": "dsh-service-tier",
   "version": "1.2.0",
-  "description": "A ⚡ fast-mode toggle beside the dsh model picker that sends service_tier \"priority\" for OpenAI Responses models.",
+  "description": "Choose Fast or, on supported models, Ultrafast for OpenAI Responses requests beside the dsh model picker.",
   "keywords": [
     "dsh-plugin",
     "dsh",

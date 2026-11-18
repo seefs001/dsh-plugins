@@ -35,25 +35,26 @@ window.__ModuleLoader__.load({
       return out
     }
 
-    // ref is `provider/model` plus optional `?effort=<id>&fast=1`.
+    // Keep fast=1 for existing priority chips; tier=ultrafast carries the new tier.
     function parseRef(ref) {
       const q = ref.indexOf('?')
       const route = q < 0 ? ref : ref.slice(0, q)
       const params = new URLSearchParams(q < 0 ? '' : ref.slice(q + 1))
       const i = route.indexOf('/')
-      return { provider: route.slice(0, i), model: route.slice(i + 1), effort: params.get('effort') ?? undefined, fast: params.get('fast') === '1' }
+      const tier = params.get('tier') === 'ultrafast' ? 'ultrafast' : undefined
+      return { provider: route.slice(0, i), model: route.slice(i + 1), effort: params.get('effort') ?? undefined, tier, fast: tier !== undefined || params.get('fast') === '1' }
     }
     // What the model reads for one chip.
     function serialize(ref) {
       const r = parseRef(ref)
       const parts = [`provider=${r.provider}`, `model=${r.model}`]
       if (r.effort) parts.push(`reasoning_effort=${r.effort}`)
-      if (r.fast) parts.push('service_tier=priority')
+      if (r.fast) parts.push(`service_tier=${r.tier ?? 'priority'}`)
       return `#model(${parts.join(', ')})`
     }
 
     // Sent messages carry the serialized text; find it again so the bubble shows a chip.
-    const SENT = /#model\(provider=([^,\s()]+), model=([^,\s()]+)(?:, reasoning_effort=([^,\s()]+))?(, service_tier=priority)?\)/gu
+    const SENT = /#model\(provider=([^,\s()]+), model=([^,\s()]+)(?:, reasoning_effort=([^,\s()]+))?(?:, service_tier=(priority|ultrafast))?\)/gu
     const sentRule = {
       id: 'model',
       order: 30,
@@ -104,10 +105,12 @@ window.__ModuleLoader__.load({
       if (effort === undefined) effort = item.reasoning?.defaultEffort
       if (effort !== undefined && efforts.length > 0 && !efforts.some(e => e.id === effort)) effort = item.reasoning?.defaultEffort
       const effortName = effort === undefined ? undefined : efforts.find(e => e.id === effort)?.name ?? effort
-      const fast = p.fastProviders.includes(item.provider) && p.tiers[key] !== undefined
+      const tier = p.fastProviders.includes(item.provider) ? p.tiers[key] : undefined
+      const fast = tier === 'priority' || tier === 'ultrafast'
       const params = new URLSearchParams()
       if (effort !== undefined) params.set('effort', effort)
-      if (fast) params.set('fast', '1')
+      if (tier === 'priority') params.set('fast', '1')
+      if (tier === 'ultrafast') params.set('tier', tier)
       const qs = params.toString()
       return { ...item, effort, effortName, fast, ref: qs ? `${key}?${qs}` : key }
     }
@@ -243,7 +246,7 @@ window.__ModuleLoader__.load({
             const reference = { source: SOURCE, ref, label, clipboardText: `#${item.provider}/${item.model}` }
             const actx = ctx.sessions.scope(sessionId)
             const ok = actx?.bail(actx, 'slash/input-insert-reference', { reference, span }) === true
-            if (!ok) inputActions.insertText(`#${ref} `, span)
+            if (!ok) inputActions.insertText(`${serialize(ref)} `, span)
             setHit(null)
           }, [hit, inputActions, sessionId])
 

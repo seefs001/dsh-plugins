@@ -20,7 +20,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | 包 | 作用 | 运行位置 |
 |---|---|---|
 | [`dsh-model-reference`](packages/model-reference) | 在输入框输入 `#` 插入模型标签，带上该模型上次的推理强度和快速模式。 | Host + Web |
-| [`dsh-service-tier`](packages/service-tier) | 模型选择器旁的 ⚡ 开关，为 OpenAI Responses 模型发送 `service_tier: "priority"`。 | Host + Web |
+| [`dsh-service-tier`](packages/service-tier) | 为 OpenAI Responses 请求选择快速档，支持的模型还可选择超快档。 | Host + Web |
 | [`dsh-remember-model`](packages/remember-model) | 新会话使用你最近选择的模型和推理强度。 | Host |
 | [`dsh-title-model`](packages/title-model) | 为对话标题单独选择模型，保留标题生成策略和主对话模型。 | Host + Web |
 | [`dsh-subagent-model`](packages/subagent-model) | 在子代理输入框显示它记录的模型和推理强度。只读，主代理的选择器不变。 | Web |

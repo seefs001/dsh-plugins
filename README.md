@@ -20,7 +20,7 @@ English | [中文](README.zh.md)
 | Package | What it does | Runs in |
 |---|---|---|
 | [`dsh-model-reference`](packages/model-reference) | Type `#` in the composer to insert a model chip that carries that model's last reasoning effort and fast mode. | Host + Web |
-| [`dsh-service-tier`](packages/service-tier) | A ⚡ toggle beside the model picker sends `service_tier: "priority"` for OpenAI Responses models. | Host + Web |
+| [`dsh-service-tier`](packages/service-tier) | Choose Fast or, on supported models, Ultrafast for OpenAI Responses requests. | Host + Web |
 | [`dsh-remember-model`](packages/remember-model) | New sessions start on the model and reasoning effort you picked last. | Host |
 | [`dsh-title-model`](packages/title-model) | Choose a separate model for session titles without changing the title strategy or conversation model. | Host + Web |
 | [`dsh-subagent-model`](packages/subagent-model) | Shows a subagent's recorded model and reasoning effort in its composer. Read-only; the main agent's picker is unchanged. | Web |
