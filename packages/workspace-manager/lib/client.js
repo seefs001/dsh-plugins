@@ -27,6 +27,7 @@ window.__ModuleLoader__.load({
       confirmMany: 'Remove these {n} invalid workspace entries? Files and sessions will be kept.\n\nCheck for disconnected drives before confirming:',
       removed: 'Removed {n} workspace entries. Files and sessions were kept.',
       noneInvalid: 'No missing or non-directory paths found.',
+      skipped: '{n} entries could not be verified and were left alone.',
       scanFailed: 'Could not check directories',
       removeFailed: 'Removal stopped. Remaining entries were not removed',
       listFailed: 'Could not load workspaces',
@@ -53,6 +54,7 @@ window.__ModuleLoader__.load({
       confirmMany: '移除以下 {n} 条失效工作区记录？磁盘文件和会话都会保留。\n\n请先确认这些路径不是暂时断开的磁盘：',
       removed: '已移除 {n} 条工作区记录，磁盘文件和会话均已保留。',
       noneInvalid: '没有发现不存在或非目录的路径。',
+      skipped: '有 {n} 条记录无法核实，已保留。',
       scanFailed: '检查目录失败',
       removeFailed: '移除已停止，后续记录未移除',
       listFailed: '加载工作区失败',
@@ -138,6 +140,8 @@ window.__ModuleLoader__.load({
           if (closed || state.busy) return
           update({ busy: true, error: null, message: null })
           let removed = 0
+          let skipped = 0
+          const summary = message => skipped ? `${message} ${tf('skipped', { n: skipped })}` : message
           let stage = action === 'remove' ? 'remove' : 'scan'
           try {
             let candidates
@@ -148,10 +152,11 @@ window.__ModuleLoader__.load({
               if (action === 'scan' || closed) return
               candidates = ctx.workspaces.list.getSnapshot().items.filter(row => {
                 const check = checks.get(row.workspaceId)
-                return check?.path === row.path && invalid(check)
+                if (check?.path !== row.path || check.status === 'unavailable') { skipped++; return false }
+                return invalid(check)
               })
               if (candidates.length === 0) {
-                update({ message: t('noneInvalid') })
+                update({ message: summary(t('noneInvalid')) })
                 return
               }
             }
@@ -164,10 +169,11 @@ window.__ModuleLoader__.load({
               if (closed) return
               const current = ctx.workspaces.list.getSnapshot().items.find(item => item.workspaceId === row.workspaceId)
               if (!current) continue
+              if (current.path !== row.path) { skipped++; continue }
               await ctx.workspaces.delete(row.workspaceId)
               removed++
             }
-            update({ message: tf('removed', { n: removed }) })
+            update({ message: summary(tf('removed', { n: removed })) })
           } catch (error) {
             update({
               error: `${t(stage === 'scan' ? 'scanFailed' : 'removeFailed')}: ${error.message ?? String(error)}`,
@@ -200,7 +206,7 @@ window.__ModuleLoader__.load({
               list.state === 'error' ? h('p', { className: 'wm-notice wm-danger', role: 'alert' }, `${t('listFailed')}: ${list.error?.message ?? ''}`) : null,
               view.error ? h('p', { className: 'wm-notice wm-danger', role: 'alert' }, view.error) : null,
               h('div', { role: 'status', 'aria-live': 'polite', className: 'wm-notice' }, view.scanning ? t('scanning') : view.message),
-              rows.length === 0 ? h('p', { className: 'wm-hint' }, list.phase !== 'ready' ? t('loading') : list.items.length ? t('noMatches') : t('empty')) :
+              rows.length === 0 ? list.state === 'error' ? null : h('p', { className: 'wm-hint' }, list.phase !== 'ready' ? t('loading') : list.items.length ? t('noMatches') : t('empty')) :
                 h('ul', { className: 'wm-list' }, rows.map(row => {
                   const check = view.checks.get(row.workspaceId)
                   const status = check?.path === row.path ? check.status : 'unchecked'
