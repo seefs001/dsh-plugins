@@ -19,4 +19,4 @@ The plugin runs in the browser (`lib/client.js`). Its Host half is empty; the Lo
 ## Limits
 
 - The default scope relies on the forge tab's internal store (`byTab[tab].scope` and its `scoped` action). If a DSH upgrade changes them, the tab opens on Branch again; the entry keeps working.
-- A diff larger than the forge panel's `maxDiffBytes` shows "No changes" in the entry.
+- While the diff is loading the entry shows "Reading changes…". If the read fails, including when the diff exceeds `maxDiffBytes`, it shows "Diff unavailable" instead of reporting a clean checkout.

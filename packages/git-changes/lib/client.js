@@ -51,6 +51,9 @@ window.__ModuleLoader__.load({
         files: '{n} files',
         file: '1 file',
         clean: 'No changes',
+        loading: 'Reading changes…',
+        unavailable: 'Diff unavailable',
+        omitted: '{n} more untracked',
         detached: 'Detached',
         open: 'Open changes in the side panel',
         scope: 'Uncommitted, including untracked files',
@@ -59,6 +62,9 @@ window.__ModuleLoader__.load({
         files: '{n} 个文件',
         file: '1 个文件',
         clean: '无改动',
+        loading: '正在读取改动…',
+        unavailable: '无法读取差异',
+        omitted: '另有 {n} 个未跟踪文件',
         detached: '游离 HEAD',
         open: '在右侧打开变更',
         scope: '未提交，含未跟踪文件',
@@ -66,12 +72,12 @@ window.__ModuleLoader__.load({
     }
 
     /** Sum the added and deleted lines of a file list. */
-    function totals(files) {
+    function totals(files, omitted = 0) {
       if (files === null || files === undefined) return null
       let additions = 0
       let deletions = 0
       for (const file of files) { additions += file.additions; deletions += file.deletions }
-      return { additions, deletions, files: files.length }
+      return { additions, deletions, files: files.length, omitted }
     }
 
     /**
@@ -125,26 +131,26 @@ window.__ModuleLoader__.load({
     /** Read the Uncommitted scope again whenever the trigger moves, debounced. */
     function createUncommitted(ctx) {
       return function useUncommitted(sessionId, key) {
-        const [files, setFiles] = React.useState(null)
+        const [summary, setResult] = React.useState(null)
         React.useEffect(() => {
-          if (sessionId === undefined || key === null) { setFiles(null); return undefined }
+          if (sessionId === undefined || key === null) { setResult(null); return undefined }
           const controller = new AbortController()
           const timer = setTimeout(async () => {
             try {
               const result = await ctx.remote.forgePanel.localDiff(sessionId, { kind: 'uncommitted' }, controller.signal)
               if (controller.signal.aborted) return
               const value = result && typeof result === 'object' && 'ok' in result ? (result.ok ? result.value : null) : result
-              setFiles(value?.files ?? null)
+              setResult({ key, sum: totals(value?.files, value?.omitted) })
             } catch (error) {
               if (!controller.signal.aborted) {
                 console.warn('[dsh-git-changes] uncommitted diff failed:', error)
-                setFiles(null)
+                setResult({ key, sum: null })
               }
             }
           }, DEBOUNCE_MS)
           return () => { clearTimeout(timer); controller.abort() }
         }, [sessionId, key])
-        return files
+        return summary?.key === key ? summary.sum : undefined
       }
     }
 
@@ -174,13 +180,14 @@ window.__ModuleLoader__.load({
 
         function GitChangesPill({ sessionId, t }) {
           const panel = usePanel(sessionId)
-          const uncommitted = useUncommitted(sessionId, trigger(panel))
+          const sum = useUncommitted(sessionId, trigger(panel))
           if (panel === null || panel.checkout?.state !== 'ready') return null
           const { checkout } = panel.checkout
           const branch = checkout.branch ?? (checkout.commit ? checkout.commit.slice(0, 7) : t('detached'))
-          const sum = totals(uncommitted)
           const parts = []
-          if (sum === null || sum.files === 0) {
+          if (sum == null) {
+            parts.push(h('span', { key: 'state' }, t(sum === undefined ? 'loading' : 'unavailable')))
+          } else if (sum.files === 0 && sum.omitted === 0) {
             parts.push(h('span', { key: 'clean' }, t('clean')))
           } else {
             parts.push(
@@ -190,6 +197,7 @@ window.__ModuleLoader__.load({
               h('span', { key: 'f' }, sum.files === 1 ? t('file') : t('files').replace('{n}', String(sum.files))),
             )
           }
+          if (sum?.omitted > 0) parts.push(h('span', { key: 'omitted' }, t('omitted').replace('{n}', String(sum.omitted))))
           return h('span', { className: 'dgc-anchor', 'data-git-changes': true },
             h('button', {
               type: 'button',
@@ -207,7 +215,7 @@ window.__ModuleLoader__.load({
           id: 'git-changes',
           order: 2,
           locale: NS,
-        }, GitChangesPill))
+        }, props => h(GitChangesPill, { ...props, key: props.sessionId })))
 
         // The forge changes tab seeds every new tab with the Branch scope and
         // offers no setting for it. Wrap its body: render the forge component

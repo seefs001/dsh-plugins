@@ -26,4 +26,4 @@ description: 在输入框下方显示分支和未提交改动，点击打开右�
 ## 限制
 
 - 默认范围依赖 forge 标签页的内部 store（`byTab[tab].scope` 和 `scoped` action）。DSH 升级改变它们后，标签页会重新从 Branch 打开，入口本身照常工作。
-- diff 超过 forge 面板的 `maxDiffBytes` 时，入口显示“无改动”。
+- 读取期间显示“正在读取改动…”。读取失败（包括 diff 超过 `maxDiffBytes`）时显示“无法读取差异”；只有成功读到空列表才显示“无改动”。
