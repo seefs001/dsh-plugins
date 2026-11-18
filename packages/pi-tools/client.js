@@ -279,19 +279,25 @@ window.__ModuleLoader__.load({
 
     function PiToolOptions({ sessionId, useSessions, t }) {
       const preset = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset)
+      return h(SessionOptions, { key: JSON.stringify([sessionId, preset]), sessionId, t })
+    }
+
+    function SessionOptions({ sessionId, t }) {
       const [state, setState] = React.useState({ status: 'loading' })
+      const requestId = React.useRef(0)
       const load = React.useCallback(async () => {
+        const id = ++requestId.current
         try {
           const value = await optionsRequest({ url: `${OPTIONS_PATH}?sessionId=${encodeURIComponent(sessionId)}` })
-          setState({ status: 'live', value })
+          if (id === requestId.current) setState({ status: 'live', value })
           return value
         } catch (failure) {
-          setState({ status: 'failed', failure })
+          if (id === requestId.current) setState(old => ({ ...old, status: 'failed', failure }))
           return undefined
         }
       }, [sessionId])
-      React.useEffect(() => { void load() }, [load, preset])
-      const value = state.status === 'live' ? state.value : undefined
+      React.useEffect(() => { void load(); return () => { requestId.current++ } }, [load])
+      const value = state.value
       if (!value?.applicable || !value.editable) return null
       const save = async tools => {
         try {
@@ -307,7 +313,8 @@ window.__ModuleLoader__.load({
         await load()
         return result
       }
-      return h(PiToolPicker, { catalog: value.catalog, committed: value.tools, reload: load, save, act, t })
+      return h(React.Fragment, null, h(PiToolPicker, { catalog: value.catalog, committed: value.tools, reload: load, save, act, t }),
+        state.failure ? h('span', { role: 'alert', className: 'pi-tools-error' }, t('unavailable'), ' ', state.failure.message) : null)
     }
 
     // Presentation-only sections. The catalog's group still decides Pi / DSH /
