@@ -67,7 +67,10 @@ export function convertServer(name, raw) {
  * @returns registrations by server name and per-server skip reasons.
  */
 export function convertConfig(document) {
-  const servers = document?.mcpServers
+  if (document === null || typeof document !== 'object' || Array.isArray(document)) {
+    throw new Error('mcp.json must contain a configuration object')
+  }
+  const servers = document.mcpServers
   if (servers === undefined) return { entries: new Map(), skipped: [] }
   if (typeof servers !== 'object' || servers === null || Array.isArray(servers)) throw new Error('"mcpServers" must be an object')
   const entries = new Map()

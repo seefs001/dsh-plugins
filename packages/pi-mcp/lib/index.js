@@ -35,7 +35,12 @@ export async function apply(ctx) {
       if (error.code === 'ENOENT') return new Map()
       throw error
     }
-    const { entries, skipped } = convertConfig(JSON.parse(text))
+    let config
+    try { config = JSON.parse(text) } catch (error) {
+      // JSON.parse errors can quote literal header and environment values.
+      throw new Error('invalid JSON', { cause: error })
+    }
+    const { entries, skipped } = convertConfig(config)
     for (const { name: server, reason } of skipped) logger.warn(`pi-mcp: skipped "${server}": ${reason}`)
     return entries
   }
