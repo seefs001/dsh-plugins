@@ -70,13 +70,13 @@ window.__ModuleLoader__.load({
       return { flat, nodes, nodeOf, offsetOf }
     }
 
-    /** Pick the last occurrence that precedes `anchor` in document order, else the first one. */
+    /** Pick the nearest match wholly before the quoting row, never a later reply. */
     function pickMatch(index, needle, anchor) {
       let chosen = -1
       for (let at = index.flat.indexOf(needle); at >= 0; at = index.flat.indexOf(needle, at + 1)) {
-        const node = index.nodes[index.nodeOf[at]]
+        const node = index.nodes[index.nodeOf[at + needle.length - 1]]
         if (node.compareDocumentPosition(anchor) & Node.DOCUMENT_POSITION_FOLLOWING) chosen = at
-        else { if (chosen < 0) chosen = at; break }
+        else break
       }
       return chosen
     }
@@ -84,14 +84,15 @@ window.__ModuleLoader__.load({
     function findRange(el, quote) {
       const target = compact(quote)
       if (target === '') return null
-      const root = el.closest('[data-conversation-scroll]') ?? el.ownerDocument.body
-      const exclude = el.closest('[data-message-bubble]') ?? el
+      const root = el.closest('[data-conversation-scroll]')
+      if (!root) return null
+      const exclude = el.closest('[data-chat-flow-kind="user"], [data-message-bubble]') ?? el
       const index = indexText(root, exclude)
       let needle = target
-      let start = pickMatch(index, needle, el)
+      let start = pickMatch(index, needle, exclude)
       if (start < 0 && target.length > PREFIX) {
         needle = target.slice(0, PREFIX)
-        start = pickMatch(index, needle, el)
+        start = pickMatch(index, needle, exclude)
       }
       if (start < 0) return null
       const end = start + needle.length - 1
@@ -144,9 +145,15 @@ window.__ModuleLoader__.load({
 
     let clearTimer = null
     let flashed = null
+    let reland = null
+    let revealFrame = null
     function clearHighlight() {
       if (clearTimer !== null) clearTimeout(clearTimer)
       clearTimer = null
+      clearTimeout(reland)
+      cancelAnimationFrame(revealFrame)
+      reland = null
+      revealFrame = null
       if (globalThis.CSS?.highlights) CSS.highlights.delete(HIGHLIGHT)
       if (flashed !== null) { flashed.removeAttribute('data-dqj-flash'); flashed = null }
     }
@@ -156,9 +163,7 @@ window.__ModuleLoader__.load({
       if (block === null || !block.isConnected) return false
       const scroller = scrollToRange(range, block)
       // Re-land once if the Chat's own scroll logic moved the view back.
-      setTimeout(() => { if (range.startContainer.isConnected && !inView(range, scroller)) scrollToRange(range, block) }, 150)
-
-      clearHighlight()
+      reland = setTimeout(() => { if (range.startContainer.isConnected && !inView(range, scroller)) scrollToRange(range, block) }, 150)
       if (globalThis.Highlight && globalThis.CSS?.highlights) CSS.highlights.set(HIGHLIGHT, new Highlight(range))
       flashed = block
       flashed.removeAttribute('data-dqj-flash')
@@ -170,14 +175,18 @@ window.__ModuleLoader__.load({
 
     /** @returns whether the quoted text was found. */
     function jumpTo(el, quote) {
+      clearHighlight()
       const found = findRange(el, quote)
       if (found === null) return false
       if (reveal(found.range.startContainer, found.root)) {
         // Let the owner render the unfolded row before measuring.
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          const again = findRange(el, quote)
-          scrollAndHighlight(again?.range ?? found.range)
-        }))
+        revealFrame = requestAnimationFrame(() => {
+          revealFrame = requestAnimationFrame(() => {
+            if (!el.isConnected) return
+            const again = findRange(el, quote)
+            scrollAndHighlight(again?.range ?? found.range)
+          })
+        })
         return true
       }
       return scrollAndHighlight(found.range)
@@ -220,8 +229,7 @@ window.__ModuleLoader__.load({
             if (selection && !selection.isCollapsed && ref.current?.contains(selection.anchorNode)) return
             if (ref.current === null) return
             const ok = jumpTo(ref.current, text)
-            console.debug('[dsh-quote-jump]', ok ? 'jumped' : 'source not found', { quote: text.slice(0, 80) })
-            if (!ok) setMissing(true)
+            setMissing(!ok)
           }
           return h('span', {
             ref,
