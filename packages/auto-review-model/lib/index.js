@@ -242,11 +242,14 @@ export function apply(ctx, config) {
 
   // Review log: one per-record document per session, appended one write at a time.
   let closed = false
+  let tail = Promise.resolve()
   const ready = openLogDomain(ctx)
   ready.catch(error => ctx.logger?.warn?.(`auto-review-model: cannot open review log storage: ${error?.message ?? error}`))
-  ctx.effect(() => () => {
+  ctx.effect(() => async () => {
     closed = true
-    ready.then(domain => domain.close()).catch(() => {})
+    await tail
+    const domain = await ready.catch(() => null)
+    await domain?.close()
   }, 'auto-review-model: review log storage')
 
   const streams = new Map()
@@ -255,7 +258,6 @@ export function apply(ctx, config) {
     for (const res of streams.get(sessionId) ?? []) res.write(frame)
   }
 
-  let tail = Promise.resolve()
   const serial = task => {
     const run = tail.then(task)
     tail = run.catch(error => ctx.logger?.warn?.(`auto-review-model: review log write failed: ${error?.message ?? error}`))
@@ -277,6 +279,7 @@ export function apply(ctx, config) {
   })
 
   const clear = sessionId => serial(async () => {
+    if (closed) throw new Error('review log is unloading')
     const table = (await ready).table('sessions')
     if (await table.delete(sessionId)) notify(sessionId, { updatedAt: Date.now(), entries: [] })
   })
@@ -453,6 +456,8 @@ export function apply(ctx, config) {
       try { initial = await logOf(sessionId) } catch (error) {
         return sendJson(res, 503, { message: `storage unavailable: ${error?.message ?? error}` })
       }
+      if (res.destroyed) return
+      if (closed) return sendJson(res, 503, { message: 'review log is unloading' })
       res.writeHead(200, {
         'content-type': 'text/event-stream; charset=utf-8',
         'cache-control': 'no-store',
@@ -469,8 +474,7 @@ export function apply(ctx, config) {
         set.delete(res)
         if (set.size === 0 && streams.get(sessionId) === set) streams.delete(sessionId)
       }
-      req.on('close', drop)
-      res.on('close', drop)
+      res.once('close', drop)
     },
   }), `auto-review-model: GET ${LOG_EVENTS_PATH}`)
 

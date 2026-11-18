@@ -64,7 +64,8 @@ window.__ModuleLoader__.load({
       logClearConfirm: 'Delete the stored review records of this session?',
       logLoading: 'Loading…',
       logEmpty: 'No reviews yet. Each tool call reviewed in Auto mode appears here.',
-      logUnavailable: 'The Host is still running an older version of this plugin. Restart dsh to record reviews.',
+      logUnavailable: 'The review log is unavailable. Check the connection and Host plugin version.',
+      logClearFailed: 'Could not clear the review log: ',
       logLimit: 'Keeps the latest {n} reviews per session, stored on this machine.',
       logAllow: 'Allowed',
       logDeny: 'Denied',
@@ -123,7 +124,8 @@ window.__ModuleLoader__.load({
       logClearConfirm: '删除本会话已保存的审查记录？',
       logLoading: '加载中…',
       logEmpty: '还没有审查记录。自动审查模式下每次工具调用都会出现在这里。',
-      logUnavailable: 'Host 仍在运行旧版插件，重启 dsh 后才会记录审查。',
+      logUnavailable: '暂时无法读取审查记录，请检查连接和 Host 插件版本。',
+      logClearFailed: '未能清空审查记录：',
       logLimit: '每个会话保留最近 {n} 条，存储在本机。',
       logAllow: '放行',
       logDeny: '拒绝',
@@ -243,9 +245,22 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
         let shared = { config: null, groups: [] }
         const listeners = new Set()
         const publish = next => { shared = { ...shared, ...next }; listeners.forEach(fn => fn()) }
-        const refreshConfig = () => getJson('auto-review-model/state').then(raw => publish({ config: normalize(raw) })).catch(() => {})
-        const refreshCatalog = () => ctx.remote.session.modelCatalog()
-          .then(res => { if (res.ok) publish({ groups: res.value.groups }) }).catch(() => {})
+        let configRead = 0
+        let catalogRead = 0
+        const refreshConfig = async () => {
+          const id = ++configRead
+          try {
+            const raw = await getJson('auto-review-model/state')
+            if (id === configRead) publish({ config: normalize(raw) })
+          } catch { /* Keep the last confirmed route. */ }
+        }
+        const refreshCatalog = async () => {
+          const id = ++catalogRead
+          try {
+            const res = await ctx.remote.session.modelCatalog()
+            if (res.ok && id === catalogRead) publish({ groups: res.value.groups })
+          } catch { /* Keep the last available catalog. */ }
+        }
         const refreshAll = () => { refreshConfig(); refreshCatalog() }
         const subscribe = fn => {
           if (listeners.size === 0) refreshAll()
@@ -273,11 +288,8 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
               try { data = JSON.parse(e.data) } catch {}
               if (data && Array.isArray(data.entries)) setLog({ status: 'ready', entries: data.entries })
             })
-            // An older Host has no log route; the browser keeps retrying, so stop after the first failure before any data.
-            es.addEventListener('error', () => setLog(l => {
-              if (l.status === 'loading') { es.close(); return { status: 'unavailable', entries: [] } }
-              return l
-            }))
+            // A disconnect is not proof of a Host version mismatch; allow SSE to reconnect.
+            es.addEventListener('error', () => setLog(l => ({ ...l, status: 'unavailable' })))
             return () => es.close()
           }, [sessionId, enabled])
           return log
@@ -376,6 +388,7 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
           const ref = React.useRef(null)
           const [pos, setPos] = React.useState(null)
           const [clearing, setClearing] = React.useState(false)
+          const [clearError, setClearError] = React.useState('')
           React.useLayoutEffect(() => {
             const place = () => {
               const r = anchor.current?.getBoundingClientRect()
@@ -411,9 +424,10 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
           }
           const clear = async () => {
             if (!window.confirm(t('logClearConfirm'))) return
-            setClearing(true)
-            try { await getJson(`auto-review-model/log/clear?session=${encodeURIComponent(sessionId)}`, { method: 'POST', body: '{}' }) } catch {}
-            setClearing(false)
+            setClearing(true); setClearError('')
+            try { await getJson(`auto-review-model/log/clear?session=${encodeURIComponent(sessionId)}`, { method: 'POST', body: '{}' }) }
+            catch (error) { setClearError(error.message) }
+            finally { setClearing(false) }
           }
           if (pos === null) return null
           return ReactDOM.createPortal(h('div', {
@@ -427,9 +441,10 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
               h('div', { className: 'arm-pop-actions' },
                 nav === undefined ? null : h('button', { type: 'button', className: 'arm-pop-btn', onClick: () => { onClose(); nav.openBundle(PACKAGE) } }, t('logSettings')),
                 entries.length === 0 ? null : h('button', { type: 'button', className: 'arm-pop-btn', disabled: clearing, onClick: clear }, t('logClear')))),
+            clearError ? h('div', { className: 'arm-pop-empty', role: 'alert' }, t('logClearFailed') + clearError) : null,
+            log.status === 'unavailable' ? h('div', { className: 'arm-pop-empty', role: 'status' }, t('logUnavailable')) : null,
             log.status === 'loading' ? h('div', { className: 'arm-pop-empty' }, t('logLoading'))
-              : log.status === 'unavailable' ? h('div', { className: 'arm-pop-empty' }, t('logUnavailable'))
-              : entries.length === 0 ? h('div', { className: 'arm-pop-empty' }, t('logEmpty'))
+              : entries.length === 0 ? log.status === 'ready' && h('div', { className: 'arm-pop-empty' }, t('logEmpty'))
               : h('ul', { className: 'arm-log' },
                 visible.map(e => h(ReviewRow, { key: e.id, entry: e, onJump: id => { const ok = jumpToCall(id); if (ok) onClose(); return ok } })),
                 hidden === 0 ? null : h('li', { className: 'arm-log-more' },
@@ -475,7 +490,7 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
           id: 'auto-review-model.chip',
           order: 100,
           locale: NS,
-        }, ReviewChip))
+        }, props => h(ReviewChip, { ...props, key: props.sessionId })))
 
         function Settings() {
           React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
@@ -543,6 +558,7 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
               const s = normalize(await getJson('auto-review-model/set', { method: 'POST', body: JSON.stringify(body) }))
               setSaved(s)
               setDraft(s)
+              configRead++
               publish({ config: s })
               setStatus({ kind: 'ok' })
             } catch (e) {
