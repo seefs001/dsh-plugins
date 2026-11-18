@@ -74,6 +74,8 @@ importers:
 
   packages/image-gen: {}
 
+  packages/inbox: {}
+
   packages/keep-awake: {}
 
   packages/message-actions:

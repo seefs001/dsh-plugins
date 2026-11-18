@@ -32,6 +32,7 @@ English | [中文](README.zh.md)
 | Package | What it does | Runs in |
 |---|---|---|
 | [`dsh-recent-sessions`](packages/recent-sessions) | Sorts sessions in the `@` menu by last activity. | Web |
+| [`dsh-inbox`](packages/inbox) | A quiet cross-session inbox for decisions and turn updates; workers stay under their parent. | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | Custom session groups with per-group pins, shared by every browser and the agent. | Host + Web |
 | [`dsh-workspace-manager`](packages/workspace-manager) | Removes saved workspace entries and cleans up ones whose directory is gone. Files and sessions stay. | Host + Web |
 | [`dsh-branch-switcher`](packages/branch-switcher) | Switches to an existing local branch from the New Session screen before the first message. Needs Change requests & worktrees. | Host + Web |

@@ -36,6 +36,7 @@ const entries: Entry[] = [
   { slug: 'auto-review-model', category: 'models', surface: 'Host + Web', summary: '为 Auto review 单独选模型和审查提示词，并查看每个会话的审查日志。', requires: ['@deepseek-ai/dsh-experimental-auto-review'] },
   { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '在独立侧栏页编辑角色提示词、自带技能和本地技能引用，在模型菜单里为会话切换角色。' },
   { slug: 'recent-sessions', category: 'sessions', surface: 'Web', summary: '@ 菜单里的会话按最近活动排序。' },
+  { slug: 'inbox', category: 'sessions', surface: 'Host + Web', summary: '集中查看待你处理的请求和可以回看的结果，不推送 worker 完成通知。' },
   { slug: 'session-groups', category: 'sessions', surface: 'Host + Web', summary: '自定义会话分组和组内置顶，所有浏览器与 Agent 共享。' },
   { slug: 'workspace-manager', category: 'sessions', surface: 'Host + Web', summary: '移除保存的工作区记录，清理目录已不存在的条目，不删文件和会话。' },
   { slug: 'branch-switcher', category: 'sessions', surface: 'Host + Web', summary: '新会话发出首条消息前，切换到已有的本地分支。', requires: ['Change requests & worktrees'] },

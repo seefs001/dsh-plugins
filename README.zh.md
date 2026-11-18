@@ -32,6 +32,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | 包 | 作用 | 运行位置 |
 |---|---|---|
 | [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序。 | Web |
+| [`dsh-inbox`](packages/inbox) | 跨会话收件箱，只有需要人的请求计入角标，worker 归到父任务。 | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | 自定义会话分组和组内置顶，所有浏览器和 Agent 共享。 | Host + Web |
 | [`dsh-workspace-manager`](packages/workspace-manager) | 移除保存的工作区记录，清理目录已不存在的条目，不删文件和会话。 | Host + Web |
 | [`dsh-branch-switcher`](packages/branch-switcher) | 新会话发出首条消息前，在新建会话页切换到已有的本地分支。需要 Change requests & worktrees。 | Host + Web |
