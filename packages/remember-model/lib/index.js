@@ -41,6 +41,8 @@ export function isTopLevelSession(agents, sessionId, subagents) {
 
 export function apply(ctx) {
   let pending = null
+  let saves = 0
+  let closed = false
 
   ctx.on('session/event', (session, event) => {
     if (event?.type !== 'model/selection') return
@@ -49,21 +51,27 @@ export function apply(ctx) {
     // Subagent sessions select their own models; only top-level sessions count.
     if (!isTopLevelSession(ctx.get('agents'), session.id, ctx.get('subagents'))) return
 
-    const save = sameSelection(ctx.agentDefaultModel.currentSelection(), next)
+    // A pending save can still change the default after this event. Queue the
+    // new selection even if it matches the currently committed value.
+    const save = saves === 0 && sameSelection(ctx.agentDefaultModel.currentSelection(), next)
       ? Promise.resolve()
       : ctx.agentDefaultModel.saveSelection(next)
+    saves++
     save
-      .catch(error => ctx.logger?.warn?.(`remember-model: failed to save default model: ${error?.message ?? error}`))
       .then(() => {
+        if (closed) return
         if (pending !== null) clearTimeout(pending)
         pending = setTimeout(() => {
           pending = null
           try { ctx.emit('llm/models-updated', next.provider) } catch {}
         }, REFRESH_DELAY_MS)
       })
+      .catch(error => ctx.logger?.warn?.(`remember-model: failed to save default model: ${error?.message ?? error}`))
+      .finally(() => { saves-- })
   })
 
   ctx.effect(() => () => {
+    closed = true
     if (pending !== null) clearTimeout(pending)
   }, 'remember-model: refresh timer')
 }
