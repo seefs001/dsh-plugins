@@ -52,7 +52,8 @@ window.__ModuleLoader__.load({
       moveTo: 'Move to group',
       menuNewGroup: 'New group…',
       unknownSession: 'Unavailable session',
-      loadFailed: 'Could not load session groups',
+      loadFailed: 'Session groups are not syncing.',
+      loading: 'Loading session groups…',
       opFailed: 'Could not update session groups',
       retry: 'Retry',
       collapse: 'Collapse',
@@ -90,7 +91,8 @@ window.__ModuleLoader__.load({
       moveTo: '移到分组',
       menuNewGroup: '新建分组…',
       unknownSession: '不可用的会话',
-      loadFailed: '无法加载会话分组',
+      loadFailed: '会话分组未同步。',
+      loading: '正在加载会话分组…',
       opFailed: '更新会话分组失败',
       retry: '重试',
       collapse: '收起',
@@ -112,7 +114,7 @@ window.__ModuleLoader__.load({
     }
 
     function createStore() {
-      let state = { groups: [], status: 'loading', error: null }
+      let state = { groups: [], status: 'loading' }
       let view = { collapsed: readCollapsed(), editing: null }
       const listeners = new Set()
       const emit = () => listeners.forEach(fn => fn())
@@ -324,30 +326,33 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, 'en', EN), 'session-groups: en')
         ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'session-groups: zh')
         const t = ctx.locale.bind(NS)
-        const tf = (key, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{${k}}`, String(v)), t(key))
+        const tf = (key, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{${k}}`, () => String(v)), t(key))
 
         const store = createStore()
 
-        // Load once, then follow Host pushes; EventSource reconnects by itself.
-        const load = () => fetch('session-groups/state', { headers: { accept: 'application/json' } })
-          .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-          .then(d => store.set({ groups: d.groups ?? [], status: 'ready', error: null }))
-          .catch(error => store.set({ status: 'error', error: String(error?.message ?? error) }))
-        ctx.effect(() => {
-          void load()
-          const es = new EventSource('session-groups/events')
-          es.addEventListener('message', ev => {
-            try { store.set({ groups: JSON.parse(ev.data).groups ?? [], status: 'ready', error: null }) } catch {}
+        // The Host sends a complete baseline on connect, then ordered snapshots.
+        // Do not replace them with a possibly older GET or mutation response.
+        let stream
+        const connect = () => {
+          stream?.close()
+          store.set({ status: 'loading' })
+          stream = new EventSource('session-groups/events')
+          stream.addEventListener('message', event => {
+            try {
+              const { groups } = JSON.parse(event.data)
+              store.set(Array.isArray(groups) ? { groups, status: 'ready' } : { status: 'error' })
+            } catch { store.set({ status: 'error' }) }
           })
-          return () => es.close()
+          stream.addEventListener('error', () => store.set({ status: 'error' }))
+        }
+        ctx.effect(() => {
+          connect()
+          return () => stream.close()
         }, 'session-groups: follow Host state')
 
-        /** Run one Host operation; the reply carries the complete groups. Failures surface as a toast. */
         const op = async payload => {
           try {
-            const reply = await postOp(payload)
-            if (Array.isArray(reply.groups)) store.set({ groups: reply.groups, status: 'ready', error: null })
-            return reply
+            return await postOp(payload)
           } catch (error) {
             ctx.contextMenus.notify(`${t('opFailed')}: ${error?.message ?? error}`, false)
             throw error
@@ -374,7 +379,7 @@ window.__ModuleLoader__.load({
               separatorBefore: groups.length > (current ? 1 : 0),
               run: async () => {
                 const { groupId } = await op({ action: 'create', name: t('defaultName'), sessionId })
-                store.setView({ editing: groupId })
+                store.setView({ editing: `sidebar:${groupId}` })
               },
             })
             const actions = [{
@@ -476,13 +481,10 @@ window.__ModuleLoader__.load({
         }
 
         // -------------------------------------------------------- components
-        function GroupName({ group, editing, className = 'sg-rename' }) {
+        function GroupName({ group, className = 'sg-rename' }) {
           const [value, setValue] = React.useState(group.name)
           const ref = React.useRef(null)
-          React.useEffect(() => {
-            if (editing) { setValue(group.name); requestAnimationFrame(() => { ref.current?.focus(); ref.current?.select() }) }
-          }, [editing, group.name])
-          if (!editing) return null
+          React.useLayoutEffect(() => { ref.current.focus(); ref.current.select() }, [])
           const commit = () => {
             store.setView({ editing: null })
             const name = value.trim()
@@ -495,6 +497,7 @@ window.__ModuleLoader__.load({
             onChange: e => setValue(e.target.value),
             onBlur: commit,
             onKeyDown: e => {
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return
               if (e.key === 'Enter') { e.preventDefault(); commit() }
               if (e.key === 'Escape') { e.preventDefault(); store.setView({ editing: null }) }
             },
@@ -535,7 +538,8 @@ window.__ModuleLoader__.load({
           }, [current, items])
           const add = item => { if (item) void op({ action: 'add', groupId: group.id, sessionId: item.s.id }).catch(() => {}) }
           const onKeyDown = e => {
-            if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(current + 1, items.length - 1)) }
+            if (e.nativeEvent.isComposing || e.keyCode === 229) return
+            if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.max(0, Math.min(current + 1, items.length - 1))) }
             else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(current - 1, 0)) }
             else if (e.key === 'Enter') { e.preventDefault(); add(items[current]) }
             else if (e.key === 'Escape') {
@@ -611,7 +615,7 @@ window.__ModuleLoader__.load({
         function Group({ group, index, count, groups, list, locale, view }) {
           const [picking, setPicking] = React.useState(false)
           const collapsed = view.collapsed.has(group.id)
-          const editing = view.editing === group.id
+          const editing = view.editing === `page:${group.id}`
           const toggle = () => {
             const next = new Set(view.collapsed)
             if (collapsed) next.delete(group.id); else next.add(group.id)
@@ -632,13 +636,13 @@ window.__ModuleLoader__.load({
             h('div', { className: 'sg-ghead' },
               iconBtn(collapsed ? t('expand') : t('collapse'), h(IconChevron, { open: !collapsed }), toggle),
               editing
-                ? h(GroupName, { group, editing })
-                : h('div', { className: 'sg-gname', onClick: toggle, onDoubleClick: () => store.setView({ editing: group.id }) },
+                ? h(GroupName, { group })
+                : h('div', { className: 'sg-gname', onClick: toggle, onDoubleClick: () => store.setView({ editing: `page:${group.id}` }) },
                   h('b', null, group.name),
                   h('span', { className: 'sg-count' }, tf('sessions', { n: group.sessionIds.length }))),
               h('div', { className: 'sg-gactions' },
                 iconBtn(t('addSession'), h(IconPlus, { size: 15 }), () => { setPicking(p => !p); if (collapsed) toggle() }, { pressed: picking }),
-                iconBtn(t('rename'), h(IconEdit), () => store.setView({ editing: group.id })),
+                iconBtn(t('rename'), h(IconEdit), () => store.setView({ editing: `page:${group.id}` })),
                 iconBtn(t('moveUp'), h(IconUp), () => void op({ action: 'move_group', groupId: group.id, beforeGroupId: groups[index - 1]?.id }).catch(() => {}), { disabled: index === 0 }),
                 iconBtn(t('moveDown'), h(IconDown), () => void op({ action: 'move_group', groupId: group.id, beforeGroupId: groups[index + 2]?.id }).catch(() => {}), { disabled: index === count - 1 }),
                 iconBtn(t('delete'), h(IconTrash), () => {
@@ -652,7 +656,7 @@ window.__ModuleLoader__.load({
 
         function GroupsPage() {
           const loc = useLocale()
-          const { groups, status, error } = useGroups()
+          const { groups, status } = useGroups()
           const list = useSessions()
           const view = store.view()
           const create = async sessionId => {
@@ -660,7 +664,7 @@ window.__ModuleLoader__.load({
               const { groupId } = await op(sessionId
                 ? { action: 'create', name: t('defaultName'), sessionId }
                 : { action: 'create', name: t('defaultName') })
-              store.setView({ editing: groupId })
+              store.setView({ editing: `page:${groupId}` })
             } catch {}
           }
           const dragging = useDocumentDragging()
@@ -672,9 +676,9 @@ window.__ModuleLoader__.load({
                 h('h1', { className: 'sg-title' }, t('panel')),
                 h('button', { type: 'button', className: 'sg-btn sg-primary', onClick: () => void create() }, h(IconPlus, { size: 14 }), t('newGroup'))),
               status === 'error'
-                ? h('div', { className: 'sg-error' }, `${t('loadFailed')}: ${error}`,
-                  h('button', { type: 'button', className: 'sg-btn', onClick: () => void load() }, t('retry')))
-                : null,
+                ? h('div', { className: 'sg-error', role: 'alert' }, t('loadFailed'),
+                  h('button', { type: 'button', className: 'sg-btn', onClick: connect }, t('retry')))
+                : status === 'loading' ? h('div', { role: 'status' }, t('loading')) : null,
               status === 'ready' && groups.length === 0
                 ? h('div', { className: 'sg-emptystate' }, h(IconGroups, { size: 32 }),
                   h('div', null, t('empty'), ' ', h('button', { type: 'button', className: 'sg-link', onClick: () => void create() }, t('newGroup'))))
@@ -769,7 +773,7 @@ window.__ModuleLoader__.load({
 
         function SidebarFolder({ group, index, groups, list, view, currentId, locale }) {
           const collapsed = view.collapsed.has(group.id)
-          const editing = view.editing === group.id
+          const editing = view.editing === `sidebar:${group.id}`
           const [over, setOver] = React.useState(false)
           const depth = React.useRef(0)
           const setCollapsed = value => {
@@ -816,24 +820,24 @@ window.__ModuleLoader__.load({
                 e.dataTransfer.setData(GROUP_MIME, group.id)
               },
               onClick: () => { if (!editing) setCollapsed(!collapsed) },
-              onDoubleClick: stop(() => store.setView({ editing: group.id })),
+              onDoubleClick: stop(() => store.setView({ editing: `sidebar:${group.id}` })),
               onKeyDown: e => {
                 if (e.target !== e.currentTarget) return
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCollapsed(!collapsed) }
-                if (e.key === 'F2') { e.preventDefault(); store.setView({ editing: group.id }) }
+                if (e.key === 'F2') { e.preventDefault(); store.setView({ editing: `sidebar:${group.id}` }) }
               },
             },
             h('span', { className: `sgs-slot sgs-folder-icon${containsCurrent && collapsed ? ' sgs-active' : ''}` },
               h('span', { className: 'sgs-glyph' }, h(collapsed ? IconFolderClosed : IconFolderOpen, { size: 16 })),
               h('span', { className: 'sgs-chev' }, h(IconChevron, { size: 12, open: !collapsed }))),
             editing
-              ? h(GroupName, { group, editing, className: 'sgs-rename' })
+              ? h(GroupName, { group, className: 'sgs-rename' })
               : h('span', { className: 'sgs-title sgs-gname' }, group.name),
             editing ? null : h('span', { className: 'sgs-rest' }, h('span', { className: 'sgs-count' }, members.length)),
             editing ? null : h('span', { className: 'sgs-actions' },
               h('button', {
                 type: 'button', className: 'sgs-btn', tabIndex: -1, title: t('rename'), 'aria-label': t('rename'),
-                onClick: stop(() => store.setView({ editing: group.id })),
+                onClick: stop(() => store.setView({ editing: `sidebar:${group.id}` })),
               }, h(IconEdit, { size: 14 })),
               h('button', {
                 type: 'button', className: 'sgs-btn sgs-danger', tabIndex: -1, title: t('delete'), 'aria-label': t('delete'),
@@ -885,7 +889,7 @@ window.__ModuleLoader__.load({
           }, [area, host])
           const newDrop = useSessionDrop(list, sessionId => {
             void op({ action: 'create', name: t('defaultName'), sessionId })
-              .then(({ groupId }) => store.setView({ editing: groupId }))
+              .then(({ groupId }) => store.setView({ editing: `sidebar:${groupId}` }))
               .catch(() => {})
           })
           if (!area) return null

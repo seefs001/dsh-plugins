@@ -209,11 +209,14 @@ const TOOL_DESCRIPTION = [
 
 export function apply(ctx) {
   let closed = false
+  let tail = Promise.resolve()
   const ready = openDomain(ctx)
   ready.catch(error => ctx.logger?.warn?.(`session-groups: cannot open storage: ${error?.message ?? error}`))
-  ctx.effect(() => () => {
+  ctx.effect(() => async () => {
     closed = true
-    ready.then(domain => domain.close()).catch(() => {})
+    await tail
+    const domain = await ready.catch(() => null)
+    await domain?.close()
   }, 'session-groups: storage domain')
 
   const streams = new Set()
@@ -223,7 +226,6 @@ export function apply(ctx) {
   }
 
   // Mutations run one at a time so concurrent callers never lose a write.
-  let tail = Promise.resolve()
   const run = op => {
     const task = tail.then(async () => {
       if (closed) throw new OpError('session groups are unloading')
@@ -291,6 +293,8 @@ export function apply(ctx) {
       try { domain = await ready } catch (error) {
         return sendJson(res, 503, { message: `storage unavailable: ${error?.message ?? error}` })
       }
+      if (res.destroyed) return
+      if (closed) return sendJson(res, 503, { message: 'session groups are unloading' })
       res.writeHead(200, {
         'content-type': 'text/event-stream; charset=utf-8',
         'cache-control': 'no-store',
@@ -301,8 +305,7 @@ export function apply(ctx) {
       streams.add(res)
       const heartbeat = setInterval(() => res.write(': ping\n\n'), HEARTBEAT_MS)
       const drop = () => { clearInterval(heartbeat); streams.delete(res) }
-      req.on('close', drop)
-      res.on('close', drop)
+      res.once('close', drop)
     },
   }), `session-groups: GET ${EVENTS_PATH}`)
 
