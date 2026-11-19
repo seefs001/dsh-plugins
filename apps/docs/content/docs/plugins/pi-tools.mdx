@@ -24,6 +24,7 @@ description: 独立的 pi 预设：Pi 原版编程工具、QuickJS codemode，�
 
 - **文件与命令行**：`read`、`bash`、`edit`、`write`、`ls`、`find`、`grep`，保持 Pi 原版名称、描述与参数格式，底层全部受 DSH 的 `ctx.fs`、`ctx.subprocess` 和 `ctx.sandbox` 约束（如写入符号链接目标时会按 DSH 规则替换）。
 - **`codemode`**：Pi 的 QuickJS Worker 沙箱（仅接受 `{ code: string }`），脚本内可使用 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool` 与 `describeNamespace`。脚本无 Node、文件系统或直连网络 API，所有动作均经过当前步受控 DSH 工具管线。
+- **实时轨迹**：`codemode` 内的工具调用在开始执行时就显示参数。例如 `tools.bash` 会先显示命令，结束后在同一条记录上显示结果，不必等整个脚本返回。
 - **`tool_search`**：Pi 的 BM25 工具检索，命中后从下一轮模型请求起变为直接可调用工具。
 - **语法采样与恢复**：通过 `lib/pi-ai-hook.js` 在兼容路由上恢复 `constrainedSampling`（其他路由沿用 JSON `{ code }`），并在无嵌套调用的孤立 `SyntaxError` / `ReferenceError` 中附带 `String.raw` 等修正指引。
 

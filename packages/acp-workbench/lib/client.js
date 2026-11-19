@@ -1930,7 +1930,7 @@ window.__ModuleLoader__.load({
         }
 
         /** Inline execution steps beside the native reply; transport diagnostics are opt-in. */
-        function NativeTrace({ sessionId, turn, step, messageId, reference, openFile, collapsible = !reference, defaultOpen = !!reference }) {
+        function NativeTrace({ sessionId, turn, step, messageId, reference, openFile, collapsible = false, defaultOpen = false }) {
           const tt = useT()
           const view = useNative(sessionId)
           const [open, setOpen] = React.useState(defaultOpen)
@@ -1959,7 +1959,8 @@ window.__ModuleLoader__.load({
           const readTrace = React.useRef(null)
           React.useEffect(() => {
             const controller = new AbortController()
-            setFallback(null)
+            // Settlement adds an exact reference to the same run. Keep its rows mounted during the final read.
+            setFallback(previous => reference && previous?.id === reference.sessionId && previous.native.runs.some(r => r.id === reference.turnId) ? previous : null)
             let loading = false, again = false
             readTrace.current = async () => {
               if (loading) { again = true; return }
@@ -2361,7 +2362,8 @@ window.__ModuleLoader__.load({
             anchorSeq: context.state.seq, location: context.start?.location ?? { kind: 'unresolved' }, visibility: 'visible', data: context.state } : null,
         })
         function NativeNode(props) {
-          return h(NativeTrace, { sessionId: props.sessionId, openFile: props.openFile, ...props.node.data })
+          return h(NativeTrace, { sessionId: props.sessionId, openFile: props.openFile, ...props.node.data,
+            collapsible: true, defaultOpen: !props.node.data.messageId })
         }
 
         const collapsedRepliesKey = 'dsh-acp-workbench:collapsed-replies:v1'

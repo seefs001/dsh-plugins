@@ -1,4 +1,4 @@
-import { ToolExecutionPipeline, ToolNotFoundError, executeToolBatch, projectToolSchema } from './harness.js'
+import { ToolExecutionPipeline, ToolNotFoundError, executeToolBatch, projectToolSchema, scopeTarget } from './harness.js'
 import { createCodemodeToolDefinition, createToolSearchToolDefinition, invoke } from './pi.js'
 import { INTERNAL_PREFIX } from './loadout.js'
 import { withCodemodeSyntaxGuidance } from './codemode-syntax.js'
@@ -6,11 +6,12 @@ import { withCodemodeSyntaxGuidance } from './codemode-syntax.js'
 // A read/write barrier for a script's calls. Read-only calls may overlap, while
 // mutations and unknown classifiers run alone. Started calls drain on abort.
 class NestedCalls {
-  constructor(pipeline, parent, maxParallel, structuredResult) {
-    this.pipeline = pipeline
-    this.structuredResult = structuredResult
+  constructor(executor, parent) {
+    this.executor = executor
+    this.pipeline = executor.nestedPipeline
     this.parent = parent
-    this.maxParallel = maxParallel
+    this.maxParallel = executor.config.maxParallel
+    this.logs = []
     this.queue = []
     this.running = new Set()
     this.exclusive = false
@@ -54,19 +55,30 @@ class NestedCalls {
   }
 
   async execute(input) {
+    const trace = input.agent && {
+      rootCallId: input.rootCallId, parentCallId: this.parent.callId, subCallId: input.callId,
+      name: input.name, arguments: structuredClone(input.arguments),
+    }
     const previousCommit = this.commitLane
     const committed = Promise.withResolvers()
     this.commitLane = committed.promise
-    const preparation = this.prepareLane.then(() => this.pipeline.prepare(input))
+    const preparation = this.prepareLane.then(() => {
+      if (trace) input.agent.session.append('tool/ptc-dispatch-start', trace)
+      return this.pipeline.prepare(input)
+    })
     this.prepareLane = preparation.then(() => {}, () => {})
     try {
       const prepared = await preparation
       const dispatched = prepared.kind === 'dispatch' ? await this.pipeline.dispatch(prepared.exec) : prepared
       await previousCommit
       const result = await this.pipeline.complete(prepared.exec, dispatched)
+      // Shape only the log copy; disk spill must not hold up the script's return value.
+      if (trace) this.logs.push(this.executor.logDispatch(this.parent, trace, result).catch(error => {
+        this.executor.logger.warn('Cannot record Pi subcall %s: %s', trace.name, error)
+      }))
       for (const context of result.additionalContexts ?? []) this.parent.deferContext(context)
       if (result.concludesTurn) this.parent.concludeTurn()
-      const structuredContent = this.structuredResult(prepared.exec, result)
+      const structuredContent = this.executor.structuredResult(prepared.exec, result)
       return {
         toolCall: { id: input.callId, name: input.name, arguments: input.arguments },
         isError: result.isError,
@@ -83,12 +95,15 @@ class NestedCalls {
 
   async drain() {
     while (this.running.size || this.queue.length) await Promise.allSettled(this.running)
+    await Promise.all(this.logs)
   }
 }
 
 export class PiExecutor {
   constructor(ctx, config, loadout) {
     this.ctx = ctx
+    this.tools = ctx.tools
+    this.logger = ctx.logger
     this.config = config
     this.loadout = loadout
     this.active = new Set()
@@ -161,6 +176,25 @@ export class PiExecutor {
     return authored.value
   }
 
+  async logDispatch(exec, trace, result) {
+    const { agent } = exec
+    const { name, subCallId } = trace
+    let content
+    try {
+      content = await this.ctx.waterfall(scopeTarget(this.tools, agent), 'tools/ptc-dispatch-log', {
+        exec, agent, subCallId, name, isError: result.isError, content: result.content,
+      }, () => Promise.resolve(result.content))
+    } catch (error) {
+      this.logger.warn('Cannot project Pi subcall log for %s: %s', name, error)
+      content = [{ type: 'text', text: 'Tool output unavailable in the session log.' }]
+    }
+    agent.session.append('tool/ptc-dispatch', {
+      ...trace, isError: result.isError, content,
+      ...(result.error?.info === undefined ? {} : { error: result.error.info }),
+      ...(result.meta === undefined ? {} : { meta: result.meta }),
+    })
+  }
+
   async codemode(args, exec) {
     if (this.disposed) throw new Error('Pi executor disposed')
     const controller = new AbortController()
@@ -171,8 +205,7 @@ export class PiExecutor {
     }
     this.active.add(call)
     const current = { ...exec, signal: AbortSignal.any([exec.signal, controller.signal]) }
-    const nested = new NestedCalls(this.nestedPipeline, current, this.config.maxParallel,
-      (execution, result) => this.structuredResult(execution, result))
+    const nested = new NestedCalls(this, current)
     let writes
     const definition = createCodemodeToolDefinition({
       getToolNamespace: name => this.loadout.namespace(name, exec.agent),

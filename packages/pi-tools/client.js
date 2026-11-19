@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
       sectionInteraction: 'Skills and questions', sectionPlugins: 'Plugins', sectionOther: 'Other DSH tools',
       sectionMcpResources: 'MCP resources', sectionMcpServer: 'Server {server}',
       read: 'Read', write: 'Write', edit: 'Edit', codemode: 'Script', tool_search: 'Tool search',
-      output: 'Output', written: 'Written content', diff: 'Applied diff', loaded: 'Loaded tools',
+      input: 'Input', output: 'Output', written: 'Written content', diff: 'Applied diff', loaded: 'Loaded tools',
       calls: 'Tool calls', inspect: 'Inspect call', open: 'Open file', noCalls: 'No tool calls',
       ok: 'Succeeded', error: 'Failed', cancelled: 'Cancelled', running: 'Running', unknown: 'Unknown',
     }
@@ -56,7 +56,7 @@ window.__ModuleLoader__.load({
       sectionInteraction: '技能与提问', sectionPlugins: '插件', sectionOther: '其他 DSH 工具',
       sectionMcpResources: 'MCP 资源', sectionMcpServer: '服务 {server}',
       read: '读取', write: '写入', edit: '编辑', codemode: '脚本', tool_search: '工具搜索',
-      output: '输出', written: '写入内容', diff: '实际差异', loaded: '已加载工具',
+      input: '输入', output: '输出', written: '写入内容', diff: '实际差异', loaded: '已加载工具',
       calls: '工具调用', inspect: '检查调用', open: '打开文件', noCalls: '未调用工具',
       ok: '成功', error: '失败', cancelled: '已取消', running: '运行中', unknown: '未知',
     }
@@ -69,6 +69,7 @@ window.__ModuleLoader__.load({
 .pi-tools-toggle span:first-child{width:14px;text-align:center}
 .pi-tools-file{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
 .pi-tools-summary{min-width:0;overflow-wrap:anywhere}
+.pi-tools-input-preview{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .pi-tools-badge{font-size:11px;color:var(--dsw-alias-label-secondary);margin-left:auto}
 .pi-tools-body{margin:6px 0 8px 20px;min-width:0;color:var(--dsw-alias-label-primary)}
 .pi-tools-body pre{margin:4px 0 8px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-1);font:calc(var(--dsh-content-font-size-secondary,13px) - 1px)/1.6 var(--ds-font-family-code,monospace);white-space:pre;overflow:auto;max-height:420px}
@@ -204,8 +205,11 @@ window.__ModuleLoader__.load({
       } else if (toolName === 'write' && typeof args.content === 'string') {
         body = h(React.Fragment, null, h('div', { className: 'pi-tools-note' }, t('written')), textBlock(args.content, t('written')))
       } else if (toolName === 'codemode') {
+        // DSH renders recorded dispatches as child rows; keep Pi's fallback for older history.
+        const childIds = new Set(block.subCalls.map(child => child.callId))
+        const unlisted = calls.filter(call => !childIds.has(call.id))
         body = h(React.Fragment, null,
-          calls.length ? h('ul', { className: 'pi-tools-calls' }, calls.map((call, index) =>
+          unlisted.length ? h('ul', { className: 'pi-tools-calls' }, unlisted.map((call, index) =>
             h('li', { className: 'pi-tools-call', key: `${call.id ?? ''}:${index}` },
               h('div', { className: 'pi-tools-call-head' },
                 h('code', null, call.name),
@@ -213,7 +217,7 @@ window.__ModuleLoader__.load({
                   t(['ok', 'error', 'cancelled', 'running'].includes(call.status) ? call.status : 'unknown')),
                 h('span', { className: 'pi-tools-note' }, duration(call.durationMs))),
               typeof call.error === 'string' ? h('div', { className: 'pi-tools-error' }, call.error) : null)))
-            : h('div', { className: 'pi-tools-note' }, t('noCalls')),
+            : calls.length ? null : h('div', { className: 'pi-tools-note' }, t('noCalls')),
           textBlock(text, t('output')))
       } else if (toolName === 'tool_search') {
         body = h(React.Fragment, null,
@@ -229,7 +233,10 @@ window.__ModuleLoader__.load({
           path ? h('button', { type: 'button', className: 'pi-tools-file', title: `${t('open')}: ${path}:${line}`, onClick: () => openFile(path, { line }) }, pathLabel(path, cwd, home), `:${line}`) : null,
           summary ? h('span', { className: 'pi-tools-summary' }, summary) : null,
           h('span', { className: 'pi-tools-badge' }, ['Pi', elapsed].filter(Boolean).join(' · '))),
-        expanded ? h('div', { className: 'pi-tools-body', id: bodyId }, body,
+        expanded ? h('div', { className: 'pi-tools-body', id: bodyId },
+          toolName === 'codemode' ? textBlock(args.code, t('input'))
+            : toolName === 'tool_search' ? textBlock(args.query, t('input')) : null,
+          body,
           inspect ? h('button', { type: 'button', className: 'pi-tools-inspect', onClick: inspect }, t('inspect')) : null) : null)
     }
 
@@ -250,25 +257,28 @@ window.__ModuleLoader__.load({
     // whether the Session belongs to a Pi preset and is still editable.
     const CARD_KEYS = ['codemode', 'tool_search']
 
-    // A keyed view must render every call of its name: unmatched phases
-    // (preparing, running, failed, images) use a plain status row. Error details
-    // use DSH's initially collapsed disclosure, just like successful cards.
+    // Read the argument view during render so streamed prefixes can refresh this keyed row.
     function PiPlainRow({ callId, toolName, phase, block, inspect, useDisclosure, t }) {
       const { expanded, toggle } = useDisclosure()
       const failed = phase === 'result' && block?.isError
       const status = phase === 'result' ? (failed ? 'error' : 'ok') : 'running'
       const text = phase === 'result' && Array.isArray(block?.content)
         ? block.content.filter(item => item.type === 'text').map(item => item.text).join('\n') : ''
-      const expandable = failed && text.length > 0
+      const field = toolName === 'codemode' ? 'code' : 'query'
+      const preview = block.args.textPrefix(field, 160)
+      const expandable = Boolean(preview) || (failed && text.length > 0)
       const bodyId = `pi-tool-body-${callId}`
       return h('div', { className: 'pi-tools-card', 'data-pi-tool': toolName },
         h('div', { className: 'pi-tools-head' },
           expandable ? h('button', { type: 'button', className: 'pi-tools-toggle', onClick: toggle, 'aria-expanded': expanded, 'aria-controls': bodyId },
             h('span', { 'aria-hidden': true }, expanded ? '▾' : '▸'), h('span', null, t(toolName)))
             : h('span', null, t(toolName)),
+          preview ? h('code', { className: 'pi-tools-input-preview' }, preview) : null,
           h('span', { className: failed ? 'pi-tools-error' : 'pi-tools-note' }, t(status)),
           inspect ? h('button', { type: 'button', className: 'pi-tools-inspect', onClick: inspect }, t('inspect')) : null),
-        expandable && expanded ? h('div', { className: 'pi-tools-body', id: bodyId }, textBlock(text, t('output'))) : null)
+        expandable && expanded ? h('div', { className: 'pi-tools-body', id: bodyId },
+          preview ? textBlock(block.args.text(field), t('input')) : null,
+          text ? textBlock(text, t('output')) : null) : null)
     }
 
     function PiToolView(props) {
