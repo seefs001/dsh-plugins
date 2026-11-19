@@ -8,6 +8,7 @@ import { registerOptionsRoute, selectionDefinition } from './selection.js'
 import { addPiAiRequestTransform } from './pi-ai-hook.js'
 import { PiExecutor } from './executor.js'
 import { runGrep } from './search.js'
+import { apply as registerSkillContext } from './skill-context.js'
 
 export { Config }
 export const name = 'pi-tools'
@@ -145,6 +146,7 @@ export async function apply(ctx, rawConfig = {}) {
     await restoreCodemodeSampling(ctx)
     return
   }
+  await registerSkillContext(ctx)
   const state = await ctx.sessionProjections.register(stateDefinition)
   const selection = await ctx.sessionProjections.register(selectionDefinition)
   const definitions = piDefinitions(ctx.workingDirectory.defaultDirectory, config)

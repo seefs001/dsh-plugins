@@ -2,6 +2,7 @@ import { ToolExecutionPipeline, ToolNotFoundError, executeToolBatch, projectTool
 import { createToolSearchToolDefinition, invoke } from './pi.js'
 import { createCodemodeToolDefinition } from './codemode-budget.js'
 import { INTERNAL_PREFIX } from './loadout.js'
+import { rememberNestedSkill, nestedSkillProofs } from './skill-context.js'
 import { withCodemodeSyntaxGuidance } from './codemode-syntax.js'
 
 // A read/write barrier for a script's calls. Read-only calls may overlap, while
@@ -13,6 +14,7 @@ class NestedCalls {
     this.parent = parent
     this.maxParallel = executor.config.maxParallel
     this.logs = []
+    this.skills = new Map()
     this.queue = []
     this.running = new Set()
     this.exclusive = false
@@ -79,6 +81,7 @@ class NestedCalls {
       }))
       for (const context of result.additionalContexts ?? []) this.parent.deferContext(context)
       if (result.concludesTurn) this.parent.concludeTurn()
+      if (input.name === 'skill' && !result.isError) rememberNestedSkill(this.skills, input.arguments.name, result.content)
       const structuredContent = this.executor.structuredResult(prepared.exec, result)
       return {
         toolCall: { id: input.callId, name: input.name, arguments: input.arguments },
@@ -223,7 +226,9 @@ export class PiExecutor {
     try {
       const native = await invoke(definition, args, current, context)
       const result = withCodemodeSyntaxGuidance(native, nested.nextId, current.signal)
-      return { ...result, ...writes && !result.isError ? { state: { version: 1, kind: 'store', writes } } : {} }
+      const proofs = !result.isError && nested.skills.size ? nestedSkillProofs(nested.skills, result.content) : []
+      return { ...result, ...proofs.length ? { details: { ...result.details, visibleSkillProofs: proofs } } : {},
+        ...writes && !result.isError ? { state: { version: 1, kind: 'store', writes } } : {} }
     } finally {
       controller.abort(new Error('Script completed'))
       await nested.drain()
