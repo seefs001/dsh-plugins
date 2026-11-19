@@ -1,0 +1,63 @@
+{
+  "name": "dsh-diagram-preview",
+  "version": "0.1.0",
+  "description": "Preview Mermaid, Graphviz, ECharts and SVG fences in DSH chat, with a switch back to source.",
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "deepseek-harness",
+    "mermaid",
+    "graphviz",
+    "echarts",
+    "svg"
+  ],
+  "license": "MIT",
+  "author": "seefs001",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seefs001/dsh-plugins.git",
+    "directory": "packages/diagram-preview"
+  },
+  "type": "module",
+  "icon": "icon.svg",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.2.2-rc.4 <0.3.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-chat"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build-renderers.mjs"
+  },
+  "devDependencies": {
+    "@viz-js/viz": "3.31.0",
+    "echarts": "6.1.0",
+    "mermaid": "12.3.0"
+  }
+}

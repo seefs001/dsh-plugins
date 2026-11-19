@@ -3,13 +3,13 @@ title: 概览
 description: dsh-plugins 是什么、如何按场景挑选插件，以及 Host 与 Web 两部分的运行边界。
 ---
 
-`dsh-plugins` 是 seefs 自用并持续维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件集，共 31 个独立 bundle。每个插件都可以单独安装、启用、停用和卸载，互不捆绑。
+`dsh-plugins` 是 seefs 自用并持续维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件集，共 32 个独立 bundle。每个插件都可以单独安装、启用、停用和卸载，互不捆绑。
 
 <Cards>
   <Card title="安装" href="/docs/quick-start" description="从 GitHub 或本地仓库安装单个或一组插件，并确认已经生效。" />
   <Card title="配置与数据" href="/docs/configuration" description="了解设置在 profile、storage domain、凭据和浏览器中的存放位置。" />
   <Card title="依赖与边界" href="/docs/compatibility" description="查看每个插件的前置 bundle、外部依赖与明确不会改变的行为。" />
-  <Card title="插件目录" href="/docs/plugins" description="按四大分类浏览全部 31 个插件的详细说明。" />
+  <Card title="插件目录" href="/docs/plugins" description="按四大分类浏览全部 32 个插件的详细说明。" />
 </Cards>
 
 ## 按常见场景挑选
@@ -22,6 +22,7 @@ description: dsh-plugins 是什么、如何按场景挑选插件，以及 Host �
 | 预设系统提示词与专属技能，在对话里随时切换角色 | [角色管理](/docs/plugins/roles) |
 | 管好海量会话，不被 worker 结束刷屏 | [收件箱](/docs/plugins/inbox)、[会话分组](/docs/plugins/session-groups)、[最近会话优先](/docs/plugins/recent-sessions) |
 | 清理失效工作区、切本地分支、看未提交改动、防 Mac 休眠 | [工作区管理](/docs/plugins/workspace-manager)、[分支切换](/docs/plugins/branch-switcher)、[Git 变更](/docs/plugins/git-changes)、[保持唤醒](/docs/plugins/keep-awake) |
+| 看模型生成的流程图、关系图和统计图，切回代码 | [图表预览](/docs/plugins/diagram-preview) |
 | 阅读长对话、跳转引用、点开工具产出、改写发错的话 | [上下文压缩状态](/docs/plugins/compaction-status)、[引用跳转](/docs/plugins/quote-jump)、[工具透镜](/docs/plugins/tool-lens)、[Wait, what?](/docs/plugins/message-actions)、[编辑消息](/docs/plugins/message-edit) |
 | 在 DSH 会话内直接跑 Cursor / Antigravity / Claude Code | [ACP 会话集成](/docs/plugins/acp-workbench) |
 | 收藏常用话术、按实际使用率检索技能、拓展联网搜索与画图 | [常用片段](/docs/plugins/prompt-shortcut)、[技能速查](/docs/plugins/cheat-sheet)、[联网搜索](/docs/plugins/web-access)、[画图](/docs/plugins/image-gen) |

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "图表预览",
+    "description": "在对话中就地预览 Mermaid、Graphviz/DOT、ECharts（JSON）和 SVG 代码块。可调尺寸，点击图表查看可缩放的大图，点「代码」查看原文；无法预览时保留源码。"
+  }
+}

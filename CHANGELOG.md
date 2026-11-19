@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `dsh-diagram-preview` 0.1.0: preview Mermaid, Graphviz/DOT, ECharts JSON and SVG fences in Web chat. Resize each diagram, open a zoomable preview, or switch back to the original code; invalid diagrams keep their source.
+
 - `dsh-inbox` 0.1.0: a quiet sidebar inbox for decisions and turn outcomes. Groups worker activity by root conversation, restores outcomes from Host session projections, and keeps read marks in the browser. No new notification, agent tool or approval handler.
 
 - `dsh-service-tier`: select Default, Fast, or Ultrafast for supported OpenAI Responses models. Existing Fast settings stay on priority; `dsh-model-reference` preserves the selected tier in `#` references.

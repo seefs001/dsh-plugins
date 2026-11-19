@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-seefs's personal plugin collection for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH). 31 standalone bundles for model selection, session organization, conversation reading, and tool integrations, kept current with the latest DSH.
+seefs's personal plugin collection for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH). 32 standalone bundles for model selection, session organization, conversation reading, and tool integrations, kept current with the latest DSH.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation (中文)](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -49,6 +49,7 @@ Each plugin lives in `packages/<name>` as an independent bundle that you can ins
 | Package | What it does | Runs in |
 |---|---|---|
 | [`dsh-compaction-status`](packages/compaction-status) | Shows context compaction status and elapsed timer above the composer. | Host + Web |
+| [`dsh-diagram-preview`](packages/diagram-preview) | Preview Mermaid, Graphviz, ECharts and SVG in chat, or switch back to the original code. | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Renders quotes in user messages as clickable blocks that jump back to and highlight the source. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Adds quick actions on tool-call rows to open skill files, full spill outputs, search hits, web links, or subagent chats. | Web |
 | [`dsh-message-actions`](packages/message-actions) | Adds **Wait, what?** beside replies to explain them in an isolated model call without touching the conversation. | Host + Web |

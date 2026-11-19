@@ -1,0 +1,4 @@
+- insert:
+    - id: diagram-preview
+      name: dsh-diagram-preview
+      config: {}

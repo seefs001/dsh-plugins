@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件集，共 31 个独立 bundle，覆盖模型选择、会话管理、对话阅读与工具集成，跟随最新 DSH 持续更新。
+seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件集，共 32 个独立 bundle，覆盖模型选择、会话管理、对话阅读与工具集成，跟随最新 DSH 持续更新。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [在线文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -49,6 +49,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | 包 | 作用 | 运行位置 |
 |---|---|---|
 | [`dsh-compaction-status`](packages/compaction-status) | 上下文压缩时，在输入框上方显示状态和已等待时间。 | Host + Web |
+| [`dsh-diagram-preview`](packages/diagram-preview) | 在对话中预览 Mermaid、Graphviz、ECharts 和 SVG，随时切回原代码。 | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 把用户消息里的引用变成可点击块，点一下跳回原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 在工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理对话。 | Web |
 | [`dsh-message-actions`](packages/message-actions) | 回复旁的 **Wait, what?** 用独立模型把话重新讲明白，不写进主对话。 | Host + Web |

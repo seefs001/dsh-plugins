@@ -43,6 +43,7 @@ const entries: Entry[] = [
   { slug: 'git-changes', category: 'sessions', surface: 'Web', summary: '在输入框下方显示分支和未提交改动统计，点一下打开右侧 diff。', requires: ['Change requests & worktrees'] },
   { slug: 'keep-awake', category: 'sessions', surface: 'Host', summary: 'DSH Host 运行期间阻止 Mac 闲置休眠，屏幕仍照常熄灭和锁屏。', requires: ['macOS'] },
   { slug: 'compaction-status', category: 'conversation', surface: 'Host + Web', summary: '压缩上下文时，在输入框上方显示状态和已等待时间。' },
+  { slug: 'diagram-preview', category: 'conversation', surface: 'Web', summary: '在对话里预览 Mermaid、Graphviz、ECharts 和 SVG 图表，一键切回原代码。' },
   { slug: 'quote-jump', category: 'conversation', surface: 'Web', summary: '把用户消息里的引用变成可点击块，点一下跳回原文并高亮。' },
   { slug: 'tool-lens', category: 'conversation', surface: 'Web', summary: '点工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理对话。' },
   { slug: 'message-actions', category: 'conversation', surface: 'Host + Web', summary: '在回复旁点 Wait, what?，用独立模型把话重新讲明白，不写进主对话。', requires: ['@deepseek-ai/dsh-storage-domain', '已配置的模型 provider'] },
