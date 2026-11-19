@@ -38,9 +38,9 @@ export function createOperations(ctx, exec, cwd, config = {}) {
     return value
   }
   const pending = new Set()
-  const lines = (kind, args, onLine) => {
+  const lines = (kind, args, onLine, workdir = cwd) => {
     const command = kind === 'fd' ? config.fdCommand ?? 'fd' : config.rgCommand ?? 'rg'
-    const task = runLines(ctx, command, args, cwd, signal, policy, onLine)
+    const task = runLines(ctx, command, args, workdir, signal, policy, onLine)
     pending.add(task)
     void task.then(() => pending.delete(task), () => pending.delete(task))
     return task
@@ -62,7 +62,6 @@ export function createOperations(ctx, exec, cwd, config = {}) {
     grep: {
       path: input => processPath(resolveToCwd(input, cwd)), lines,
       isDirectory: async input => (await stat(input)).type === 'directory',
-      readFile: async input => (await readFile(input)).toString('utf8'),
     },
     read: {
       readFile,

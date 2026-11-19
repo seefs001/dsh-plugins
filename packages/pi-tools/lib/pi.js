@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { validateToolArguments } from '@earendil-works/pi-ai/utils/validation'
 
-export const PI_VERSION = '1.5.0'
+export const PI_VERSION = '1.5.2'
 const entry = import.meta.resolve('@earendil-works/pi-coding-agent')
 const manifest = JSON.parse(await readFile(new URL('../package.json', entry), 'utf8'))
 if (manifest.version !== PI_VERSION) {

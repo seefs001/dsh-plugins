@@ -1,8 +1,8 @@
-import { basename, dirname, join, relative } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline'
 import { DEFAULT_MAX_BYTES, GREP_MAX_LINE_LENGTH, formatSize, relativizeFindResultPath, truncateHead, truncateLine } from './pi.js'
 
-// Pi 1.5.0's grep has no injectable spawn operation. Keep its public definition
+// Pi's grep has no injectable spawn operation. Keep its public definition
 // and formatting helpers; perform the search through DSH rather than child_process.
 export async function runLines(ctx, command, args, cwd, signal, policy, onLine) {
   let argv = [await ctx.subprocess.resolveExecutable(command, undefined, signal), ...args]
@@ -64,63 +64,72 @@ export async function findPaths(ops, pattern, root, limit) {
   return paths.map(path => relativizeFindResultPath(path, root))
 }
 
+// ripgrep encodes non-UTF-8 paths and lines as base64 rather than `text`.
+function rgText(field) {
+  return field?.text ?? (field?.bytes ? Buffer.from(field.bytes, 'base64').toString('utf8') : '')
+}
+
 export async function runGrep(args, ops) {
   const root = await ops.path(args.path || '.')
   const directory = await ops.isDirectory(root)
-  const limit = Math.max(1, args.limit ?? 100)
-  const context = args.context && args.context > 0 ? args.context : 0
+  const limit = Math.max(1, Math.floor(args.limit ?? 100))
+  const context = Math.min(Math.max(0, Math.floor(args.context ?? 0)), Number.MAX_SAFE_INTEGER)
   const argv = ['--no-config', '--json', '--line-number', '--color=never', '--hidden']
   if (args.ignoreCase) argv.push('--ignore-case')
   if (args.literal) argv.push('--fixed-strings')
-  if (args.glob) argv.push('--glob', args.glob)
-  argv.push('--', args.pattern, root)
-  const matches = []
+  if (args.glob) argv.push('--glob', args.glob.replace(/^(!?)(?:\.\/)+/, '$1'))
+  if (context) argv.push('--context', String(context))
+  // rg roots path-containing globs at its cwd, not at its positional argument.
+  argv.push('--', args.pattern, directory ? '.' : root)
+  const output = []
   let count = 0
+  let totalBytes = 0
+  let totalLines = 0
+  let linesTruncated = false
+  let matchLimitReached = false
+  let lastFile
+  let trailingEnd = 0
   const result = await ops.lines('rg', argv, line => {
-    if (!line.trim()) return
     let event
     try { event = JSON.parse(line) } catch { return }
-    if (event.type !== 'match') return
-    count++
-    if (event.data?.path?.text && typeof event.data.line_number === 'number') matches.push(event.data)
-    return count >= limit ? false : undefined
-  })
+    const match = event.type === 'match'
+    if (!match && event.type !== 'context') return
+    const file = rgText(event.data?.path)
+    const number = event.data?.line_number
+    if (!file || typeof number !== 'number') return
+
+    const withinLimit = count < limit
+    const trailing = file === lastFile && number <= trailingEnd
+    if (withinLimit || trailing) {
+      const path = directory ? relative(root, resolve(root, file)) : ''
+      const label = path && !path.startsWith('..') ? path.replaceAll('\\', '/') : basename(file)
+      const value = truncateLine(rgText(event.data.lines).replace(/\r?\n?$/, ''))
+      const sep = withinLimit && match ? ':' : '-'
+      const row = `${label}${sep}${number}${sep} ${value.text}`
+      if (totalBytes - 1 <= DEFAULT_MAX_BYTES) output.push(row)
+      totalBytes += Buffer.byteLength(row) + 1
+      totalLines++
+      linesTruncated ||= value.wasTruncated
+      lastFile = file
+    }
+    if (withinLimit) {
+      if (match && ++count === limit) trailingEnd = number + context
+    } else {
+      // An extra match proves truncation; finish the last match's context first.
+      matchLimitReached ||= match
+      if (matchLimitReached && !(trailing && number < trailingEnd)) return false
+    }
+  }, directory ? root : undefined)
   if (!result.limited && result.exitCode !== 0 && result.exitCode !== 1) {
     throw new Error(result.stderr || `ripgrep exited with code ${result.exitCode}`)
   }
   if (!count) return { content: [{ type: 'text', text: 'No matches found' }] }
-  const output = []
-  const cache = new Map()
-  let linesTruncated = false
-  const lineText = text => {
-    const value = truncateLine(text.replace(/\r/g, ''))
-    linesTruncated ||= value.wasTruncated
-    return value.text
-  }
-  for (const match of matches) {
-    const path = match.path.text
-    const candidate = directory ? relative(root, path) : ''
-    const label = candidate && !candidate.startsWith('..') ? candidate.replaceAll('\\', '/') : basename(path)
-    const number = match.line_number
-    if (!context && match.lines?.text !== undefined) {
-      output.push(`${label}:${number}: ${lineText(match.lines.text.replace(/\r\n/g, '\n').replace(/\n$/, ''))}`)
-      continue
-    }
-    if (!cache.has(path)) {
-      try { cache.set(path, (await ops.readFile(path)).replace(/\r\n/g, '\n').split('\n')) }
-      catch { cache.set(path, []) }
-    }
-    const lines = cache.get(path)
-    if (!lines.length) { output.push(`${label}:${number}: (unable to read file)`); continue }
-    for (let current = Math.max(1, number - context); current <= Math.min(lines.length, number + context); current++) {
-      const separator = current === number ? ':' : '-'
-      output.push(`${label}${separator}${current}${separator} ${lineText(lines[current - 1] ?? '')}`)
-    }
-  }
   const truncation = truncateHead(output.join('\n'), { maxLines: Number.MAX_SAFE_INTEGER })
+  truncation.totalLines = totalLines
+  truncation.totalBytes = totalBytes - 1
   const details = {}
   const notices = []
-  if (result.limited) {
+  if (matchLimitReached) {
     details.matchLimitReached = limit
     notices.push(`${limit} matches limit reached. Use limit=${limit * 2} for more, or refine pattern`)
   }

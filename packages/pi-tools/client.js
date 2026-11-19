@@ -128,7 +128,7 @@ window.__ModuleLoader__.load({
     // The selector admits only this adapter's successful text results. Other
     // presets, preparation, failures and image-bearing calls keep DSH's views.
     function select(owner) {
-      if (owner.phase !== 'result' || owner.block.isError || owner.block.meta?.piVersion !== '1.5.0'
+      if (owner.phase !== 'result' || owner.block.isError || !['1.5.0', '1.5.2'].includes(owner.block.meta?.piVersion)
         || !supported.has(owner.toolName) || owner.block.content.some(block => block.type !== 'text')) return null
       let args
       try { args = JSON.parse(owner.block.call?.argsRaw ?? '') } catch { return null }
