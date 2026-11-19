@@ -10,7 +10,7 @@ if (manifest.version !== PI_VERSION) {
 
 // These private module paths are intentionally coupled to the exact version above.
 // Import the tools, not Pi's CLI, extension loader, settings, or agent loop.
-const [read, bash, edit, write, mime, prompt, shell, find, grep, ls, codemode, search, truncation, paths, mcp, mcpPrompt] = await Promise.all([
+const [read, bash, edit, write, mime, prompt, shell, find, grep, ls, codemode, search, truncation, outputFiles, paths, mcp, mcpPrompt] = await Promise.all([
   'core/tools/read.js',
   'core/tools/bash.js',
   'core/tools/edit.js',
@@ -24,6 +24,7 @@ const [read, bash, edit, write, mime, prompt, shell, find, grep, ls, codemode, s
   'extensions/codemode/tool.js',
   'extensions/tool-search/tool.js',
   'core/tools/truncate.js',
+  'utils/output-files.js',
   'core/tools/path-utils.js',
   'extensions/mcp/tools.js',
   'extensions/mcp/index.js',
@@ -43,7 +44,8 @@ export const { createToolSearchToolDefinition } = search
 export const { toToolExposure } = mcp
 export const { relativizeFindResultPath } = find
 export const { resolveToCwd } = paths
-export const { truncateHead, truncateLine, formatSize, DEFAULT_MAX_BYTES, GREP_MAX_LINE_LENGTH } = truncation
+export const { writeOutputFile } = outputFiles
+export const { sliceHead, sliceTail, truncateHead, truncateLine, formatSize, DEFAULT_MAX_BYTES, GREP_MAX_LINE_LENGTH } = truncation
 export const detectImageMimeType = mime.detectSupportedImageMimeType
 export const getShellConfig = shell.getShellConfig
 

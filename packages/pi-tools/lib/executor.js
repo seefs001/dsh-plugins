@@ -1,5 +1,6 @@
 import { ToolExecutionPipeline, ToolNotFoundError, executeToolBatch, projectToolSchema, scopeTarget } from './harness.js'
-import { createCodemodeToolDefinition, createToolSearchToolDefinition, invoke } from './pi.js'
+import { createToolSearchToolDefinition, invoke } from './pi.js'
+import { createCodemodeToolDefinition } from './codemode-budget.js'
 import { INTERNAL_PREFIX } from './loadout.js'
 import { withCodemodeSyntaxGuidance } from './codemode-syntax.js'
 

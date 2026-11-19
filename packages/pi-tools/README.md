@@ -28,6 +28,7 @@ dsh plugin --profile web add "link:$PWD/packages/pi-tools"
 
 - **基础编程工具**：`read`、`bash`、`edit`、`write`、`ls`、`find`、`grep`，保留 Pi 原版的工具名称、描述与参数 Schema，底层全部通过 DSH 的 `ctx.fs`、`ctx.subprocess` 与 `ctx.sandbox` 执行。
 - **`codemode`**：Pi 的 QuickJS Worker 沙箱（仅接受 `{ code: string }`），脚本内可使用 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool`、`describeNamespace` 调用当前步已放行的工具。无 Node/文件系统/网络直连权限，一切外调走受控 DSH 工具管线。
+- **回传预算**：默认整批文本保留约 8,000 个字符。超出时保留首尾，完整文本写入返回路径，可用 `read` 分段查看，无需重跑。图片仍正常返回；要调整单次预算，在脚本首行设置 `// @options: {"max_output_tokens": 4000}`。
 - **实时轨迹**：`codemode` 内的工具调用在开始执行时就显示参数。例如 `tools.bash` 会先显示命令，结束后在同一条记录上显示结果，不必等整个脚本返回。
 - **`tool_search`**：BM25 延迟工具发现工具，搜索命中后从下一轮模型调用起即可直接调用对应工具。
 - **语法采样恢复**：通过 `lib/pi-ai-hook.js` 为支持 OpenAI grammar tools 的路由恢复 `constrainedSampling`（不支持的路由保持 JSON `{ code }` 传输），并在遇到孤立 `SyntaxError` / `ReferenceError` 时附带 `String.raw` 与转义提示。
