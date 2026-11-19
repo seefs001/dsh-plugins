@@ -31,12 +31,11 @@ window.__ModuleLoader__.load({
       attention: 'Needs you', working: 'In progress', review: 'Review', recent: 'Recent', history: 'History', all: 'Current',
       attentionHint: 'A response here goes to the waiting CLI. Opening the conversation does not answer it.',
       recoveryHint: 'Check the last turn before sending anything else. Reconnecting does not resend your message.',
-      firstTurn: 'Send your first message in the composer to get started. The CLI uses its own tools and file access.', resumeHint: 'Your external context is saved. Reconnect without sending a task, or continue with a new message.',
-      readyAfterError: 'The connection is ready. Review the last turn, then use the composer for a new instruction.', archivedHint: 'This binding is archived. Restore it to continue using its context.',
+      firstTurn: 'Send your first message in the composer to get started. The CLI uses its own tools and file access.', archivedHint: 'This binding is archived. Restore it to continue using its context.',
       openConversation: 'Open conversation', openRoot: 'Open parent tree', retry: 'Refresh', connectingFeed: 'Connecting…',
       cliOptions: 'CLI settings', hideOptions: 'Close CLI settings', connectOnly: 'Connect without sending a message',
-      forkHere: 'Continue in a copy', forkHint: 'A copy starts from the latest history saved by the CLI. It does not move the original session or send a prompt.', forkSource: 'Copied from CLI history', forkReady: 'Your copy is saved. Send the next message here to work in the copy, or connect without sending a task.', resumeExisting: 'Continue a CLI session', resumeHere: 'Continue here', closeHistory: 'Hide sessions',
-      importedReady: 'Connected to “{name}”. Your next message continues that conversation.', previousMessages: 'Previous CLI messages', hidePrevious: 'Hide previous messages', noReplay: 'No earlier messages returned in this page of CLI history.',
+      forkHere: 'Continue in a copy', forkHint: 'A copy starts from the latest history saved by the CLI. It does not move the original session or send a prompt.', forkSource: 'Copied from CLI history', resumeExisting: 'Continue a CLI session', resumeHere: 'Continue here', closeHistory: 'Hide sessions',
+      previousMessages: 'Previous CLI messages', hidePrevious: 'Hide previous messages', noReplay: 'No earlier messages returned in this page of CLI history.',
       resumePick: 'Choose a session from this project. Opening it sends no message. Your next message continues the CLI thread without copying the earlier DSH conversation.',
       firstUse: 'Choose an ACP model in the DSH model picker and send a message. Its activity will appear here.',
       setup: 'Manage providers', answeredByPreset: 'Full access · automatic', answeredByUser: 'Human response',
@@ -53,7 +52,7 @@ window.__ModuleLoader__.load({
       restoreTo: 'Back to {model}', restoreTitle: 'Switch this conversation back to the DSH model it used before',
       restoreHint: 'No earlier DSH model was saved for this conversation. Use the model picker to switch back.',
       moreOptions: 'Show engine options', lessOptions: 'Hide engine options', switchEngine: 'Switch engine',
-      connection: 'Connection', configuration: 'Configuration', commands: 'CLI commands', usage: 'Usage', directory: 'Directory',
+      configuration: 'Configuration', commands: 'CLI commands', usage: 'Usage', directory: 'Directory',
       noConfig: 'Connect to load the models, modes and options this CLI advertises.',
       cliCommandGroup: 'CLI · {name}', cliCommandStale: 'Select this CLI command again from the / menu. Its original selection is no longer current.',
       model: 'Model', mode: 'Mode', commandPick: 'Command…', commandArgs: 'Arguments', commandRun: 'Run',
@@ -150,12 +149,11 @@ window.__ModuleLoader__.load({
       attention: '等你回应', working: '进行中', review: '需查看', recent: '最近活动', history: '历史', all: '当前记录',
       attentionHint: '在这里操作会直接把决定发给等待中的 CLI；只打开会话看一眼不会触发审批。',
       recoveryHint: '先核对最后一轮，再决定是否发送新消息。重新连接不会重发原任务。',
-      firstTurn: '在输入框发送第一条消息即可开始。CLI 使用自己的工具和文件权限。', resumeHint: '外部上下文已保留。你可以只重新连接，也可以直接发送新消息继续。',
-      readyAfterError: '连接仍然可用。请先核对上一轮，再在输入框给出新的指令。', archivedHint: '此绑定已归档。恢复后可以继续使用原外部上下文。',
+      firstTurn: '在输入框发送第一条消息即可开始。CLI 使用自己的工具和文件权限。', archivedHint: '此绑定已归档。恢复后可以继续使用原外部上下文。',
       openConversation: '打开会话', openRoot: '打开所属会话树', retry: '刷新', connectingFeed: '正在连接…',
       cliOptions: 'CLI 设置', hideOptions: '收起 CLI 设置', connectOnly: '仅连接，不发送消息',
-      forkHere: '从副本继续', forkHint: '副本从 CLI 已保存的最新记录开始。不会接管原会话，也不会发送提示词。', forkSource: '复制自 CLI 历史', forkReady: '副本已保存。下一条消息只发给副本；也可以先连接，不发送任务。', resumeExisting: '接续 CLI 会话', resumeHere: '在这里接续', closeHistory: '收起会话列表',
-      importedReady: '已接续「{name}」。下一条消息会发到这个会话。', previousMessages: '查看 CLI 前文', hidePrevious: '收起前文', noReplay: 'CLI 的这页历史中没有更早的消息。',
+      forkHere: '从副本继续', forkHint: '副本从 CLI 已保存的最新记录开始。不会接管原会话，也不会发送提示词。', forkSource: '复制自 CLI 历史', resumeExisting: '接续 CLI 会话', resumeHere: '在这里接续', closeHistory: '收起会话列表',
+      previousMessages: '查看 CLI 前文', hidePrevious: '收起前文', noReplay: 'CLI 的这页历史中没有更早的消息。',
       resumePick: '选择旧会话只会连接。下一条消息从 CLI 原上下文继续，不会把本页之前的 DSH 对话一并发过去。',
       firstUse: '在 DSH 模型选择器选一个 ACP 模型并发送消息，执行活动就会出现在这里。',
       setup: '管理提供方', answeredByPreset: '完全访问 · 自动回应', answeredByUser: '人工回应',
@@ -172,7 +170,7 @@ window.__ModuleLoader__.load({
       restoreTo: '切回 {model}', restoreTitle: '把当前会话切回之前使用的 DSH 模型',
       restoreHint: '没有保存此会话之前的 DSH 模型，请用模型选择器切回。',
       moreOptions: '展开引擎选项', lessOptions: '收起引擎选项', switchEngine: '切换引擎',
-      connection: '连接', configuration: '配置', commands: 'CLI 命令', usage: '用量', directory: '目录',
+      configuration: '配置', commands: 'CLI 命令', usage: '用量', directory: '目录',
       noConfig: '连接后会载入此 CLI 公布的模型、模式和选项。',
       cliCommandGroup: 'CLI · {name}', cliCommandStale: '原来的命令选择已失效，请从 / 菜单重新选择 CLI 命令。',
       model: '模型', mode: '模式', commandPick: '选择命令…', commandArgs: '参数', commandRun: '运行',
@@ -304,7 +302,6 @@ window.__ModuleLoader__.load({
 .aw-usage-meter{width:50px;height:5px;border-radius:4px;background:var(--dsw-alias-border-l1);overflow:hidden}.aw-usage-meter>i{display:block;height:100%;background:var(--dsw-alias-label-secondary)}.aw-usage-meta,.aw-usage-detail{font-variant-numeric:tabular-nums}.aw-usage-detail{display:grid;gap:5px;padding:6px 12px 8px 30px}.aw-usage-detail dl{display:grid;grid-template-columns:max-content 1fr;gap:3px 14px;margin:0}.aw-usage-detail dd{margin:0}
 .aw-switch{display:inline-flex;align-items:center;gap:8px;font-size:12px}
 .aw-bar-error{padding:0 12px 8px}
-.aw-engine-hint{display:grid;gap:4px;padding:8px 12px}
 @container (max-width:560px){.aw-bar .aw-hide-narrow{display:none}}
 
 /* Pending human interaction */
@@ -2242,25 +2239,6 @@ window.__ModuleLoader__.load({
             error || view.error ? h('p', { role: 'alert', className: 'aw-error' }, error || view.error) : null))
         }
 
-        /** Contextual help only. The native composer still owns all new input and the Stop button. */
-        function EngineHint({ provider, binding, sessionId, view, canWrite }) {
-          const tt = useT()
-          const blocked = !canWrite || view.busy || view.data.status !== 'idle'
-          const issue = binding.activity.issue
-          const disconnected = !CONNECTED.has(binding.state)
-          const freshCopy = binding.native.forkedFrom && binding.state === 'disconnected' && !binding.native.runs.length && !binding.lastError && !binding.stopReason
-          return h('section', { className: 'aw-card aw-engine-hint', 'aria-label': tt('connection') },
-            h('div', { className: 'aw-row' }, h(StateDot, { size: 8, state: issue ? 'warning' : 'idle' }), h('strong', null, provider.label),
-              h(Status, { state: binding.state })),
-            h('p', { className: 'aw-note' }, tt(binding.archived ? 'archivedHint' : freshCopy ? 'forkReady' : binding.state === 'idle' ? (binding.activity.group === 'review' ? 'readyAfterError' : 'importedReady') : binding.activity.group === 'review' ? 'recoveryHint' : 'resumeHint', { name: binding.title })),
-            h(ForkOrigin, { binding }), binding.native.imported && binding.state === 'idle' && !binding.native.runs.length ? h(PreviousMessages, { key: binding.id, binding }) : null,
-            issue ? h('p', { className: 'aw-error' }, issue) : null,
-            h('div', { className: 'aw-row' },
-              binding.archived ? h(Button, { size: 'sm', variant: 'outline', disabled: blocked, onClick: () => view.run({ action: 'restore', sessionId: binding.id }) }, tt('unarchive')) : null,
-              !binding.archived && disconnected ? h(Button, { size: 'sm', variant: 'outline', disabled: blocked, onClick: () => view.run({ action: 'native-connect', dshSessionId: sessionId, externalId: binding.id }) }, tt(binding.remoteId && !freshCopy ? 'reconnect' : 'connect')) : null,
-              !binding.archived && binding.activity.group === 'review' ? h(Button, { size: 'sm', variant: 'ghost', disabled: blocked, onClick: () => { if (window.confirm(tt('newContextConfirm'))) void view.run({ action: 'native-reset', externalId: binding.id }) } }, tt('newContext')) : null))
-        }
-
         function CheckoutSwitcher({ sessionId, workspaceId, providers }) {
           const tt = useT(), workspaces = useList(ctx.workspaces.list), catalog = useList(ctx.sessions.list)
           const [open, toggle] = React.useState(false), [result, show] = React.useState(null), [error, fail] = React.useState(''), [version, refresh] = React.useReducer(n => n + 1, 0)
@@ -2338,17 +2316,15 @@ window.__ModuleLoader__.load({
           const provider = data?.providers.find(p => p.route === data.selected?.provider)
           const binding = provider ? sessions.findLast(s => s.native.sessionId === props.sessionId && s.native.route === provider.route && !s.native.retired) : null
           useCommandScope(props.sessionId, canWrite && data?.status === 'idle' && !view.error && binding?.state === 'idle' && !binding.archived ? binding.id : null, data?.commandStamp, provider?.label)
-          const hint = binding && !own.length && (binding.archived || binding.activity.group === 'review' || (binding.state === 'disconnected' && binding.activity.group === 'recent') || (binding.native.imported && !binding.native.runs.length && binding.state === 'idle'))
           const children = sessions.filter(s => s.native.sessionId !== props.sessionId && !s.native.retired && !s.archived)
           const visible = children.filter(s => ['attention', 'working', 'review'].includes(s.activity.group)).toSorted((a, b) => GROUPS.indexOf(a.activity.group) - GROUPS.indexOf(b.activity.group))
           const quiet = children.filter(s => s.activity.group === 'recent')
           const contextReport = binding && !binding.archived && data.contextReport?.externalId === binding.id ? data.contextReport : null
           const notices = binding && !binding.archived && data.noticeFeed?.externalId === binding.id && data.noticeFeed.remoteId === binding.remoteId && data.noticeFeed.items.length ? data.noticeFeed : null
-          if (!notices && !contextReport && !hint && !own.length && !children.length && !data?.checkoutGroup && !view.error && !navigationError) return null
+          if (!notices && !contextReport && !own.length && !children.length && !data?.checkoutGroup && !view.error && !navigationError) return null
           const childRow = child => h(ChildRow, { key: child.id, child, sessionId: props.sessionId, view, canWrite })
           return h('div', { className: 'acpw aw-dock' },
             own.flatMap(s => s.interactions.map(item => h(InteractionCard, { key: item.id, item, sessionId: s.id, cwd: s.cwd, run: view.run, disabled: view.busy || !canWrite }))),
-            hint ? h(EngineHint, { key: `${props.sessionId}:${provider.route}`, provider, binding, sessionId: props.sessionId, view, canWrite }) : null,
             notices ? h(ConnectionNotices, { key: 'notice:' + binding.id + ':' + notices.connection, report: notices }) : null,
             contextReport ? h(ContextReport, { key: 'context:' + binding.id, report: contextReport, title: tt('contextRecent') }) : null,
             data?.checkoutGroup ? h(CheckoutSwitcher, { key: props.sessionId, sessionId: props.sessionId, workspaceId: data.checkoutGroup, providers: data.providers }) : null,

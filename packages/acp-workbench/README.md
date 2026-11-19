@@ -73,7 +73,7 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
   - **命令、MCP 与联网工具**：显示只读终端卡（流式输出保留末尾 32 Ki 字符与退出码/信号）、MCP 服务与工具的参数/结构化结果，以及分开展示查询/目标/来源的网页搜索、抓取和页内查找。
   - **CLI 内部子任务**：当 Claude ACP 报告 `_meta.claudeCode.parentToolUseId` 时，可切入只读的 **本轮 CLI 子任务** 视图查看其调用、进展与审批回执，不创建第二条 DSH 会话。
   - **计划、压缩、提醒与用量**：只读展示任务清单与 Markdown 方案正文、CLI 上下文压缩状态与摘要、`notice` 提醒（轮次外最近 8 条显示在输入框下方）、窗口占用报告与轮末累计 token 总量。
-- **人工交互与新建上下文**：权限审批、Agent 提问、Claude `AskUserQuestion` 表单（`elicitation/create`）与计划审批都在输入框下方完成；审批卡支持展开 **查看最初的工具调用** 核对启动上下文，历史轨迹只读回看。**新建外部上下文** 仅退役当前绑定，保留 DSH 消息与旧记录。
+- **人工交互与新建上下文**：权限审批、Agent 提问、Claude `AskUserQuestion` 表单（`elicitation/create`）与计划审批都在输入框下方完成；审批卡支持展开 **查看最初的工具调用** 核对启动上下文，历史轨迹只读回看。在 **ACP 工作台 → 活动** 的绑定详情中点击 **新建外部上下文**，只会退役当前绑定，保留 DSH 消息与旧记录。
 
 ### 2. 项目工作台（侧栏：ACP 工作台 → 项目）
 
