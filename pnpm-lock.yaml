@@ -64,6 +64,8 @@ importers:
 
   packages/auto-review-model: {}
 
+  packages/bark-notify: {}
+
   packages/branch-switcher: {}
 
   packages/cheat-sheet: {}
