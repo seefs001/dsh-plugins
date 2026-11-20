@@ -34,6 +34,8 @@ dsh plugin --profile web add "link:$PWD/packages/pi-tools"
 - **`tool_search`**：BM25 延迟工具发现工具，搜索命中后从下一轮模型调用起即可直接调用对应工具。
 - **语法采样恢复**：通过 `lib/pi-ai-hook.js` 为支持 OpenAI grammar tools 的路由恢复 `constrainedSampling`（不支持的路由保持 JSON `{ code }` 传输），并在遇到孤立 `SyntaxError` / `ReferenceError` 时附带 `String.raw` 与转义提示。
 
+所有使用 `anthropic-messages` 协议的模型路由均保留正常请求的原始格式。仅当上游把消息末尾已配对的工具结果误报为 `assistant message prefill`（HTTP 400）时，插件才将结果中的字符串转为等价文本块，并在同一条消息末尾附上纯文本边界标记 `[End of tool results.]`，重发一次模型请求。标记不包含用户指令，也不写入会话历史。不会重跑工具；其他 400 或重发后的错误仍原样返回。
+
 ### 2. 挂载的原生 DSH 能力
 
 `cordis.patch.yml` 在 `pi` 预设内独立挂载了 DSH 原生能力（不污染其他预设）：

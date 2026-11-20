@@ -6,6 +6,7 @@ import { STATE_META, stateDefinition } from './state.js'
 import { PiLoadout } from './loadout.js'
 import { registerOptionsRoute, selectionDefinition } from './selection.js'
 import { addPiAiRequestTransform } from './pi-ai-hook.js'
+import { messagesPrefillTransform } from './messages-prefill.js'
 import { PiExecutor } from './executor.js'
 import { runGrep } from './search.js'
 import { apply as registerSkillContext } from './skill-context.js'
@@ -130,12 +131,13 @@ export function codemodeSamplingTransform(codemode = createCodemodeToolDefinitio
   }
 }
 
-async function restoreCodemodeSampling(ctx) {
+async function installRequestTransforms(ctx) {
   try {
-    const hook = await addPiAiRequestTransform(codemodeSamplingTransform())
-    ctx.effect(() => hook.remove, 'pi-tools: codemode grammar sampling')
+    const sampling = codemodeSamplingTransform()
+    const hook = await addPiAiRequestTransform(request => messagesPrefillTransform(sampling(request)))
+    ctx.effect(() => hook.remove, 'pi-tools: model request compatibility')
   } catch (error) {
-    ctx.logger?.warn?.(`pi-tools: codemode grammar sampling is unavailable; codemode uses JSON transport (${error instanceof Error ? error.message : error})`)
+    ctx.logger?.warn?.(`pi-tools: model request compatibility unavailable (${error instanceof Error ? error.message : error})`)
   }
 }
 
@@ -143,7 +145,7 @@ export async function apply(ctx, rawConfig = {}) {
   const config = normalizeConfig(rawConfig)
   if (config.presentationOnly) {
     registerOptionsRoute(ctx)
-    await restoreCodemodeSampling(ctx)
+    await installRequestTransforms(ctx)
     return
   }
   await registerSkillContext(ctx)
