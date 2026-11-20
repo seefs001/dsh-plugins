@@ -738,6 +738,7 @@ window.__ModuleLoader__.load({
           const open = () => ctx.uiWorkspace.openSession(id)
           return h('div', {
             className: `sgs-row sgs-member${current ? ' sgs-selected' : ''}`,
+            'data-group-session-id': id, // Lifecycle shelves can move the row without changing membership.
             role: 'treeitem', 'aria-selected': current, tabIndex: 0, title,
             draggable: true,
             onDragStart: e => {
