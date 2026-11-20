@@ -5,7 +5,7 @@
 | 项目 | 说明 |
 | --- | --- |
 | 运行位置 | Host + Web |
-| 前置依赖 | 运行环境中可用的 `rg` 与 `fd`（可通过 `rgCommand` / `fdCommand` 配置）；同时联动 `dsh-work-timeline` |
+| 前置依赖 | 运行环境中可用的 `rg` 与 `fd`（可通过 `rgCommand` / `fdCommand` 配置）；不需要安装其他同仓插件 |
 | 数据保存 | 会话选择写入会话日志（`plugin:dsh-pi-tools/selection`）；保存的预设默认工具存于 Host `pi_tools_defaults` storage domain |
 
 ## 安装
@@ -42,7 +42,7 @@ dsh plugin --profile web add "link:$PWD/packages/pi-tools"
 
 `cordis.patch.yml` 在 `pi` 预设内独立挂载了 DSH 原生能力（不污染其他预设）：
 
-- **工作时间线与计划模式**：`work_read`、`work_update`（由 `dsh-work-timeline/tools` 提供，取代旧 `todo_write`）以及隔离的 `planMode`（`exit_plan_mode`）。
+- **工作时间线与计划模式**：只有另行安装并启用 `dsh-work-timeline` 后，Pi 才提供 `work_read`、`work_update`；不安装时仍可使用 `planMode`（`exit_plan_mode`）。
 - **子代理、技能与工作流**：`subagent`、`subagent_fork`、`list_subagent_models`、`send_message`、`list_agents`、`wait_agent`、`ask_user_question`、`skill`（含 `/` 补全）、`workflow`（DSH PTC）。
 - **后台任务、定时与目标**：`job_*`、`schedule_*`、`create_goal` / `get_goal` / `update_goal`、`/goal`。
 - **联网、演示与 Office（部分默认需在选择器勾选）**：`web_fetch`、`web_search`、`present`、`office_*`、`plugin_manager`、`plugin_market`、`cordis_inspect_*`。

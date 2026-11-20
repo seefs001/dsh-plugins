@@ -1,6 +1,4 @@
 - insert:
-    - id: work-timeline
-      name: dsh-work-timeline
     - id: pi-tool-presentation
       name: dsh-pi-tools
       config:
@@ -54,8 +52,6 @@
             name: '@deepseek-ai/dsh-command-goal'
           - id: pi-tool-goal
             name: '@deepseek-ai/dsh-tool-goal'
-          - id: pi-work-timeline
-            name: dsh-work-timeline/tools
           - id: pi-web
             name: '@deepseek-ai/dsh-tool-web'
             config:

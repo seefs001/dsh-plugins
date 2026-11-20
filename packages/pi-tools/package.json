@@ -56,7 +56,6 @@
     "dsh": ">=0.2.2-rc.3 <0.3.0"
   },
   "dependencies": {
-    "dsh-work-timeline": "workspace:^",
     "@earendil-works/pi-ai": "1.6.0",
     "@earendil-works/pi-codemode": "1.6.0",
     "@earendil-works/pi-coding-agent": "1.6.0",

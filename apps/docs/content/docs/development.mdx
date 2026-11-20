@@ -27,7 +27,7 @@ packages/<name>/
 
 绝大多数插件都是无需构建的原生 ES 模块，`link:` 安装即直接执行源码。两个例外：
 
-- `pi-tools`：浏览器入口位于包根目录 `client.js`，`cordis.patch.yml` 同时挂载 `work-timeline` 与完整的 `pi` 预设。
+- `pi-tools`：浏览器入口位于包根目录 `client.js`，`cordis.patch.yml` 挂载完整的 `pi` 预设。工作时间线是独立 bundle；启用它时，工具才注册到 `pi` 作用域。
 - `message-actions`：浏览器源码位于 `src/client.js`，需执行 `pnpm --filter dsh-message-actions build` 生成 `lib/client.js`（`prepack` 会自动运行）。
 
 ## 本地链接调试

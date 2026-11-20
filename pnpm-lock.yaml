@@ -121,9 +121,6 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: 1.6.0
         version: 1.6.0(@aws-sdk/credential-provider-node@3.972.96)(@smithy/signature-v4@5.7.5)(google-auth-library@10.9.1)(ws@8.22.2)(zod@4.6.7)
-      dsh-work-timeline:
-        specifier: workspace:^
-        version: link:../work-timeline
       minimatch:
         specifier: 11.0.3
         version: 11.0.3

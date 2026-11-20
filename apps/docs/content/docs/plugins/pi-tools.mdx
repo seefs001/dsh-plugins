@@ -8,7 +8,7 @@ description: 独立的 pi 预设：Pi 原版编程工具、MoeJS codemode，以�
 为 DSH 新增一个独立的 **`pi`** Agent 预设：把 Pi 原版的编程工具、系统提示词与 MoeJS `codemode` 沙箱接入 DSH 原生的会话、权限、沙箱、模型路由和 MCP 连接中，同时完全保留默认预设和其他会话不变。
 
 <Callout type="info" title="环境要求与联动">
-运行环境中需提供 `rg` 与 `fd`（也可通过配置 `rgCommand` / `fdCommand` 指定路径）。安装本包时会自动一并启用 [工作时间线](/docs/plugins/work-timeline) 作为 `pi` 预设的计划与产物工具。
+运行环境中需提供 `rg` 与 `fd`（也可通过配置 `rgCommand` / `fdCommand` 指定路径）。本包可独立安装。需要计划时间线和产物面板时，另行安装并启用[工作时间线](/docs/plugins/work-timeline)；Pi 会自动接入，不用修改预设。
 </Callout>
 
 ## 安装
@@ -38,7 +38,7 @@ description: 独立的 pi 预设：Pi 原版编程工具、MoeJS codemode，以�
 
 | 类别 | 工具与功能 |
 | --- | --- |
-| 工作与计划 | `work_read`、`work_update`（取代 `todo_write`）；独立 `planMode`（`exit_plan_mode`） |
+| 工作与计划 | 可选的 `work_read`、`work_update`（需启用工作时间线）；独立 `planMode`（`exit_plan_mode`） |
 | 子代理与提问 | `subagent`、`subagent_fork`、`list_subagent_models`、`send_message`、`list_agents`、`wait_agent`、`ask_user_question` |
 | 技能、目标与任务 | `skill`（含 `/` 补全）、`workflow`（DSH PTC）、`job_*`、`schedule_*`、`create_goal` / `get_goal` / `update_goal`、`/goal` |
 | 联网、展示与扩展 | `web_fetch`、`web_search`、可选启用 `present`、`office_*`、`plugin_manager`、`plugin_market`、`cordis_inspect_*` |

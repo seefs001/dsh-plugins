@@ -8,7 +8,7 @@ description: 会话内的工作计划、修订过程与产物面板，替换 Pi 
 在输入框上方摘要条与右侧详情面板中展示会话级的工作计划、修订历史和关联产物（交付物与证据文件），在 `pi` 预设中替代传统扁平的 TODO 清单。
 
 <Callout type="info" title="工具与界面拆分">
-本包的主入口提供投影与右侧面板视图；`work_read` 与 `work_update` 工具由子入口 `dsh-work-timeline/tools` 提供，已默认挂载在 [Pi 工具](/docs/plugins/pi-tools) 的 `pi` 预设中。
+本包的主入口提供投影与右侧面板视图；`work_read` 与 `work_update` 工具由子入口 `dsh-work-timeline/tools` 提供，与新版 [Pi 工具](/docs/plugins/pi-tools) 同时启用时会自动挂载到 `pi` 预设。单装任意一个都不要求另一个；其他预设也可显式挂载工具子入口。
 </Callout>
 
 ## 安装

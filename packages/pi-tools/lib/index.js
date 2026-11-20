@@ -148,6 +148,10 @@ export async function apply(ctx, rawConfig = {}) {
     await installRequestTransforms(ctx)
     return
   }
+  // This optional integration owns its registrations in the preset, not on the Host.
+  if (config.scopedTools.includes('work_read') && config.scopedTools.includes('work_update')) {
+    await ctx.inject(['workTimeline'], scope => scope.workTimeline.registerTools(scope)).await()
+  }
   await registerSkillContext(ctx)
   const state = await ctx.sessionProjections.register(stateDefinition)
   const selection = await ctx.sessionProjections.register(selectionDefinition)

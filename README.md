@@ -67,7 +67,7 @@ Each plugin lives in `packages/<name>` as an independent bundle that you can ins
 | [`dsh-web-access`](packages/web-access) | Adds `grok_search` (web + X) and `openai_search` backed by existing Responses providers. | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | Adds `openai_image` and `grok_image` backed by existing Responses providers, saving images to disk and attachments. | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | Isolated `pi` preset with Pi coding tools, MoeJS `codemode`, per-session tool selection, saved defaults, and MCP refresh. | Host + Web |
-| [`dsh-work-timeline`](packages/work-timeline) | Session work plan, revision history, and artifact panel (replaces TODO in `pi`; tools exported from `dsh-work-timeline/tools`). | Host + Web |
+| [`dsh-work-timeline`](packages/work-timeline) | Session work plan, revision history, and artifact panel (optional in `pi`; tools exported from `dsh-work-timeline/tools`). | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | Shares Pi's `~/.pi/agent/mcp.json` with DSH and hot-reloads file changes. | Host |
 | [`dsh-paseo-hub`](packages/paseo-hub) | Enroll DSH Host as a Paseo Hub daemon to run Hub triggers locally, plus an organization API console and tools. | Host + Web |
 | [`dsh-bark-notify`](packages/bark-notify) | Send Bark push notifications when an agent asks a question, submits a plan, or requests tool approval. | Host + Web |

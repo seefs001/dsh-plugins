@@ -5,7 +5,7 @@
 | 项目 | 说明 |
 | --- | --- |
 | 运行位置 | Host + Web |
-| 工具来源 | `work_read` 与 `work_update` 由 `dsh-work-timeline/tools` 导出（已由 `dsh-pi-tools` 的 `pi` 预设默认挂载） |
+| 工具来源 | `work_read` 与 `work_update` 由 `dsh-work-timeline/tools` 导出；与新版 `dsh-pi-tools` 同时启用时自动接入 `pi` 预设 |
 | 数据保存 | 随会话日志中成功的 `work_update` 工具结果（`meta.dshWorkTimeline`）保存，无独立 storage domain |
 
 ## 安装
@@ -32,6 +32,6 @@ dsh plugin --profile web add "link:$PWD/packages/work-timeline"
 ## 边界说明
 
 - 仅反映 Agent 通过 `work_update` 主动汇报的状态，不自动执行工作流、不授权工具权限，也不替代原生 `exit_plan_mode` 或 Goal。
-- 单独安装本包仅提供投影与展示界面；新建 `pi` 预设会话时配合 `dsh-pi-tools` 使用即可拥有完整工具。
+- 只启用本包时，默认提供投影与展示界面，不向全局注册工具。与新版 `dsh-pi-tools` 同时启用时，`pi` 预设自动获得工具；其他预设可显式挂载 `dsh-work-timeline/tools`。Pi 不会代为安装本包。
 
 更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/work-timeline)。

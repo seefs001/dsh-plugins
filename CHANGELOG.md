@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `dsh-pi-tools` no longer installs or enables `dsh-work-timeline`. To keep the timeline panel and `work_read` / `work_update` in Pi after upgrading, install and enable the updated timeline bundle separately. Existing work snapshots stay in the session log.
+
 - `dsh-session-search`: a labeled sidebar button opens a search palette with recent sessions, message snippets, and keyboard navigation.
 
 - `dsh-diagram-preview` 0.1.0: preview Mermaid, Graphviz/DOT, ECharts JSON and SVG fences in Web chat. Resize each diagram, open a zoomable preview, or switch back to the original code; invalid diagrams keep their source.

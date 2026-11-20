@@ -16,6 +16,6 @@ github:seefs001/dsh-plugins#main&path:/packages/<name>
 ## 插件之间的配合
 
 - **# 引用模型 + 快速模式**：两者同时启用时，`#` 模型标签会自动带上并传递 `⚡` 快速模式标记；各自也可独立使用。
-- **Pi 工具 + 工作时间线 + Pi MCP 服务器 + 联网搜索 / 画图**：`pi` 预设内置挂载 `dsh-work-timeline/tools`（提供 `work_read` / `work_update`），同时自动桥接 `dsh-pi-mcp` 导入的全局 MCP 服务器，并在默认列表里透传 `grok_search`、`openai_search`、`openai_image`、`grok_image`。
+- **Pi 工具 + 工作时间线 + Pi MCP 服务器 + 联网搜索 / 画图**：`pi` 预设可独立使用。另启工作时间线可获得 `work_read` / `work_update`；另启 `dsh-pi-mcp` 可桥接它导入的全局 MCP 服务器，并在默认列表里透传 `grok_search`、`openai_search`、`openai_image`、`grok_image`。
 - **最近会话优先** 原先包含在 `# 引用模型` 内，现已拆分为独立插件，互相不依赖。
 - **工具透镜 + 编辑消息 + 引用跳转 + Wait, what?**：四者分别增强对话时间线的工具行、用户消息、引用块与助手回复操作栏，可自由组合安装。
