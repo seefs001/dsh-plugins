@@ -4,6 +4,7 @@ import { createCodemodeToolDefinition } from './codemode-budget.js'
 import { INTERNAL_PREFIX } from './loadout.js'
 import { rememberNestedSkill, nestedSkillProofs } from './skill-context.js'
 import { withCodemodeSyntaxGuidance } from './codemode-syntax.js'
+import { aliasToolCall } from './claude-aliases.js'
 
 // A read/write barrier for a script's calls. Read-only calls may overlap, while
 // mutations and unknown classifiers run alone. Started calls drain on abort.
@@ -162,7 +163,13 @@ export class PiExecutor {
   }
 
   execute(input) {
-    return executeToolBatch(input, this.pipeline, () => this.config.maxParallel)
+    const { agent, toolSet } = input
+    // A registered tool with the Claude Code name, such as an MCP passthrough, keeps priority.
+    const available = (name, target) => !this.tools.executable(name, agent, toolSet)
+      && this.loadout.enabled(target, agent) && this.tools.executable(target, agent, toolSet) !== undefined
+    const calls = input.calls.map(block => aliasToolCall(block, available))
+    return executeToolBatch(calls.some((block, index) => block !== input.calls[index]) ? { ...input, calls } : input,
+      this.pipeline, () => this.config.maxParallel)
   }
 
   rememberStructuredError(exec, result) {
