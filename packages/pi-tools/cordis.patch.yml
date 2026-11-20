@@ -174,5 +174,11 @@
                 config:
                   summarizationProvider: !!js "process.env.DSH_PI_SUMMARY_PROVIDER ?? ''"
                   summarizationModel: !!js "process.env.DSH_PI_SUMMARY_MODEL ?? ''"
+                  modelPolicies:
+                    - provider: openai
+                      model: gpt-6.2-astra
+                      headroomTokens: 60000
+                      # Keep the summary output cap independent of pressure headroom.
+                      maxTokens: 65536
               - id: pi-command-compact
                 name: '@deepseek-ai/dsh-command-compact'
