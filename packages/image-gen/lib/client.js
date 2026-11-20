@@ -95,6 +95,31 @@ window.__ModuleLoader__.load({
       return data
     }
 
+    // Child-slot declarations have one owner, even when an entry is shadowed.
+    // Keep a private seat and follow the original seat's live contributions.
+    function mirrorSlot(ctx, source, target) {
+      ctx.slots.inject(target, () => {
+        let disposers = []
+        const sync = () => {
+          for (const dispose of disposers) dispose()
+          disposers = []
+          for (const entry of ctx.slots.entries(source)) {
+            disposers.push(ctx.slots.register({
+              ...entry,
+              ...entry.options,
+              name: target,
+            }, entry.component))
+          }
+        }
+        const off = ctx.on('slots/changed', name => { if (name === source) sync() })
+        sync()
+        return () => {
+          off()
+          for (const dispose of disposers) dispose()
+        }
+      })
+    }
+
     const KINDS = ['openai', 'grok']
     const isRecord = v => v !== null && typeof v === 'object' && !Array.isArray(v)
     function normalize(s) {
@@ -149,6 +174,8 @@ window.__ModuleLoader__.load({
           const title = toolName === 'grok_image' ? t('rowGrok') : t('rowOpenai')
           return h(base.component, {
             ...props,
+            renderSlot: (name, owner, options) => props.renderSlot(
+              name === 'tool.call.images' ? `image-gen.${toolName}.images` : name, owner, options),
             toolName: 'read_image',
             block: display,
             t: (key, ...rest) => key === 'tool.title.readImage' ? title : props.t(key, ...rest),
@@ -162,8 +189,9 @@ window.__ModuleLoader__.load({
             locale: 'conversation',
             priority: -10,
             inject: () => ({ resolveFilePath: path => path }),
-            children: { 'tool.call.images': { kind: 'single', scope: 'session' } },
+            children: { [`image-gen.${key}.images`]: { kind: 'single', scope: 'session' } },
           }, ImageRow))
+          mirrorSlot(ctx, 'tool.call.images', `image-gen.${key}.images`)
         }
 
         function Settings() {
