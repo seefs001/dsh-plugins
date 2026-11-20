@@ -105,6 +105,31 @@ window.__ModuleLoader__.load({
       return entry
     }
 
+    // Child-slot declarations have one owner, even when an entry is shadowed.
+    // Keep a private seat and follow the original seat's live contributions.
+    function mirrorSlot(ctx, source, target) {
+      ctx.slots.inject(target, () => {
+        let disposers = []
+        const sync = () => {
+          for (const dispose of disposers) dispose()
+          disposers = []
+          for (const entry of ctx.slots.entries(source)) {
+            disposers.push(ctx.slots.register({
+              ...entry,
+              ...entry.options,
+              name: target,
+            }, entry.component))
+          }
+        }
+        const off = ctx.on('slots/changed', name => { if (name === source) sync() })
+        sync()
+        return () => {
+          off()
+          for (const dispose of disposers) dispose()
+        }
+      })
+    }
+
     function Pencil() {
       return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
         h('path', { d: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4' }))
@@ -252,7 +277,7 @@ window.__ModuleLoader__.load({
             ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
           return h('div', { className: 'dme-row' },
-            renderSlotChain('conversation.chat.user.before', { source: data.source, kind: node.kind }, { fallback: null }),
+            renderSlotChain('message-edit.user.before', { source: data.source, kind: node.kind }, { fallback: null }),
             renderFactorySlot('conversation.chat.user.content', { content, facts, interactive: true, loadImage }),
             h('div', { className: 'dme-actions' },
               edited ? h('span', { className: 'dme-badge' }, t('edited'), edited.inContext ? '' : ` ${t('compacted')}`) : null,
@@ -274,8 +299,9 @@ window.__ModuleLoader__.load({
 
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
           name: 'conversation.chat.node', key: 'user', priority: -10,
-          children: { 'conversation.chat.user.before': { kind: 'chain', scope: 'session' } },
+          children: { 'message-edit.user.before': { kind: 'chain', scope: 'session' } },
         }, UserMessage))
+        mirrorSlot(ctx, 'conversation.chat.user.before', 'message-edit.user.before')
       },
     }
   },
