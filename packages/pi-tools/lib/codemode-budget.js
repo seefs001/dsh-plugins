@@ -1,9 +1,12 @@
 import { createCodemodeToolDefinition as createNativeTool, sliceHead, sliceTail, writeOutputFile } from './pi.js'
 
+import { borrowRunnerPool } from './moe-runner.js'
+
 const DEFAULT_TOKENS = 2000
 const TEXT_BUDGET = DEFAULT_TOKENS * 4 // Pi's output estimator counts UTF-16 code units.
 
-function describe(description) {
+function describe(description, backend) {
+  if (backend === 'moejs') description = description.replace('QuickJS sandbox', 'MoeJS sandbox')
   return description.replace('"max_output_tokens": 10000', `"max_output_tokens": ${DEFAULT_TOKENS}`)
     .replace('- Optional first line:', `- Batch text defaults to ~${TEXT_BUDGET} characters; oversized results link to the full output. Override on the first line:`)
 }
@@ -55,18 +58,26 @@ async function budgetResult(result, source) {
 
 // Apply the smaller default at the return boundary. Injecting an @options line
 // into the user's source would shift QuickJS stack locations by one line.
-export function createCodemodeToolDefinition(options) {
+export function createCodemodeToolDefinition(options = {}) {
+  const backend = options.codemodeBackend ?? 'moejs'
   const tool = createNativeTool(options)
   return {
     ...tool,
-    description: describe(tool.description),
+    description: describe(tool.description, backend),
     prepareLoadout(loadout) {
       const prepared = tool.prepareLoadout(loadout)
-      prepared.descriptions.codemode = describe(prepared.descriptions.codemode)
+      prepared.descriptions.codemode = describe(prepared.descriptions.codemode, backend)
       return prepared
     },
-    async execute(id, args, ...rest) {
-      return budgetResult(await tool.execute(id, args, ...rest), args.code)
+    async execute(id, args, signal, onUpdate, ctx) {
+      if (backend === 'quickjs') return budgetResult(await tool.execute(id, args, signal, onUpdate, ctx), args.code)
+      const { executeCodemode } = await import('./generated/moe-execute.js')
+      const runnerPool = options.runnerPool ?? borrowRunnerPool()
+      try {
+        return await budgetResult(await executeCodemode(id, args, signal, onUpdate, ctx, { ...options, runnerPool }), args.code)
+      } finally {
+        if (!options.runnerPool) await runnerPool.close()
+      }
     },
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "dsh-pi-tools",
   "version": "0.3.0",
-  "description": "An isolated pi preset for DSH with Pi coding tools, QuickJS codemode, and on-demand MCP.",
+  "description": "An isolated pi preset for DSH with Pi coding tools, MoeJS codemode, and on-demand MCP.",
   "keywords": [
     "dsh-plugin",
     "dsh",
@@ -27,14 +27,30 @@
     "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
+  "scripts": {
+    "build:runner": "node build/runner.mjs",
+    "build:runner:all": "node build/runner.mjs --all",
+    "prepack": "node build/runner.mjs --check"
+  },
   "files": [
     "lib",
+    "bin",
+    "runner",
+    "build",
     "client.js",
     "locale",
     "icon.svg",
     "cordis.patch.yml",
     "README.md"
   ],
+  "publishConfig": {
+    "executableFiles": [
+      "bin/darwin-arm64/moejs",
+      "bin/darwin-x64/moejs",
+      "bin/linux-arm64/moejs",
+      "bin/linux-x64/moejs"
+    ]
+  },
   "engines": {
     "node": "^22.19.0 || >=24.0.0",
     "dsh": ">=0.2.2-rc.3 <0.3.0"
@@ -42,6 +58,7 @@
   "dependencies": {
     "dsh-work-timeline": "workspace:^",
     "@earendil-works/pi-ai": "1.6.0",
+    "@earendil-works/pi-codemode": "1.6.0",
     "@earendil-works/pi-coding-agent": "1.6.0",
     "minimatch": "11.0.3"
   },

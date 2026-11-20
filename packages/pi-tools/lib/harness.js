@@ -35,6 +35,7 @@ export const Config = Schema.object({
   tools: Schema.array(Schema.union(['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls']))
     .default(['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls']),
   codemode: Schema.boolean().default(true),
+  codemodeBackend: Schema.union(['moejs', 'quickjs']).default('moejs'),
   toolSearch: Schema.boolean().default(true),
   scopedTools: Schema.array(Schema.string().min(1)).default([])
     .description('Native DSH tool names mounted in this preset, enabled by default unless the session has an explicit selection.'),

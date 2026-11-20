@@ -1,0 +1,8 @@
+github.com/MoeForge/moego v0.1.0-alpha.3 h1:sn8Kg4qY/gqGXU4CCJWfgzouaim6alkvXcob0uFDohg=
+github.com/MoeForge/moego v0.1.0-alpha.3/go.mod h1:SBNiQjCpWC3IEBMKFBOwOyhhQ3jywMrISqCwJTdr4aA=
+github.com/MoeForge/moejs v0.1.1 h1:JwZrwHU9kOzUguJiQ9xJULfDnMXxxarhgb3ADyjfkoQ=
+github.com/MoeForge/moejs v0.1.1/go.mod h1:pSDJ4TPDgzTiTYIe9qXRPdUceGZ0vdwgQwSvGl7fJD0=
+github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
+github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
+go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
+go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=

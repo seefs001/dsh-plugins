@@ -54,7 +54,7 @@ const entries: Entry[] = [
   { slug: 'cheat-sheet', category: 'tools', surface: 'Host + Web', summary: '搜索可用技能、置顶常用项（按实际使用次数排序），一键把 /命令 填进输入框。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'web-access', category: 'tools', surface: 'Host + Web', summary: '新增 grok_search 和 openai_search，复用已有 Responses provider 的托管搜索。', requires: ['支持托管搜索的 Responses provider'] },
   { slug: 'image-gen', category: 'tools', surface: 'Host + Web', summary: '新增 openai_image 和 grok_image，复用已有 Responses provider 的托管画图并保存为文件。', requires: ['支持托管 image_generation 的 Responses provider'] },
-  { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 原版工具与提示词、QuickJS codemode、会话工具选择器与 MCP 刷新。', requires: ['rg 与 fd'] },
+  { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 原版工具与提示词、MoeJS codemode、会话工具选择器与 MCP 刷新。', requires: ['rg 与 fd'] },
   { slug: 'work-timeline', category: 'tools', surface: 'Host + Web', summary: '会话里的工作计划、修订过程和产物面板（替换 Pi 预设的 TODO）；工具由 dsh-work-timeline/tools 提供。' },
   { slug: 'pi-mcp', category: 'tools', surface: 'Host', summary: '在 DSH 里共用 Pi 的 ~/.pi/agent/mcp.json，改文件热同步生效。', requires: ['@deepseek-ai/dsh-mcp-manager'] },
   { slug: 'orbit-bridge', category: 'tools', surface: 'Host + Web', summary: '只读巡检 Orbit 项目，对比上次检查列出新增、变动和消失的任务，不写 Orbit。', requires: ['Orbit MCP 服务器', '@deepseek-ai/dsh-storage-domain'] },

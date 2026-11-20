@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Pi tools",
-    "description": "Adds an isolated pi preset combining Pi coding tools and QuickJS codemode with DSH tools and on-demand MCP, inside DSH’s permission model."
+    "description": "Adds an isolated pi preset combining Pi coding tools and MoeJS codemode with DSH tools and on-demand MCP, inside DSH’s permission model."
   }
 }

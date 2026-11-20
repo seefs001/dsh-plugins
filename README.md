@@ -65,7 +65,7 @@ Each plugin lives in `packages/<name>` as an independent bundle that you can ins
 | [`dsh-cheat-sheet`](packages/cheat-sheet) | Search session skills, pin favorites, sort by observed real usage, and insert `/commands` into the composer. | Host + Web |
 | [`dsh-web-access`](packages/web-access) | Adds `grok_search` (web + X) and `openai_search` backed by existing Responses providers. | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | Adds `openai_image` and `grok_image` backed by existing Responses providers, saving images to disk and attachments. | Host + Web |
-| [`dsh-pi-tools`](packages/pi-tools) | Isolated `pi` preset with Pi coding tools, QuickJS `codemode`, per-session tool selection, saved defaults, and MCP refresh. | Host + Web |
+| [`dsh-pi-tools`](packages/pi-tools) | Isolated `pi` preset with Pi coding tools, MoeJS `codemode`, per-session tool selection, saved defaults, and MCP refresh. | Host + Web |
 | [`dsh-work-timeline`](packages/work-timeline) | Session work plan, revision history, and artifact panel (replaces TODO in `pi`; tools exported from `dsh-work-timeline/tools`). | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | Shares Pi's `~/.pi/agent/mcp.json` with DSH and hot-reloads file changes. | Host |
 | [`dsh-orbit-bridge`](packages/orbit-bridge) | Read-only watch over Orbit projects tracking new, changed, and missing tasks against the previous check. Never writes to Orbit. | Host + Web |

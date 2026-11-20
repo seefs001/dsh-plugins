@@ -1,5 +1,6 @@
 import { ToolExecutionPipeline, ToolNotFoundError, executeToolBatch, projectToolSchema, scopeTarget } from './harness.js'
 import { createToolSearchToolDefinition, invoke } from './pi.js'
+import { borrowRunnerPool } from './moe-runner.js'
 import { createCodemodeToolDefinition } from './codemode-budget.js'
 import { INTERNAL_PREFIX } from './loadout.js'
 import { rememberNestedSkill, nestedSkillProofs } from './skill-context.js'
@@ -135,6 +136,7 @@ export class PiExecutor {
       const calls = [...this.active]
       for (const call of calls) call.controller.abort(new Error('Pi executor disposed'))
       await Promise.allSettled(calls.map(call => call.done))
+      await this.runnerPool?.close()
     })
   }
 
@@ -143,7 +145,7 @@ export class PiExecutor {
     const visible = definitions.filter(tool => !tool.name.startsWith(INTERNAL_PREFIX)
       && (this.loadout.ownNames.has(tool.name) || this.loadout.bridges.has(tool.name) || this.loadout.agentScoped(tool.name)))
     const scriptTools = new Map(callable.map(tool => [tool.name, tool]))
-    const prepared = this.config.codemode ? createCodemodeToolDefinition({ models: false }).prepareLoadout({
+    const prepared = this.config.codemode ? createCodemodeToolDefinition({ models: false, codemodeBackend: this.config.codemodeBackend }).prepareLoadout({
       callable,
       declared: visible.map(tool => scriptTools.get(tool.name) ?? tool),
       getExposure: name => this.loadout.exposure(name),
@@ -219,6 +221,8 @@ export class PiExecutor {
     const nested = new NestedCalls(this, current)
     let writes
     const definition = createCodemodeToolDefinition({
+      runnerPool: this.config.codemodeBackend === 'quickjs' ? undefined : (this.runnerPool ??= borrowRunnerPool()),
+      codemodeBackend: this.config.codemodeBackend,
       getToolNamespace: name => this.loadout.namespace(name, exec.agent),
       getToolGuidelines: () => this.loadout.guidelines,
       models: false,

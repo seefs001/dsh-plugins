@@ -32,7 +32,7 @@ async function convertContent(ctx, content) {
 export function piDefinitions(cwd, config) {
   return [
     ...createDefinitions(cwd, undefined, config.tools),
-    ...config.codemode ? [createCodemodeToolDefinition({ models: false })] : [],
+    ...config.codemode ? [createCodemodeToolDefinition({ models: false, codemodeBackend: config.codemodeBackend })] : [],
     ...config.toolSearch ? [createToolSearchToolDefinition({ tools: {
       getAllTools: () => [], getActiveTools: () => [], setActiveTools: () => {},
     } })] : [],

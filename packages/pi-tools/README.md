@@ -1,6 +1,6 @@
 # dsh-pi-tools（`pi` 预设）
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）提供一个独立的 `pi` Agent 预设：把 Pi 原版的编程工具、系统提示词和 QuickJS `codemode` 沙箱接入 DSH 原有的会话、权限、沙箱、模型路由与 MCP 连接中，不改 DSH 源码，也不影响默认预设和其他会话。
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）提供一个独立的 `pi` Agent 预设：把 Pi 原版的编程工具、系统提示词和 MoeJS `codemode` 沙箱接入 DSH 原有的会话、权限、沙箱、模型路由与 MCP 连接中，不改 DSH 源码，也不影响默认预设和其他会话。
 
 | 项目 | 说明 |
 | --- | --- |
@@ -14,7 +14,9 @@
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/pi-tools"
 ```
 
-本地开发链接：
+发布包包含 macOS、Linux、Windows 的 x64 和 arm64 runner；使用安装包不需要 Go，也不需要执行安装脚本。
+
+本地开发时，修改 runner 或升级 Pi 后先运行 `pnpm --filter dsh-pi-tools build:runner`（Go 1.25+）。交付前运行 `pnpm --filter dsh-pi-tools build:runner:all` 更新六个平台的 `bin/` 和生成的 Pi 适配器；Git 子目录安装与 tarball 使用同一份预构建文件。开发链接：
 
 ```bash
 dsh plugin --profile web add "link:$PWD/packages/pi-tools"
@@ -24,10 +26,10 @@ dsh plugin --profile web add "link:$PWD/packages/pi-tools"
 
 ## 核心能力
 
-### 1. Pi 原版工具与 QuickJS codemode
+### 1. Pi 原版工具与 MoeJS codemode
 
 - **基础编程工具**：`read`、`bash`、`edit`、`write`、`ls`、`find`、`grep`，保留 Pi 原版的工具名称、描述与参数 Schema，底层全部通过 DSH 的 `ctx.fs`、`ctx.subprocess` 与 `ctx.sandbox` 执行。
-- **`codemode`**：Pi 的 QuickJS Worker 沙箱（仅接受 `{ code: string }`），脚本内可使用 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool`、`describeNamespace` 调用当前步已放行的工具。无 Node/文件系统/网络直连权限，一切外调走受控 DSH 工具管线。
+- **`codemode`**：默认使用常驻 Go 子进程，每次脚本新建 MoeJS runtime（仅接受 `{ code: string }`），脚本内可使用 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool`、`describeNamespace` 调用当前步已放行的工具。无 Node/文件系统/网络直连权限，一切外调走受控 DSH 工具管线。
 - **回传预算**：默认整批文本保留约 8,000 个字符。超出时保留首尾，完整文本写入返回路径，可用 `read` 分段查看，无需重跑。图片仍正常返回；要调整单次预算，在脚本首行设置 `// @options: {"max_output_tokens": 4000}`。
 - **Skill 正文提醒**：Pi 在请求前提示哪些 Skill 的完整指令仍可见。目录、失败调用和未返回正文的 `codemode` 调用不算；重复加载不重复发布名单，正文被裁剪或压缩移除后更新提醒。
 - **实时轨迹**：`codemode` 的子步骤默认折叠。点击「脚本」可随时展开或收起；展开后可实时查看每个工具调用的参数和结果，折叠时仍能看到执行进度和失败步数。
@@ -57,6 +59,8 @@ dsh plugin --profile web add "link:$PWD/packages/pi-tools"
 
 ## 预设配置项
 
-`cordis.patch.yml` 中 `dsh-pi-tools` 支持的字段包括 `tools`、`codemode`、`toolSearch`、`scopedTools`、`globalTools`、`optInTools`、`mcpServers`、`mcpExposure`、`maxParallel`（默认 `10`）、`rgCommand`、`fdCommand`；前端伴侣入口通过 `presentationOnly: true` 挂载 `/pi-tools/options` 与 `codemode` / `tool_search` 结果卡片。
+`cordis.patch.yml` 中 `dsh-pi-tools` 支持的字段包括 `tools`、`codemode`、`codemodeBackend`、`toolSearch`、`scopedTools`、`globalTools`、`optInTools`、`mcpServers`、`mcpExposure`、`maxParallel`（默认 `10`）、`rgCommand`、`fdCommand`；前端伴侣入口通过 `presentationOnly: true` 挂载 `/pi-tools/options` 与 `codemode` / `tool_search` 结果卡片。
+
+`codemodeBackend` 默认为 `moejs`，可显式设为 `quickjs` 作对照或回退。脚本失败或 runner 退出不会换引擎重跑。并发上限沿用 Pi 的 `PI_CODEMODE_MAX_WORKERS`（默认 2），与单个脚本内部的 `maxParallel` 独立。
 
 更多使用说明、系统提示词与兼容边界见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/pi-tools)。

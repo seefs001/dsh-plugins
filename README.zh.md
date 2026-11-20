@@ -65,7 +65,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-cheat-sheet`](packages/cheat-sheet) | 搜索可用技能、置顶常用项（按实际使用次数排序），一键把 `/命令` 填进输入框。 | Host + Web |
 | [`dsh-web-access`](packages/web-access) | 新增 `grok_search`（网页与 X）和 `openai_search`，复用已有 Responses provider 的托管搜索。 | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | 新增 `openai_image` 和 `grok_image`，复用已有 Responses provider 的托管画图并保存为文件。 | Host + Web |
-| [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具、QuickJS `codemode`、会话工具选择器、预设默认与 MCP 刷新。 | Host + Web |
+| [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具、MoeJS `codemode`、会话工具选择器、预设默认与 MCP 刷新。 | Host + Web |
 | [`dsh-work-timeline`](packages/work-timeline) | 会话里的工作计划、修订过程和产物面板（替换 `pi` 预设 TODO；工具由 `dsh-work-timeline/tools` 导出）。 | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | 在 DSH 里共用 Pi 的 `~/.pi/agent/mcp.json`，改文件热同步生效。 | Host |
 | [`dsh-orbit-bridge`](packages/orbit-bridge) | 只读巡检 Orbit 项目，对比上次检查列出新增、变动和消失的任务，不写 Orbit。 | Host + Web |

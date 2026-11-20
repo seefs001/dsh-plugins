@@ -1,11 +1,11 @@
 ---
 title: Pi 工具
-description: 独立的 pi 预设：Pi 原版编程工具、QuickJS codemode，以及按会话勾选的 DSH 与 MCP 工具。
+description: 独立的 pi 预设：Pi 原版编程工具、MoeJS codemode，以及按会话勾选的 DSH 与 MCP 工具。
 ---
 
 <PluginFacts slug="pi-tools" />
 
-为 DSH 新增一个独立的 **`pi`** Agent 预设：把 Pi 原版的编程工具、系统提示词与 QuickJS `codemode` 沙箱接入 DSH 原生的会话、权限、沙箱、模型路由和 MCP 连接中，同时完全保留默认预设和其他会话不变。
+为 DSH 新增一个独立的 **`pi`** Agent 预设：把 Pi 原版的编程工具、系统提示词与 MoeJS `codemode` 沙箱接入 DSH 原生的会话、权限、沙箱、模型路由和 MCP 连接中，同时完全保留默认预设和其他会话不变。
 
 <Callout type="info" title="环境要求与联动">
 运行环境中需提供 `rg` 与 `fd`（也可通过配置 `rgCommand` / `fdCommand` 指定路径）。安装本包时会自动一并启用 [工作时间线](/docs/plugins/work-timeline) 作为 `pi` 预设的计划与产物工具。
@@ -24,7 +24,7 @@ description: 独立的 pi 预设：Pi 原版编程工具、QuickJS codemode，�
 
 - **文件与命令行**：`read`、`bash`、`edit`、`write`、`ls`、`find`、`grep`，保持 Pi 原版名称、描述与参数格式，底层全部受 DSH 的 `ctx.fs`、`ctx.subprocess` 和 `ctx.sandbox` 约束（如写入符号链接目标时会按 DSH 规则替换）。
 - **`find` 路径匹配（Pi 1.6）**：`src/*.ts` 只搜指定目录下的 `src`，`./src/*.ts` 等价；要匹配任意层级的 `src`，用 `**/src/*.ts`。不含 `/` 的 `*.ts` 仍匹配所有层级。
-- **`codemode`**：Pi 的 QuickJS Worker 沙箱（仅接受 `{ code: string }`），脚本内可使用 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool` 与 `describeNamespace`。脚本无 Node、文件系统或直连网络 API，所有动作均经过当前步受控 DSH 工具管线。
+- **`codemode`**：MoeJS 沙箱，每次脚本独享一个 runtime（仅接受 `{ code: string }`），脚本内可使用 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool` 与 `describeNamespace`。脚本无 Node、文件系统或直连网络 API，所有动作均经过当前步受控 DSH 工具管线。
 - **回传预算**：默认整批文本保留约 8,000 个字符。超出时保留首尾，完整文本写入返回路径，可用 `read` 分段查看，无需重跑。图片仍正常返回；要调整单次预算，在脚本首行设置 `// @options: {"max_output_tokens": 4000}`。
 - **Skill 正文提醒**：Pi 在请求前提示哪些 Skill 的完整指令仍可见。目录、失败调用和未返回正文的 `codemode` 调用不算；重复加载不重复发布名单，正文被裁剪或压缩移除后更新提醒。
 - **实时轨迹**：`codemode` 的子步骤默认折叠。点击「脚本」可随时展开或收起；展开后可实时查看每个工具调用的参数和结果，折叠时仍能看到执行进度和失败步数。
@@ -59,6 +59,7 @@ description: 独立的 pi 预设：Pi 原版编程工具、QuickJS codemode，�
 
 ## 边界说明
 
+- `codemodeBackend` 默认为 `moejs`；选择 `quickjs` 可恢复 Pi 原版引擎。不会在运行失败后换引擎重试。
 - 默认配置 `mcpServers: ['*']`、`mcpExposure: codemode`、`maxParallel: 10`，将全局 DSH MCP 工具默认收入 `codemode` / `tool_search` 延迟发现目录。
 - `codemode`、`tool_search`、`work_update` 等工具均遵守 DSH 原生权限、沙箱与当前步条件（例如 Office 工具需先加载对应技能，`planMode` 下不允许越权执行写操作）。
 - 选中工具后记录写入会话日志的 `plugin:dsh-pi-tools/selection`，更新包后需新开 `pi` 会话才会应用新版预设配置。

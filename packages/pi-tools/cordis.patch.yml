@@ -10,7 +10,7 @@
       config:
         id: pi
         name: pi
-        description: Pi 编程工具、QuickJS codemode 与按需 MCP，保留 DSH 会话和权限边界。
+        description: Pi 编程工具、MoeJS codemode 与按需 MCP，保留 DSH 会话和权限边界。
         order: 5
         plugins:
           - id: pi-subagent-control
