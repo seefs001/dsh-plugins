@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Orbit 执行桥",
-    "description": "只读巡检 Orbit 项目，对比上次检查报告新增、变动或消失的任务，并提供受限的 Agent 接口。不会往 Orbit 里写任何内容。"
-  }
-}

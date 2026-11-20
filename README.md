@@ -68,7 +68,6 @@ Each plugin lives in `packages/<name>` as an independent bundle that you can ins
 | [`dsh-pi-tools`](packages/pi-tools) | Isolated `pi` preset with Pi coding tools, MoeJS `codemode`, per-session tool selection, saved defaults, and MCP refresh. | Host + Web |
 | [`dsh-work-timeline`](packages/work-timeline) | Session work plan, revision history, and artifact panel (replaces TODO in `pi`; tools exported from `dsh-work-timeline/tools`). | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | Shares Pi's `~/.pi/agent/mcp.json` with DSH and hot-reloads file changes. | Host |
-| [`dsh-orbit-bridge`](packages/orbit-bridge) | Read-only watch over Orbit projects tracking new, changed, and missing tasks against the previous check. Never writes to Orbit. | Host + Web |
 | [`dsh-paseo-hub`](packages/paseo-hub) | Enroll DSH Host as a Paseo Hub daemon to run Hub triggers locally, plus an organization API console and tools. | Host + Web |
 | [`dsh-bark-notify`](packages/bark-notify) | Send Bark push notifications when an agent asks a question, submits a plan, or requests tool approval. | Host + Web |
 
@@ -95,7 +94,7 @@ If Plugin Manager reports `applied`, Host changes are live immediately; if it re
 ## Configuration and Storage
 
 - **Profile config (`cordis.patch.yml`)**: `model-reference` efforts, `service-tier` tiers, `auto-review-model` route & prompt, `message-actions` route, `web-access`, `image-gen`, and `bark-notify` non-secret settings (written via DSH `configEditor`).
-- **Host storage domains (`~/.dsh/storages`)**: `session_groups`, `roles`, `cheat_sheet`, `auto_review_log`, `message_actions`, `dsh_inbox_summary`, `pi_tools_defaults`, `orbit_bridge`, `paseo_hub`, and `acp_workbench`.
+- **Host storage domains (`~/.dsh/storages`)**: `session_groups`, `roles`, `cheat_sheet`, `auto_review_log`, `message_actions`, `dsh_inbox_summary`, `pi_tools_defaults`, `paseo_hub`, and `acp_workbench`.
 - **DSH credentials**: `bark-notify/device` and `paseo-hub/{daemon,api}` (never written to `cordis.patch.yml`).
 - **Session log & browser `localStorage`**: `pi-tools` selection & `work-timeline` snapshots travel in the session log; `inbox` read marks, `prompt-shortcut` snippets, and `ai-mascot` preferences stay in browser `localStorage`.
 

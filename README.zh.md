@@ -68,7 +68,6 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 | [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版编程工具、MoeJS `codemode`、会话工具选择器、预设默认与 MCP 刷新。 | Host + Web |
 | [`dsh-work-timeline`](packages/work-timeline) | 会话里的工作计划、修订过程和产物面板（替换 `pi` 预设 TODO；工具由 `dsh-work-timeline/tools` 导出）。 | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | 在 DSH 里共用 Pi 的 `~/.pi/agent/mcp.json`，改文件热同步生效。 | Host |
-| [`dsh-orbit-bridge`](packages/orbit-bridge) | 只读巡检 Orbit 项目，对比上次检查列出新增、变动和消失的任务，不写 Orbit。 | Host + Web |
 | [`dsh-paseo-hub`](packages/paseo-hub) | 把 DSH Host 作为 daemon 接入 Paseo Hub 运行触发，并提供组织 API 控制台与工具。 | Host + Web |
 | [`dsh-bark-notify`](packages/bark-notify) | 智能体提问、审阅计划或请求权限审批时，顺便通过 Bark 发送手机推送。 | Host + Web |
 
@@ -95,7 +94,7 @@ dsh plugin --profile web add "link:$PWD/packages/model-reference"
 ## 配置与数据存储
 
 - **profile 配置（`cordis.patch.yml`）**：`model-reference` 推理强度、`service-tier` 档位、`auto-review-model` 模型与提示词、`message-actions` 模型、`web-access`、`image-gen` 与 `bark-notify` 非敏感设置（由 DSH `configEditor` 写入）。
-- **Host storage domain（`~/.dsh/storages`）**：`session_groups`、`roles`、`cheat_sheet`、`auto_review_log`、`message_actions`、`dsh_inbox_summary`、`pi_tools_defaults`、`orbit_bridge`、`paseo_hub` 与 `acp_workbench`。
+- **Host storage domain（`~/.dsh/storages`）**：`session_groups`、`roles`、`cheat_sheet`、`auto_review_log`、`message_actions`、`dsh_inbox_summary`、`pi_tools_defaults`、`paseo_hub` 与 `acp_workbench`。
 - **DSH credentials**：`bark-notify/device` 与 `paseo-hub/{daemon,api}`，密钥绝不写入配置文件。
 - **会话日志与浏览器存储**：`pi-tools` 工具选择与 `work-timeline` 快照保存在会话日志；`inbox` 已读标记、`prompt-shortcut` 片段与 `ai-mascot` 偏好保存在当前浏览器 `localStorage`。
 

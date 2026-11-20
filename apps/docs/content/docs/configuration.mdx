@@ -28,7 +28,6 @@ description: 插件配置写在哪里，Host、profile、credentials、会话日
 | `画图` | 画图后端开关、模型与 `outputDir`；生成的图片文件 | `cordis.patch.yml` + 工作目录文件 + DSH 附件 |
 | `Pi 工具` | 每会话已选工具；按预设保存的默认工具差异 | 会话日志（`plugin:dsh-pi-tools/selection`）+ Host `pi_tools_defaults` |
 | `工作时间线` | 当前工作计划、修订记录与产物链接 | 会话日志 `work_update` 结果（`meta.dshWorkTimeline`） |
-| `Orbit 执行桥` | 巡检规则（上限 20）与运行记录（每规则 30 条） | Host `orbit_bridge` storage domain |
 | `Paseo Hub` | daemon 关系、本机运行（上限 300）与活动日志（上限 1000） | Host `paseo_hub` storage domain |
 | `Paseo Hub` | daemon 凭据与组织 API Key | DSH credentials（`paseo-hub/daemon`、`paseo-hub/api`） |
 | `Bark 通知` | 通知开关、服务器地址、延迟与样式；Device Key | `cordis.patch.yml` + DSH credentials（`bark-notify/device`） |
@@ -53,5 +52,5 @@ description: 插件配置写在哪里，Host、profile、credentials、会话日
 
 ## 跨浏览器同步差异
 
-- **跨浏览器共享**：`会话分组`、`角色管理`、`技能速查`、`Wait, what?` 缓存、`ACP 会话集成`、`Orbit 执行桥`、`Paseo Hub` 与 `记住上次模型` 由 Host 持久化，多标签页/多浏览器看到同一份数据。
+- **跨浏览器共享**：`会话分组`、`角色管理`、`技能速查`、`Wait, what?` 缓存、`ACP 会话集成`、`Paseo Hub` 与 `记住上次模型` 由 Host 持久化，多标签页/多浏览器看到同一份数据。
 - **仅限当前浏览器**：`收件箱` 的已读与稍后标记、`常用片段` 以及 `AI 吉祥物` 偏好保存在当前浏览器的 `localStorage` 中，不同浏览器或设备互不共享。

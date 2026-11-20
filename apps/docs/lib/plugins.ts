@@ -57,7 +57,6 @@ const entries: Entry[] = [
   { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 原版工具与提示词、MoeJS codemode、会话工具选择器与 MCP 刷新。', requires: ['rg 与 fd'] },
   { slug: 'work-timeline', category: 'tools', surface: 'Host + Web', summary: '会话里的工作计划、修订过程和产物面板（替换 Pi 预设的 TODO）；工具由 dsh-work-timeline/tools 提供。' },
   { slug: 'pi-mcp', category: 'tools', surface: 'Host', summary: '在 DSH 里共用 Pi 的 ~/.pi/agent/mcp.json，改文件热同步生效。', requires: ['@deepseek-ai/dsh-mcp-manager'] },
-  { slug: 'orbit-bridge', category: 'tools', surface: 'Host + Web', summary: '只读巡检 Orbit 项目，对比上次检查列出新增、变动和消失的任务，不写 Orbit。', requires: ['Orbit MCP 服务器', '@deepseek-ai/dsh-storage-domain'] },
   { slug: 'paseo-hub', category: 'tools', surface: 'Host + Web', summary: '把 DSH Host 作为 daemon 接入 Paseo Hub 运行触发，或通过组织 API 管理触发器。', requires: ['支持 dsh provider 的 Paseo Hub', '@deepseek-ai/dsh-permission-presets', '@deepseek-ai/dsh-storage-domain'] },
   { slug: 'bark-notify', category: 'tools', surface: 'Host + Web', summary: '智能体提问、审阅计划或请求权限审批时，顺便通过 Bark 发送手机推送。', requires: ['Bark 服务或 Device Key'] },
 ]

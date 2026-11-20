@@ -1,7 +1,0 @@
-# Bundle patch layer: the row loads lib/index.js as the Host half (routine and
-# run storage, owner HTTP routes, the two restricted agent tools); the
-# `dsh.client` declaration makes the web app load lib/client.js as the
-# browser half. Nothing here creates a Schedule or an agent preset.
-- insert:
-    - id: orbit-bridge
-      name: dsh-orbit-bridge

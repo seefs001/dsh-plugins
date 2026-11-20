@@ -15,7 +15,7 @@ description: 每个插件的前置 bundle 与外部依赖，以及插件明确�
 | --- | --- | --- |
 | `自动审查模型` | `@deepseek-ai/dsh-experimental-auto-review` | 插件可安装，但无 `auto-review` 请求可改道，输入框不显示审查标签 |
 | `Git 变更`、`分支切换`、`ACP 会话集成`（工作树与改动对比） | `@deepseek-ai/dsh-experimental-forge-bundle` | 不显示分支/变更入口，或无法新建/对比托管工作树 |
-| `角色管理`、`会话分组`、`自动审查模型`、`Wait, what?`、`技能速查`、`ACP 会话集成`、`Orbit 执行桥`、`Paseo Hub`、`Pi 工具`（默认工具） | `@deepseek-ai/dsh-storage-domain` | 默认 profile 已包含；缺失时对应持久化能力不可用 |
+| `角色管理`、`会话分组`、`自动审查模型`、`Wait, what?`、`技能速查`、`ACP 会话集成`、`Paseo Hub`、`Pi 工具`（默认工具） | `@deepseek-ai/dsh-storage-domain` | 默认 profile 已包含；缺失时对应持久化能力不可用 |
 | `Pi MCP 服务器` | `@deepseek-ai/dsh-mcp-manager` | 默认 profile 已包含 |
 | `Paseo Hub` | `@deepseek-ai/dsh-permission-presets` | 默认 profile 已包含；缺失时无法把权限预设映射为 Hub mode |
 
@@ -43,7 +43,6 @@ description: 每个插件的前置 bundle 与外部依赖，以及插件明确�
 | `ACP 会话集成` | 外部 CLI 使用自身账号与权限，**不受 DSH 工具沙箱约束**；不代理标题/压缩等辅助调用 |
 | `联网搜索` | 就绪时对对应会话隐藏内置 `web_search`，不修改 `web_fetch` |
 | `Pi 工具` | 只作用于选用 `pi` 预设的会话，不更改默认预设或其他会话；复用 DSH 文件系统与沙箱权限 |
-| `Orbit 执行桥` | 严格只读，绝不向 Orbit 写入，也不替你创建定时任务 |
 | `Bark 通知` | 旁路发送推送，失败不阻塞会话；`dsh-acp-workbench` 外部 CLI 暂不触发 |
 
 ## 验证说明
