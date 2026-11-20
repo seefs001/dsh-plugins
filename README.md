@@ -38,7 +38,7 @@ Each plugin lives in `packages/<name>` as an independent bundle that you can ins
 |---|---|---|
 | [`dsh-session-search`](packages/session-search) | Open a search palette to find previous conversations by title, workspace, or message text. | Web |
 | [`dsh-recent-sessions`](packages/recent-sessions) | Sorts sessions in the `@` reference menu by recent activity, newest first. | Web |
-| [`dsh-inbox`](packages/inbox) | Cross-session inbox counting only conversations waiting on you, rolling subagents under their root, with optional extractive summaries. | Host + Web |
+| [`dsh-session-lifecycle`](packages/session-lifecycle) | Fold working sessions, snooze or settle threads, and review decisions, subtask failures and turn results. | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | Custom sidebar session groups and per-group pins, synced across browsers and agents via the Host. | Host + Web |
 | [`dsh-workspace-manager`](packages/workspace-manager) | Inspect saved workspace directories and remove stale entries without touching files or sessions on disk. | Host + Web |
 | [`dsh-branch-switcher`](packages/branch-switcher) | Switch to an existing local Git branch from the New Session page before the first message. Requires Forge worktrees. | Host + Web |

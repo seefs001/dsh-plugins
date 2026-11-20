@@ -38,7 +38,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 |---|---|---|
 | [`dsh-session-search`](packages/session-search) | 点侧栏「搜索会话」打开大面板，按标题、工作区或正文找回对话。 | Web |
 | [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序，刚聊过的排最前。 | Web |
-| [`dsh-inbox`](packages/inbox) | 跨会话收件箱，只把需要你拍板或回答的会话计入角标，子任务归并到主会话下，支持可选提取式摘要。 | Host + Web |
+| [`dsh-session-lifecycle`](packages/session-lifecycle) | 折叠进行中的会话，暂缓或归置线程；按主会话处理待答请求、子任务失败与轮次结果。 | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | 自定义会话分组和组内置顶，所有浏览器和 Agent 通过 Host 同步共享。 | Host + Web |
 | [`dsh-workspace-manager`](packages/workspace-manager) | 检查并移除保存过的工作区记录、清理失效目录条目，不动磁盘文件和会话。 | Host + Web |
 | [`dsh-branch-switcher`](packages/branch-switcher) | 新会话发第一条消息前，直接在页面里切换到已有本地分支。需要 Change requests & worktrees。 | Host + Web |

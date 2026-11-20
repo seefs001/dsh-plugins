@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Inbox",
-    "description": "A quiet inbox for sessions waiting on your input and recent turn results, rolling subtasks up under their parent. Optional per-directory AI summaries are off by default."
-  }
-}

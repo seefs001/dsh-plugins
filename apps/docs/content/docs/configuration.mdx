@@ -16,8 +16,8 @@ description: 插件配置写在哪里，Host、profile、credentials、会话日
 | `自动审查模型` | 审查模型、推理强度、提示词模式与正文 | `cordis.patch.yml` |
 | `自动审查模型` | 每会话最多 200 条审查记录（上限 300 会话） | Host `auto_review_log` storage domain |
 | `角色管理` | 角色库（上限 100）与会话角色绑定（上限 2000） | Host `roles` storage domain |
-| `收件箱` | 已读标记与「稍后」暂存（仅会话 ID 与序号） | 浏览器 `localStorage` |
-| `收件箱` | 可选提取式摘要配置、每日限额与最新 100 条缓存 | Host `dsh_inbox_summary` storage domain |
+| `会话整理` | 已读序号、暂缓时间、归置状态和自动归置偏好 | Host `session_lifecycle` storage domain |
+| `会话整理` | 可选提取式摘要配置、每日限额与最新 100 条缓存 | Host `dsh_inbox_summary` storage domain |
 | `会话分组` | 分组、成员、顺序与组内置顶 | Host `session_groups` storage domain |
 | `Wait, what? 回复解释` | 专用解释模型与推理强度 | `cordis.patch.yml` |
 | `Wait, what? 回复解释` | 最近 200 份解释正文 | Host `message_actions` storage domain |
@@ -48,9 +48,9 @@ description: 插件配置写在哪里，Host、profile、credentials、会话日
   - `Pi MCP 服务器` 会把 `~/.pi/agent/mcp.json` 里的 `${VAR}` 转为 `${credential:VAR}`；
   - `Bark 通知` 的 Device Key 保存在 `bark-notify/device`（或读取 `DSH_BARK_KEY`）；
   - `Paseo Hub` 的 daemon 令牌与组织 API Key 保存在 DSH credentials，接口与工具均无法读回明文。
-- **对外发送内容**：`联网搜索`、`画图`、`Wait, what?`、`自动审查模型` 与可选的 `收件箱` 提取式摘要会把对应提示词或文本发往你选择的模型服务；`Bark 通知` 可通过关闭「正文包含问题或审批摘要」隐藏敏感细节；`AI 吉祥物` 首次渲染仅向 `selinlee.github.io` 发起无对话内容的静态图片请求。
+- **对外发送内容**：`联网搜索`、`画图`、`Wait, what?`、`自动审查模型` 与可选的 `会话整理` 提取式摘要会把对应提示词或文本发往你选择的模型服务；`Bark 通知` 可通过关闭「正文包含问题或审批摘要」隐藏敏感细节；`AI 吉祥物` 首次渲染仅向 `selinlee.github.io` 发起无对话内容的静态图片请求。
 
 ## 跨浏览器同步差异
 
-- **跨浏览器共享**：`会话分组`、`角色管理`、`技能速查`、`Wait, what?` 缓存、`ACP 会话集成`、`Paseo Hub` 与 `记住上次模型` 由 Host 持久化，多标签页/多浏览器看到同一份数据。
-- **仅限当前浏览器**：`收件箱` 的已读与稍后标记、`常用片段` 以及 `AI 吉祥物` 偏好保存在当前浏览器的 `localStorage` 中，不同浏览器或设备互不共享。
+- **跨浏览器共享**：`会话整理`、`会话分组`、`角色管理`、`技能速查`、`Wait, what?` 缓存、`ACP 会话集成`、`Paseo Hub` 与 `记住上次模型` 由 Host 持久化，多标签页/多浏览器看到同一份数据。
+- **仅限当前浏览器**：`会话整理` 的分区展开偏好、`常用片段` 以及 `AI 吉祥物` 偏好保存在当前浏览器的 `localStorage` 中，不同浏览器或设备互不共享。

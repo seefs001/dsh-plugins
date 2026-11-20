@@ -11,7 +11,7 @@ const empty = () => ({ route: null, cwd: '', since: 0, day: day(), spent: 0 })
 const string = (x, n = 256) => typeof x === 'string' && x.length > 0 && x.length <= n
 const number = n => Number.isSafeInteger(n) && n >= 0
 const routeOk = r => r && string(r.provider) && string(r.model)
-const schema = accepts => ({ parse(v) { if (!accepts(v)) throw new Error('Invalid Inbox storage record'); return v }, safeParse(v) { try { return { success: true, data: this.parse(v) } } catch (error) { return { success: false, error } } } })
+const schema = accepts => ({ parse(v) { if (!accepts(v)) throw new Error('Invalid summary storage record'); return v }, safeParse(v) { try { return { success: true, data: this.parse(v) } } catch (error) { return { success: false, error } } } })
 const spec = { name: 'dsh_inbox_summary', version: 1, layout: 'per-record', tables: {
   control: { valueSchema: schema(v => v && (v.route === null || routeOk(v.route)) && typeof v.cwd === 'string' && number(v.since) && typeof v.day === 'string' && number(v.spent)) },
   results: { valueSchema: schema(v => v && routeOk(v.route) && number(v.time) && Array.isArray(v.quotes) && v.quotes.length <= 2 && v.quotes.every(s => string(s, 700))) },
@@ -85,7 +85,7 @@ export async function startSummary(ctx) {
       if (config.provider !== route.provider || config.model !== route.model) throw new Error('Model route changed; no fallback was used')
       await mutate(async () => { life.throwIfAborted(); const s = status(); if (s.spent >= LIMIT) throw new Error('Daily summary budget reached (UTC)'); await save({ ...state, day: s.day, spent: s.spent + 1 }) })
       life.throwIfAborted(); const blocks = new Map(); let finish
-      for await (const chunk of ctx.llm.stream({ ...config, maxTokens: Math.min(config.maxTokens ?? 256, 256), purpose: 'inbox-summary', messages: [{ role: 'user', content: [{ type: 'text', text: promptFor(src.lines) }] }], signal: life })) {
+      for await (const chunk of ctx.llm.stream({ ...config, maxTokens: Math.min(config.maxTokens ?? 256, 256), purpose: 'session-lifecycle-summary', messages: [{ role: 'user', content: [{ type: 'text', text: promptFor(src.lines) }] }], signal: life })) {
         if (chunk.type === 'text-delta') blocks.set(chunk.index, (blocks.get(chunk.index) ?? '') + chunk.text)
         if (chunk.type === 'block-end' && chunk.block.type === 'text') blocks.set(chunk.index, chunk.block.text)
         if (chunk.type === 'finish') finish = chunk.reason.kind
@@ -146,10 +146,10 @@ export async function startSummary(ctx) {
         if (JSON.stringify(src.lines) !== JSON.stringify(op.lines)) throw new Error('Preview changed; inspect the source again')
         return perform(await validateRoute(op.route), src, gen, op.id, false, signal)
       }
-      default: throw new Error('Unknown Inbox operation')
+      default: throw new Error('Unknown summary operation')
     }
   }
-  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/dsh-inbox/summary', handler: async (req, res) => {
+  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/session-lifecycle/summary', handler: async (req, res) => {
     const peer = ctx.connection.admit(req)
     if ('rejection' in peer || peer.peer.principal.kind !== 'owner') { res.writeHead('rejection' in peer ? peer.rejection : 403); res.end(); return }
     if (req.method !== 'POST' || req.headers['content-type']?.split(';')[0] !== 'application/json') { res.writeHead(405); res.end(); return }
@@ -161,6 +161,6 @@ export async function startSummary(ctx) {
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(result))
     } catch (err) { if (!res.destroyed && !res.headersSent) { res.writeHead(400, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify({ error: err.message })) } }
     finally { res.off('close', abort) }
-  } }), 'inbox: owner summary operations')
-  ctx.effect(() => async () => { stopped = true; reset(); await Promise.allSettled(tasks); await serial; await domain.close() }, 'inbox: summary lifetime')
+  } }), 'session-lifecycle: owner summary operations')
+  ctx.effect(() => async () => { stopped = true; reset(); await Promise.allSettled(tasks); await serial; await domain.close() }, 'session-lifecycle: summary lifetime')
 }

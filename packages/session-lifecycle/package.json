@@ -1,21 +1,21 @@
 {
-  "name": "dsh-inbox",
-  "version": "0.2.0",
-  "description": "A quiet DSH inbox for pending decisions, deferred questions, turn results, and optional AI summaries.",
+  "name": "dsh-session-lifecycle",
+  "version": "0.1.0",
+  "description": "Fold working sessions, surface decisions and turn results, and share snoozed and settled shelves across clients.",
   "keywords": [
     "dsh-plugin",
     "dsh",
-    "deepseek-harness",
     "sessions",
-    "inbox"
+    "sidebar",
+    "triage"
   ],
   "license": "MIT",
   "author": "seefs001",
-  "homepage": "https://github.com/seefs001/dsh-plugins/tree/main/packages/inbox#readme",
+  "homepage": "https://github.com/seefs001/dsh-plugins/tree/main/packages/session-lifecycle#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/seefs001/dsh-plugins.git",
-    "directory": "packages/inbox"
+    "directory": "packages/session-lifecycle"
   },
   "bugs": {
     "url": "https://github.com/seefs001/dsh-plugins/issues"
@@ -57,7 +57,9 @@
         "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-ui-workspace",
         "@deepseek-ai/dsh-client-ui-session",
-        "@deepseek-ai/dsh-api-session-controller"
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-context-menu",
+        "@deepseek-ai/dsh-api-workspace-controller"
       ]
     }
   }

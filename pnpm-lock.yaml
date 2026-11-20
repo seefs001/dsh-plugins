@@ -88,8 +88,6 @@ importers:
 
   packages/image-gen: {}
 
-  packages/inbox: {}
-
   packages/keep-awake: {}
 
   packages/message-actions:
@@ -143,6 +141,8 @@ importers:
   packages/service-tier: {}
 
   packages/session-groups: {}
+
+  packages/session-lifecycle: {}
 
   packages/session-search: {}
 

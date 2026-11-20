@@ -13,7 +13,7 @@ export type Surface = 'Host' | 'Web' | 'Host + Web'
 
 export const categories: { id: CategoryId, title: string, description: string }[] = [
   { id: 'models', title: '模型与审查', description: '选模型、切换服务档位、带推理强度、管理角色和定制自动审查模型。' },
-  { id: 'sessions', title: '会话与工作区', description: '跨会话收件箱、自定义分组、工作区清理、切分支、看改动与防休眠。' },
+  { id: 'sessions', title: '会话与工作区', description: '会话生命周期、自定义分组、工作区清理、切分支、看改动与防休眠。' },
   { id: 'conversation', title: '对话阅读', description: '看清上下文压缩、引用跳转、工具快捷操作、回复解释、消息编辑与 ACP 集成。' },
   { id: 'tools', title: '工具与集成', description: '搜索与画图工具、话术与技能速查、Pi 预设、工作时间线及外部服务集成。' },
 ]
@@ -37,7 +37,7 @@ const entries: Entry[] = [
   { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '在侧栏管理带系统提示词与专属技能的角色，在模型菜单按会话切换。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'session-search', category: 'sessions', surface: 'Web', summary: '点侧栏「搜索会话」打开大面板，按标题、工作区或正文找回对话。' },
   { slug: 'recent-sessions', category: 'sessions', surface: 'Web', summary: '@ 菜单里的会话按最近活动排序，刚聊过的排最前。' },
-  { slug: 'inbox', category: 'sessions', surface: 'Host + Web', summary: '跨会话收件箱，只把需要你拍板或回答的会话计入角标，子任务归并到主会话下。' },
+  { slug: 'session-lifecycle', category: 'sessions', surface: 'Host + Web', summary: '按需要你、进行中、暂缓和归置整理会话；可集中回看结果与交付物。' },
   { slug: 'session-groups', category: 'sessions', surface: 'Host + Web', summary: '自定义会话分组和组内置顶，所有浏览器和 Agent 同步共享。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'workspace-manager', category: 'sessions', surface: 'Host + Web', summary: '移除保存过的工作区记录、清理失效目录条目，不动磁盘文件和会话。' },
   { slug: 'branch-switcher', category: 'sessions', surface: 'Host + Web', summary: '新会话发第一条消息前，直接在页面里切换到已有本地分支。', requires: ['Change requests & worktrees'] },

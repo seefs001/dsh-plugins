@@ -1,0 +1,3 @@
+- insert:
+    - id: session-lifecycle
+      name: dsh-session-lifecycle
