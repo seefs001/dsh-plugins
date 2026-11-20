@@ -32,6 +32,7 @@ window.__ModuleLoader__.load({
       read: 'Read', write: 'Write', edit: 'Edit', codemode: 'Script', tool_search: 'Tool search',
       input: 'Input', output: 'Output', written: 'Written content', diff: 'Applied diff', loaded: 'Loaded tools',
       calls: 'Tool calls', inspect: 'Inspect call', open: 'Open file', noCalls: 'No tool calls',
+      stepProgress: '{done}/{total} steps finished', stepsFailed: 'Failed steps: {count}',
       ok: 'Succeeded', error: 'Failed', cancelled: 'Cancelled', running: 'Running', unknown: 'Unknown',
     }
     const zh = {
@@ -58,10 +59,13 @@ window.__ModuleLoader__.load({
       read: '读取', write: '写入', edit: '编辑', codemode: '脚本', tool_search: '工具搜索',
       input: '输入', output: '输出', written: '写入内容', diff: '实际差异', loaded: '已加载工具',
       calls: '工具调用', inspect: '检查调用', open: '打开文件', noCalls: '未调用工具',
+      stepProgress: '已完成 {done}/{total} 步', stepsFailed: '{count} 步失败',
       ok: '成功', error: '失败', cancelled: '已取消', running: '运行中', unknown: '未知',
     }
     const css = `
 .pi-tools-card{min-width:0;color:var(--dsw-alias-label-secondary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+/* DSH renders the atomic view and its child tree as siblings. Match only this row's toggle, never a nested call's. */
+[data-chat-call-id] > :not([data-subcalls]):has([data-pi-fold-steps][aria-expanded="false"]) ~ [data-subcalls]{display:none}
 .pi-tools-head{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 .pi-tools-card button{font:inherit;color:inherit;border:0;background:transparent;padding:0;cursor:pointer;text-align:left}
 .pi-tools-card button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px;border-radius:3px}
@@ -128,7 +132,7 @@ window.__ModuleLoader__.load({
     // The selector admits only this adapter's successful text results. Other
     // presets, preparation, failures and image-bearing calls keep DSH's views.
     function select(owner) {
-      if (owner.phase !== 'result' || owner.block.isError || !['1.5.0', '1.5.2'].includes(owner.block.meta?.piVersion)
+      if (owner.phase !== 'result' || owner.block.isError || !['1.5.0', '1.5.2', '1.6.0'].includes(owner.block.meta?.piVersion)
         || !supported.has(owner.toolName) || owner.block.content.some(block => block.type !== 'text')) return null
       let args
       try { args = JSON.parse(owner.block.call?.argsRaw ?? '') } catch { return null }
@@ -179,8 +183,23 @@ window.__ModuleLoader__.load({
         notice ? h('div', { className: 'pi-tools-note' }, notice) : null)
     }
 
-    function PiCard({ matched, toolName, block, callId, cwd, home, openFile, inspect, useDisclosure, t }) {
-      const { expanded, toggle } = useDisclosure()
+    function disclosureButton(toolName, expanded, toggle, bodyId, t) {
+      return h('button', { type: 'button', className: 'pi-tools-toggle', onClick: toggle, 'aria-expanded': expanded,
+        'aria-controls': bodyId, 'data-pi-fold-steps': toolName === 'codemode' ? '' : undefined },
+      h('span', { 'aria-hidden': true }, expanded ? '▾' : '▸'), h('span', null, t(toolName)))
+    }
+
+    function stepStatus(children, running, t) {
+      if (!children?.length) return null
+      const failed = children.filter(child => child.isError).length
+      return h(React.Fragment, null,
+        running ? h('span', { className: 'pi-tools-note' }, t('stepProgress', {
+          done: children.filter(child => child.kind === 'tool-result').length, total: children.length,
+        })) : null,
+        failed ? h('span', { className: 'pi-tools-error' }, t('stepsFailed', { count: failed })) : null)
+    }
+
+    function PiCard({ matched, toolName, block, callId, cwd, home, openFile, inspect, expanded, toggle, t }) {
       const { args, details, file } = matched
       const path = typeof file?.path === 'string' ? file.path : typeof args.path === 'string' ? args.path : ''
       const requestedLine = file?.line ?? (toolName === 'edit' ? details.firstChangedLine : args.offset)
@@ -228,10 +247,10 @@ window.__ModuleLoader__.load({
       }
       return h('div', { className: 'pi-tools-card', 'data-pi-tool': toolName },
         h('div', { className: 'pi-tools-head' },
-          h('button', { type: 'button', className: 'pi-tools-toggle', onClick: toggle, 'aria-expanded': expanded, 'aria-controls': bodyId },
-            h('span', { 'aria-hidden': true }, expanded ? '▾' : '▸'), h('span', null, t(toolName))),
+          disclosureButton(toolName, expanded, toggle, bodyId, t),
           path ? h('button', { type: 'button', className: 'pi-tools-file', title: `${t('open')}: ${path}:${line}`, onClick: () => openFile(path, { line }) }, pathLabel(path, cwd, home), `:${line}`) : null,
           summary ? h('span', { className: 'pi-tools-summary' }, summary) : null,
+          toolName === 'codemode' ? stepStatus(block.subCalls, false, t) : null,
           h('span', { className: 'pi-tools-badge' }, ['Pi', elapsed].filter(Boolean).join(' · '))),
         expanded ? h('div', { className: 'pi-tools-body', id: bodyId },
           toolName === 'codemode' ? textBlock(args.code, t('input'))
@@ -258,23 +277,22 @@ window.__ModuleLoader__.load({
     const CARD_KEYS = ['codemode', 'tool_search']
 
     // Read the argument view during render so streamed prefixes can refresh this keyed row.
-    function PiPlainRow({ callId, toolName, phase, block, inspect, useDisclosure, t }) {
-      const { expanded, toggle } = useDisclosure()
+    function PiPlainRow({ callId, toolName, phase, block, inspect, expanded, toggle, t }) {
       const failed = phase === 'result' && block?.isError
       const status = phase === 'result' ? (failed ? 'error' : 'ok') : 'running'
       const text = phase === 'result' && Array.isArray(block?.content)
         ? block.content.filter(item => item.type === 'text').map(item => item.text).join('\n') : ''
       const field = toolName === 'codemode' ? 'code' : 'query'
       const preview = block.args.textPrefix(field, 160)
-      const expandable = Boolean(preview) || (failed && text.length > 0)
+      const steps = toolName === 'codemode' ? block.subCalls : undefined
+      const expandable = Boolean(preview || steps?.length) || (failed && text.length > 0)
       const bodyId = `pi-tool-body-${callId}`
       return h('div', { className: 'pi-tools-card', 'data-pi-tool': toolName },
         h('div', { className: 'pi-tools-head' },
-          expandable ? h('button', { type: 'button', className: 'pi-tools-toggle', onClick: toggle, 'aria-expanded': expanded, 'aria-controls': bodyId },
-            h('span', { 'aria-hidden': true }, expanded ? '▾' : '▸'), h('span', null, t(toolName)))
-            : h('span', null, t(toolName)),
+          expandable ? disclosureButton(toolName, expanded, toggle, bodyId, t) : h('span', null, t(toolName)),
           preview ? h('code', { className: 'pi-tools-input-preview' }, preview) : null,
           h('span', { className: failed ? 'pi-tools-error' : 'pi-tools-note' }, t(status)),
+          stepStatus(steps, phase !== 'result', t),
           inspect ? h('button', { type: 'button', className: 'pi-tools-inspect', onClick: inspect }, t('inspect')) : null),
         expandable && expanded ? h('div', { className: 'pi-tools-body', id: bodyId },
           preview ? textBlock(block.args.text(field), t('input')) : null,
@@ -282,9 +300,10 @@ window.__ModuleLoader__.load({
     }
 
     function PiToolView(props) {
+      // Keep the disclosure on the call, not on its transient running/result card.
+      const { expanded, toggle } = props.useDisclosure()
       const matched = select(props)
-      if (matched) return h(PiCard, { ...props, matched })
-      return h(PiPlainRow, props)
+      return matched ? h(PiCard, { ...props, matched, expanded, toggle }) : h(PiPlainRow, { ...props, expanded, toggle })
     }
 
     function PiToolOptions({ sessionId, useSessions, t }) {

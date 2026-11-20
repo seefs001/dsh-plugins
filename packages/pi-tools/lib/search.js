@@ -1,4 +1,5 @@
-import { basename, dirname, join, relative, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { Minimatch } from 'minimatch'
 import { createInterface } from 'node:readline'
 import { DEFAULT_MAX_BYTES, GREP_MAX_LINE_LENGTH, formatSize, relativizeFindResultPath, truncateHead, truncateLine } from './pi.js'
 
@@ -43,25 +44,45 @@ export async function runLines(ctx, command, args, cwd, signal, policy, onLine) 
 }
 
 export async function findPaths(ops, pattern, root, limit) {
-  const args = ['--glob', '--color=never', '--hidden']
+  const args = ['--color=never', '--hidden']
   let insideGit = false
   for (let current = root; ; current = dirname(current)) {
     if (await ops.exists(join(current, '.git'))) { insideGit = true; break }
     if (dirname(current) === current) break
   }
   if (!insideGit) args.push('--no-require-git')
-  args.push('--max-results', String(limit))
-  let effective = pattern
-  if (pattern.includes('/')) {
-    args.push('--full-path')
-    if (!pattern.startsWith('/') && !pattern.startsWith('**/') && pattern !== '**') effective = `**/${pattern}`
-    if (process.platform === 'win32') effective = effective.replaceAll('/', String.raw`[/\\]`)
+  const windows = process.platform === 'win32'
+  let glob = (windows ? pattern.replaceAll('\\', '/') : pattern).replace(/^(?:\.\/)+/, '')
+  const pathGlob = glob.includes('/')
+  const anchored = pathGlob && !isAbsolute(glob)
+  const ignoreCase = glob === glob.toLowerCase()
+  // Like Pi, avoid fd's version-dependent --full-path glob handling on Windows.
+  const matcher = windows && pathGlob
+    ? new Minimatch(glob.replace(/\/\*\*$/, '/**/*'), { dot: true, noext: true, nocase: ignoreCase })
+    : undefined
+  if (matcher) {
+    args.push('--', '', root)
+  } else {
+    args.push('--glob', '--max-results', String(limit))
+    if (pathGlob) args.push('--full-path')
+    if (anchored) {
+      // fd matches absolute paths. Escape the literal root and keep smart case based on the user's glob.
+      const prefix = root.replace(/\/+$/, '').replace(/[\\*?[\]{}]/g, '\\$&')
+      glob = prefix + '/' + glob
+      if (ignoreCase) args.push('--ignore-case')
+    }
+    args.push('--', glob, root)
   }
-  args.push('--', effective, root)
   const paths = []
-  const result = await ops.lines('fd', args, line => { if (line) paths.push(line) })
+  const result = await ops.lines('fd', args, line => {
+    if (!line) return
+    const path = relativizeFindResultPath(line, root)
+    if (matcher && !matcher.match(anchored ? path : line)) return
+    paths.push(path)
+    if (matcher && paths.length >= limit) return false
+  })
   if (result.exitCode !== 0 && paths.length === 0) throw new Error(result.stderr || `fd exited with code ${result.exitCode}`)
-  return paths.map(path => relativizeFindResultPath(path, root))
+  return paths
 }
 
 // ripgrep encodes non-UTF-8 paths and lines as base64 rather than `text`.

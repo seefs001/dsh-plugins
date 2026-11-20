@@ -41,8 +41,9 @@
   },
   "dependencies": {
     "dsh-work-timeline": "workspace:^",
-    "@earendil-works/pi-ai": "1.5.2",
-    "@earendil-works/pi-coding-agent": "1.5.2"
+    "@earendil-works/pi-ai": "1.6.0",
+    "@earendil-works/pi-coding-agent": "1.6.0",
+    "minimatch": "11.0.3"
   },
   "dsh": {
     "bundle": {
