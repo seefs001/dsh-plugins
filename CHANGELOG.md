@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `dsh-session-search`: a labeled sidebar button opens a search palette with recent sessions, message snippets, and keyboard navigation.
+
 - `dsh-diagram-preview` 0.1.0: preview Mermaid, Graphviz/DOT, ECharts JSON and SVG fences in Web chat. Resize each diagram, open a zoomable preview, or switch back to the original code; invalid diagrams keep their source.
 
 - `dsh-inbox` 0.1.0: a quiet sidebar inbox for decisions and turn outcomes. Groups worker activity by root conversation, restores outcomes from Host session projections, and keeps read marks in the browser. No new notification, agent tool or approval handler.

@@ -4,7 +4,7 @@
   "pages": [
     "index",
     "---模型与审查---", "model-reference", "service-tier", "remember-model", "title-model", "subagent-model", "auto-review-model", "roles",
-    "---会话与工作区---", "recent-sessions", "inbox", "session-groups", "workspace-manager", "branch-switcher", "git-changes", "keep-awake",
+    "---会话与工作区---", "session-search", "recent-sessions", "inbox", "session-groups", "workspace-manager", "branch-switcher", "git-changes", "keep-awake",
     "---对话阅读---", "diagram-preview", "compaction-status", "quote-jump", "tool-lens", "message-actions", "message-edit", "ai-mascot", "acp-workbench",
     "---工具与集成---", "prompt-shortcut", "cheat-sheet", "web-access", "image-gen", "pi-tools", "work-timeline", "pi-mcp", "paseo-hub", "bark-notify"
   ]

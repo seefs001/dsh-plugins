@@ -144,6 +144,8 @@ importers:
 
   packages/session-groups: {}
 
+  packages/session-search: {}
+
   packages/subagent-model: {}
 
   packages/title-model: {}

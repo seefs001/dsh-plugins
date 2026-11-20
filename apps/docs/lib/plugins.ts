@@ -35,6 +35,7 @@ const entries: Entry[] = [
   { slug: 'subagent-model', category: 'models', surface: 'Web', summary: '在子代理输入框右下角显示它记录的模型和推理强度（只读）。' },
   { slug: 'auto-review-model', category: 'models', surface: 'Host + Web', summary: '为 Auto review 单独选模型和审查提示词，并实时查看每个会话的审查日志。', requires: ['@deepseek-ai/dsh-experimental-auto-review', '@deepseek-ai/dsh-storage-domain'] },
   { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '在侧栏管理带系统提示词与专属技能的角色，在模型菜单按会话切换。', requires: ['@deepseek-ai/dsh-storage-domain'] },
+  { slug: 'session-search', category: 'sessions', surface: 'Web', summary: '点侧栏「搜索会话」打开大面板，按标题、工作区或正文找回对话。' },
   { slug: 'recent-sessions', category: 'sessions', surface: 'Web', summary: '@ 菜单里的会话按最近活动排序，刚聊过的排最前。' },
   { slug: 'inbox', category: 'sessions', surface: 'Host + Web', summary: '跨会话收件箱，只把需要你拍板或回答的会话计入角标，子任务归并到主会话下。' },
   { slug: 'session-groups', category: 'sessions', surface: 'Host + Web', summary: '自定义会话分组和组内置顶，所有浏览器和 Agent 同步共享。', requires: ['@deepseek-ai/dsh-storage-domain'] },

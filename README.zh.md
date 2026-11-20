@@ -36,6 +36,7 @@ seefs 自用的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harne
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
+| [`dsh-session-search`](packages/session-search) | 点侧栏「搜索会话」打开大面板，按标题、工作区或正文找回对话。 | Web |
 | [`dsh-recent-sessions`](packages/recent-sessions) | `@` 菜单里的会话按最近活动排序，刚聊过的排最前。 | Web |
 | [`dsh-inbox`](packages/inbox) | 跨会话收件箱，只把需要你拍板或回答的会话计入角标，子任务归并到主会话下，支持可选提取式摘要。 | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | 自定义会话分组和组内置顶，所有浏览器和 Agent 通过 Host 同步共享。 | Host + Web |

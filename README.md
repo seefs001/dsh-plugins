@@ -36,6 +36,7 @@ Each plugin lives in `packages/<name>` as an independent bundle that you can ins
 
 | Package | What it does | Runs in |
 |---|---|---|
+| [`dsh-session-search`](packages/session-search) | Open a search palette to find previous conversations by title, workspace, or message text. | Web |
 | [`dsh-recent-sessions`](packages/recent-sessions) | Sorts sessions in the `@` reference menu by recent activity, newest first. | Web |
 | [`dsh-inbox`](packages/inbox) | Cross-session inbox counting only conversations waiting on you, rolling subagents under their root, with optional extractive summaries. | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | Custom sidebar session groups and per-group pins, synced across browsers and agents via the Host. | Host + Web |
