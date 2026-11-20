@@ -32,6 +32,7 @@ dsh plugin --profile web add "link:$PWD/packages/pi-tools"
 - **`codemode`**：默认使用常驻 Go 子进程，每次脚本新建 MoeJS runtime（仅接受 `{ code: string }`），脚本内可使用 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool`、`describeNamespace` 调用当前步已放行的工具。无 Node/文件系统/网络直连权限，一切外调走受控 DSH 工具管线。
 - **回传预算**：默认整批文本保留约 8,000 个字符。超出时保留首尾，完整文本写入返回路径，可用 `read` 分段查看，无需重跑。图片仍正常返回；要调整单次预算，在脚本首行设置 `// @options: {"max_output_tokens": 4000}`。
 - **Skill 正文提醒**：Pi 在请求前提示哪些 Skill 的完整指令仍可见。目录、失败调用和未返回正文的 `codemode` 调用不算；重复加载不重复发布名单，正文被裁剪或压缩移除后更新提醒。
+- **编辑差异**：成功的 Pi `edit` 会记录实际修改。直接调用时点「编辑差异」查看增删行；在 `codemode` 中，先展开「脚本」，再点对应文件的「编辑差异」。回看历史无需重跑编辑。
 - **实时轨迹**：`codemode` 的子步骤默认折叠。点击「脚本」可随时展开或收起；展开后可实时查看每个工具调用的参数和结果，折叠时仍能看到执行进度和失败步数。
 - **`tool_search`**：BM25 延迟工具发现工具，搜索命中后从下一轮模型调用起即可直接调用对应工具。
 - **语法采样恢复**：通过 `lib/pi-ai-hook.js` 为支持 OpenAI grammar tools 的路由恢复 `constrainedSampling`（不支持的路由保持 JSON `{ code }` 传输），并在遇到孤立 `SyntaxError` / `ReferenceError` 时附带 `String.raw` 与转义提示。

@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
       sectionInteraction: 'Skills and questions', sectionPlugins: 'Plugins', sectionOther: 'Other DSH tools',
       sectionMcpResources: 'MCP resources', sectionMcpServer: 'Server {server}',
       read: 'Read', write: 'Write', edit: 'Edit', codemode: 'Script', tool_search: 'Tool search',
-      input: 'Input', output: 'Output', written: 'Written content', diff: 'Applied diff', loaded: 'Loaded tools',
+      input: 'Input', output: 'Output', written: 'Written content', editDiff: 'Edit diff', diff: 'Applied diff', loaded: 'Loaded tools',
       calls: 'Tool calls', inspect: 'Inspect call', open: 'Open file', noCalls: 'No tool calls',
       stepProgress: '{done}/{total} steps finished', stepsFailed: 'Failed steps: {count}',
       ok: 'Succeeded', error: 'Failed', cancelled: 'Cancelled', running: 'Running', unknown: 'Unknown',
@@ -57,7 +57,7 @@ window.__ModuleLoader__.load({
       sectionInteraction: '技能与提问', sectionPlugins: '插件', sectionOther: '其他 DSH 工具',
       sectionMcpResources: 'MCP 资源', sectionMcpServer: '服务 {server}',
       read: '读取', write: '写入', edit: '编辑', codemode: '脚本', tool_search: '工具搜索',
-      input: '输入', output: '输出', written: '写入内容', diff: '实际差异', loaded: '已加载工具',
+      input: '输入', output: '输出', written: '写入内容', editDiff: '编辑差异', diff: '实际差异', loaded: '已加载工具',
       calls: '工具调用', inspect: '检查调用', open: '打开文件', noCalls: '未调用工具',
       stepProgress: '已完成 {done}/{total} 步', stepsFailed: '{count} 步失败',
       ok: '成功', error: '失败', cancelled: '已取消', running: '运行中', unknown: '未知',
@@ -186,7 +186,7 @@ window.__ModuleLoader__.load({
     function disclosureButton(toolName, expanded, toggle, bodyId, t) {
       return h('button', { type: 'button', className: 'pi-tools-toggle', onClick: toggle, 'aria-expanded': expanded,
         'aria-controls': bodyId, 'data-pi-fold-steps': toolName === 'codemode' ? '' : undefined },
-      h('span', { 'aria-hidden': true }, expanded ? '▾' : '▸'), h('span', null, t(toolName)))
+      h('span', { 'aria-hidden': true }, expanded ? '▾' : '▸'), h('span', null, t(toolName === 'edit' ? 'editDiff' : toolName)))
     }
 
     function stepStatus(children, running, t) {
@@ -299,11 +299,14 @@ window.__ModuleLoader__.load({
           text ? textBlock(text, t('output')) : null) : null)
     }
 
-    function PiToolView(props) {
+    function PiToolView({ nativeEdit, nativeProps, ...props }) {
       // Keep the disclosure on the call, not on its transient running/result card.
-      const { expanded, toggle } = props.useDisclosure()
+      const disclosure = props.useDisclosure()
       const matched = select(props)
-      return matched ? h(PiCard, { ...props, matched, expanded, toggle }) : h(PiPlainRow, { ...props, expanded, toggle })
+      if (nativeEdit && !(typeof matched?.details.diff === 'string' && matched.details.diff.length)) {
+        return h(nativeEdit, { ...props, ...nativeProps, useDisclosure: () => disclosure })
+      }
+      return matched ? h(PiCard, { ...props, matched, ...disclosure }) : h(PiPlainRow, { ...props, ...disclosure })
     }
 
     function PiToolOptions({ sessionId, useSessions, t }) {
@@ -620,12 +623,22 @@ window.__ModuleLoader__.load({
           document.head.append(style)
           return () => style.remove()
         })
-        // Stock DSH dispatches cards by tool name. Only names without a
-        // built-in view are claimed; Pi read/write/edit keep DSH's own rows.
+        // The stock edit row cannot display Pi's recorded diff (root or subcall).
+        // Delegate every other edit to the original row with its session bindings.
         ctx.slots.inject('tool.call.toolview', function* () {
           for (const key of CARD_KEYS) {
             yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, PiToolView)
           }
+          yield ctx.slots.register({
+            name: 'tool.call.toolview', key: 'edit', priority: -1, locale: NS,
+            inject: sessionId => {
+              const base = ctx.slots.entries('tool.call.toolview').find(entry =>
+                entry.options.key === 'edit' && (entry.options.priority ?? 0) >= 0)
+              return base ? { nativeEdit: base.component, nativeProps: {
+                ...base.inject?.(sessionId), t: ctx.locale.bind(base.locale ?? 'conversation'),
+              } } : {}
+            },
+          }, PiToolView)
         })
       },
     }
