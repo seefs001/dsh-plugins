@@ -1,34 +1,35 @@
 ---
-title: 开发与发布
-description: 链接本地源码、运行检查、维护文档站与发布 npm 插件包。
+title: 开发与检查
+description: 链接本地源码、运行 lint 与校验、维护文档站。
 ---
 
 ## 环境准备
 
-在仓库根目录使用根 `package.json` 指定的 `pnpm` 版本安装依赖：
+在仓库根目录安装依赖：
 
 ```bash
 pnpm install
 ```
 
-## 包目录结构
+## 目录结构
 
 ```text
 packages/<name>/
-├── package.json        # name 必须为 dsh-<name>，含 dsh.bundle 与可选 dsh.client
-├── cordis.patch.yml    # bundle patch，至少插入名为 dsh-<name> 的行
+├── package.json        # name = dsh-<name>, dsh.bundle, 可选 dsh.client
+├── cordis.patch.yml    # bundle patch，至少插入 dsh-<name> 行
 ├── lib/index.js        # Host 入口（ESM）
 ├── lib/client.js       # 可选浏览器入口（window.__ModuleLoader__.load）
-├── locale/{en,zh}.json # Plugins 页面显示的 meta.title 与 meta.description
-├── icon.svg            # 包图标
-├── test/*.test.js      # node:test 单元测试（可选）
-└── README.md           # 包说明文档
+├── locale/{en,zh}.json # Plugins 页面展示的 meta.title 与 meta.description
+├── icon.svg
+├── test/*.test.js      # node:test 单元测试
+└── README.md
 ```
 
-绝大多数插件都是无需构建的原生 ES 模块，`link:` 安装即直接执行源码。两个例外：
+绝大多数插件是无需构建的原生 ES 模块。三个例外：
 
-- `pi-tools`：浏览器入口位于包根目录 `client.js`，`cordis.patch.yml` 挂载完整的 `pi` 预设。工作时间线是独立 bundle；启用它时，工具才注册到 `pi` 作用域。
-- `message-actions`：浏览器源码位于 `src/client.js`，需执行 `pnpm --filter dsh-message-actions build` 生成 `lib/client.js`（`prepack` 会自动运行）。
+- `diagram-preview`：升级图表库后运行 `pnpm --filter dsh-diagram-preview build` 重新生成懒加载渲染器分片。
+- `pi-tools`：浏览器入口在根目录 `client.js`；改动 Go runner 或 Pi 依赖后运行 `pnpm --filter dsh-pi-tools build:runner:all`。
+- `message-actions`：浏览器源码在 `src/client.js`，运行 `pnpm --filter dsh-message-actions build` 生成 `lib/client.js`。
 
 ## 本地链接调试
 
@@ -36,45 +37,30 @@ packages/<name>/
 dsh plugin --profile web add "link:$PWD/packages/model-reference"
 ```
 
-在 **Plugins** 页面确认 bundle 已开启。若 profile 开启了 HMR，改动会触发重组合；若返回 `restart-required` 则重启 DSH 进程。浏览器部分刷新页面后生效。
-
 ## 静态检查与测试
 
 ```bash
-pnpm run check     # 依次运行 oxlint + validate.mjs + node:test
+pnpm run check     # oxlint + validate.mjs + node:test
 pnpm run pack:dry  # 演练所有包的 npm pack
 ```
 
-`pnpm run validate` 会强制校验：
+检查链路强制执行以下规则：
 
-- 包名为 `dsh-<目录名>`，`repository.directory` 匹配目录，`type` 为 `module`，`keywords` 含 `dsh-plugin`，且声明了 `engines.dsh`；
-- `dsh.bundle.patch` 文件存在，且插入了同名条目；
-- 所有 `exports` 指向真实文件；仅当声明 `dsh.client` 时导出 `./client`，且其 `id` 与包名一致；
-- `locale/en.json` 与 `locale/zh.json` 存在、`meta` 键一致且含 `title` 与 `description`；
-- `README.md` 与 `icon.svg` 均存在。
+- **Oxlint（`.oxlintrc.json` + `scripts/oxlint-plugin.mjs`）**：
+  - `correctness` 与 `suspicious` 均为 error，`--deny-warnings`；
+  - `dsh/no-comments`：禁止注释，仅放行 shebang、文件头开源协议声明、单行 URL 与单行 `// external: <原因>`（记录不可改动的外部依赖或宿主限制）；
+  - `dsh/no-suppression-comments`：禁止 `oxlint-disable`、`eslint-disable`、`@ts-ignore`、`@ts-expect-error`、`@ts-nocheck`；
+  - `dsh/no-legacy-compat`：禁止残留旧版兼容标识。
+- **清单与文档校验（`scripts/validate.mjs`）**：
+  - 校验包名、版本、目录、`engines.dsh`、`files`、`exports`、`cordis.patch.yml`、`dsh.client` 与 `locale/{en,zh}.json`；
+  - 校验 `apps/docs/lib/plugins.ts`、`apps/docs/content/docs/plugins/*.mdx`、`meta.json` 与根目录 `README.md` / `README.zh.md` 同步。
 
-## 文档站开发
+## 文档站
 
 ```bash
-pnpm run docs:dev        # 启动本地预览（http://localhost:3000）
-pnpm run docs:typecheck  # 运行 fumadocs-mdx、next typegen 与 tsc
+pnpm run docs:dev        # 本地预览（http://localhost:3000）
+pnpm run docs:typecheck  # fumadocs-mdx + next typegen + tsc
 pnpm run docs:build      # 静态导出到 apps/docs/out
 ```
 
-| 路径 | 职责 |
-| --- | --- |
-| `apps/docs/content/docs/**/*.mdx` | 文档正文（frontmatter 必须有 `title` 与 `description`） |
-| `apps/docs/content/docs/**/meta.json` | 侧边栏分组与排序 |
-| `apps/docs/lib/plugins.ts` | 登记插件分类、简介、运行位置与依赖；包名和标题在构建时自动从 `packages/*` 读取 |
-| `apps/docs/components/plugins.tsx` | 提供 `<PluginFacts>`、`<InstallCommand>`、`<PluginDirectory>`、`<RequirementsTable>` 等 MDX 组件 |
-| `apps/docs/app/page.tsx` | 文档站首页 |
-
-新增插件时必须在 `apps/docs/lib/plugins.ts` 添加记录、在 `apps/docs/content/docs/plugins/` 新建 `.mdx` 文件并列入 `plugins/meta.json`，否则构建会直接报错失败。
-
-## 发布包
-
-1. 更新 `packages/<name>/package.json` 的 `version` 并在 `CHANGELOG.md` 补充记录。
-2. 运行 `pnpm run check` 确保全部通过。
-3. 在对应包目录执行 `npm publish`。
-
-文档站通过独立工作流部署到 GitHub Pages，见 [GitHub Pages 部署](/docs/deployment)。
+新增插件时，在 `apps/docs/lib/plugins.ts` 添加目录项、在 `apps/docs/content/docs/plugins/` 新增 `.mdx` 文件并加入 `plugins/meta.json`。

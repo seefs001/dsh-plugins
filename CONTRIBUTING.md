@@ -14,47 +14,45 @@ packages/<name>/
 └── README.md
 ```
 
-Most packages are plain JavaScript with no build step, so a `link:` install runs the source directly. Three packages differ:
+Most packages are plain ES modules with no build step. Three packages build artifacts:
 
-- `diagram-preview` ships lazy renderer chunks. After updating its pinned diagram libraries, run `pnpm --filter dsh-diagram-preview build` and include the rebuilt chunks.
-- `pi-tools` keeps its browser half in `client.js` at the package root, and its patch also inserts a `pi` agent preset.
-- `message-actions` builds `lib/client.js` from `src/client.js` with `pnpm --filter dsh-message-actions build`. `prepack` runs the build.
+- `diagram-preview`: rebuild lazy renderer chunks with `pnpm --filter dsh-diagram-preview build` after updating diagram dependencies.
+- `pi-tools`: browser half lives at `client.js`; rebuild Go runners with `pnpm --filter dsh-pi-tools build:runner:all` after changing `runner/` or Pi dependencies.
+- `message-actions`: build `lib/client.js` from `src/client.js` with `pnpm --filter dsh-message-actions build` (`prepack` runs it automatically).
 
-`pnpm run validate` enforces these rules:
-
-- The package name is `dsh-<directory>`, `repository.directory` points at the package, `type` is `module`, `keywords` includes `dsh-plugin`, and `engines.dsh` is set.
-- `dsh.bundle.patch` exists and inserts a row named after the package. A declared client bundle uses the package name as its `id`.
-- Every export resolves to a file, and `./client` is exported only when `dsh.client` is declared.
-- `en` and `zh` locales exist, have the same `meta` keys, and both set `meta.title` and `meta.description`.
-- The README and icon exist.
-
-## Develop
-
-Use the pnpm version pinned in the root `package.json` (`packageManager`).
+## Lint and Validation
 
 ```bash
 pnpm install
-pnpm run check      # lint + validate + test
+pnpm run check      # oxlint + validate.mjs + node:test
 ```
 
-To try local changes in a profile, link the package:
+`pnpm run lint` runs Oxlint with `.oxlintrc.json` and `scripts/oxlint-plugin.mjs` (`--deny-warnings`):
+
+- `correctness` and `suspicious` are errors.
+- `dsh/no-comments`: comments are disallowed except shebangs, top-of-file license headers, single-line URLs, and single-line `// external: <reason>` notes for external dependency, platform, or DSH host constraints we cannot reshape.
+- `dsh/no-suppression-comments`: `oxlint-disable`, `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, and `@ts-nocheck` are disallowed.
+- `dsh/no-legacy-compat`: removed pre-release compatibility tokens are disallowed.
+
+`pnpm run validate` checks:
+
+- Package name `dsh-<directory>`, valid version, `repository.directory`, `type: "module"`, `keywords` containing `dsh-plugin`, `engines.dsh`, existing `files` entries, and no internal design docs (`DESIGN.md`, `ARCHITECTURE.md`, `PASEO-PARITY.md`).
+- `dsh.bundle.patch` exists and inserts a row named after the package; `exports` resolve to files; `./client` parity and `__ModuleLoader__` id match `pkg.name`.
+- `locale/en.json` and `locale/zh.json` exist with identical `meta` keys (`title`, `description`).
+- Full parity across `packages/*`, `apps/docs/lib/plugins.ts`, `apps/docs/content/docs/plugins/*.mdx`, `apps/docs/content/docs/plugins/meta.json`, `README.md`, and `README.zh.md`.
+
+## Local Development
 
 ```bash
-dsh plugin --profile web add link:$PWD/packages/model-reference
+dsh plugin --profile web add "link:$PWD/packages/model-reference"
 ```
-
-If the profile has HMR enabled, Plugin Manager and HMR recompositions replace plugins whose files changed. Otherwise follow Plugin Manager's `restart-required` result and restart DSH. Browser halves load after a page refresh.
 
 ## Documentation
 
-The Fumadocs site lives in `apps/docs`, separate from the plugin packages. Run `pnpm run docs:dev` from the root to preview it.
+```bash
+pnpm run docs:dev
+pnpm run docs:typecheck
+NEXT_PUBLIC_BASE_PATH=/dsh-plugins pnpm run docs:build
+```
 
-Package names and titles are read from each package's `package.json` and `locale/zh.json` at build time. When you add a package, add an entry to `apps/docs/lib/plugins.ts`, create `apps/docs/content/docs/plugins/<name>.mdx`, and list it in `plugins/meta.json`. The docs build fails if a package has no entry. Keep plugin pages in sync with package READMEs.
-
-[apps/docs/README.md](apps/docs/README.md) covers deployment. Validate with `pnpm run docs:typecheck` and `NEXT_PUBLIC_BASE_PATH=/dsh-plugins pnpm run docs:build`. Pull requests build the site without deploying; changes on `main` deploy through the Documentation workflow once Pages is enabled.
-
-## Release
-
-1. Bump `version` in the package's `package.json` and add an entry to `CHANGELOG.md`.
-2. Run `pnpm run check`.
-3. Run `npm publish` in `packages/<name>`.
+When adding a package, register it in `apps/docs/lib/plugins.ts`, create `apps/docs/content/docs/plugins/<name>.mdx`, add it to `apps/docs/content/docs/plugins/meta.json`, and update `README.md` and `README.zh.md`.

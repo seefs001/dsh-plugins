@@ -57,8 +57,6 @@ window.__ModuleLoader__.load({
         }))))
     }
 
-    // This function runs only in an opaque sandbox. Its script text is constant;
-    // the fence is passed separately as data, never interpolated into HTML or JS.
     function startFrame() {
       const nonce = document.currentScript.nonce
       window.addEventListener('message', async function receive(event) {
@@ -98,7 +96,6 @@ window.__ModuleLoader__.load({
       })
     }
 
-    // Remove the renderer and its entire JS realm as soon as it yields a picture.
     function renderInFrame(stage, request, signal, timeoutText) {
       const frame = document.createElement('iframe')
       frame.sandbox = 'allow-scripts'
@@ -123,8 +120,7 @@ window.__ModuleLoader__.load({
         port1.addEventListener('message', ({ data }) => typeof data.svg === 'string' && data.svg
           ? done(resolve, data.svg) : done(reject, new Error(data.error)), { once: true })
         port1.start()
-        // The sandbox has an opaque origin, so address this frame's window and
-        // transfer a private return channel rather than accepting window messages.
+        // external: sandboxed srcdoc iframe has opaque origin, so transfer a private MessagePort with '*'
         frame.addEventListener('load', () => {
           try { frame.contentWindow.postMessage(request, '*', [port2]) }
           catch (err) { done(reject, err) }

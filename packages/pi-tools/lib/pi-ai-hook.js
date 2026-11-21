@@ -3,15 +3,11 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-// DSH has no request hook for pi-ai options or tool declarations. This wraps
-// the prototype of the pi-ai `Models` collection that DSH's llm-pi-ai adapter
-// uses. It depends on DSH internals: when the layout changes, install() throws
-// and the caller must log it instead of failing silently.
-// Identical copies live in dsh-pi-tools and dsh-service-tier; keep them in sync.
+// external: DSH has no pi-ai request hook, so wrap Models.prototype.streamSimple on DSH's pi-ai instance
 const KEY = Symbol.for('dsh-plugins.pi-ai-request-transforms')
 const VERSION = 1
 
-export function piAiDirectory() {
+function piAiDirectory() {
   const anchor = process.env.DSH_INSTALL_DIR ? join(process.env.DSH_INSTALL_DIR, 'package.json') : process.argv[1]
   if (!anchor) throw new Error('not running inside a DSH installation')
   const require = createRequire(realpathSync(anchor))
@@ -51,25 +47,6 @@ async function install() {
   return { version: VERSION, piAi: manifest.version, transforms }
 }
 
-/**
- * Built-in pi-ai catalog providers with at least one model on `api`.
- * A route that names such a provider without its own `api` inherits it.
- * @throws when DSH's pi-ai layout is not the expected one.
- */
-export async function catalogProvidersWithApi(api) {
-  const directory = piAiDirectory()
-  const { builtinProviders } = await import(pathToFileURL(join(directory, 'dist', 'providers', 'all.js')).href)
-  return new Set(builtinProviders()
-    .filter(provider => (provider.getModels?.() ?? []).some(model => model.api === api))
-    .map(provider => provider.id))
-}
-
-/**
- * Add one request transform: ({ model, context, options }) => same shape.
- * Transforms must return new objects instead of mutating their input.
- * @returns the remover and the pi-ai version that was hooked.
- * @throws when DSH's pi-ai layout is not the expected one.
- */
 export async function addPiAiRequestTransform(transform) {
   globalThis[KEY] ??= install()
   let registry

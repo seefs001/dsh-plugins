@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Git 变更",
-    "description": "在输入框下方显示当前分支和改动行数，点一下在右侧边栏看 diff。需要启用 Change requests & worktrees。"
+    "description": "在输入框下方显示当前分支与未提交改动统计，点击在右侧边栏打开 diff（需启用 Change requests & worktrees）。"
   }
 }

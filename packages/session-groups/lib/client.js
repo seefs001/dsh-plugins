@@ -1,19 +1,3 @@
-/**
- * dsh-session-groups — browser half.
- *
- * - A "Session groups" launcher in the sidebar panel list opens a main panel
- *   that lists the custom groups; pinned sessions lead each group, the rest
- *   follow by last activity.
- * - The sidebar session list shows the groups as folders above the built-in
- *   Workspace list; grouped sessions leave that list while they belong to a
- *   group, so it keeps only the remaining sessions.
- * - The session right-click menu gains "Add to group", "Pin in group" and
- *   "Remove from group".
- *
- * Groups live on the Host (lib/index.js); this half reads them over
- * `session-groups/state`, follows `session-groups/events` (SSE), and sends
- * every change to `session-groups/op`.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-session-groups',
   factory(require) {
@@ -42,7 +26,7 @@ window.__ModuleLoader__.load({
       hintClose: 'Close',
       rename: 'Rename',
       delete: 'Delete group',
-      deleteConfirm: 'Delete group "{name}"? Its sessions are not deleted.',
+      deleteConfirm: 'Delete group "{name}"? Sessions are kept.',
       moveUp: 'Move up',
       moveDown: 'Move down',
       pin: 'Pin in group',
@@ -81,7 +65,7 @@ window.__ModuleLoader__.load({
       hintClose: '关闭',
       rename: '重命名',
       delete: '删除分组',
-      deleteConfirm: '删除分组“{name}”？其中的会话不会被删除。',
+      deleteConfirm: '删除分组“{name}”？会话会保留。',
       moveUp: '上移',
       moveDown: '下移',
       pin: '组内置顶',
@@ -102,9 +86,6 @@ window.__ModuleLoader__.load({
       dropInto: '把会话拖到这里',
     }
 
-    // ---------------------------------------------------------------- store
-    /** Host-owned groups plus local view state (collapsed groups, the group being renamed). */
-    // Collapsed groups are a browser-local view preference shared by the sidebar and the page.
     const COLLAPSED_KEY = 'dsh-session-groups.collapsed'
     function readCollapsed() {
       try {
@@ -143,10 +124,8 @@ window.__ModuleLoader__.load({
       return body
     }
 
-    // --------------------------------------------------------------- helpers
     const groupOf = (groups, sessionId) => groups.find(g => g.sessionIds.includes(sessionId))
 
-    /** Pinned members first in pin order, then the rest newest first. */
     function orderedMembers(group, byId) {
       const pinned = new Set(group.pinned)
       const rest = group.sessionIds.filter(id => !pinned.has(id))
@@ -170,7 +149,6 @@ window.__ModuleLoader__.load({
       return new Date(ms).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en')
     }
 
-    // ----------------------------------------------------------------- icons
     const svg = (size, children, extra = {}) => h('svg', {
       viewBox: '0 0 16 16', width: size, height: size, fill: 'none', stroke: 'currentColor',
       strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, ...extra,
@@ -279,8 +257,6 @@ window.__ModuleLoader__.load({
 @media (prefers-reduced-motion:reduce){.sg-sp{animation:none}.sg-page *{transition:none!important}}
 `
 
-    // Sidebar folders. Geometry follows the built-in Workspace rows through the
-    // sidebar's inherited --dsh-sidebar-* properties.
     const SIDEBAR_CSS = `
 .sgs-host:only-child{display:none}
 .sgs-root{margin-bottom:10px;padding-bottom:8px;border-bottom:.5px solid var(--dsw-alias-border-l1,transparent)}
@@ -330,8 +306,6 @@ window.__ModuleLoader__.load({
 
         const store = createStore()
 
-        // The Host sends a complete baseline on connect, then ordered snapshots.
-        // Do not replace them with a possibly older GET or mutation response.
         let stream
         const connect = () => {
           stream?.close()
@@ -359,7 +333,6 @@ window.__ModuleLoader__.load({
           }
         }
 
-        // ------------------------------------------------- session context menu
         ctx.effect(() => ctx.contextMenus.register({
           id: 'session-groups',
           target: 'session',
@@ -413,7 +386,6 @@ window.__ModuleLoader__.load({
           ctx.slots.inject('contextMenu.icon', () => ctx.slots.register({ name: 'contextMenu.icon', key }, () => h(Icon, { size: 16 })))
         }
 
-        // ------------------------------------------------------------- hooks
         const useLocale = () => React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
         const useGroups = () => React.useSyncExternalStore(store.subscribe, store.getSnapshot)
         const useSessions = () => React.useSyncExternalStore(
@@ -421,12 +393,8 @@ window.__ModuleLoader__.load({
           () => ctx.sessions.list.getSnapshot(),
         )
 
-        // -------------------------------------------------------------- drag
-        // Sidebar session rows drag with `text/plain` = session id; rows on this
-        // page do the same, so one drop path serves both sources.
         const carriesText = e => Array.from(e.dataTransfer?.types ?? []).includes('text/plain')
 
-        /** True while any document drag is in progress (reveals the new-group zone). */
         function useDocumentDragging() {
           const [dragging, setDragging] = React.useState(false)
           React.useEffect(() => {
@@ -444,7 +412,6 @@ window.__ModuleLoader__.load({
           return dragging
         }
 
-        /** Drop-target props that accept a known session id; `over` drives the highlight. */
         function useSessionDrop(list, onSession) {
           const [over, setOver] = React.useState(false)
           const depth = React.useRef(0)
@@ -480,7 +447,6 @@ window.__ModuleLoader__.load({
           return { over, props }
         }
 
-        // -------------------------------------------------------- components
         function GroupName({ group, className = 'sg-rename' }) {
           const [value, setValue] = React.useState(group.name)
           const ref = React.useRef(null)
@@ -504,7 +470,6 @@ window.__ModuleLoader__.load({
           })
         }
 
-        /** Wrap the first case-insensitive match of `q` in <mark>. */
         function highlight(text, q) {
           if (!q) return text
           const at = text.toLowerCase().indexOf(q)
@@ -692,12 +657,6 @@ window.__ModuleLoader__.load({
                 : null))
         }
 
-        // ------------------------------------------------- sidebar folders
-        // The built-in Workspace browser owns the session list; it marks its
-        // scroller `data-sidebar-list-area` and each Session row
-        // `data-row-key="session:<id>"` as stable integration markers. The
-        // groups render as folders at the top of that scroller, and a style
-        // rule hides grouped sessions from the built-in rows below.
         const MEMBER_MIME = 'application/x-dsh-session-group-member'
         const GROUP_MIME = 'application/x-dsh-session-group'
         const hasType = (e, type) => Array.from(e.dataTransfer?.types ?? []).includes(type)
@@ -706,7 +665,6 @@ window.__ModuleLoader__.load({
           () => ctx.layout.panelInfo.getSnapshot(),
         )
 
-        /** The Workspace browser's list scroller, and whether its search is showing results instead. */
         function useListArea() {
           const [found, setFound] = React.useState({ area: null, searching: false })
           React.useEffect(() => {
@@ -738,7 +696,7 @@ window.__ModuleLoader__.load({
           const open = () => ctx.uiWorkspace.openSession(id)
           return h('div', {
             className: `sgs-row sgs-member${current ? ' sgs-selected' : ''}`,
-            'data-group-session-id': id, // Lifecycle shelves can move the row without changing membership.
+            'data-group-session-id': id,
             role: 'treeitem', 'aria-selected': current, tabIndex: 0, title,
             draggable: true,
             onDragStart: e => {
@@ -866,13 +824,11 @@ window.__ModuleLoader__.load({
             el.className = 'sgs-host'
             return el
           }, [])
-          // Keep the folders first in the scroller; the browser's own children follow.
           React.useLayoutEffect(() => {
             if (!area) return undefined
             if (area.firstChild !== host) area.insertBefore(host, area.firstChild)
             return () => host.remove()
           }, [area, host])
-          // Dropping a group member back onto the built-in list removes it from its group.
           React.useEffect(() => {
             if (!area) return undefined
             const outside = e => hasType(e, MEMBER_MIME) && !host.contains(e.target)

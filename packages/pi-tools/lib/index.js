@@ -32,7 +32,7 @@ async function convertContent(ctx, content) {
 export function piDefinitions(cwd, config) {
   return [
     ...createDefinitions(cwd, undefined, config.tools),
-    ...config.codemode ? [createCodemodeToolDefinition({ models: false, codemodeBackend: config.codemodeBackend })] : [],
+    ...config.codemode ? [createCodemodeToolDefinition({ models: false })] : [],
     ...config.toolSearch ? [createToolSearchToolDefinition({ tools: {
       getAllTools: () => [], getActiveTools: () => [], setActiveTools: () => {},
     } })] : [],
@@ -81,9 +81,8 @@ export function createTools(ctx, config = normalizeConfig(), executor) {
           result = definition.name === 'grep'
             ? await runGrep(input, operations.grep)
             : await tool.execute(exec.callId, input, exec.signal)
-          if (['read', 'edit', 'write'].includes(definition.name)) {
-            file = { path: resolveToCwd(input.path, cwd), line: definition.name === 'edit'
-              ? result.details?.firstChangedLine ?? 1 : input.offset ?? 1 }
+          if (definition.name === 'edit') {
+            file = { path: resolveToCwd(input.path, cwd), line: result.details?.firstChangedLine ?? 1 }
           }
         } finally {
           await operations.drain()
@@ -100,8 +99,6 @@ export function createTools(ctx, config = normalizeConfig(), executor) {
       }
       return jsonValue({ content, details: result.details, structuredContent: result.structuredContent, state: result.state, file })
     },
-    // Preserve Pi script errors' partial text/images before post-execute policy.
-    // Never replace authoritative structured Harness errors or cancellation.
     projectContent: (exec, result) => {
       const authored = errors.get(exec.token)
       errors.delete(exec.token)
@@ -111,9 +108,7 @@ export function createTools(ctx, config = normalizeConfig(), executor) {
   }))
 }
 
-// Stock DSH drops `constrainedSampling` from tool declarations before pi-ai.
-// Re-attach Pi's codemode grammar to the exact Pi codemode declaration so
-// pi-ai can use raw-JavaScript custom-tool transport where the route supports it.
+// external: DSH drops constrainedSampling from tool declarations before calling pi-ai
 export function codemodeSamplingTransform(codemode = createCodemodeToolDefinition({ models: false })) {
   const parameters = JSON.stringify(jsonValue(codemode.parameters))
   const constrainedSampling = jsonValue(codemode.constrainedSampling)
@@ -148,7 +143,6 @@ export async function apply(ctx, rawConfig = {}) {
     await installRequestTransforms(ctx)
     return
   }
-  // This optional integration owns its registrations in the preset, not on the Host.
   if (config.scopedTools.includes('work_read') && config.scopedTools.includes('work_update')) {
     await ctx.inject(['workTimeline'], scope => scope.workTimeline.registerTools(scope)).await()
   }

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Bark notify",
-    "description": "Send a Bark push notification when an agent asks a question, submits a plan for review, or requests approval."
+    "description": "Push Bark notifications when an agent asks a question, submits a plan, or requests approval."
   }
 }

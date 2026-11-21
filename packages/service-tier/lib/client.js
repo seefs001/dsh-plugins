@@ -1,9 +1,3 @@
-/**
- * dsh-service-tier — browser half.
- *
- * A service tier control beside the model picker, shown only when the current model's
- * provider speaks the OpenAI Responses API.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-service-tier',
   factory(require) {
@@ -11,7 +5,6 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const NS = 'service-tier'
 
-    // One shared state per Client run: fast models and Responses providers.
     const store = {
       state: { tiers: {}, providers: [], ultrafastModels: [], saving: false, failure: null },
       listeners: new Set(),
@@ -85,7 +78,6 @@ window.__ModuleLoader__.load({
         const above = anchor.top - 14
         const below = window.innerHeight - anchor.bottom - 14
         const openAbove = above >= 108 || above >= below
-        // The native top layer avoids clipping by the docked composer.
         panel.style.left = `${Math.max(8, Math.min(anchor.right - width, window.innerWidth - width - 8))}px`
         panel.style.top = openAbove ? 'auto' : `${anchor.bottom + 6}px`
         panel.style.bottom = openAbove ? `${window.innerHeight - anchor.top + 6}px` : 'auto'

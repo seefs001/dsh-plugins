@@ -12,56 +12,52 @@ window.__ModuleLoader__.load({
     const NS = 'acp-workbench'
 
     const en = {
-      startWithPort: 'Run with loopback port', confirmPort: 'Assign a free port as PASEO_PORT and set HOST=127.0.0.1. Start this command? No proxy or public URL is created.', watchPort: 'Watch port', unwatchPort: 'Stop watching', portPending: 'Waiting for port', portCheckAgain: 'Confirming connection failure', portAccepts: 'TCP connection accepted', portRefused: 'TCP connection refused', portTimeout: 'No TCP response', portFailed: 'Port check unavailable', portHint: 'Checks the assigned loopback port, not HTTP responses or the identity of the listening process.',
-      refreshComparison: 'Refresh comparison', commitScope: 'Branch commits', commitStart: 'Commit to review', commitEnd: 'Through commit', chooseCommit: 'Choose a commit', commitOnly: 'Just this commit', rangeSize: '{n} commits', commitHint: 'Shows Git history, not this agent’s turn. The patch starts at the first commit’s first parent and ends at the selected commit. Uncommitted changes are excluded.', noBranchCommits: 'There are no commits after this base. To look further back, choose an earlier base branch.', commitTruncated: 'Only the newest {n} commits are listed.', commitMissing: 'The selected commits are no longer in this list as one first-parent range. Choose a commit again.', commitHeadMoved: 'The branch head changed while reading commits. Refresh the comparison.', commitVersion: 'Committed file · {sha}',
-      recordedFile: 'File on disk now', recordedLocation: 'The path and line come from the recorded call. The preview reads the current file, not its historical contents.', reportedHits: 'Go to search results ({n})', moreTargets: 'Show more locations', lineGone: 'Line {n} no longer exists in this file.', fileStart: 'Read from the first line', fileChanged: 'The file changed while you were reading it. Reopen its location to reload.',
-      beforeFile: 'View old side', beforeAt: 'View old {path} at line {n}', beforePatch: 'Old lines in this patch', beforeWhole: 'Deleted text from this patch', beforeHint: 'Only captured lines are shown. Numbering is from the old file.', beforeFull: 'Read full old version', beforeNone: 'This patch has no old text lines.', beforeIndex: 'Old side · Git index', beforeCommit: 'Old side · commit {sha}', beforeSnapshot: 'Read-only Git text. This is not the current file.', beforeIndexHint: 'Read from the current Git index and checked against the comparison, not from disk.', beforeGap: 'Old lines {from}–{to} are not in the patch.', beforeLimited: 'Forge did not identify an exact old commit here. Only the captured patch lines are available.',
-      reviewFile: 'View file', reviewIndex: 'Staged version (Git index)', reviewDisk: 'Current checkout file', reviewAt: 'View {path} at line {n}', reviewFull: 'Open in Files sidebar', reviewDeleted: 'Deleted in this comparison; there is no new side.', reviewStale: 'This file no longer matches the patch. Refresh the comparison.', reviewPath: 'Cannot locate this file in the reviewed checkout.', reviewEmpty: 'Empty file', reviewPatch: 'Copyable patch', reviewNext: 'Next lines', reviewPrev: 'Previous lines', reviewBack: 'Close file preview', reviewBinary: 'No text lines to navigate.',
-      cliTasks: 'CLI tasks in this trace', cliTaskCount: '{n} launch calls', cliLaunchStatus: 'Launch call: {status}', cliTask: 'CLI task', cliOnly: 'View task', cliAll: 'Full trace', cliCalls: '{n} direct calls', cliProgress: 'Task update', cliInput: 'Task input', cliMedia: '{type} · see raw events', cliPreview: 'Preview {type}', cliNoMedia: 'The recorded content is unavailable.', cliLimit: 'Excerpt only · see raw events', cliScope: 'Direct activity reported by the CLI. This is not a DSH conversation.', cliOrigin: 'From {task}', cliMissing: 'Launch not in this trace: {task}', cliConflict: 'Conflicting task IDs',
+      startWithPort: 'Run with loopback port', confirmPort: 'Assign a free loopback port to PASEO_PORT with HOST=127.0.0.1 and start this command?', watchPort: 'Watch port', unwatchPort: 'Stop watching', portPending: 'Waiting for port', portCheckAgain: 'Retrying port check', portAccepts: 'TCP connection accepted', portRefused: 'TCP connection refused', portTimeout: 'No TCP response', portFailed: 'Port check unavailable', portHint: 'Checks TCP connectivity on the assigned loopback port.',
+      refreshComparison: 'Refresh comparison', commitScope: 'Branch commits', commitStart: 'Commit to review', commitEnd: 'Through commit', chooseCommit: 'Choose a commit', commitOnly: 'Just this commit', rangeSize: '{n} commits', commitHint: 'Shows Git history from the first commit’s parent through the selected commit.', noBranchCommits: 'No commits after this base. Choose an earlier base branch to look further back.', commitTruncated: 'Showing the newest {n} commits.', commitMissing: 'The selected commits no longer form one first-parent range. Choose a commit again.', commitHeadMoved: 'The branch head changed while reading commits. Refresh the comparison.', commitVersion: 'Committed file · {sha}',
+      recordedFile: 'File on disk now', recordedLocation: 'Opens the current file on disk at the recorded line.', reportedHits: 'Go to search results ({n})', moreTargets: 'Show more locations', lineGone: 'Line {n} no longer exists in this file.', fileStart: 'Read from the first line', fileChanged: 'The file changed while reading. Reopen its location to reload.',
+      beforeFile: 'View old side', beforeAt: 'View old {path} at line {n}', beforePatch: 'Old lines in this patch', beforeWhole: 'Deleted text from this patch', beforeHint: 'Captured patch lines with line numbers from the old file.', beforeFull: 'Read full old version', beforeNone: 'This patch has no old text lines.', beforeIndex: 'Old side · Git index', beforeCommit: 'Old side · commit {sha}', beforeSnapshot: 'Read-only Git snapshot.', beforeIndexHint: 'Read-only Git index snapshot.', beforeGap: 'Old lines {from}–{to} are not in the patch.', beforeLimited: 'Exact old commit unavailable; showing captured patch lines only.',
+      reviewFile: 'View file', reviewIndex: 'Staged version (Git index)', reviewDisk: 'Current checkout file', reviewAt: 'View {path} at line {n}', reviewFull: 'Open in Files sidebar', reviewDeleted: 'Deleted in this comparison.', reviewStale: 'This file no longer matches the patch. Refresh the comparison.', reviewPath: 'Cannot locate this file in the reviewed checkout.', reviewEmpty: 'Empty file', reviewPatch: 'Copyable patch', reviewNext: 'Next lines', reviewPrev: 'Previous lines', reviewBack: 'Close file preview', reviewBinary: 'No text lines to navigate.',
+      cliTasks: 'CLI tasks in this trace', cliTaskCount: '{n} launch calls', cliLaunchStatus: 'Launch call: {status}', cliTask: 'CLI task', cliOnly: 'View task', cliAll: 'Full trace', cliCalls: '{n} direct calls', cliProgress: 'Task update', cliInput: 'Task input', cliMedia: '{type} · see raw events', cliPreview: 'Preview {type}', cliNoMedia: 'The recorded content is unavailable.', cliLimit: 'Excerpt only · see raw events', cliScope: 'Direct CLI task activity (read-only).', cliOrigin: 'From {task}', cliMissing: 'Launch not in this trace: {task}', cliConflict: 'Conflicting task IDs',
       permitRequested: 'Permission requested', permitLive: 'Needs approval', permitAllowed: 'Allowed', permitAutomatic: 'Allowed by preset', permitDenied: 'Denied', permitExpired: 'Request expired', permitAnswered: 'Decision recorded',
       callView: 'Tool call display', compactCalls: 'Overview', detailedCalls: 'Individual calls', exploration: 'Exploration', readCount: 'Reads: {n}', searchCount: 'Searches: {n}', webCount: 'Web: {n}', distinctPaths: 'Distinct read paths: {n}', groupCalls: '{n} calls', 'call.cancelled': 'Cancelled',
       panel: 'ACP Workbench', panelHint: 'Start agents in a project and follow their work in DSH conversations.',
-      schedules: 'Scheduled agents', schDescription: 'A delivery puts instructions in a DSH conversation. It does not mean the agent finished the work.', schNew: 'Create schedule', schName: 'Task name', schPrompt: 'Instructions at delivery', schTarget: 'Destination', schExisting: 'An existing conversation (heartbeat)', schOnce: 'Create a conversation on the first delivery', schFresh: 'A fresh conversation at every delivery', schChoose: 'Choose a conversation', schPreset: 'DSH agent preset', schDefault: 'Host default', schRouteHint: 'An existing conversation keeps its selected engine and checkout. New ones use the project directory and DSH preset, not an ACP launch profile.', schTiming: 'Repeat', schAfter: 'Once, after a delay', schEvery: 'At a fixed interval', schDaily: 'Daily at a local time', schCron: 'Cron in a time zone', schMinutes: 'Minutes', schZone: 'IANA time zone', schTime: 'Local time', schExpr: 'Cron (5 fields)', schConfirm: 'Arm this schedule? Each delivery may start a real agent turn.', schUnknown: 'No confirmation received. Refresh the list before trying again.', schEmpty: 'No tasks target this project.', schRefresh: 'Refresh schedules', schActive: 'Active', schPaused: 'Paused', schEnded: 'Ended', schNext: 'Next delivery', schDelivered: 'Last delivery', schQueued: 'Queued or running', schManage: 'Manage task', schPause: 'Pause', schResume: 'Resume', schRun: 'Deliver now', schRunConfirm: 'Deliver these instructions now? This may start a real agent turn.', schIncomplete: 'Enter a title, instructions, a valid time and an available destination.', schMissing: 'This task was removed or changed. Refresh before retrying.', schFloor: 'Can deliver again after', schBusy: 'Delivery is already queued, or the minimum delivery interval has not elapsed.', schCadence: 'Cadence', schHistory: 'Delivery history', schNoHistory: 'No saved deliveries yet.', schMore: 'Earlier deliveries', schPruned: 'Some older deliveries are unavailable.', schDelete: 'Delete task', schDeleteConfirm: 'Delete this task and its delivery history? Messages already delivered remain in their conversations.',
-      termList: 'Session terminals', termRetry: 'Retry terminal list', termScope: 'Terminals retained by DSH for this conversation. Listing them does not attach a client.', termEmpty: 'No terminal is retained for this conversation.', termAgent: 'Started by agent', termUser: 'Started by user', termAgentControl: 'Agent control', termLost: 'Terminal roster disconnected.', termMissing: 'This terminal cannot be opened in its conversation.',
-      scripts: 'Project scripts', scriptsHint: 'Commands in this checkout’s paseo.json run in the session sandbox. For services that use $PASEO_PORT, choose a loopback port at launch to check TCP readiness.', scriptNone: 'No named scripts in this checkout’s paseo.json.', scriptStart: 'Run', scriptStop: 'Stop process', scriptLog: 'Read output', scriptTerminal: 'Open terminal', scriptConfirm: 'Run this checkout’s command in a new DSH terminal?', stopScriptConfirm: 'Stop this script and close its terminal?', scriptService: 'Service', scriptTask: 'Script', runHere: 'Owner conversation', scriptUnavailable: 'Terminal no longer retained', scriptExited: 'Exited', scriptStopped: 'Stopped', scriptRunning: 'Running', scriptStarting: 'Starting', scriptFailed: 'Failed', scriptOwner: 'Under manual control', noOutput: 'No output retained', scriptRefresh: 'Refresh scripts', scriptLoading: 'Reading scripts…', scriptExit: 'Exit code',
-      projects: 'Projects', addProject: 'Add directory', chooseProject: 'Workspace', agents: 'Conversations', newAgent: 'New agent', local: 'Project directory', worktree: 'Isolated worktree', checkout: 'Isolation', branchName: 'New branch (optional)', baseRef: 'Start from (default: HEAD)', agentName: 'Conversation title (optional)', createAgent: 'Create and open chat', launchHint: 'Creates a separate conversation. No prompt is sent.', noProject: 'Add a project directory to start an agent.', noAgents: 'No conversations here yet.', projectFailed: 'Setup stopped. The conversation was kept. No prompt was sent.', nativeChat: 'DSH conversation', cliDefault: 'CLI default', projectArchive: 'Archived', profiles: 'Launch profile', customLaunch: 'Custom settings', profileName: 'Profile name', saveProfile: 'Save launch settings', removeProfile: 'Delete profile', removeProfileConfirm: 'Delete this launch profile? Existing conversations are unchanged.', unavailableProfile: 'This profile is unavailable. Check its provider, model and worktree support.', effortChoice: 'Reasoning effort', projectTools: 'Workspace tools', filesTab: 'Files', terminalTab: 'New terminal', changesTab: 'Git changes', archiveChat: 'Archive conversation', archiveChatConfirm: 'Archive this DSH conversation? DSH may reclaim an unused, clean managed worktree. Active work will not be stopped.', restoreChat: 'Restore conversation',
-      shareCheckout: 'Start another agent here', shareHeading: 'Agents in this worktree', sharedCheckout: 'Shared worktree', shareOwner: 'Creator', shareCurrent: 'Selected conversation', shareOpen: 'Create and open conversation', shareDismiss: 'Close form', switchShared: 'Switch agent in this worktree', noSharedPeers: 'No other active participants in this checkout.', shareHint: 'These agents edit the same files. Each has its own conversation, CLI history and approvals. No history or prompt will be copied.', shareArchive: 'Archive this participant? Its checkout belongs to a different conversation. Archiving this participant will not reclaim that shared checkout.', sharePartial: 'This conversation did not finish joining the checkout. Start a new conversation from an active participant.',
-      treeInspect: 'Working directory', treeActual: 'Effective directory', treeSource: 'Source checkout', treeRecorded: 'Recorded branch', treeBase: 'Base commit', treeOwned: 'Created here', treeInherited: 'Inherited reference', treeOther: 'Not the current directory', treeDirectory: 'Directory exists', treeMissing: 'Directory missing', treeIncomplete: 'Directory present without a linked-checkout marker', treeOccupied: 'Occupied by a non-directory or symlink', treeEmpty: 'No managed worktree creation in this session’s history.', treeScheduled: 'Checking whether the checkout can be reclaimed…', treeRetained: 'DSH kept the checkout.', treeRemoved: 'DSH removed the checkout, not the branch.', treeFailed: 'Cleanup failed. A partial directory may remain; inspect it before continuing.', treeNoReceipt: 'No cleanup receipt from this Host lifetime. Directory state is shown separately.', treeRestoreFirst: 'Unarchive the conversation first. That does not rebuild the checkout.', treeRestore: 'Rebuild missing worktree', treeRestoreAsk: 'Rebuild the missing directory from its recorded branch? If the branch is gone DSH recreates it at the base commit. This does not recover uncommitted work or change the session’s directory.', treeRebuilt: 'Restored the checkout from its existing branch.', treeRecreated: 'The original branch was gone. DSH recreated it at the base commit, not at any later tip.', treeBusy: 'Rebuilding the worktree…', treePolicy: 'The conversation must be idle and writable to rebuild its checkout.', treeArchiveRisk: 'Git-visible modified and untracked files or another session using this worktree keep it in place. Ignored files and changes hidden from Git status are not protected. To keep those, cancel and back them up or enable DSH’s retain-on-archive setting first.',
-      projectResults: 'Project review', unseen: 'Awaiting review', reviewed: 'Reviewed', legacyReview: 'Earlier run', markSeen: 'Mark reviewed', resultHistory: 'All results', resultTurn: 'Turn {n}', previousPage: 'Previous page', nextPage: 'Next page', noResults: 'No results to review.', noAllResults: 'No finished ACP runs in this project yet.', reviewHint: 'Results belong to individual runs. Reading a card does not dismiss it or answer a request.', runTrace: 'Run trace', checkoutDiff: 'Checkout changes', gitScope: 'Compare', uncommitted: 'Working tree vs HEAD', staged: 'Staged', unstaged: 'Unstaged', branchDiff: 'Branch vs base', baseBranch: 'Base branch', autoBase: 'Forge default', findBase: 'Find a branch', checkoutHint: 'Live Git state for this conversation’s current checkout. It may include other agents’ work and is not a patch for this run.', diffClean: 'No changes in this comparison.', diffOmitted: '{n} untracked files omitted by Forge.', binaryDiff: 'Binary file', largeDiff: 'File exceeds the diff limit', noHunks: 'No text hunks', moreLines: 'Show more lines', moreFiles: 'Show more files', projectRequests: 'Waiting for your response', checkoutUnavailable: 'Git changes are unavailable.',
+      schedules: 'Scheduled agents', schDescription: 'Delivers instructions to a DSH conversation on schedule. Delivery does not wait for completion.', schNew: 'Create schedule', schName: 'Task name', schPrompt: 'Instructions at delivery', schTarget: 'Destination', schExisting: 'An existing conversation (heartbeat)', schOnce: 'Create a conversation on the first delivery', schFresh: 'A fresh conversation at every delivery', schChoose: 'Choose a conversation', schPreset: 'DSH agent preset', schDefault: 'Host default', schRouteHint: 'Existing conversations keep their engine and directory. New ones use the project directory and DSH preset.', schTiming: 'Repeat', schAfter: 'Once, after a delay', schEvery: 'At a fixed interval', schDaily: 'Daily at a local time', schCron: 'Cron in a time zone', schMinutes: 'Minutes', schZone: 'IANA time zone', schTime: 'Local time', schExpr: 'Cron (5 fields)', schConfirm: 'Arm this schedule? Each delivery triggers an agent turn.', schUnknown: 'No confirmation received. Refresh the list before trying again.', schEmpty: 'No tasks target this project.', schRefresh: 'Refresh schedules', schActive: 'Active', schPaused: 'Paused', schEnded: 'Ended', schNext: 'Next delivery', schDelivered: 'Last delivery', schQueued: 'Queued or running', schManage: 'Manage task', schPause: 'Pause', schResume: 'Resume', schRun: 'Deliver now', schRunConfirm: 'Deliver these instructions now?', schIncomplete: 'Enter a title, instructions, a valid time and an available destination.', schMissing: 'This task was removed or changed. Refresh before retrying.', schFloor: 'Can deliver again after', schBusy: 'Delivery is already queued, or the minimum delivery interval has not elapsed.', schCadence: 'Cadence', schHistory: 'Delivery history', schNoHistory: 'No saved deliveries yet.', schMore: 'Earlier deliveries', schPruned: 'Some older deliveries are unavailable.', schDelete: 'Delete task', schDeleteConfirm: 'Delete this task and its delivery history? Messages already delivered remain in their conversations.',
+      termList: 'Session terminals', termRetry: 'Retry terminal list', termScope: 'Terminals retained by DSH for this conversation.', termEmpty: 'No terminal is retained for this conversation.', termAgent: 'Started by agent', termUser: 'Started by user', termAgentControl: 'Agent control', termLost: 'Terminal roster disconnected.', termMissing: 'This terminal cannot be opened in its conversation.',
+      scripts: 'Project scripts', scriptsHint: 'Commands in paseo.json run in the session sandbox. Services using $PASEO_PORT can launch with an assigned loopback port and TCP check.', scriptNone: 'No named scripts in this checkout’s paseo.json.', scriptStart: 'Run', scriptStop: 'Stop process', scriptLog: 'Read output', scriptTerminal: 'Open terminal', scriptConfirm: 'Run this command in a new DSH terminal?', stopScriptConfirm: 'Stop this script and close its terminal?', scriptService: 'Service', scriptTask: 'Script', runHere: 'Owner conversation', scriptUnavailable: 'Terminal no longer retained', scriptExited: 'Exited', scriptStopped: 'Stopped', scriptRunning: 'Running', scriptStarting: 'Starting', scriptFailed: 'Failed', scriptOwner: 'Under manual control', noOutput: 'No output retained', scriptRefresh: 'Refresh scripts', scriptLoading: 'Reading scripts…', scriptExit: 'Exit code',
+      projects: 'Projects', addProject: 'Add directory', chooseProject: 'Workspace', agents: 'Conversations', newAgent: 'New agent', local: 'Project directory', worktree: 'Isolated worktree', checkout: 'Isolation', branchName: 'New branch (optional)', baseRef: 'Start from (default: HEAD)', agentName: 'Conversation title (optional)', createAgent: 'Create and open chat', launchHint: 'Creates a new conversation without sending a message.', noProject: 'Add a project directory to start an agent.', noAgents: 'No conversations here yet.', projectFailed: 'Setup stopped. The conversation was kept.', nativeChat: 'DSH conversation', cliDefault: 'CLI default', projectArchive: 'Archived', profiles: 'Launch profile', customLaunch: 'Custom settings', profileName: 'Profile name', saveProfile: 'Save launch settings', removeProfile: 'Delete profile', removeProfileConfirm: 'Delete this launch profile? Existing conversations are unchanged.', unavailableProfile: 'This profile is unavailable. Check its provider, model and worktree support.', effortChoice: 'Reasoning effort', projectTools: 'Workspace tools', filesTab: 'Files', terminalTab: 'New terminal', changesTab: 'Git changes', archiveChat: 'Archive conversation', archiveChatConfirm: 'Archive this DSH conversation? DSH may reclaim an unused, clean managed worktree.', restoreChat: 'Restore conversation',
+      shareCheckout: 'Start another agent here', shareHeading: 'Agents in this worktree', sharedCheckout: 'Shared worktree', shareOwner: 'Creator', shareCurrent: 'Selected conversation', shareOpen: 'Create and open conversation', shareDismiss: 'Close form', switchShared: 'Switch agent in this worktree', noSharedPeers: 'No other active participants in this checkout.', shareHint: 'Shared worktree: each agent edits the same files with its own conversation, CLI context, and approvals.', shareArchive: 'Archive this conversation? Its shared worktree belongs to another conversation and will remain intact.', sharePartial: 'This conversation did not finish joining the checkout. Start a new conversation from an active participant.',
+      treeInspect: 'Working directory', treeActual: 'Effective directory', treeSource: 'Source checkout', treeRecorded: 'Recorded branch', treeBase: 'Base commit', treeOwned: 'Created here', treeInherited: 'Inherited reference', treeOther: 'Not the current directory', treeDirectory: 'Directory exists', treeMissing: 'Directory missing', treeIncomplete: 'Directory present without a linked-checkout marker', treeOccupied: 'Occupied by a non-directory or symlink', treeEmpty: 'No managed worktree creation in this session’s history.', treeScheduled: 'Checking whether the checkout can be reclaimed…', treeRetained: 'DSH kept the checkout.', treeRemoved: 'DSH removed the checkout directory (branch kept).', treeFailed: 'Cleanup failed. A partial directory may remain; inspect it before continuing.', treeNoReceipt: 'No cleanup receipt from this Host session.', treeRestoreFirst: 'Restore the conversation first before rebuilding its worktree.', treeRestore: 'Rebuild missing worktree', treeRestoreAsk: 'Rebuild the missing directory from its recorded branch? If the branch is gone, DSH recreates it at the base commit. Uncommitted changes cannot be recovered.', treeRebuilt: 'Restored the checkout from its existing branch.', treeRecreated: 'Original branch was gone; recreated at the base commit.', treeBusy: 'Rebuilding the worktree…', treePolicy: 'The conversation must be idle and writable to rebuild its checkout.', treeArchiveRisk: 'Modified or untracked files and active peer sessions prevent reclamation. Git-ignored files are not protected; back them up or enable retain-on-archive first.',
+      projectResults: 'Project review', unseen: 'Awaiting review', reviewed: 'Reviewed', markSeen: 'Mark reviewed', resultHistory: 'All results', resultTurn: 'Turn {n}', previousPage: 'Previous page', nextPage: 'Next page', noResults: 'No results to review.', noAllResults: 'No finished ACP runs in this project yet.', reviewHint: 'Each finished run is listed separately. Opening a card does not mark it reviewed or answer requests.', runTrace: 'Run trace', checkoutDiff: 'Checkout changes', gitScope: 'Compare', uncommitted: 'Working tree vs HEAD', staged: 'Staged', unstaged: 'Unstaged', branchDiff: 'Branch vs base', baseBranch: 'Base branch', autoBase: 'Forge default', findBase: 'Find a branch', checkoutHint: 'Live Git status of this checkout (may include changes from other agents).', diffClean: 'No changes in this comparison.', diffOmitted: '{n} untracked files omitted by Forge.', binaryDiff: 'Binary file', largeDiff: 'File exceeds the diff limit', noHunks: 'No text hunks', moreLines: 'Show more lines', moreFiles: 'Show more files', projectRequests: 'Waiting for your response', checkoutUnavailable: 'Git changes are unavailable.',
       attention: 'Needs you', working: 'In progress', review: 'Review', recent: 'Recent', history: 'History', all: 'Current',
-      attentionHint: 'A response here goes to the waiting CLI. Opening the conversation does not answer it.',
-      recoveryHint: 'Check the last turn before sending anything else. Reconnecting does not resend your message.',
-      firstTurn: 'Send your first message in the composer to get started. The CLI uses its own tools and file access.', archivedHint: 'This binding is archived. Restore it to continue using its context.',
+      attentionHint: 'Actions here reply directly to the waiting CLI.',
+      recoveryHint: 'Check the last turn before continuing; reconnecting does not resend input.',
+      firstTurn: 'Send your first message in the composer to start. The CLI uses its own tools and file access.', archivedHint: 'This binding is archived. Restore it to continue using its context.',
       openConversation: 'Open conversation', openRoot: 'Open parent tree', retry: 'Refresh', connectingFeed: 'Connecting…',
       cliOptions: 'CLI settings', hideOptions: 'Close CLI settings', connectOnly: 'Connect without sending a message',
-      forkHere: 'Continue in a copy', forkHint: 'A copy starts from the latest history saved by the CLI. It does not move the original session or send a prompt.', forkSource: 'Copied from CLI history', resumeExisting: 'Continue a CLI session', resumeHere: 'Continue here', closeHistory: 'Hide sessions',
+      forkHere: 'Continue in a copy', forkHint: 'Copies the CLI’s latest saved history into a new context without modifying the original.', forkSource: 'Copied from CLI history', resumeExisting: 'Continue a CLI session', resumeHere: 'Continue here', closeHistory: 'Hide sessions',
       previousMessages: 'Previous CLI messages', hidePrevious: 'Hide previous messages', noReplay: 'No earlier messages returned in this page of CLI history.',
-      resumePick: 'Choose a session from this project. Opening it sends no message. Your next message continues the CLI thread without copying the earlier DSH conversation.',
+      resumePick: 'Connects to a CLI session in this directory; your next message continues that thread.',
       firstUse: 'Choose an ACP model in the DSH model picker and send a message. Its activity will appear here.',
       setup: 'Manage providers', answeredByPreset: 'Full access · automatic', answeredByUser: 'Human response',
       quietChildren: 'Other subagents ({n})', requestCount: '{n} waiting',
-      scopeOnce: 'Full access can grant one-time requests. Persistent choices still need you.',
+      scopeOnce: 'Full access auto-approves one-time requests; persistent choices still ask.',
       tabProviders: 'Providers', tabRecords: 'Activity', live: 'Live', offline: 'Reconnecting…',
-      engine: 'ACP engine', useEngine: 'Run this conversation through {name}', showInfo: 'About ACP engines', hideInfo: 'Hide details',
-      engineHint: 'Choose a specific model under an ACP provider in the normal model picker. Keep using the normal composer, attachments and Stop button; replies stay in this timeline.',
-      delegateHint: 'To delegate from a DSH model, use subagent_cursor, subagent_antigravity or subagent_acp_claude_code. Continue a child with send_message.',
-      warning: 'External agents use their own login, tools, and file access outside the DSH sandbox. Approvals apply only to requests the CLI sends.',
-      engineOn: '{name} · ACP', notConnected: 'Connects on your next message',
-      connect: 'Connect', reconnect: 'Reconnect', disconnect: 'Disconnect', cancelConnect: 'Cancel',
-      newContext: 'New external context', newContextConfirm: 'Start a new external conversation from the next message? DSH history and earlier execution records are kept.',
-      restoreTo: 'Back to {model}', restoreTitle: 'Switch this conversation back to the DSH model it used before',
-      restoreHint: 'No earlier DSH model was saved for this conversation. Use the model picker to switch back.',
-      moreOptions: 'Show engine options', lessOptions: 'Hide engine options', switchEngine: 'Switch engine',
-      configuration: 'Configuration', commands: 'CLI commands', usage: 'Usage', directory: 'Directory',
+      engine: 'ACP engine',
+      engineHint: 'Pick an ACP model in the normal model picker to use the standard composer, attachments, and Stop button.',
+      delegateHint: 'To delegate from a DSH model, use subagent_cursor, subagent_antigravity, or subagent_acp_claude_code and continue with send_message.',
+      warning: 'External CLIs run outside the DSH sandbox with their own login, tools, and file access.',
+      connect: 'Connect', reconnect: 'Reconnect', disconnect: 'Disconnect',
+      newContext: 'New external context', newContextConfirm: 'Start a new external context from the next message? DSH history and earlier records are kept.',
+      configuration: 'Configuration', commands: 'CLI commands', directory: 'Directory',
       noConfig: 'Connect to load the models, modes and options this CLI advertises.',
-      cliCommandGroup: 'CLI · {name}', cliCommandStale: 'Select this CLI command again from the / menu. Its original selection is no longer current.',
+      cliCommandGroup: 'CLI · {name}', cliCommandStale: 'Select this CLI command again from the / menu.',
       model: 'Model', mode: 'Mode', commandPick: 'Command…', commandArgs: 'Arguments', commandRun: 'Run',
-      commandHint: 'Sent to the external CLI as a normal message. Slash commands typed in the composer still belong to DSH.',
-      'notice.feed': 'CLI session notices', 'notice.recent': 'Up to eight off-turn notices received on this connection, newest first. These are not permission requests.', 'notice.info': 'Info', 'notice.warning': 'Warning', 'notice.error': 'Error', 'notice.level': 'CLI · {level}', 'notice.turn': 'Received during this prompt', 'notice.connect': 'Received while connecting', 'notice.session': 'Received between prompts', 'notice.fromTask': 'CLI task: {id}', 'notice.unavailable': 'Could not find this notice in the local record.',
+      commandHint: 'Sent to the external CLI as a normal message. Slash commands typed in the composer stay in DSH.',
+      'notice.feed': 'CLI session notices', 'notice.recent': 'Latest 8 off-turn notices on this connection.', 'notice.info': 'Info', 'notice.warning': 'Warning', 'notice.error': 'Error', 'notice.level': 'CLI · {level}', 'notice.turn': 'Received during this prompt', 'notice.connect': 'Received while connecting', 'notice.session': 'Received between prompts', 'notice.fromTask': 'CLI task: {id}', 'notice.unavailable': 'Could not find this notice in the local record.',
       'compact.late': 'Updated by the CLI after this turn.', 'compact.title': 'CLI context compaction', 'compact.replay': 'Replayed CLI compaction', 'compact.summary': 'Reported summary', 'compact.noSummary': 'No summary in these reports.', 'compact.in_progress': 'Compacting', 'compact.unsettled': 'Last reported in progress', 'compact.completed': 'Compacted', 'compact.failed': 'Compaction failed', 'compact.cancelled': 'Compaction cancelled', 'compact.automatic': 'Automatic', 'compact.manual': 'Manual', 'compact.idle': 'While idle', 'compact.preTokens': 'Before: {n} tokens', 'compact.postTokens': 'After: {n} tokens', 'compact.durationMs': 'Duration: {n} ms', 'compact.attachment': 'Preview attachment · {type}', 'compact.noMedia': 'The recorded attachment is unavailable.',
-      contextRecent: 'CLI context · last report', contextRecorded: 'Reported CLI context', contextReplay: 'Context in replayed history', ctxAt: 'Reported at {time}', ctxScope: 'Context window usage, not billed tokens or quota.', ctxCost: 'Cumulative session cost: {amount} {unit}', ctxTotals: 'CLI session token totals', ctxTotalsScope: 'Cumulative session totals reported when this prompt ended (not a single-turn cost).', ctxTotal: 'Total', ctxInput: 'Input', ctxOutput: 'Output', ctxCacheRead: 'Cache read', ctxCacheWrite: 'Cache write', ctxThought: 'Reasoning', ctxModel: 'Reported model: {model}',
+      contextRecent: 'CLI context · last report', contextRecorded: 'Reported CLI context', contextReplay: 'Context in replayed history', ctxAt: 'Reported at {time}', ctxScope: 'Context window usage (not billing or quota).', ctxCost: 'Cumulative session cost: {amount} {unit}', ctxTotals: 'CLI session token totals', ctxTotalsScope: 'Cumulative session totals reported at the end of this turn.', ctxTotal: 'Total', ctxInput: 'Input', ctxOutput: 'Output', ctxCacheRead: 'Cache read', ctxCacheWrite: 'Cache write', ctxThought: 'Reasoning', ctxModel: 'Reported model: {model}',
       usageContext: 'Context {used} / {size} ({percent}%)', usageCost: 'Cost {amount} {currency}',
-      unknownUsage: 'Not reported by this agent (ACP does not expose account quota).',
+      unknownUsage: 'Not reported by this agent.',
       children: 'ACP subagents', stop: 'Stop', pending: 'Needs you', expand: 'Show trace', collapse: 'Hide trace',
       'state.starting': 'Connecting', 'state.idle': 'Ready', 'state.running': 'Running', 'state.waiting': 'Needs your response',
       'state.canceling': 'Stopping', 'state.disconnected': 'Disconnected', 'state.error': 'Error', 'state.preparing': 'Preparing',
@@ -72,16 +68,16 @@ window.__ModuleLoader__.load({
       viewTimeline: 'Timeline', viewRaw: 'Raw events', older: 'Load earlier', loading: 'Loading…',
       noEvents: 'No execution events yet.', noActivity: 'No tool activity in this turn.',
       stderr: 'CLI log output', stopReason: 'Turn ended: {reason}', turnError: 'Agent error: {message}', configError: 'Setting refused: {message}',
-      planItems: 'Task checklist', planDocument: 'Plan document', planRemoved: 'Plan removed by CLI', planRecorded: 'Content reported by the CLI at this point in the conversation.', planOpenFile: 'View current file', planDone: 'Done', planDoing: 'In progress', planPending: 'Pending', planEmpty: 'No listed steps.', morePlanItems: 'Show more steps',
+      planItems: 'Task checklist', planDocument: 'Plan document', planRemoved: 'Plan removed by CLI', planRecorded: 'Plan reported by the CLI.', planOpenFile: 'View current file', planDone: 'Done', planDoing: 'In progress', planPending: 'Pending', planEmpty: 'No listed steps.', morePlanItems: 'Show more steps',
       plan: 'Plan', highPriority: 'High', planProgress: '{done} of {total}',
       'call.read': 'Read file', 'call.search': 'Search', 'call.edit': 'Edit file', 'call.write': 'Write file', writeView: 'Write details', writeInput: 'Requested file content', writePatch: 'Reported patch', writeEmpty: 'The requested content is empty.', 'call.delete': 'Delete', 'call.move': 'Move',
       'call.execute': 'Terminal', 'call.fetch': 'Web', 'call.think': 'Reasoning', 'call.switch_mode': 'Switch mode',
       'call.pending': 'Queued', 'call.in_progress': 'Running', 'call.unfinished': 'No final status', 'call.completed': 'Completed', 'call.failed': 'Failed',
       'patch.launch': 'Launch preview', 'patch.update': 'Patch from a CLI update', 'patch.completed': 'Patch in completion report', 'patch.failed': 'Patch in failure report', 'patch.permission': 'Patch in this permission request', 'patch.recorded': 'Reported patch', patchCurrent: 'Open current file at a reported location', patchFiles: 'Patch files ({n})', patchAll: 'All reported fragments', patchParts: '{n} fragments', patchNoParts: 'No structured text diff for this file.', 'patch.add': 'Add file', 'patch.delete': 'Delete file', 'patch.move': 'Move file', 'patch.updateFile': 'Edit file',
       webSearch: 'Web search', webPage: 'Fetch page', webFind: 'Find in page', webQuery: 'Reported queries', webAddress: 'Page address', webPattern: 'Find on page', webPrompt: 'Requested extraction', webOffset: 'Starting character offset', webAllow: 'Allowed domains', webDeny: 'Blocked domains', webPreview: 'Request preview', webResponse: 'Tool report', webRaw: 'Raw tool output', webUpdate: 'Update from the tool', webFailure: 'Reported failure', webNoReport: 'No result text accompanied this call.', webMore: 'Show more sources ({n} remaining)', webSourceCount: '{n} reported sources',
-      fileByName: 'Find by name', fileByDirectory: 'Browse folders', dirRoot: 'Checkout root', dirBack: 'Back to folder', dirHint: 'Lists one folder at a time. Dotfiles are hidden; Git ignore rules do not filter this view.', dirRefresh: 'Refresh folder', dirRestart: 'Reopen current checkout root', dirCount: '{n} visible entries', dirEmpty: 'No visible entries returned.', dirPartial: 'DSH returned only part of this directory.', dirFolder: 'Folder', dirFile: 'File', dirOther: 'Other', dirBytes: '{n} B', dirMore: 'Show more entries', fileRefresh: 'Repeat search',
-      findFile: 'Find a file', fileQuery: 'File name or path', findFileHint: 'Search names in this conversation’s current directory. Hidden and Git-ignored files are excluded.', foundFiles: '{n} files returned', fileHitsLimit: 'Result limit reached; narrow the search', fileScanCut: 'Only part of the directory was searched', moreFileHits: 'Show more files', fileHitsBack: 'Back to file results',
-      'batch.archive': 'Archive several conversations', 'batch.restore': 'Restore several conversations', 'batch.confirm': 'Review selected conversations', 'batch.choose': 'Check at least one eligible conversation first.', 'batch.archiveNote': 'Select conversations in this project. DSH removes their pins. Active sessions and sessions with a recorded worktree are skipped. No activity is stopped.', 'batch.restoreNote': 'Restore only the checked conversations to this project. This does not open them, start an agent, restore pins or rebuild a worktree.', 'batch.active': 'Active or awaiting input', 'batch.denied': 'No permission', 'batch.changed': 'Membership or archive state changed; refresh and check again.', 'batch.tree': 'Use the individual archive action to review this worktree.', 'batch.result': 'Results by conversation', 'batch.archived': 'Archived', 'batch.restored': 'Restored', 'batch.skipped': 'Not changed',
+      fileByName: 'Find by name', fileByDirectory: 'Browse folders', dirRoot: 'Checkout root', dirBack: 'Back to folder', dirHint: 'Lists one folder at a time. Dotfiles are hidden; Git-ignored entries are shown.', dirRefresh: 'Refresh folder', dirRestart: 'Reopen current checkout root', dirCount: '{n} visible entries', dirEmpty: 'No visible entries returned.', dirPartial: 'DSH returned only part of this directory.', dirFolder: 'Folder', dirFile: 'File', dirOther: 'Other', dirBytes: '{n} B', dirMore: 'Show more entries', fileRefresh: 'Repeat search',
+      findFile: 'Find a file', fileQuery: 'File name or path', findFileHint: 'Searches this conversation’s current directory, excluding dotfiles and Git-ignored files.', foundFiles: '{n} files returned', fileHitsLimit: 'Result limit reached; narrow the search', fileScanCut: 'Only part of the directory was searched', moreFileHits: 'Show more files', fileHitsBack: 'Back to file results',
+      'batch.archive': 'Archive several conversations', 'batch.restore': 'Restore several conversations', 'batch.confirm': 'Review selected conversations', 'batch.choose': 'Check at least one eligible conversation first.', 'batch.archiveNote': 'Archives selected conversations and removes pins. Active sessions and worktree sessions are skipped.', 'batch.restoreNote': 'Restores selected conversations without opening them or rebuilding worktrees.', 'batch.active': 'Active or awaiting input', 'batch.denied': 'No permission', 'batch.changed': 'Membership or archive state changed; refresh and check again.', 'batch.tree': 'Use the individual archive action to review this worktree.', 'batch.result': 'Results by conversation', 'batch.archived': 'Archived', 'batch.restored': 'Restored', 'batch.skipped': 'Not changed',
       findAgent: 'Find conversations', findAgentHint: 'Name, project, engine, directory or DSH session ID', hereProjects: 'This project', everyProject: 'All projects', finderScope: 'Search scope', onlyPinned: 'Pinned only', isPinned: 'Pinned', finderCount: '{n} conversations', finderNoMatch: 'No conversations match these filters.', finderReset: 'Clear filters', projectRename: 'Rename project', projectTitle: 'Project name', sameProjectTitle: 'Another project already has this name.', cancelEdit: 'Cancel', agentMenu: 'Actions for conversation {name}', archivedOpen: 'Restore this conversation before opening it.',
       'call.mcp': 'MCP tool', mcpArgs: 'Arguments', mcpOutput: 'Reported output', mcpContent: 'Display content', mcpStructured: 'Structured result', mcpRequest: 'Request details', mcpDisplayArgs: 'Arguments as displayed by the request', mcpAbsent: 'Raw arguments not provided', mcpTable: 'Records with the same fields', mcpEmpty: 'The tool returned no content blocks.', mcpEmptyDisplay: 'The CLI supplied no display blocks here.', mcpFields: '{n} fields', mcpItems: '{n} items', mcpMore: 'Show more', mcpLess: 'Collapse', mcpSource: 'MCP server',
       streamReport: 'Reported terminal output', finalReport: 'Output reported by the tool', outputView: 'Command output', outputTail: 'Earlier output omitted; showing the last 32 Ki characters.', outputPartial: 'Unknown packet format: showing the latest report and subsequent explicit deltas.', awaitingExit: 'No terminal exit reported',
@@ -89,97 +85,92 @@ window.__ModuleLoader__.load({
       lineNumber: 'Line {n}', linesReturned: '{n} lines returned', pathsReturned: '{n} paths', hitsReturned: '{n} matches · {files} files', noHits: 'No results',
       'decision.accepted': 'Accepted', 'decision.rejected': 'Rejected', 'decision.cancelled': 'Cancelled', 'decision.skipped': 'Skipped', 'decision.answered': 'Answered',
       resource: 'Resource', noExit: 'Exit code not reported', noShellOutput: 'No output reported', terminalSignal: 'Signal {signal}', pathMore: '+{n} more',
-      clearField: 'Clear selection', form: 'Question from the CLI', formOptional: 'Optional', formRequired: 'Required', formSubmit: 'Submit answers', formDecline: 'Decline to answer', formPreview: 'Preview option', formHelp: 'Only submitted fields go to this CLI. Do not enter passwords or tokens.', formMin: 'Minimum: {n}', formMax: 'Maximum: {n}', 'form.accept': 'Answers submitted', 'form.decline': 'Declined to answer', 'form.cancel': 'Dismissed', formWithdrawn: 'Withdrawn by the CLI',
+      clearField: 'Clear selection', form: 'Question from the CLI', formOptional: 'Optional', formRequired: 'Required', formSubmit: 'Submit answers', formDecline: 'Decline to answer', formPreview: 'Preview option', formHelp: 'Submitted fields are sent to the CLI. Do not enter passwords or tokens.', formMin: 'Minimum: {n}', formMax: 'Maximum: {n}', 'form.accept': 'Answers submitted', 'form.decline': 'Declined to answer', 'form.cancel': 'Dismissed', formWithdrawn: 'Withdrawn by the CLI',
       permission: 'Permission request', question: 'Question from the agent', 'kind.plan': 'Plan for approval',
-      permitLaunch: 'Inspect original tool call', permitEarlier: 'Reported when the tool started. These are not the terms of this permission request.', permitEmpty: 'The CLI did not include arguments, file locations or a preview in this request.', permitPast: 'Inspect permission request', permitReadOnly: 'Recorded request · read only', permitUnavailable: 'The matching permission record is unavailable.', permitCallId: 'Call ID', permitCwd: 'CLI directory', permitOptions: 'Choices offered by the CLI', permitScopeOnce: 'This request only', permitScopeRemember: 'May apply to later requests', permitGrant: 'Allow', permitRefuse: 'Deny', permitSelection: 'Recorded decision: {choice}', permitAutoSelection: 'Preset decision: {choice}',
+      permitLaunch: 'Inspect original tool call', permitEarlier: 'Snapshot from when the tool call started.', permitEmpty: 'The CLI did not include arguments, file locations or a preview in this request.', permitPast: 'Inspect permission request', permitReadOnly: 'Recorded request · read only', permitUnavailable: 'The matching permission record is unavailable.', permitCallId: 'Call ID', permitCwd: 'CLI directory', permitOptions: 'Choices offered by the CLI', permitScopeOnce: 'This request only', permitScopeRemember: 'May apply to later requests', permitGrant: 'Allow', permitRefuse: 'Deny', permitSelection: 'Recorded decision: {choice}', permitAutoSelection: 'Preset decision: {choice}',
       permanent: 'An “always” choice may be remembered by the CLI for later requests.',
       approve: 'Approve plan', reject: 'Reject', rejectReason: 'Reason (optional)', answer: 'Submit answers', skip: 'Skip', dismiss: 'Cancel request',
-      'event.interaction': 'Asked: {title}', 'event.answered': 'Response sent', 'event.expired': 'Request expired',
+      'event.interaction': 'Asked: {title}', 'event.expired': 'Request expired',
       input: 'Input', output: 'Output', terminal: 'Terminal {id}', tool: 'Tool call',
       user: 'You', assistant: 'Agent', thinking: 'Reasoning', replay: 'History replay',
       truncated: '… {n} characters in total', copy: 'Copy', copied: 'Copied', wrap: 'Wrap lines', unwrap: 'Do not wrap', code: 'Code',
       expandLines: 'Show {n} more lines', collapseLines: 'Show less', expandLinesAria: 'Show {n} hidden lines', collapseLinesAria: 'Hide expanded lines',
       providerList: 'Providers', addProvider: 'New provider', editProvider: 'Edit provider', newProviderTitle: 'New provider',
       fieldId: 'ID', fieldLabel: 'Display name', fieldCommand: 'Executable', fieldCommandHint: 'Absolute path or a name on PATH.',
-      fieldArgs: 'Arguments', fieldArgsHint: 'JSON array of strings, for example ["acp"]. Never put credentials here.',
+      fieldArgs: 'Arguments', fieldArgsHint: 'JSON array of strings, for example ["acp"]. Do not put secrets here.',
       save: 'Save', saved: 'Saved', remove: 'Remove', removeConfirm: 'Remove this provider configuration? Its records are kept.',
       argsInvalid: 'Arguments must be a JSON array of strings.',
-      providerHint: 'Log in with the CLI in a terminal first. Saving never starts a process; changes apply to the next connection.',
-      check: 'Check this provider', checkHint: 'Starts the CLI in the directory and runs ACP initialize only. No task is sent.',
+      providerHint: 'Sign in with the CLI in a terminal first. Changes take effect on the next connection.',
+      check: 'Check this provider', checkHint: 'Runs ACP initialize in this directory to inspect capabilities.',
       cwd: 'Working directory', cwdPlaceholder: '/absolute/path/to/project',
       diagnose: 'Check capabilities', discover: 'Find CLI sessions', capabilities: 'Capabilities', agent: 'Agent', protocol: 'Protocol',
-      refreshModels: 'Refresh models', modelsHint: 'Creates an empty ACP session to read candidate models. No task is sent and your model picker stays unchanged.',
+      refreshModels: 'Refresh models', modelsHint: 'Reads candidate models via an empty ACP session without changing your current selection.',
       modelsLoaded: '{n} candidate models found.', modelPickerHint: 'Choose this conversation’s model in the normal DSH model picker.',
       visibleModels: 'Models in the picker', modelSelectionHint: 'Check the models you want to show, then save. CLI default is always available.',
       saveModels: 'Save model selection', modelsSaved: 'Model picker updated.', noModels: 'Refresh models to load the choices.',
-      modelInfoHint: 'CLI-reported details follow the selected models into the picker. Unknown capacities are not filled in. Use the picker’s reasoning control when advertised.',
+      modelInfoHint: 'Selected models appear in the model picker with CLI-reported metadata and reasoning options.',
       modelContext: 'Context: {n} tokens', modelOutput: 'Output limit: {n} tokens', modelInput: 'Input: {types}',
       modelEfforts: 'Reasoning: {levels}', modelInfoUnknown: 'No model details advertised', modalityText: 'text', modalityImage: 'image',
       supported: 'Advertised', unsupported: 'Not supported', unreported: 'Not reported', authMethods: 'Sign-in methods', rawResult: 'Raw result', none: 'None advertised',
       'cap.loadSession': 'Resume sessions', 'cap.image': 'Image input', 'cap.audio': 'Audio input', 'cap.embeddedContext': 'Embedded context',
       'cap.list': 'Session list', 'cap.mcpHttp': 'MCP over HTTP', 'cap.mcpSse': 'MCP over SSE',
-      discovered: 'CLI sessions in this directory', import: 'Import', more: 'More', noDiscovered: 'No sessions found.',
-      importHint: 'Importing adds a local record only; connect it to load the conversation.',
+      discovered: 'CLI sessions in this directory', more: 'More', noDiscovered: 'No sessions found.',
       loginHint: 'If sign-in fails, run the CLI login command in a terminal, then reconnect.',
-      search: 'Search name, provider, directory or session ID', showArchived: 'Show archived', noRecords: 'No execution records yet.', noMatch: 'No records match.',
-      nativeTag: 'DSH conversation', childTag: 'Subagent', standaloneTag: 'Standalone', retiredTag: 'Retired', archivedTag: 'Archived',
-      pickRecord: 'Select a record to inspect its history.', remoteId: 'Remote session', dshSession: 'DSH session', updated: 'Updated', provider: 'Provider',
+      search: 'Search name, provider, directory or session ID', noRecords: 'No execution records yet.', noMatch: 'No records match.',
+      nativeTag: 'DSH conversation', childTag: 'Subagent', retiredTag: 'Retired', archivedTag: 'Archived',
+      remoteId: 'Remote session', dshSession: 'DSH session', updated: 'Updated', provider: 'Provider',
       rename: 'Rename', archive: 'Archive', unarchive: 'Restore', stopTurn: 'Stop turn', back: 'All records',
-      archiveHint: 'Disconnect before archiving. Archiving never deletes workspace files or CLI history.',
+      archiveHint: 'Disconnect before archiving. Workspace files and CLI history are kept.',
       nativeReadOnly: 'This record belongs to a DSH conversation. Send messages from that conversation.',
       storageError: 'History could not be saved: {message}',
     }
     const zh = {
       panel: 'ACP 工作台', panelHint: '在项目里启动多个 Agent，回到各自的 DSH 会话继续。',
-      schedules: '定时任务', schDescription: '到点后 DSH 会把指令发进对话（只负责投递，不跟踪任务是否做完）。', schNew: '创建定时任务', schName: '任务名称', schPrompt: '到期发送的指令', schTarget: '投递目标', schExisting: '已有会话（定时唤回）', schOnce: '首次到期建一个会话，后续复用', schFresh: '每次到期都新建会话', schChoose: '选择会话', schPreset: 'DSH Agent 预设', schDefault: 'Host 默认预设', schRouteHint: '已有会话沿用原来的引擎和目录；新建会话则走项目目录和 DSH 预设，不套用 ACP 启动配置。', schTiming: '触发方式', schAfter: '延时一次', schEvery: '固定间隔', schDaily: '每天定时', schCron: 'Cron 表达式', schMinutes: '分钟', schZone: 'IANA 时区', schTime: '当地时间', schExpr: '五字段 Cron', schConfirm: '启用这个定时任务？每次到点都会把指令发给 Agent 执行。', schUnknown: '没收到操作回执，刷新列表确认一下再决定要不要重试。', schEmpty: '这个项目还没有定时任务。', schRefresh: '刷新任务', schActive: '已启用', schPaused: '已暂停', schEnded: '已结束', schNext: '下次投递', schDelivered: '最近投递', schQueued: '已入队或还在执行', schManage: '管理任务', schPause: '暂停', schResume: '恢复', schRun: '立即投递', schRunConfirm: '现在就把这条指令发出去？会直接触发 Agent。', schIncomplete: '请填好任务名称、指令、有效时间，并选好投递目标。', schMissing: '任务可能已被删除或改动，刷新一下再试。', schFloor: '最早再次投递', schBusy: '上次投递还没结束，或还没到下一次允许触发的时间。', schCadence: '触发规则', schHistory: '投递历史', schNoHistory: '暂无投递记录。', schMore: '更早的投递', schPruned: '部分早期记录已不可用。', schDelete: '删除任务', schDeleteConfirm: '删掉这个任务和投递历史？已经发进对话的消息不会撤回。',
-      termList: '会话终端', termRetry: '重新连接列表', termScope: 'DSH 为本会话保留的终端。查看列表不会连接终端。', termEmpty: '本会话没有保留的终端。', termAgent: 'Agent 启动', termUser: '用户启动', termAgentControl: 'Agent 控制', termLost: '终端列表已断开。', termMissing: '无法在所属会话中打开这个终端。',
-      scripts: '项目脚本', scriptsHint: '命令来自当前工作目录的 paseo.json，在会话沙箱内运行。使用 $PASEO_PORT 的服务可选择带端口启动，随后检查 TCP 是否可连接。', scriptNone: '这个工作目录的 paseo.json 没有定义脚本。', scriptStart: '运行', scriptStop: '停止进程', scriptLog: '查看输出', scriptTerminal: '打开终端', scriptConfirm: '在新的 DSH 终端中运行这条命令？', stopScriptConfirm: '停止此脚本并关闭它的终端？', scriptService: '服务', scriptTask: '脚本', runHere: '打开所属会话', scriptUnavailable: '终端已不再保留', scriptExited: '已退出', scriptStopped: '已停止', scriptRunning: '运行中', scriptStarting: '启动中', scriptFailed: '失败', scriptOwner: '由用户接管', noOutput: '暂无保留的输出', scriptRefresh: '刷新脚本', scriptLoading: '正在读取脚本…', scriptExit: '退出码',
-      projects: '项目', addProject: '添加目录', chooseProject: '工作区', agents: '项目会话', newAgent: '新建 Agent', local: '使用项目目录', worktree: '独立工作树', checkout: '隔离方式', branchName: '新分支名（可选）', baseRef: '起点（默认 HEAD）', agentName: '会话名称（可选）', createAgent: '创建并打开聊天', launchHint: '每次创建独立会话，第一条消息由你在聊天输入框发送。', noProject: '先添加项目目录，再启动 Agent。', noAgents: '这里还没有会话。', projectFailed: '准备未完成。DSH 会话已保留，没有发送消息。', nativeChat: 'DSH 会话', cliDefault: 'CLI 默认', projectArchive: '已归档', profiles: '启动配置', customLaunch: '自定义设置', profileName: '配置名称', saveProfile: '保存启动配置', removeProfile: '删除配置', removeProfileConfirm: '删除这套启动配置？已有会话不受影响。', unavailableProfile: '这套启动配置目前不可用，请核对提供方、模型和工作树能力。', effortChoice: '思考强度', projectTools: '工作区工具', filesTab: '文件', terminalTab: '新建终端', changesTab: 'Git 改动', archiveChat: '归档会话', archiveChatConfirm: '归档这个 DSH 会话？DSH 可能回收未使用且干净的托管工作树。不会停止运行中的任务。', restoreChat: '恢复会话',
-      shareCheckout: '在这里新建 Agent', shareHeading: '此工作树的 Agent', sharedCheckout: '共享工作树', shareOwner: '创建者', shareCurrent: '所选会话', shareOpen: '创建并打开会话', shareDismiss: '收起', switchShared: '切换同工作树 Agent', noSharedPeers: '当前工作树没有其他未归档的参与会话。', shareHint: '这些 Agent 直接编辑同一份文件。每个 Agent 的对话、CLI 历史和审批各自独立。新会话不会复制历史，也不会自动发送提示。', shareArchive: '归档这个参与会话？它不是共享工作树的创建者，归档此会话不会回收该工作树。', sharePartial: '此会话尚未成功加入工作树。请从有效的参与会话重新创建。',
-      startWithPort: '带回环端口启动', confirmPort: '将空闲端口写入 PASEO_PORT，设置 HOST=127.0.0.1。启动这条命令？不会创建代理或公网 URL。', watchPort: '监测端口', unwatchPort: '结束监测', portPending: '等待端口就绪', portCheckAgain: '连接失败，等待复查', portAccepts: 'TCP 已接通', portRefused: 'TCP 连接被拒绝', portTimeout: 'TCP 无响应', portFailed: '无法检查端口', portHint: '只检查分配的回环端口，不验证 HTTP 响应或监听进程身份。',
-      refreshComparison: '刷新比较', commitScope: '分支上的提交', commitStart: '选择提交', commitEnd: '比较到', chooseCommit: '请选择提交', commitOnly: '仅此提交', rangeSize: '{n} 次提交', commitHint: '这里显示 Git 历史，不代表本轮 Agent 的改动。补丁从起始提交的第一父提交比较到所选结束提交，不含未提交的修改。', noBranchCommits: '此基线到 HEAD 没有提交。可以选择更早的基线分支。', commitTruncated: '只列出最近 {n} 个提交。', commitMissing: '所选提交已不在列表中，或不再构成连续的第一父提交范围，请重新选择。', commitHeadMoved: '读取提交时分支的 HEAD 已改变，请刷新比较。', commitVersion: '提交中的文件 · {sha}',
-      recordedFile: '当前磁盘文件', recordedLocation: '按当时记录的路径和行号打开当前磁盘上的文件（不是历史快照）。', reportedHits: '定位搜索结果（{n}）', moreTargets: '显示更多位置', lineGone: '当前文件里已经没有第 {n} 行了。', fileStart: '从第一行读', fileChanged: '刚看的时候文件又变了，重新点一下文件位置吧。',
-      beforeFile: '查看旧版本', beforeAt: '查看旧版 {path} 第 {n} 行', beforePatch: '补丁中的旧行', beforeWhole: '补丁中的完整删除文本', beforeHint: '只显示补丁记录的行，行号来自旧文件。', beforeFull: '读取完整旧版本', beforeNone: '补丁没有记录旧文本行。', beforeIndex: '旧版本 · Git 索引', beforeCommit: '旧版本 · 提交 {sha}', beforeSnapshot: '这是只读的 Git 文本，不是当前磁盘文件。', beforeIndexHint: '完整文本来自打开时的 Git 索引，已和补丁核对，不是磁盘文件。', beforeGap: '补丁未包含旧版第 {from} 至 {to} 行。', beforeLimited: 'Forge 未提供确定的旧提交，只能查看补丁已记录的旧行。',
-      reviewFile: '查看文件', reviewIndex: '已暂存版本（Git 索引）', reviewDisk: '当前工作树文件', reviewAt: '查看 {path} 第 {n} 行', reviewFull: '在文件侧栏打开', reviewDeleted: '文件在这份比较中被删除，没有新侧内容。', reviewStale: '文件与这份补丁不再一致，请刷新比较。', reviewPath: '无法在审阅的工作树中定位此文件。', reviewEmpty: '空文件', reviewPatch: '可复制的补丁', reviewNext: '后续行', reviewPrev: '前面的行', reviewBack: '关闭文件预览', reviewBinary: '没有可定位的文本行。',
-      cliTasks: '本轮 CLI 子任务', cliTaskCount: '{n} 个启动调用', cliLaunchStatus: '启动调用：{status}', cliTask: 'CLI 子任务', cliOnly: '查看子任务', cliAll: '完整轨迹', cliCalls: '{n} 次直接调用', cliProgress: '任务进展', cliInput: '任务输入', cliMedia: '{type} · 见原始事件', cliPreview: '预览 {type}', cliNoMedia: '该条记录的内容不可用。', cliLimit: '仅显示摘录，全文见原始事件', cliScope: '仅显示 CLI 报告给此任务的直接活动。这里不是可发消息的 DSH 会话。', cliOrigin: '来自 {task}', cliMissing: '本段未见启动调用：{task}', cliConflict: '子任务归属冲突',
+      schedules: '定时任务', schDescription: '到点后把指令发进对话（只负责投递，不等待任务完成）。', schNew: '创建定时任务', schName: '任务名称', schPrompt: '到期发送的指令', schTarget: '投递目标', schExisting: '已有会话（定时唤回）', schOnce: '首次到期建一个会话，后续复用', schFresh: '每次到期都新建会话', schChoose: '选择会话', schPreset: 'DSH Agent 预设', schDefault: 'Host 默认预设', schRouteHint: '已有会话沿用原来的引擎和目录；新建会话使用项目目录和 DSH 预设。', schTiming: '触发方式', schAfter: '延时一次', schEvery: '固定间隔', schDaily: '每天定时', schCron: 'Cron 表达式', schMinutes: '分钟', schZone: 'IANA 时区', schTime: '当地时间', schExpr: '五字段 Cron', schConfirm: '启用这个定时任务？每次到点都会触发 Agent 执行。', schUnknown: '未收到操作回执，请刷新列表确认。', schEmpty: '这个项目还没有定时任务。', schRefresh: '刷新任务', schActive: '已启用', schPaused: '已暂停', schEnded: '已结束', schNext: '下次投递', schDelivered: '最近投递', schQueued: '已入队或还在执行', schManage: '管理任务', schPause: '暂停', schResume: '恢复', schRun: '立即投递', schRunConfirm: '立即把这条指令发给 Agent？', schIncomplete: '请填好任务名称、指令、有效时间和投递目标。', schMissing: '任务已被删除或改动，请刷新后再试。', schFloor: '最早再次投递', schBusy: '上次投递还没结束，或还没到最小间隔时间。', schCadence: '触发规则', schHistory: '投递历史', schNoHistory: '暂无投递记录。', schMore: '更早的投递', schPruned: '部分早期记录已不可用。', schDelete: '删除任务', schDeleteConfirm: '删掉这个任务和投递历史？已发进对话的消息保留。',
+      termList: '会话终端', termRetry: '重新连接列表', termScope: 'DSH 为本会话保留的终端。', termEmpty: '本会话没有保留的终端。', termAgent: 'Agent 启动', termUser: '用户启动', termAgentControl: 'Agent 控制', termLost: '终端列表已断开。', termMissing: '无法在所属会话中打开这个终端。',
+      scripts: '项目脚本', scriptsHint: '运行当前目录 paseo.json 里的脚本（在会话沙箱内执行）。使用 $PASEO_PORT 的服务支持自动分配回环端口并监测 TCP 连通。', scriptNone: '当前目录的 paseo.json 没有定义脚本。', scriptStart: '运行', scriptStop: '停止进程', scriptLog: '查看输出', scriptTerminal: '打开终端', scriptConfirm: '在新的 DSH 终端中运行这条命令？', stopScriptConfirm: '停止此脚本并关闭它的终端？', scriptService: '服务', scriptTask: '脚本', runHere: '打开所属会话', scriptUnavailable: '终端已不再保留', scriptExited: '已退出', scriptStopped: '已停止', scriptRunning: '运行中', scriptStarting: '启动中', scriptFailed: '失败', scriptOwner: '由用户接管', noOutput: '暂无保留的输出', scriptRefresh: '刷新脚本', scriptLoading: '正在读取脚本…', scriptExit: '退出码',
+      projects: '项目', addProject: '添加目录', chooseProject: '工作区', agents: '项目会话', newAgent: '新建 Agent', local: '使用项目目录', worktree: '独立工作树', checkout: '隔离方式', branchName: '新分支名（可选）', baseRef: '起点（默认 HEAD）', agentName: '会话名称（可选）', createAgent: '创建并打开聊天', launchHint: '创建新会话，不自动发送消息。', noProject: '先添加项目目录，再启动 Agent。', noAgents: '这里还没有会话。', projectFailed: '准备未完成，DSH 会话已保留。', nativeChat: 'DSH 会话', cliDefault: 'CLI 默认', projectArchive: '已归档', profiles: '启动配置', customLaunch: '自定义设置', profileName: '配置名称', saveProfile: '保存启动配置', removeProfile: '删除配置', removeProfileConfirm: '删除这套启动配置？已有会话不受影响。', unavailableProfile: '这套启动配置目前不可用，请核对提供方、模型和工作树能力。', effortChoice: '思考强度', projectTools: '工作区工具', filesTab: '文件', terminalTab: '新建终端', changesTab: 'Git 改动', archiveChat: '归档会话', archiveChatConfirm: '归档这个 DSH 会话？空闲且干净的托管工作树可能被 DSH 回收。', restoreChat: '恢复会话',
+      shareCheckout: '在这里新建 Agent', shareHeading: '此工作树的 Agent', sharedCheckout: '共享工作树', shareOwner: '创建者', shareCurrent: '所选会话', shareOpen: '创建并打开会话', shareDismiss: '收起', switchShared: '切换同工作树 Agent', noSharedPeers: '当前工作树没有其他活跃会话。', shareHint: '共享工作树：多个 Agent 直接编辑同一份代码，各自保留独立会话、CLI 上下文和审批。', shareArchive: '归档这个会话？它共享的工作树归另一个会话所有，不会被回收。', sharePartial: '此会话未成功加入工作树，请从有效的参与会话重新创建。',
+      startWithPort: '带回环端口启动', confirmPort: '分配空闲回环端口写入 PASEO_PORT（HOST=127.0.0.1）并启动？', watchPort: '监测端口', unwatchPort: '结束监测', portPending: '等待端口就绪', portCheckAgain: '复查端口中', portAccepts: 'TCP 已接通', portRefused: 'TCP 连接被拒绝', portTimeout: 'TCP 无响应', portFailed: '无法检查端口', portHint: '检测所分配回环端口的 TCP 连通性。',
+      refreshComparison: '刷新比较', commitScope: '分支上的提交', commitStart: '选择提交', commitEnd: '比较到', chooseCommit: '请选择提交', commitOnly: '仅此提交', rangeSize: '{n} 次提交', commitHint: '显示从起始提交第一父提交到所选提交的 Git 历史。', noBranchCommits: '此基线到 HEAD 没有提交，可切换更早的基线分支。', commitTruncated: '仅列出最近 {n} 个提交。', commitMissing: '所选提交不再构成连续的第一父提交范围，请重新选择。', commitHeadMoved: '读取提交时分支 HEAD 已变更，请刷新比较。', commitVersion: '提交中的文件 · {sha}',
+      recordedFile: '当前磁盘文件', recordedLocation: '在当前磁盘文件中打开记录的行号。', reportedHits: '定位搜索结果（{n}）', moreTargets: '显示更多位置', lineGone: '当前文件里已没有第 {n} 行。', fileStart: '从第一行读', fileChanged: '阅读期间文件已变化，请重新打开定位。',
+      beforeFile: '查看旧版本', beforeAt: '查看旧版 {path} 第 {n} 行', beforePatch: '补丁中的旧行', beforeWhole: '补丁中的完整删除文本', beforeHint: '仅显示补丁捕获的旧行，行号对应旧文件。', beforeFull: '读取完整旧版本', beforeNone: '补丁没有记录旧文本行。', beforeIndex: '旧版本 · Git 索引', beforeCommit: '旧版本 · 提交 {sha}', beforeSnapshot: '只读 Git 快照。', beforeIndexHint: '只读 Git 索引快照。', beforeGap: '补丁未包含旧版第 {from} 至 {to} 行。', beforeLimited: '无法定位精确旧提交，仅显示补丁中的旧行。',
+      reviewFile: '查看文件', reviewIndex: '已暂存版本（Git 索引）', reviewDisk: '当前工作树文件', reviewAt: '查看 {path} 第 {n} 行', reviewFull: '在文件侧栏打开', reviewDeleted: '文件在本次比较中被删除。', reviewStale: '文件与补丁不再一致，请刷新比较。', reviewPath: '无法在当前工作树中定位此文件。', reviewEmpty: '空文件', reviewPatch: '可复制的补丁', reviewNext: '后续行', reviewPrev: '前面的行', reviewBack: '关闭文件预览', reviewBinary: '没有可定位的文本行。',
+      cliTasks: '本轮 CLI 子任务', cliTaskCount: '{n} 个启动调用', cliLaunchStatus: '启动调用：{status}', cliTask: 'CLI 子任务', cliOnly: '查看子任务', cliAll: '完整轨迹', cliCalls: '{n} 次直接调用', cliProgress: '任务进展', cliInput: '任务输入', cliMedia: '{type} · 见原始事件', cliPreview: '预览 {type}', cliNoMedia: '该条记录的内容不可用。', cliLimit: '仅显示摘录，全文见原始事件', cliScope: 'CLI 子任务的直接活动（只读）。', cliOrigin: '来自 {task}', cliMissing: '本段未见启动调用：{task}', cliConflict: '子任务归属冲突',
       permitRequested: '已请求权限', permitLive: '等你审批', permitAllowed: '已允许', permitAutomatic: '预设自动允许', permitDenied: '已拒绝', permitExpired: '请求已失效', permitAnswered: '已记录决定',
       callView: '工具调用视图', compactCalls: '概览', detailedCalls: '逐条', exploration: '查阅记录', readCount: '读取 {n} 次', searchCount: '搜索 {n} 次', webCount: '网页查询 {n} 次', distinctPaths: '读取路径 {n} 个', groupCalls: '{n} 次调用', 'call.cancelled': '已取消',
-      treeInspect: '工作目录', treeActual: '生效目录', treeSource: '来源仓库', treeRecorded: '记录的分支', treeBase: '起点提交', treeOwned: '本会话创建', treeInherited: '继承的工作树', treeOther: '不是当前目录', treeDirectory: '目录存在', treeMissing: '目录缺失', treeIncomplete: '目录存在，但缺少链接工作树标记', treeOccupied: '路径被其他文件或符号链接占用', treeEmpty: '该会话没有托管工作树的创建记录。', treeScheduled: 'DSH 正在检查是否可以回收工作树…', treeRetained: 'DSH 保留了工作树。', treeRemoved: 'DSH 已回收工作树目录，未删除分支。', treeFailed: '回收失败，可能留下不完整目录。请检查后再继续。', treeNoReceipt: '本次 Host 运行期间没有可用的回收回执。目录现状另列。', treeRestoreFirst: '请先恢复会话。恢复会话本身不会重建目录。', treeRestore: '重建缺失的工作树', treeRestoreAsk: '按记录的分支重建缺失目录？如果原分支已不存在，DSH 将从起点提交重建分支，无法找回未提交的文件，也不会切换会话目录。', treeRebuilt: '已从现有分支恢复工作树目录。', treeRecreated: '原分支已不存在，已从起点提交重建，而不是从后续提交恢复。', treeBusy: '工作树重建中…', treePolicy: '重建需要会话空闲，且会话策略允许写入。', treeArchiveRisk: 'Git 可见的修改、未跟踪文件或另一会话仍在使用该工作树，都可阻止回收。忽略规则或索引标记隐藏的文件不受此保护。需要保留时，请取消并先备份，或在 DSH 设置中启用归档时保留工作树。',
-      projectResults: '项目审阅', unseen: '待审阅', reviewed: '已审阅', legacyReview: '早期记录', markSeen: '标为已审阅', resultHistory: '全部结果', resultTurn: '第 {n} 轮', previousPage: '上一页', nextPage: '下一页', noResults: '没有待审阅的结果。', noAllResults: '这个项目还没有结束的 ACP 运行。', reviewHint: '每一轮分开记录。点开查看不会自动标为已读，也不会代你处理审批。', runTrace: '本轮轨迹', checkoutDiff: '工作树改动', gitScope: '对比范围', uncommitted: '工作树与 HEAD', staged: '已暂存', unstaged: '未暂存', branchDiff: '当前分支与基线', baseBranch: '基线分支', autoBase: 'Forge 默认', findBase: '搜索基线分支', checkoutHint: '这是当前工作目录的实时 Git 状态，可能包含其他 Agent 的改动，不一定是这一轮改的。', diffClean: '当前对比范围没有改动。', diffOmitted: 'Forge 另省略了 {n} 个未跟踪文件。', binaryDiff: '二进制文件', largeDiff: '文件超出差异大小限制', noHunks: '没有文本差异块', moreLines: '显示更多行', moreFiles: '显示更多文件', projectRequests: '等待你回应', checkoutUnavailable: '无法读取 Git 改动。',
+      treeInspect: '工作目录', treeActual: '生效目录', treeSource: '来源仓库', treeRecorded: '记录的分支', treeBase: '起点提交', treeOwned: '本会话创建', treeInherited: '继承的工作树', treeOther: '不是当前目录', treeDirectory: '目录存在', treeMissing: '目录缺失', treeIncomplete: '目录存在，但缺少链接工作树标记', treeOccupied: '路径被其他文件或符号链接占用', treeEmpty: '该会话没有托管工作树的创建记录。', treeScheduled: '正在检查是否可以回收工作树…', treeRetained: 'DSH 保留了工作树。', treeRemoved: 'DSH 已回收工作树目录（分支保留）。', treeFailed: '回收失败，可能留有不完整目录，请检查后再继续。', treeNoReceipt: '本次 Host 运行期间没有回收回执。', treeRestoreFirst: '请先恢复会话，再重建工作树。', treeRestore: '重建缺失的工作树', treeRestoreAsk: '按记录的分支重建缺失目录？若原分支已删除，则从起点提交重建；未提交改动无法找回。', treeRebuilt: '已从现有分支恢复工作树目录。', treeRecreated: '原分支已不存在，已从起点提交重建。', treeBusy: '工作树重建中…', treePolicy: '需要会话空闲且允许写入才能重建工作树。', treeArchiveRisk: '未提交修改、未跟踪文件或其他活跃会话会阻止回收。Git 忽略文件不受保护，请先备份或开启归档保留。',
+      projectResults: '项目审阅', unseen: '待审阅', reviewed: '已审阅', markSeen: '标为已审阅', resultHistory: '全部结果', resultTurn: '第 {n} 轮', previousPage: '上一页', nextPage: '下一页', noResults: '没有待审阅的结果。', noAllResults: '这个项目还没有结束的 ACP 运行。', reviewHint: '每轮结果单独列出；点开查看不会自动标为已审阅或放行审批。', runTrace: '本轮轨迹', checkoutDiff: '工作树改动', gitScope: '对比范围', uncommitted: '工作树与 HEAD', staged: '已暂存', unstaged: '未暂存', branchDiff: '当前分支与基线', baseBranch: '基线分支', autoBase: 'Forge 默认', findBase: '搜索基线分支', checkoutHint: '当前工作目录的实时 Git 状态（可能包含其他 Agent 的改动）。', diffClean: '当前对比范围没有改动。', diffOmitted: 'Forge 省略了 {n} 个未跟踪文件。', binaryDiff: '二进制文件', largeDiff: '文件超出差异大小限制', noHunks: '没有文本差异块', moreLines: '显示更多行', moreFiles: '显示更多文件', projectRequests: '等待你回应', checkoutUnavailable: '无法读取 Git 改动。',
       attention: '等你回应', working: '进行中', review: '需查看', recent: '最近活动', history: '历史', all: '当前记录',
-      attentionHint: '在这里操作会直接把决定发给等待中的 CLI；只打开会话看一眼不会触发审批。',
-      recoveryHint: '先核对最后一轮，再决定是否发送新消息。重新连接不会重发原任务。',
-      firstTurn: '在输入框发送第一条消息即可开始。CLI 使用自己的工具和文件权限。', archivedHint: '此绑定已归档。恢复后可以继续使用原外部上下文。',
+      attentionHint: '在这里操作会直接把决定发给等待中的 CLI。',
+      recoveryHint: '请先核对最后一轮再继续，重新连接不会重发输入。',
+      firstTurn: '在输入框发送第一条消息即可开始。CLI 使用自己的工具和文件权限。', archivedHint: '此绑定已归档，恢复后可继续使用原外部上下文。',
       openConversation: '打开会话', openRoot: '打开所属会话树', retry: '刷新', connectingFeed: '正在连接…',
       cliOptions: 'CLI 设置', hideOptions: '收起 CLI 设置', connectOnly: '仅连接，不发送消息',
-      forkHere: '从副本继续', forkHint: '副本从 CLI 已保存的最新记录开始。不会接管原会话，也不会发送提示词。', forkSource: '复制自 CLI 历史', resumeExisting: '接续 CLI 会话', resumeHere: '在这里接续', closeHistory: '收起会话列表',
-      previousMessages: '查看 CLI 前文', hidePrevious: '收起前文', noReplay: 'CLI 的这页历史中没有更早的消息。',
-      resumePick: '选择旧会话只会连接。下一条消息从 CLI 原上下文继续，不会把本页之前的 DSH 对话一并发过去。',
+      forkHere: '从副本继续', forkHint: '复制 CLI 已保存的最新历史到新上下文，不影响原会话。', forkSource: '复制自 CLI 历史', resumeExisting: '接续 CLI 会话', resumeHere: '在这里接续', closeHistory: '收起会话列表',
+      previousMessages: '查看 CLI 前文', hidePrevious: '收起前文', noReplay: '这页 CLI 历史中没有更早的消息。',
+      resumePick: '连接到此目录的 CLI 会话，下一条消息直接接在该上下文后继续。',
       firstUse: '在 DSH 模型选择器选一个 ACP 模型并发送消息，执行活动就会出现在这里。',
       setup: '管理提供方', answeredByPreset: '完全访问 · 自动回应', answeredByUser: '人工回应',
       quietChildren: '其他子任务（{n}）', requestCount: '{n} 项待回应',
-      scopeOnce: '完全访问可自动同意单次请求，持久授权仍需你选择。',
+      scopeOnce: '完全访问预设会自动放行单次权限请求，持久授权仍需手动确认。',
       tabProviders: '提供方', tabRecords: '活动', live: '实时', offline: '正在重连…',
-      engine: 'ACP 引擎', useEngine: '用 {name} 执行当前会话', showInfo: '了解 ACP 引擎', hideInfo: '收起说明',
-      engineHint: '在原模型选择器中选择 ACP 提供方下的具体模型。输入框、附件和停止按钮照常使用，回复保留在当前时间线。',
-      delegateHint: '保留普通 DSH 模型，可用 subagent_cursor、subagent_antigravity 或 subagent_acp_claude_code 委派，再用 send_message 续聊。',
-      warning: '外部 Agent 用的是自己的登录态、工具和文件权限，不受 DSH 沙箱限制；审批也只覆盖 CLI 实际发来的请求。',
-      engineOn: '{name} · ACP', notConnected: '发送消息时自动连接',
-      connect: '连接', reconnect: '重新连接', disconnect: '断开', cancelConnect: '取消',
-      newContext: '新建外部上下文', newContextConfirm: '从下一条消息开始新建外部对话？DSH 历史和旧执行记录仍然保留。',
-      restoreTo: '切回 {model}', restoreTitle: '把当前会话切回之前使用的 DSH 模型',
-      restoreHint: '没有保存此会话之前的 DSH 模型，请用模型选择器切回。',
-      moreOptions: '展开引擎选项', lessOptions: '收起引擎选项', switchEngine: '切换引擎',
-      configuration: '配置', commands: 'CLI 命令', usage: '用量', directory: '目录',
+      engine: 'ACP 引擎',
+      engineHint: '在模型选择器中选择 ACP 模型，照常使用输入框、附件和停止按钮。',
+      delegateHint: '保留普通 DSH 模型时，可通过 subagent_cursor、subagent_antigravity 或 subagent_acp_claude_code 委派，并用 send_message 续聊。',
+      warning: '外部 CLI 不受 DSH 沙箱限制，使用自身的登录态、工具和文件权限。',
+      connect: '连接', reconnect: '重新连接', disconnect: '断开',
+      newContext: '新建外部上下文', newContextConfirm: '从下一条消息开始新建外部上下文？DSH 历史和旧记录保留。',
+      configuration: '配置', commands: 'CLI 命令', directory: '目录',
       noConfig: '连接后会载入此 CLI 公布的模型、模式和选项。',
-      cliCommandGroup: 'CLI · {name}', cliCommandStale: '原来的命令选择已失效，请从 / 菜单重新选择 CLI 命令。',
+      cliCommandGroup: 'CLI · {name}', cliCommandStale: '请从 / 菜单重新选择该 CLI 命令。',
       model: '模型', mode: '模式', commandPick: '选择命令…', commandArgs: '参数', commandRun: '运行',
-      commandHint: '作为普通消息发给外部 CLI。输入框中的斜杠命令仍由 DSH 处理。',
-      'notice.feed': 'CLI 会话提醒', 'notice.recent': '列出本次连接在轮次外收到的最近八条提醒，最新的在前。不需要审批。', 'notice.info': '提示', 'notice.warning': '警告', 'notice.error': '错误', 'notice.level': 'CLI · {level}', 'notice.turn': '本轮收到', 'notice.connect': '连接时收到', 'notice.session': '轮次间收到', 'notice.fromTask': 'CLI 任务：{id}', 'notice.unavailable': '本地记录中找不到这条提醒。',
+      commandHint: '作为普通消息发给外部 CLI；输入框里的斜杠命令仍由 DSH 处理。',
+      'notice.feed': 'CLI 会话提醒', 'notice.recent': '本次连接轮次外收到的最近 8 条提醒。', 'notice.info': '提示', 'notice.warning': '警告', 'notice.error': '错误', 'notice.level': 'CLI · {level}', 'notice.turn': '本轮收到', 'notice.connect': '连接时收到', 'notice.session': '轮次间收到', 'notice.fromTask': 'CLI 任务：{id}', 'notice.unavailable': '本地记录中找不到这条提醒。',
       'compact.late': 'CLI 在该轮结束后补充了回报。', 'compact.title': 'CLI 上下文压缩', 'compact.replay': '回放中的 CLI 压缩', 'compact.summary': 'CLI 报告的摘要', 'compact.noSummary': '这些回报没有提供摘要。', 'compact.in_progress': '压缩中', 'compact.unsettled': '最后报告为进行中', 'compact.completed': '压缩完成', 'compact.failed': '压缩失败', 'compact.cancelled': '压缩已取消', 'compact.automatic': '自动压缩', 'compact.manual': '手动压缩', 'compact.idle': '空闲时压缩', 'compact.preTokens': '压缩前：{n} token', 'compact.postTokens': '压缩后：{n} token', 'compact.durationMs': '耗时：{n} 毫秒', 'compact.attachment': '预览附件 · {type}', 'compact.noMedia': '找不到对应的历史附件。',
-      contextRecent: 'CLI 上下文 · 最近报告', contextRecorded: 'CLI 报告的上下文', contextReplay: '回放中的上下文报告', ctxAt: '报告时间：{time}', ctxScope: '这是当前上下文窗口占用，不是计费 token 或剩余额度。', ctxCost: '会话累计费用：{amount} {unit}', ctxTotals: 'CLI 会话累计 token', ctxTotalsScope: '这轮结束时 CLI 返回的会话累计总量，不是单轮消耗。', ctxTotal: '总计', ctxInput: '输入', ctxOutput: '输出', ctxCacheRead: '缓存读取', ctxCacheWrite: '缓存写入', ctxThought: '推理', ctxModel: '报告模型：{model}',
+      contextRecent: 'CLI 上下文 · 最近报告', contextRecorded: 'CLI 报告的上下文', contextReplay: '回放中的上下文报告', ctxAt: '报告时间：{time}', ctxScope: '当前上下文窗口占用（非计费或额度）。', ctxCost: '会话累计费用：{amount} {unit}', ctxTotals: 'CLI 会话累计 token', ctxTotalsScope: '本轮结束时 CLI 返回的会话累计总量。', ctxTotal: '总计', ctxInput: '输入', ctxOutput: '输出', ctxCacheRead: '缓存读取', ctxCacheWrite: '缓存写入', ctxThought: '推理', ctxModel: '报告模型：{model}',
       usageContext: '上下文 {used} / {size}（{percent}%）', usageCost: '费用 {amount} {currency}',
-      unknownUsage: '此 Agent 还没上报（ACP 不提供账号剩余额度）。',
+      unknownUsage: '此 Agent 尚未上报。',
       children: 'ACP 子任务', stop: '停止', pending: '待处理', expand: '展开轨迹', collapse: '收起轨迹',
       'state.starting': '连接中', 'state.idle': '就绪', 'state.running': '执行中', 'state.waiting': '等待你回应',
       'state.canceling': '停止中', 'state.disconnected': '已断开', 'state.error': '错误', 'state.preparing': '准备中',
@@ -190,16 +181,16 @@ window.__ModuleLoader__.load({
       viewTimeline: '时间线', viewRaw: '原始事件', older: '加载更早记录', loading: '加载中…',
       noEvents: '尚无执行事件。', noActivity: '本轮没有工具活动。',
       stderr: 'CLI 日志输出', stopReason: '本轮结束：{reason}', turnError: 'Agent 报错：{message}', configError: '设置被拒绝：{message}',
-      planItems: '任务清单', planDocument: '方案正文', planRemoved: 'CLI 已移除计划', planRecorded: '以下是 CLI 在此次对话中回报的原文。', planOpenFile: '查看当前文件', planDone: '已完成', planDoing: '进行中', planPending: '待开始', planEmpty: '没有列出步骤。', morePlanItems: '显示更多步骤',
+      planItems: '任务清单', planDocument: '方案正文', planRemoved: 'CLI 已移除计划', planRecorded: 'CLI 回报的计划原文。', planOpenFile: '查看当前文件', planDone: '已完成', planDoing: '进行中', planPending: '待开始', planEmpty: '没有列出步骤。', morePlanItems: '显示更多步骤',
       plan: '计划', highPriority: '高', planProgress: '{done}/{total} 项完成',
       'call.read': '读取文件', 'call.search': '搜索', 'call.edit': '编辑文件', 'call.write': '写入文件', writeView: '写入详情', writeInput: '请求写入的正文', writePatch: '报告的补丁', writeEmpty: '请求写入的正文为空。', 'call.delete': '删除', 'call.move': '移动',
       'call.execute': '运行命令', 'call.fetch': '访问网页', 'call.think': '思考', 'call.switch_mode': '切换模式',
       'call.pending': '等待执行', 'call.in_progress': '执行中', 'call.unfinished': '未报告最终状态', 'call.completed': '已完成', 'call.failed': '失败',
       'patch.launch': '启动时的预览', 'patch.update': 'CLI 更新中的补丁', 'patch.completed': '完成回报中的补丁', 'patch.failed': '失败回报中的补丁', 'patch.permission': '本次审批中的补丁', 'patch.recorded': '报告的补丁', patchCurrent: '在当前文件中查看报告的位置', patchFiles: '补丁文件（{n}）', patchAll: '全部报告片段', patchParts: '{n} 个片段', patchNoParts: '该文件没有结构化文本差异。', 'patch.add': '新增文件', 'patch.delete': '删除文件', 'patch.move': '移动文件', 'patch.updateFile': '修改文件',
       webSearch: '网页搜索', webPage: '抓取网页', webFind: '页内查找', webQuery: '报告的查询', webAddress: '网页地址', webPattern: '页内查找内容', webPrompt: '要求提取的内容', webOffset: '起始字符偏移', webAllow: '允许的域名', webDeny: '排除的域名', webPreview: '请求预览', webResponse: '工具回报', webRaw: '原始工具输出', webUpdate: '工具进度更新', webFailure: '失败回报', webNoReport: '此调用未附带结果文本。', webMore: '显示更多来源（剩余 {n} 项）', webSourceCount: '报告了 {n} 条来源',
-      fileByName: '按名称查找', fileByDirectory: '浏览目录', dirRoot: '工作目录', dirBack: '返回目录', dirHint: '只列当前目录，不显示隐藏项；此视图不过滤 Git 忽略项。', dirRefresh: '刷新目录', dirRestart: '重新打开当前工作目录', dirCount: '{n} 个可见条目', dirEmpty: '未返回可见条目。', dirPartial: 'DSH 仅返回了部分目录内容。', dirFolder: '目录', dirFile: '文件', dirOther: '其他', dirBytes: '{n} 字节', dirMore: '显示更多条目', fileRefresh: '重新搜索',
-      findFile: '查找文件', fileQuery: '文件名或路径', findFileHint: '按名称搜索此会话的实际工作目录，排除隐藏文件和 Git 忽略项。', foundFiles: '返回 {n} 个文件', fileHitsLimit: '结果已截断，请缩小范围', fileScanCut: '只检索了部分目录', moreFileHits: '显示更多文件', fileHitsBack: '返回文件结果',
-      'batch.archive': '批量归档会话', 'batch.restore': '批量恢复会话', 'batch.confirm': '核对所选会话', 'batch.choose': '请先勾选至少一个可操作的会话。', 'batch.archiveNote': '只归档在本项目勾选的会话，并取消其置顶。正在工作、等待回应或有工作树记录的会话会跳过，不会停止任务。', 'batch.restoreNote': '只恢复本项目勾选的会话，不打开聊天、不启动 Agent、不恢复置顶，也不重建工作树。', 'batch.active': '正在工作或等待回应', 'batch.denied': '无操作权限', 'batch.changed': '项目归属或归档状态已变化，请重新核对。', 'batch.tree': '请在单个会话的归档入口核对工作树。', 'batch.result': '各会话处理结果', 'batch.archived': '已归档', 'batch.restored': '已恢复', 'batch.skipped': '未更改',
+      fileByName: '按名称查找', fileByDirectory: '浏览目录', dirRoot: '工作目录', dirBack: '返回目录', dirHint: '逐层列出当前目录，隐藏点文件，显示 Git 忽略项。', dirRefresh: '刷新目录', dirRestart: '重新打开当前工作目录', dirCount: '{n} 个可见条目', dirEmpty: '未返回可见条目。', dirPartial: 'DSH 仅返回了部分目录内容。', dirFolder: '目录', dirFile: '文件', dirOther: '其他', dirBytes: '{n} 字节', dirMore: '显示更多条目', fileRefresh: '重新搜索',
+      findFile: '查找文件', fileQuery: '文件名或路径', findFileHint: '按名称搜索当前工作目录，排除隐藏文件和 Git 忽略项。', foundFiles: '返回 {n} 个文件', fileHitsLimit: '结果已截断，请缩小范围', fileScanCut: '只检索了部分目录', moreFileHits: '显示更多文件', fileHitsBack: '返回文件结果',
+      'batch.archive': '批量归档会话', 'batch.restore': '批量恢复会话', 'batch.confirm': '核对所选会话', 'batch.choose': '请先勾选至少一个可操作的会话。', 'batch.archiveNote': '归档所选会话并取消置顶；运行中、待回应或带工作树的会话将跳过。', 'batch.restoreNote': '恢复所选会话，不自动打开或重建工作树。', 'batch.active': '正在工作或等待回应', 'batch.denied': '无操作权限', 'batch.changed': '项目归属或归档状态已变化，请重新核对。', 'batch.tree': '请在单个会话的归档入口核对工作树。', 'batch.result': '各会话处理结果', 'batch.archived': '已归档', 'batch.restored': '已恢复', 'batch.skipped': '未更改',
       findAgent: '查找会话', findAgentHint: '名称、项目、引擎、目录或 DSH 会话 ID', hereProjects: '当前项目', everyProject: '全部项目', finderScope: '查找范围', onlyPinned: '只看置顶', isPinned: '置顶', finderCount: '{n} 个会话', finderNoMatch: '没有符合这些条件的会话。', finderReset: '清除筛选', projectRename: '重命名项目', projectTitle: '项目名称', sameProjectTitle: '已有同名项目。', cancelEdit: '取消', agentMenu: '会话「{name}」的操作', archivedOpen: '先恢复此会话，再打开聊天。',
       'call.mcp': 'MCP 工具', mcpArgs: '调用参数', mcpOutput: '报告的输出', mcpContent: 'CLI 展示内容', mcpStructured: '结构化结果', mcpRequest: '请求附带的说明', mcpDisplayArgs: '请求中展示的参数', mcpAbsent: '未附原始参数', mcpTable: '相同字段的记录', mcpEmpty: '工具返回了空内容列表。', mcpEmptyDisplay: 'CLI 在这里没有附展示内容。', mcpFields: '{n} 个字段', mcpItems: '{n} 项', mcpMore: '显示更多', mcpLess: '收起', mcpSource: 'MCP 服务',
       streamReport: '终端回报', finalReport: '工具另报的输出', outputView: '命令输出', outputTail: '较早输出已省略，仅显示末尾 32 Ki 字符。', outputPartial: '未知的分包方式：只显示最近一次回报和之后的明确增量。', awaitingExit: '尚无终端退出回报',
@@ -207,43 +198,42 @@ window.__ModuleLoader__.load({
       lineNumber: '第 {n} 行', linesReturned: '返回 {n} 行', pathsReturned: '{n} 个路径', hitsReturned: '{files} 个文件 · {n} 处匹配', noHits: '没有结果',
       'decision.accepted': '已接受', 'decision.rejected': '已拒绝', 'decision.cancelled': '已取消', 'decision.skipped': '已跳过', 'decision.answered': '已回答',
       resource: '资源', noExit: '未报告退出码', noShellOutput: '没有输出', terminalSignal: '信号 {signal}', pathMore: '另 {n} 处',
-      clearField: '清除选择', form: 'CLI 提问', formOptional: '选填', formRequired: '必填', formSubmit: '提交回答', formDecline: '不回答', formPreview: '查看选项示例', formHelp: '仅把填写的字段交给本次提问的 CLI。请勿填写密码或令牌。', formMin: '最少 {n}', formMax: '最多 {n}', 'form.accept': '已提交回答', 'form.decline': '已拒绝回答', 'form.cancel': '已取消', formWithdrawn: 'CLI 已撤回',
+      clearField: '清除选择', form: 'CLI 提问', formOptional: '选填', formRequired: '必填', formSubmit: '提交回答', formDecline: '不回答', formPreview: '查看选项示例', formHelp: '仅把填写的字段发给 CLI，请勿填写密码或令牌。', formMin: '最少 {n}', formMax: '最多 {n}', 'form.accept': '已提交回答', 'form.decline': '已拒绝回答', 'form.cancel': '已取消', formWithdrawn: 'CLI 已撤回',
       permission: '权限请求', question: 'Agent 提问', 'kind.plan': '计划审批',
-      permitLaunch: '查看最初的工具调用', permitEarlier: '这是工具启动时的报告，不代表本次请求的授权范围。', permitEmpty: 'CLI 没有随本次请求提供参数、文件位置或预览。', permitPast: '查看审批请求', permitReadOnly: '请求记录 · 只读', permitUnavailable: '无法读取对应的审批记录。', permitCallId: '调用 ID', permitCwd: 'CLI 目录', permitOptions: 'CLI 提供的选项', permitScopeOnce: '仅本次请求', permitScopeRemember: '后续请求可能沿用', permitGrant: '允许', permitRefuse: '拒绝', permitSelection: '当时的决定：{choice}', permitAutoSelection: '预设自动决定：{choice}',
+      permitLaunch: '查看最初的工具调用', permitEarlier: '工具启动时的调用快照。', permitEmpty: 'CLI 未随本次请求附带参数、文件位置或预览。', permitPast: '查看审批请求', permitReadOnly: '请求记录 · 只读', permitUnavailable: '无法读取对应的审批记录。', permitCallId: '调用 ID', permitCwd: 'CLI 目录', permitOptions: 'CLI 提供的选项', permitScopeOnce: '仅本次请求', permitScopeRemember: '后续请求可能沿用', permitGrant: '允许', permitRefuse: '拒绝', permitSelection: '当时的决定：{choice}', permitAutoSelection: '预设自动决定：{choice}',
       permanent: '选择“总是”类选项后，CLI 可能在后续请求中沿用。',
       approve: '批准计划', reject: '拒绝', rejectReason: '理由（可选）', answer: '提交答案', skip: '跳过', dismiss: '取消请求',
-      'event.interaction': '请求：{title}', 'event.answered': '已回应', 'event.expired': '请求已过期',
+      'event.interaction': '请求：{title}', 'event.expired': '请求已过期',
       input: '输入', output: '输出', terminal: '终端 {id}', tool: '工具调用',
       user: '你', assistant: 'Agent', thinking: '思考', replay: '历史回放',
       truncated: '… 共 {n} 个字符', copy: '复制', copied: '已复制', wrap: '自动换行', unwrap: '取消换行', code: '代码',
       expandLines: '再显示 {n} 行', collapseLines: '收起', expandLinesAria: '显示隐藏的 {n} 行', collapseLinesAria: '收起展开的行',
       providerList: '提供方', addProvider: '新增提供方', editProvider: '编辑提供方', newProviderTitle: '新增提供方',
       fieldId: 'ID', fieldLabel: '显示名称', fieldCommand: '可执行文件', fieldCommandHint: '绝对路径或 PATH 中的名称。',
-      fieldArgs: '参数', fieldArgsHint: 'JSON 字符串数组，例如 ["acp"]。不要填写密钥。',
+      fieldArgs: '参数', fieldArgsHint: 'JSON 字符串数组，例如 ["acp"]。请勿填写密钥。',
       save: '保存', saved: '已保存', remove: '删除', removeConfirm: '删除此提供方配置？其执行记录仍然保留。',
       argsInvalid: '参数必须是 JSON 字符串数组。',
-      providerHint: '先在终端完成 CLI 登录。保存不会启动进程，修改在下次连接时生效。',
-      check: '检查提供方', checkHint: '在该目录启动 CLI，只执行 ACP initialize，不发送任务。',
+      providerHint: '先在终端完成 CLI 登录。修改在下次连接时生效。',
+      check: '检查提供方', checkHint: '在该目录运行 ACP initialize 检查能力。',
       cwd: '工作目录', cwdPlaceholder: '/项目/的/绝对路径',
       diagnose: '检查能力', discover: '查找 CLI 会话', capabilities: '能力', agent: 'Agent', protocol: '协议',
-      refreshModels: '刷新模型', modelsHint: '新建空 ACP 会话读取候选模型，不发送任务，也不会自动改变主模型选择器。',
+      refreshModels: '刷新模型', modelsHint: '新建空 ACP 会话读取候选模型，不改变当前选择。',
       modelsLoaded: '发现 {n} 个候选模型。', modelPickerHint: '请在原 DSH 模型选择器中选择此会话使用的模型。',
       visibleModels: '显示在模型选择器中的模型', modelSelectionHint: '勾选需要显示的模型并保存。CLI default 始终保留。',
       saveModels: '保存模型选择', modelsSaved: '模型列表已更新。', noModels: '请先刷新模型以载入候选项。',
-      modelInfoHint: '已选模型会携带 CLI 公布的信息。未公布的容量不补猜测值；支持思考强度时，可在原模型选择器中调整。',
+      modelInfoHint: '勾选的模型会带着 CLI 公布的元信息和思考强度选项出现在模型选择器中。',
       modelContext: '上下文：{n} tokens', modelOutput: '输出上限：{n} tokens', modelInput: '输入：{types}',
       modelEfforts: '思考强度：{levels}', modelInfoUnknown: 'CLI 未公布模型信息', modalityText: '文本', modalityImage: '图片',
       supported: '已公布', unsupported: '不支持', unreported: '未公布', authMethods: '登录方式', rawResult: '原始结果', none: '未公布',
       'cap.loadSession': '恢复会话', 'cap.image': '图片输入', 'cap.audio': '音频输入', 'cap.embeddedContext': '嵌入上下文',
       'cap.list': '会话列表', 'cap.mcpHttp': 'HTTP MCP', 'cap.mcpSse': 'SSE MCP',
-      discovered: '此目录下的 CLI 会话', import: '导入', more: '更多', noDiscovered: '没有找到会话。',
-      importHint: '导入只创建本地记录，主动连接后才会载入对话。',
+      discovered: '此目录下的 CLI 会话', more: '更多', noDiscovered: '没有找到会话。',
       loginHint: '若登录失败，请在终端执行 CLI 的登录命令后重新连接。',
-      search: '搜索名称、提供方、目录或会话 ID', showArchived: '显示已归档', noRecords: '还没有执行记录。', noMatch: '没有匹配的记录。',
-      nativeTag: 'DSH 会话', childTag: '子任务', standaloneTag: '独立', retiredTag: '已退役', archivedTag: '已归档',
-      pickRecord: '选择一条记录查看历史。', remoteId: '远端会话', dshSession: 'DSH 会话', updated: '更新于', provider: '提供方',
+      search: '搜索名称、提供方、目录或会话 ID', noRecords: '还没有执行记录。', noMatch: '没有匹配的记录。',
+      nativeTag: 'DSH 会话', childTag: '子任务', retiredTag: '已退役', archivedTag: '已归档',
+      remoteId: '远端会话', dshSession: 'DSH 会话', updated: '更新于', provider: '提供方',
       rename: '改名', archive: '归档', unarchive: '恢复归档', stopTurn: '停止本轮', back: '全部记录',
-      archiveHint: '归档前请先断开。归档不会删除工作区文件或 CLI 历史。',
+      archiveHint: '归档前请先断开，工作区文件和 CLI 历史保留。',
       nativeReadOnly: '这条记录属于 DSH 会话，请在该会话中发送消息。',
       storageError: '历史记录无法保存：{message}',
     }
@@ -277,7 +267,6 @@ window.__ModuleLoader__.load({
 .aw-toggle{display:inline-grid;place-items:center;flex:none;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
 @media (hover:hover){.aw-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 
-/* Composer dock: same column, surface and type scale as the host Todo and Goal cards. */
 .aw-dock{container-type:inline-size;display:flex;flex-direction:column;gap:6px;flex:none;margin:0 auto;
   width:calc(100% - 2 * var(--dsh-composer-side-clearance,16px) - 4 * var(--dsh-composer-dock-inset,8px));
   max-width:calc(var(--dsh-composer-card-max-width,760px) - 4 * var(--dsh-composer-dock-inset,8px))}
@@ -304,7 +293,6 @@ window.__ModuleLoader__.load({
 .aw-bar-error{padding:0 12px 8px}
 @container (max-width:560px){.aw-bar .aw-hide-narrow{display:none}}
 
-/* Pending human interaction */
 .aw-ask{display:flex;flex-direction:column;gap:10px;padding:12px 14px;min-width:0}
 .aw-ask-inline{border-radius:10px;border:1px solid var(--dsw-alias-state-warn-primary)}
 .aw-ask-head{display:flex;align-items:center;gap:8px;font-weight:500}
@@ -320,12 +308,10 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.aw-option:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .aw-option input{margin:3px 0 0;flex:none}
 
-/* ACP subagents */
 .aw-child{border-top:1px solid var(--dsw-alias-border-l1)}
 .aw-child-body{padding:0 12px 10px}
 
 .aw-review-patch{overflow:auto;max-width:100%;font:12px/1.55 ui-monospace,monospace}.aw-patch-line{display:grid;grid-template-columns:4em 4em minmax(max-content,1fr);min-width:max-content}.aw-patch-line>span,.aw-patch-line>button{text-align:end;padding:0 6px;color:var(--dsw-alias-label-tertiary)}.aw-patch-line>button{font:inherit;background:none;border:0;cursor:pointer;text-decoration:underline}.aw-patch-line>code{font:inherit;white-space:pre;padding-inline-start:7px}.aw-patch-line[data-side=add]{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 10%,transparent)}.aw-patch-line[data-side=del]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent)}.aw-patch-hunk{color:var(--dsw-alias-label-secondary);white-space:pre;padding:3px 0}.aw-review-preview{border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:10px;min-width:0}
-/* Execution trace (chat node and records) */
 .aw-task-lane{min-width:0;border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:8px;margin-inline-start:5px}.aw-task-origin{font-size:11px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}.aw-task-nav{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}.aw-task-nav>.aw-strong{overflow-wrap:anywhere}.aw-task-scope{display:grid;gap:4px;padding:7px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.aw-task-progress{min-width:0;font-size:13px}.aw-task-progress .aw-text{max-height:12em;overflow:auto}
 .aw-trace{margin:2px 0;min-width:0}
 .aw-trace-head{display:flex;align-items:center;gap:8px;min-height:28px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
@@ -370,7 +356,6 @@ window.__ModuleLoader__.load({
 .aw-msg-head{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
 .aw-img{max-width:100%;max-height:360px;border-radius:8px}
 
-/* Sidebar page */
 .aw-page{container-type:inline-size;display:flex;flex-direction:column;height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;background:var(--dsw-alias-bg-base)}
 .aw-page-inner{display:flex;flex-direction:column;gap:16px;width:min(100%,980px);margin:0 auto;padding:20px 24px 40px}
 .aw-head{display:flex;align-items:flex-start;gap:12px}
@@ -403,13 +388,11 @@ window.__ModuleLoader__.load({
 .aw-found{display:flex;flex-direction:column;gap:2px}
 .aw-previous{max-height:12rem;overflow:auto;overscroll-behavior:contain}
 :is(.aw-dock,.aw-options) .aw-found{max-height:12rem;overflow:auto;overscroll-behavior:contain}
-/* Match the native model menu cells, including the trailing value and chevron. */
 .aw-menu-option{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:100%;height:34px;padding:0 8px;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:400;line-height:20px;text-align:start;white-space:nowrap;cursor:pointer;outline:none}
 .aw-menu-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:end;color:var(--dsw-alias-label-tertiary)}
 .aw-menu-option>svg{flex:none;color:var(--dsw-alias-menu-icon)}
 .aw-menu-option:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
 @media (hover:hover){.aw-menu-option:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-/* The popover's top layer escapes the composer's containment; the slot anchors it to the card. */
 .aw-options{position:fixed;position-area:top span-left;align-self:end;justify-self:end;inset:auto;margin:0 0 8px;
   width:min(420px,anchor-size(width));max-height:min(22rem,calc(100% - 8px - max(12px,var(--dsh-frame-overlay-top,12px))));
   padding:12px;border:0;border-radius:var(--dsw-radius-lg);background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));
@@ -448,17 +431,13 @@ window.__ModuleLoader__.load({
     const clock = at => { try { return new Date(at).toLocaleTimeString() } catch { return '' } }
     const stamp = at => { try { return new Date(at).toLocaleString() } catch { return String(at ?? '') } }
     const number = value => { try { return new Intl.NumberFormat().format(value) } catch { return String(value) } }
-    /** Live dots spin; once the turn has ended an unfinished item no longer claims progress. */
     const settle = (state, live) => state === 'ongoing' && !live ? 'idle' : state
     const eventLabel = event => [event.type, event.data?.method, updateOf(event)?.sessionUpdate].filter(Boolean).join(' · ')
 
-    // Same wire evidence as the Host run fold. Legacy record pages use the original event stream.
     function cliParentOf(update) {
       const id = update?._meta?.claudeCode?.parentToolUseId
       return typeof id === 'string' && id.trim() ? id : undefined
     }
-    // A later status-only frame does not turn a launch preview into a completion patch.
-    // Keep a pointer to the raw field, not a second copy of its patch text. Drop it if replaced.
     function updatePatchFrame(row, update) {
       if (Array.isArray(update.content) && (row.patchFrame || ['edit','move','delete'].includes(update.kind ?? row.tool.kind) || update.content.some(b => b?.type === 'diff'))) {
         const stage = update.sessionUpdate === 'tool_call' ? 'launch' : update.status === 'completed' ? 'completed' : update.status === 'failed' ? 'failed' : 'update'
@@ -466,12 +445,10 @@ window.__ModuleLoader__.load({
         row.patchFrame = { stage, rawKey }
       } else if (row.patchFrame?.rawKey && update[row.patchFrame.rawKey] != null) row.patchFrame = { stage: row.patchFrame.stage }
     }
-    // Display terminals are reports, not the ACP terminal/create capability. Bind solely to the
-    // terminal reference announced by this call. Codex sends chunks as terminal_output;
-    // Claude uses the same key to REPLACE its streamed foreground transcript.
+    // external: Codex appends terminal_output chunks while Claude Code replaces the full transcript under the same key
     function foldTerminal(row, u) {
       const id = u.toolCallId, m = u._meta, info = m?.terminal_info
-      if (u.sessionUpdate === 'tool_call' && row.tool.toolCallId) row.terminal = null // ambiguous repeated launch
+      if (u.sessionUpdate === 'tool_call' && row.tool.toolCallId) row.terminal = null
       if (typeof id !== 'string' || !id || !m || row.terminal === null) return
       if (!row.terminal && info?.terminal_id === id && Array.isArray(u.content) && u.content.some(b => b?.type === 'terminal' && b.terminalId === id)) {
         const input = u.rawInput, mode = ['Bash','PowerShell'].includes(m.claudeCode?.toolName) ? 'replace'
@@ -498,7 +475,6 @@ window.__ModuleLoader__.load({
         return { ...u, _meta: meta }
       }
     }
-    // Named ACP plans are complete replacements; unsupported frames must not erase a known plan.
     function namedPlan(update) {
       const p = update?.sessionUpdate === 'plan_update' ? update.plan : null
       const id = update?.sessionUpdate === 'plan_removed' ? update.planId : p?.planId
@@ -509,7 +485,6 @@ window.__ModuleLoader__.load({
       return null
     }
 
-    /** Fold transport chunks into readable rows, retaining sequence numbers for raw-event inspection. */
     const tokenCount = n => Number.isSafeInteger(n) && n >= 0
 
     function contextWindow(update) {
@@ -532,7 +507,6 @@ window.__ModuleLoader__.load({
       row.window = window; row.at = event.at
     }
 
-    // ID-addressed ACP compaction, not an executable tool or a DSH context mutation.
     function compactionFacts(value) {
       if (!value || typeof value !== 'object') return null
       const facts = {}
@@ -549,7 +523,7 @@ window.__ModuleLoader__.load({
       const part = { type: b.type, seq, index }
       for (const key of ['mimeType', 'uri', 'name', 'description']) if (typeof r[key] === 'string') part[key] = r[key]
       if (b.type === 'resource' && typeof r.text === 'string') part.text = r.text
-      return part // no base64, remote fetch, file read or executable markup in a trace row
+      return part
     }
 
     function foldCompaction(rows, entities, scope, event, update) {
@@ -567,7 +541,7 @@ window.__ModuleLoader__.load({
         const last = row.parts.at(-1)
         if (part.type === 'text' && last?.type === 'text') last.text += part.text
         else row.parts.push(part)
-        return // chunk metadata is local to the content, not a patch to the entity
+        return
       }
       row.status = update.status
       if (update.summary === null) row.parts = []
@@ -581,7 +555,6 @@ window.__ModuleLoader__.load({
       }
     }
 
-    /** A notice is plain text from a specific remote, never an assistant message or a request for approval. */
     function noticeReceipt(event, remoteId) {
       const data = event?.data, params = data?.params, u = params?.update
       if (event?.type !== 'notification' || data?.method !== 'session/update' || typeof remoteId !== 'string' || !remoteId.trim() || params?.sessionId !== remoteId || u?.sessionUpdate !== 'notice' ||
@@ -608,7 +581,7 @@ window.__ModuleLoader__.load({
         const previous = rows.at(-1)
         if (role || plan || kind === 'plan' || data.method?.replace(/^_/, '') === 'cursor/update_todos') section = event.seq
         if (role && parent) {
-          if (role === 'thinking') continue // diagnostics retain the raw frame
+          if (role === 'thinking') continue
           const content = update.content, value = text ?? content?.resource?.text, input = role === 'user'
           if (typeof value === 'string' && previous?.kind === 'task-progress' && !previous.media && previous.input === input && previous.cliParent === parent && previous.turnId === data.turnId && previous.replay === !!data.replay && progressSeq === event.seq - 1) {
             const remaining = 16384 - previous.text.length
@@ -634,7 +607,6 @@ window.__ModuleLoader__.load({
           if (parent) row.cliParent = row.cliParent === undefined || row.cliParent === parent ? parent : null
           if (['Agent', 'Task'].includes(update._meta?.claudeCode?.toolName)) row.cliTask = true
         } else if (kind === 'compaction_update' || kind === 'compaction_summary_chunk') {
-          // The record view follows a session entity, even for updates between prompts. Separate each imported replay.
           foldCompaction(rows, compactions, data.replay ? ['replay', connectionSeq] : 'live', event, update)
           section = event.seq
         } else if (plan) {
@@ -644,7 +616,6 @@ window.__ModuleLoader__.load({
             row = { kind: 'plan', seq: event.seq, cliParent: parent, turnId: data.turnId, replay: !!data.replay }
             plans.set(key, row); rows.push(row)
           } else if (plan.type !== 'removed') {
-            // The ID belongs to the session, not a tool call. A reset may omit the parent stamp.
             if (row.plan.type === 'removed') row.cliParent = parent
             else if (row.cliParent !== parent) row.cliParent = null
           }
@@ -660,7 +631,6 @@ window.__ModuleLoader__.load({
           if (row) { rows.push({ ...row, turnId: data.turnId ?? null }); section = event.seq }
         } else if (kind === 'usage_update') {
           const window = !parent && typeof data.params?.sessionId === 'string' && data.params.sessionId && contextWindow(update)
-          // Without a known turn (including imported history) do not collapse unrelated observations.
           if (window) recordWindow(rows, windows, JSON.stringify([connectionSeq, !!data.replay, data.turnId ?? ['event', event.seq]]), event, window)
         } else if (totals) {
           rows.push({ kind: 'usage-totals', seq: event.seq, totals, stopReason: data.stopReason })
@@ -672,8 +642,6 @@ window.__ModuleLoader__.load({
       return rows
     }
 
-    // ACP kinds are stable across engines. Labels and opaque arguments are not. These
-    // are display models, never DSH tool invocations or requests to read today's files.
     const kindIcons = new Map(Object.entries({ read: IconBrowseOutlineRegular, search: IconSearchOutlineRegular,
       edit: IconEditOutlineRegular, delete: IconEditOutlineRegular, move: IconBranchOutlineRegular,
       execute: IconPlayOutlineRegular, fetch: IconGlobeOutlineRegular, think: IconSparkleRegular, switch_mode: IconBranchOutlineRegular }))
@@ -682,7 +650,6 @@ window.__ModuleLoader__.load({
     const plainText = block => unwrap(block)?.type === 'text' && typeof unwrap(block).text === 'string'
     const unfence = text => /^(`{3,})[^\n`]*\r?\n([\s\S]*)\r?\n\1\s*$/u.exec(text)?.[2] ?? text
     const validDiff = b => b?.type === 'diff' && typeof b.path === 'string' && !!b.path.trim() && typeof b.newText === 'string' && (b.oldText == null || typeof b.oldText === 'string')
-    // Use adapter identity fields, not a display title or the names of a tool's arguments.
     function mcpIdentity(call, approval) {
       const wireName = firstText(call.name), metaName = firstText(call._meta?.claudeCode?.toolName), raw = call.rawInput
       if (wireName && metaName && wireName !== metaName) return null
@@ -701,7 +668,6 @@ window.__ModuleLoader__.load({
       }
       return null
     }
-    // Claude's Write sends file text in rawInput. A null old side on its launch diff is not proof of creation.
     function writeIntent(tool, input) {
       const wire = tool.name, meta = tool._meta?.claudeCode?.toolName
       if (tool.kind !== 'edit' || (wire ?? meta) !== 'Write' || (meta != null && meta !== 'Write')) return null
@@ -716,7 +682,6 @@ window.__ModuleLoader__.load({
       const mcp = mcpIdentity(tool, approval)
       const path = !mcp && tool.kind !== 'fetch' && firstText(input.file_path, input.path, input.filePath, input.AbsolutePath, input.TargetFile)
       const argv = Array.isArray(input.command) && input.command.length && input.command.every(s => typeof s === 'string') ? input.command : null
-      // Display argv as reported; joining it into a shell command would lose argument boundaries.
       const command = !mcp ? firstText(input.command, input.CommandLine) ?? (argv && (terminal || tool.kind === 'execute') ? JSON.stringify(argv) : undefined) : undefined
       const kind = mcp ? 'mcp' : kindIcons.has(tool.kind) ? tool.kind : blocks.some(validDiff) ? 'edit' : command ? 'execute' : 'other'
       const locations = (Array.isArray(tool.locations) ? tool.locations : []).filter(l => typeof l?.path === 'string' && l.path)
@@ -744,12 +709,9 @@ window.__ModuleLoader__.load({
     }
 
     const callKey = (id, turn) => JSON.stringify([turn ?? null, id])
-    /** One read-only index per trace. The same tool ID in a different turn is unrelated.
-     * Keep chronological rows intact; the focused view selects the launcher and its direct evidence. */
     function cliActivities(rows) {
       const tools = new Map(), tasks = new Map(), origin = new Map(), requests = new Map(), receiptFor = new Map()
       const keyFor = (r, id) => callKey(id, r.turnId ?? r.data?.turnId)
-      // Unbound record-page notifications have no proven turn. A Host-folded trace is already scoped to a single run.
       const unbound = r => r.replay || r.data?.replay || (Object.hasOwn(r, 'turnId') && !r.turnId)
       for (const row of rows) if (!unbound(row) && row.tool?.toolCallId) tools.set(keyFor(row, row.tool.toolCallId), row)
       const taskFor = row => {
@@ -787,7 +749,6 @@ window.__ModuleLoader__.load({
       return { tasks, origin, receiptFor }
     }
 
-    /** Show the exact permission receipt on its call; never infer a decision from the tool's final status. */
     function callPermissions(rows) {
       const byCall = new Map(), byRequest = new Map()
       for (const row of rows) {
@@ -808,7 +769,6 @@ window.__ModuleLoader__.load({
       return byCall
     }
 
-    /** A view over canonical rows; never reorder, replace or execute provider calls. Only completed, plainly presented exploration is compactable. */
     function projectCallRuns(rows, cwd, approvals = callPermissions(rows), tasks = new Map()) {
       const items = []
       let run, groups = 0
@@ -834,8 +794,6 @@ window.__ModuleLoader__.load({
       return { items, groups, approvals }
     }
 
-    // Build result bodies on expansion only. Prefer ACP display content over the raw
-    // result; keep non-text blocks such as screenshots alongside a terminal transcript.
     function resultBody(tool, face) {
       const { blocks } = face, raw = tool.rawOutput
       const display = blocks.filter(plainText).map(b => unfence(unwrap(b).text)).join('\n')
@@ -847,8 +805,6 @@ window.__ModuleLoader__.load({
       return { text, terminalOutput, display, note: terminalOutput && display && display !== text ? display : patchOutput && display && patchOutput !== text ? patchOutput : null, extras: (blocks.length ? blocks : rawBlocks).filter(b => b && !plainText(b) && !(Array.isArray(tool.content) && !blocks.length && validDiff(b))) }
     }
 
-    // Only parse complete, recognizable formats. An arbitrary CLI result must not
-    // acquire invented file line numbers, match counts or shell exit codes.
     function webAddress(value) {
       if (typeof value !== 'string' || !/^https?:\/\//iu.test(value) || /[\s\\\p{Cc}]/u.test(value)) return null
       try { const u = new URL(value); return u.hostname && !u.username && !u.password ? value : null } catch { return null }
@@ -867,8 +823,7 @@ window.__ModuleLoader__.load({
         offset: same && name === 'WebFetch' && Number.isSafeInteger(input.offset) && input.offset >= 0 ? input.offset : undefined,
         allowed: mode === 'search' ? textList(input.allowed_domains) : [], blocked: mode === 'search' ? textList(input.blocked_domains) : [] }
     }
-    // The Claude adapter emits one “Title (url)” line per hit, interleaved with plain commentary.
-    // Don't parse a fetched page, an error or a query as a list of visited URLs.
+    // external: Claude Code WebSearch emits "Title (url)" lines interleaved with plain text
     function webSections(text, mixed) {
       if (!text) return []
       const sections = [], lines = text.split(/\r?\n/u)
@@ -889,11 +844,10 @@ window.__ModuleLoader__.load({
     }
     function searchResult(raw, text, input = {}) {
       const mode = raw?.mode ?? input.output_mode ?? ([true, 'true'].includes(input['-c']) ? 'count' : undefined)
-      // Grep count output is not a line location. Keep its original text instead of numbering or linking it.
       if (mode === 'count') return null
       const paths = raw?.filenames ?? raw?.paths, listed = Array.isArray(paths) && paths.every(p => typeof p === 'string' && p.trim())
       if (mode !== 'content' && listed && (paths.length || !text)) return { kind: 'paths', paths, total: paths.length, truncated: raw.truncated === true }
-      if (mode === 'files_with_matches') return null // prose or an unstructured file list is not path:line:content
+      if (mode === 'files_with_matches') return null
       const output = mode === 'content' ? firstText(raw?.content, text) : text
       if (!output) return null
       const files = new Map(), rows = output.replace(/\r?\n$/u, '').split(/\r?\n/u)
@@ -909,7 +863,6 @@ window.__ModuleLoader__.load({
       return { kind: 'matches', files: [...files.values()], total: rows.length, truncated: raw?.truncated === true }
     }
 
-    // Membership comes from the current target, never the unrelated session that edited the task.
     function schedulesInProject(project, tasks) {
       return tasks.filter(({ target }) => target.kind === 'session' ? project.sessionIds.includes(target.sessionId) : target.create?.cwd === project.path)
     }
@@ -935,7 +888,6 @@ window.__ModuleLoader__.load({
       return { title, prompt, timing, target }
     }
 
-    /** Ordered, labelled controls for every option the CLI actually advertised. */
     function configEntries(session, t) {
       const entries = []
       for (const option of session.configOptions ?? []) {
@@ -967,7 +919,6 @@ window.__ModuleLoader__.load({
         function useT() { React.useSyncExternalStore(subscribeLocale, localeSnapshot); return t }
         const stateText = state => t(`state.${state}`)
 
-        // One stylesheet for every dock, trace and page instance.
         ctx.effect(() => {
           const style = document.createElement('style')
           style.setAttribute('data-acp-workbench', '')
@@ -976,10 +927,7 @@ window.__ModuleLoader__.load({
           return () => style.remove()
         }, 'acp-workbench: styles')
 
-        // One shared change feed. Browsers cap concurrent connections per origin, so every
-        // dock, trace and page subscribes here instead of opening its own EventSource.
         const feed = { listeners: new Set(), watchers: new Set(), online: 'connectingFeed', stream: null }
-        // Copy first: a listener may unsubscribe while being notified.
         const notify = (set, change) => { for (const listener of Array.from(set)) listener(change) }
         const setOnline = value => { if (feed.online !== value) { feed.online = value; notify(feed.watchers) } }
         function subscribeLive(listener) {
@@ -988,12 +936,11 @@ window.__ModuleLoader__.load({
             const stream = new EventSource('/acp-workbench/events')
             setOnline('connectingFeed')
             stream.addEventListener('open', () => { if (feed.stream === stream) setOnline('live') })
-            // The server sends the current revision on every (re)connect, so a message also covers recovery.
             stream.addEventListener('message', event => {
               if (feed.stream !== stream) return
               setOnline('live')
               let change
-              try { change = JSON.parse(event.data) } catch { /* Unknown revision format: refresh all subscribers. */ }
+              try { change = JSON.parse(event.data) } catch {}
               notify(feed.listeners, change)
             })
             stream.addEventListener('error', () => { if (feed.stream === stream) setOnline('offline') })
@@ -1008,8 +955,6 @@ window.__ModuleLoader__.load({
         const useOnline = () => React.useSyncExternalStore(watchOnline, () => feed.online)
         ctx.effect(() => () => { feed.stream?.close(); feed.stream = null; feed.listeners.clear(); feed.watchers.clear() }, 'acp-workbench: live updates')
 
-        // Only a mounted writable composer fetches its CLI catalog. The reserved
-        // leading /cli: spelling stays inert on paste or restore, even without a catalog.
         const commandScopes = new Map()
         function useCommandScope(sessionId, id, revision, label) {
           React.useEffect(() => {
@@ -1053,8 +998,7 @@ window.__ModuleLoader__.load({
             const item = scope && scope.stamp === candidate.value && scope.commands?.find(c => c.name === name)
             return { claim: commandClaim(name, sessionId, item ? scope : null, item?.input?.hint || item?.description) }
           },
-          // DSH persists the chip spelling, not its credential. Never bind a restored draft to
-          // whatever engine happens to be selected now. Keep the arguments editable on error.
+          // external: DSH persists input trigger chip spelling across reloads without plugin metadata
           async matchClaim({ sessionId }, token) {
             const name = qualified.exec(token)?.[1]
             if (name) return commandClaim(name, sessionId, null, t('cliCommandStale'))
@@ -1090,7 +1034,6 @@ window.__ModuleLoader__.load({
                 } catch (error) { if (!own.signal.aborted) publish({ ...current, error: error.message }) }
               } while (again && !own.signal.aborted)
             } finally { loading = false }
-            // A new subscription began while the previous one was still loading.
             if (controller && controller !== own) void refresh()
           }
           const stop = () => {
@@ -1160,8 +1103,6 @@ window.__ModuleLoader__.load({
           }), [common])
         }
 
-        // Index only the fragments from this call. An empty side can be an insertion/deletion
-        // inside a file; only an explicit, same-frame FileChange identifies a file operation.
         function patchInventory(tool, blocks, frame) {
           const files = new Map(), diffs = []
           const get = path => { if (!files.has(path)) files.set(path, { path, fragments: [] }); return files.get(path) }
@@ -1178,7 +1119,6 @@ window.__ModuleLoader__.load({
               const path = type === 'update' && op.move_path || from
               if (!paths.has(path)) continue
               const file = get(path)
-              // Two sources claiming the same destination are not an unambiguous move.
               if (file.op !== undefined) { file.op = null; continue }
               file.op = { kind: path !== from ? 'move' : type === 'update' ? 'updateFile' : type, from }
             }
@@ -1233,8 +1173,6 @@ window.__ModuleLoader__.load({
           return h(Json, { label: content?.type ?? block.type ?? 'content', payload: block })
         }
 
-        // A recorded CLI path is not relative to the project panel or to today's DSH workingDirectory.
-        // A URI, a shell expansion or a drive-relative Windows path isn't a concrete disk location.
         function reportedPath(path, cwd) {
           if (typeof path !== 'string' || !path.trim() || /\p{Cc}/u.test(path) || /^~(?:[\\/]|$)/u.test(path)) return null
           const windows = p => /^(?:[A-Za-z]:[\\/]|\\\\[^\\/?.][^\\/]*[\\/][^\\/]+)/u.test(p)
@@ -1274,8 +1212,6 @@ window.__ModuleLoader__.load({
             h('div', { key }, h('dt', null, key), h('dd', null, String(v).slice(0, 1000), String(v).length > 1000 ? '…' : ''))))) : null
         }
 
-        // Chat, Activity and the permission dock use the same recorded data. Approval
-        // previews show intent, never imply that the command or edit already ran.
         function CommandReport({ term, face, final, cwd, labels, live, state }) {
           const [selected, select] = React.useState('stream'), gotStream = typeof term.text === 'string'
           const distinct = gotStream && final != null && final !== term.text, useFinal = !gotStream || (distinct && selected === 'final')
@@ -1291,8 +1227,6 @@ window.__ModuleLoader__.load({
               h(React.Fragment, null, h('span', { className: 'aw-note' }, signal ? t('terminalSignal', { signal }) : exitCode !== undefined ? t('exitCode', { n: exitCode }) : term.exited ? t('noExit') : null),
                 text ? h('pre', { className: 'aw-log' }, text.slice(-32768)) : null))
         }
-        // Nested values open on demand. A string remains a literal even when it looks like JSON,
-        // a file name or a command. Raw MCP data never becomes an actionable workspace target.
         function McpValue({ value, root = false }) {
           const [open, setOpen] = React.useState(false), [limit, more] = React.useState(8)
           if (value === undefined) return h('span', { className: 'aw-note' }, t('mcpAbsent'))
@@ -1302,7 +1236,6 @@ window.__ModuleLoader__.load({
             return h('span', { className: 'aw-mcp-value' }, cut && !open ? str.slice(0, 480) + '…' : str, cut && h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': open, onClick: () => setOpen(!open) }, t(open ? 'mcpLess' : 'mcpMore')))
           }
           const keys = array ? null : Object.keys(value), count = array ? value.length : keys.length, shown = Math.min(limit, count), label = t(array ? 'mcpItems' : 'mcpFields', { n: count })
-          // Small, flat record lists can be scanned as a table. Never sample a few rows and silently drop other fields.
           const plain = v => v !== null && typeof v === 'object' && !Array.isArray(v)
           const columns = array && (root || open) && count >= 2 && count <= 128 && plain(value[0]) ? Object.keys(value[0]) : EMPTY
           const table = columns.length > 0 && columns.length <= 5 && value.every(row => plain(row) && Object.keys(row).length === columns.length && columns.every(k => Object.hasOwn(row, k) && (row[k] == null || typeof row[k] !== 'object')))
@@ -1322,8 +1255,7 @@ window.__ModuleLoader__.load({
         }
         function McpReport({ tool, face, approval }) {
           const id = React.useId(), [chosen, choose] = React.useState(null), m = face.mcp, raw = tool.rawOutput
-          // The Codex adapter forwards CallToolResult as rawOutput and also projects the ACP-compatible
-          // content blocks. Render the original list once, including unrecognized items in original order.
+          // external: Codex ACP sends CallToolResult in rawOutput alongside projected ACP content blocks
           const envelope = !approval && m.source === 'codex' && Array.isArray(raw?.content)
           const hasStructure = envelope && Object.hasOwn(raw, 'structuredContent'), rawItems = envelope ? raw.content : null
           const display = face.blocks.filter(b => !validDiff(b)), hasDisplay = Array.isArray(tool.content)
@@ -1392,7 +1324,6 @@ window.__ModuleLoader__.load({
           } else if (terminal && !approval) {
             body = h(CommandReport, { term: terminal, face, final: terminalOutput, labels, live, state, cwd: terminal.cwd ?? firstText(input.cwd, input.workdir, input.Cwd, cwd) })
           } else if (kind === 'execute' && command) {
-            // If execution did not finish, do not let a terminal card imply a successful exit.
             const settled = ['completed', 'failed'].includes(tool.status) || exitCode !== undefined || !!signal
             body = !approval && (pending || settled) ? h(TerminalBlock, { labels, command, output: text || undefined,
               cwd: firstText(input.cwd, input.workdir, input.Cwd, cwd), running: !!pending, exitCode, signal, maxLines: 8,
@@ -1404,7 +1335,6 @@ window.__ModuleLoader__.load({
             body = lines ? h(ReadBlock, { labels, label: targets[0]?.path ?? tool.title, lines, lang: fileLang, maxLines: 8 }) : null
           } else if (kind === 'search' && !approval && state !== 'failed') {
             const card = searchResult(tool.rawOutput, text, input)
-            // Some adapters also put the search root in locations. Without a line it isn't evidence of a file hit.
             const explicit = new Set(Array.isArray(tool.locations) ? tool.locations : [])
             locations = targets.filter(l => explicit.has(l) && (l.line > 0 || (l.path !== input.path && l.path !== input.file_path)))
             if (card) body = h(React.Fragment, null, h(SearchBlock, { ...card, labels, maxLines: 8 }), openFile && h(SearchLocations, { card, openFile, cwd: directory }))
@@ -1416,7 +1346,7 @@ window.__ModuleLoader__.load({
           if (patch.files.size > 1) locations = locations.filter(l => !patch.files.has(l.path))
           const proposed = kind === 'edit' && !patch.files.size && targets.length === 1 && (!patchFrame || ['permission','launch'].includes(patchFrame.stage)) && typeof input.old_string === 'string' && typeof input.new_string === 'string'
           return h('div', { className: 'aw-detail aw-call-detail' },
-            !approval && legacyCompaction(tool) ? h(CompactionFacts, { facts: compactionFacts(tool.rawOutput) }) : null,
+            !approval && isClaudeCompactTool(tool) ? h(CompactionFacts, { facts: compactionFacts(tool.rawOutput) }) : null,
             locations.length ? h(ToolTargets, { targets: locations, cwd: directory, openFile }) : null,
             !face.mcp && (kind === 'other' || approval) ? h(FieldList, { value: input, label: t('input'), omit: [command, ...(face.web ? [face.web.url, face.web.query, face.web.prompt, face.web.offset] : []), ...targets.map(l => l.path), face.write?.content, ...(proposed || extras.some(validDiff) ? [input.old_string, input.new_string] : [])] }) : null,
             !text && !extras.length && kind === 'other' ? h(FieldList, { value: tool.rawOutput, label: t('output') }) : null,
@@ -1439,7 +1369,7 @@ window.__ModuleLoader__.load({
           const { kind, focus, targets, exitCode } = face, target = targets[0]
           const state = callState(tool, face, live)
           const webTitle = { search: 'webSearch', page: 'webPage', find: 'webFind' }[face.web?.mode]
-          const title = task ? t('cliTask') : legacyCompaction(tool) ? t('compact.title') : webTitle ? t(webTitle) : face.write ? t('call.write') : kind === 'other' ? tool.title || t('tool') : t('call.' + kind)
+          const title = task ? t('cliTask') : isClaudeCompactTool(tool) ? t('compact.title') : webTitle ? t(webTitle) : face.write ? t('call.write') : kind === 'other' ? tool.title || t('tool') : t('call.' + kind)
           const path = target && (cwd && target.path.startsWith(cwd + '/') ? target.path.slice(cwd.length + 1) : target.path)
           const summary = focus || (path && path + (target.line > 0 ? ':' + target.line : '')) || (tool.title !== title ? tool.title : null)
           const totals = React.useMemo(() => {
@@ -1463,8 +1393,8 @@ window.__ModuleLoader__.load({
           }, open ? h(ToolDetails, { tool, face, live, cwd, openFile, patchFrame, terminal, webFrame }) : null))
         }
 
-        // Only the legacy Claude adapter's explicit synthetic tool identity qualifies, not its translated title.
-        const legacyCompaction = tool => tool.kind === 'think' && tool._meta?.claudeCode?.toolName === 'compact'
+        // external: older claude-agent-acp versions report compaction as a think tool named "compact"
+        const isClaudeCompactTool = tool => tool.kind === 'think' && tool._meta?.claudeCode?.toolName === 'compact'
         function CompactionFacts({ facts }) {
           if (!facts) return null
           return h('div', { className: 'aw-row aw-usage-meta' }, facts.trigger && h(Tag, { tone: 'quiet' }, t('compact.' + facts.trigger)),
@@ -1547,9 +1477,7 @@ window.__ModuleLoader__.load({
         }
 
         const CONVERSATION_EVENTS = new Set(['turn-error', 'configuration-error', 'interaction', 'interaction-result', 'interaction-expired'])
-        // Handshakes, metadata updates and routine lifecycle are useful in records, noise beside a reply.
         const shownBesideReply = row => CONVERSATION_EVENTS.has(row.type) || (row.type === 'lifecycle' && !!row.data?.message)
-        /** Lifecycle, results and interaction outcomes as single quiet lines. */
         function EventRow({ row, live }) {
           const data = row.data ?? {}
           switch (row.type) {
@@ -1578,11 +1506,11 @@ window.__ModuleLoader__.load({
         const displayKey = 'dsh-acp-workbench:tool-detail', levelListeners = new Set()
         const normalizeLevel = level => level === 'detailed' ? 'detailed' : 'overview'
         let callLevel = 'overview'
-        try { callLevel = normalizeLevel(window.localStorage?.getItem(displayKey)) } catch { /* storage may be unavailable */ }
+        try { callLevel = normalizeLevel(window.localStorage?.getItem(displayKey)) } catch {}
         const levelSnapshot = () => callLevel
         const setCallLevel = level => {
           callLevel = normalizeLevel(level)
-          try { window.localStorage?.setItem(displayKey, callLevel) } catch { /* keep this page's choice */ }
+          try { window.localStorage?.setItem(displayKey, callLevel) } catch {}
           for (const listener of levelListeners) listener()
         }
         function watchLevel(listener) { levelListeners.add(listener); return () => levelListeners.delete(listener) }
@@ -1666,7 +1594,6 @@ window.__ModuleLoader__.load({
             if (row.kind === 'tool') return renderTool(row)
             if (row.kind === 'task-progress') return h(TaskProgress, { key, row, recordId })
             if (row.kind === 'call-run') {
-              // A live item can finish and join a group while someone is reading it. Keep that detail visible.
               const open = opened.has(key) || row.rows.some(r => opened.has(r.seq))
               const toggle = () => open ? setOpened(prev => { const next = new Set(prev); next.delete(key); for (const r of row.rows) next.delete(r.seq); return next }) : flip(key)
               return h(CallRun, { key, run: row, open, toggle, renderTool })
@@ -1682,7 +1609,6 @@ window.__ModuleLoader__.load({
             if (row.kind === 'interaction') return h(EventRow, { key, live, row: { type: 'interaction', data: { kind: row.interaction, params: { title: row.title } } } })
             if (row.kind === 'answered') return h(EventRow, { key, live, row: { type: 'interaction-result', data: { automatic: row.automatic, optionName: row.optionName, answers: row.answers, result: { action: row.formAction, outcome: { outcome: row.outcome, optionId: row.optionId, reason: row.reason } } } } })
             if (row.kind === 'expired') return h(EventRow, { key, live, row: { type: 'interaction-expired', data: { reason: row.reason } } })
-            // DSH already renders the reply itself beside a conversation trace.
             if (row.kind === 'message') return conversation ? null : h(MessageRow, { key, row })
             if (row.kind === 'content') return conversation ? null : h('div', { key, className: 'aw-msg' }, h(Block, { block: row.content }))
             return conversation && !shownBesideReply(row) ? null : h(EventRow, { key, row, live })
@@ -1703,7 +1629,6 @@ window.__ModuleLoader__.load({
             h('div', { className: 'aw-list', id: panel, ...(groups ? { role: 'tabpanel', 'aria-labelledby': id(level) } : {}) }, items))
         }
 
-        // Read one position only on disclosure. A stored request is evidence, never another actionable dock.
         function PinnedPermissionEvent({ sessionId, seq, render }) {
           const [data, setData] = React.useState(null)
           React.useEffect(() => {
@@ -1929,7 +1854,6 @@ window.__ModuleLoader__.load({
             h('p', { className: 'aw-note' }, chosen?.description || tt('commandHint')))
         }
 
-        /** Inline execution steps beside the native reply; transport diagnostics are opt-in. */
         function NativeTrace({ sessionId, turn, step, messageId, reference, openFile, collapsible = false, defaultOpen = false }) {
           const tt = useT()
           const view = useNative(sessionId)
@@ -1945,7 +1869,6 @@ window.__ModuleLoader__.load({
           const generation = React.useRef(0)
           const traceRef = React.useRef(null)
           const matches = run => reference ? run.id === reference.turnId : messageId && run.messageId ? run.messageId === messageId : run.turn === turn && run.step === step
-          // The snapshot carries recent runs only; an older run falls back to an exact lookup.
           const current = view.data?.sessions.find(s => (reference ? s.id === reference.sessionId : s.native.sessionId === sessionId) && s.native.runs.some(matches))
           const session = current ?? fallback
           const run = session?.native.runs.findLast(matches)
@@ -1954,12 +1877,9 @@ window.__ModuleLoader__.load({
           const lateRevision = current ? run?.compactionRevision : view.data?.sessions.find(s => s.id === fallback?.id)?.native.compactionRevision
           const from = run?.from ?? 1
           const traceReady = !!fallback?.native.runs.some(matches)
-          // Streaming snapshots can arrive faster than the first trace response. Finish that
-          // read, then catch up once; only changing the identity of the run aborts the reader.
           const readTrace = React.useRef(null)
           React.useEffect(() => {
             const controller = new AbortController()
-            // Settlement adds an exact reference to the same run. Keep its rows mounted during the final read.
             setFallback(previous => reference && previous?.id === reference.sessionId && previous.native.runs.some(r => r.id === reference.turnId) ? previous : null)
             let loading = false, again = false
             readTrace.current = async () => {
@@ -1985,7 +1905,6 @@ window.__ModuleLoader__.load({
             setEvents(EMPTY)
             setReady(false)
           }, [session?.id, run?.id, raw])
-          // Raw diagnostics stay lazy and paged; the normal timeline already has all folded rows.
           React.useEffect(() => {
             if (!raw || !session || !run) return
             if (!started.current) { after.current = Math.max(0, from - 1, target - 200); started.current = true }
@@ -2060,7 +1979,6 @@ window.__ModuleLoader__.load({
 
         function projectConversationTarget(id, row, record) {
           if (record?.native.parentSessionId) return conversationTarget(record.native)
-          // An ordinary fork also has a durable parent. Only delegated agents use a child address.
           if (row?.origin === 'subagent' && row.parentId) return { parentSessionId: row.parentId, childSessionId: id, mode: 'unknown' }
           return record ? conversationTarget(record.native) : id
         }
@@ -2076,12 +1994,8 @@ window.__ModuleLoader__.load({
             setError(''); try { ctx.uiWorkspace.openSession(target) } catch (failure) { setError(failure.message) }
           } }, tt(child && !s.parentSessionId ? 'openRoot' : 'openConversation')), error ? h('span', { role: 'alert', className: 'aw-error' }, error) : null)
         }
-        const stopOperation = session => session.native
-          ? { action: 'native-stop', dshSessionId: session.native.sessionId, externalId: session.id, stopId: session.activity.stopId }
-          : { action: 'cancel', sessionId: session.id, stopId: session.activity.stopId }
+        const stopOperation = session => ({ action: 'native-stop', dshSessionId: session.native.sessionId, externalId: session.id, stopId: session.activity.stopId })
 
-        // Turn outcome and connection state are different facts: a failed turn may still
-        // have a healthy connection. Never present an idle connection as a successful run.
         function activityLabel(session) {
           const { group, runState } = session.activity
           if (group === 'working' && runState === 'preparing' && !BUSY.has(session.state)) return stateText('preparing')
@@ -2154,8 +2068,6 @@ window.__ModuleLoader__.load({
               page.nextCursor ? h(Button, { size: 'sm', variant: 'ghost', disabled, onClick: () => load(page.nextCursor) }, tt('more')) : null) : null)
         }
 
-        // The model menu stays compact. Its single ACP action opens controls in this conversation,
-        // never a second composer or a page that loses the user's draft.
         function CliMenuOption({ sessionId, dismiss }) {
           const tt = useT()
           const view = useNative(sessionId)
@@ -2204,7 +2116,6 @@ window.__ModuleLoader__.load({
             panel.focus({ preventScroll: true })
             return () => panel.hidePopover()
           }, [])
-          // Fetch configuration only while the panel is open. No model catalogs in token updates.
           const revision = binding?.state === 'idle' ? binding.eventSeq : null
           React.useEffect(() => {
             if (!binding) return
@@ -2257,8 +2168,6 @@ window.__ModuleLoader__.load({
             open && (error ? h('p', { role: 'alert', className: 'aw-error' }, error) : !result ? h('p', { className: 'aw-note' }, tt('loading')) : !trees.length ? h('p', { className: 'aw-note' }, tt('noSharedPeers')) : trees.map(tree => h('div', { key: tree.revision, className: 'aw-section' }, h(PathLabel, { path: tree.path }), h(SharedCheckout, { tree, value: result, group: { catalog, providers, related: new Map() } })))) )
         }
 
-        // From the global project page an inactive session does not yet have a Sidebar seat.
-        // Consume the click in the arriving conversation's committed render, never in the previously active sidebar.
         let arrivingSidebar = null
         function clearArrival() { const intent = arrivingSidebar; arrivingSidebar = null; intent?.unsubscribe?.() }
         ctx.effect(() => clearArrival, 'acp-workbench: sidebar navigation')
@@ -2357,7 +2266,6 @@ window.__ModuleLoader__.load({
           start: (_context, match, reader) => traceState(match.event, reader.previous('acp-route')?.state),
           update: (context, match) => ({ ...traceState(match.event, context.state), seq: context.state.seq }),
           buildViewNode: context => context.state?.provider?.startsWith('acp-') ? { key: context.key, id: context.id, kind: 'acp-run', target: 'chat',
-            // Tool activity from every ACP engine stays visible outside the native process disclosure.
             groupTree: 'turn',
             anchorSeq: context.state.seq, location: context.start?.location ?? { kind: 'unresolved' }, visibility: 'visible', data: context.state } : null,
         })
@@ -2373,7 +2281,7 @@ window.__ModuleLoader__.load({
         try {
           const stored = JSON.parse(window.localStorage?.getItem(collapsedRepliesKey) ?? '[]')
           if (Array.isArray(stored)) collapsedReplies = new Set(stored.filter(item => typeof item === 'string').slice(-MAX_COLLAPSED_REPLIES))
-        } catch { /* storage may be unavailable */ }
+        } catch {}
         const subscribeCollapsedReplies = listener => { collapsedReplyListeners.add(listener); return () => collapsedReplyListeners.delete(listener) }
         const isReplyCollapsed = key => collapsedReplies.has(key)
         const setReplyCollapsed = (key, value) => {
@@ -2384,7 +2292,7 @@ window.__ModuleLoader__.load({
             while (next.size > MAX_COLLAPSED_REPLIES) next.delete(next.values().next().value)
           } else next.delete(key)
           collapsedReplies = next
-          try { window.localStorage?.setItem(collapsedRepliesKey, JSON.stringify([...next])) } catch { /* keep memory copy */ }
+          try { window.localStorage?.setItem(collapsedRepliesKey, JSON.stringify([...next])) } catch {}
           for (const listener of collapsedReplyListeners) listener()
         }
         function replyPreviewLine(text) {
@@ -2479,8 +2387,6 @@ window.__ModuleLoader__.load({
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, NativeNode))
         ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))
 
-        /* ---------------------------------------------------------------- sidebar page */
-
         function useWorkbench(selected) {
           const [data, setData] = React.useState({ providers: EMPTY, sessions: EMPTY, storageError: null })
           const [ready, setReady] = React.useState(false)
@@ -2565,7 +2471,7 @@ window.__ModuleLoader__.load({
             h(Json, { label: tt('rawResult'), payload: info }))
         }
 
-        function ProvidersTab({ providers, run, busy, cwdHint, onImported }) {
+        function ProvidersTab({ providers, run, busy, cwdHint }) {
           const tt = useT()
           const [editing, setEditing] = React.useState(providers[0]?.id ?? '')
           const [draft, setDraft] = React.useState(() => providers[0] ? { ...providers[0], args: JSON.stringify(providers[0].args) } : blankProvider())
@@ -2593,7 +2499,6 @@ window.__ModuleLoader__.load({
             setSelectedModels(provider?.models ?? []); setModelsSaved(false)
           }
           React.useEffect(() => { if (!editing && providers[0] && !draft.id && !draft.command) edit(providers[0]) }, [providers.length])
-          // Records arrive after the first render; offer the latest record's directory once known.
           React.useEffect(() => { if (!cwd && cwdHint) setCwd(cwdHint) }, [cwdHint])
           const change = key => event => { setDraft(old => ({ ...old, [key]: event.target.value })); setNotice('') }
           const save = async event => {
@@ -2666,21 +2571,16 @@ window.__ModuleLoader__.load({
                     h(Button, { size: 'sm', variant: 'primary', disabled: !canSaveModels, onClick: saveModels }, tt('saveModels')),
                     modelsSaved ? h('span', { className: 'aw-note', role: 'status' }, tt('modelsSaved')) : null)),
                 report ? h(CapabilityReport, { info: report }) : null,
-                discovery ? h('div', { className: 'aw-section' }, h('h3', { className: 'aw-note' }, tt('discovered')), h('p', { className: 'aw-note' }, tt('importHint')),
+                discovery ? h('div', { className: 'aw-section' }, h('h3', { className: 'aw-note' }, tt('discovered')),
                   discovery.sessions.length ? h('ul', { className: 'aw-found' }, discovery.sessions.map(found => h('li', { key: found.sessionId },
                     h('span', { className: 'aw-grow' }, h('span', { className: 'aw-ellipsis', style: { display: 'block' } }, found.title ?? found.sessionId),
-                      h('span', { className: 'aw-item-sub aw-mono aw-ellipsis', style: { display: 'block' } }, [found.cwd, found.updatedAt ? stamp(found.updatedAt) : null].filter(Boolean).join(' · '))),
-                    h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: async () => {
-                      const value = await run({ action: 'import', providerId: saved.id, remoteId: found.sessionId, cwd: found.cwd ?? cwd.trim(), ...(found.title ? { title: found.title } : {}) })
-                      if (value) onImported(value.id)
-                    } }, tt('import'))))) : h('p', { className: 'aw-empty' }, tt('noDiscovered')),
+                      h('span', { className: 'aw-item-sub aw-mono aw-ellipsis', style: { display: 'block' } }, [found.cwd, found.updatedAt ? stamp(found.updatedAt) : null].filter(Boolean).join(' · ')))))) : h('p', { className: 'aw-empty' }, tt('noDiscovered')),
                   discovery.nextCursor ? h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: () => discover(discovery.nextCursor) }, tt('more')) : null) : null,
                 h('p', { className: 'aw-note' }, tt('loginHint'))) : null))
         }
 
         function recordKind(session) {
-          if (!session.native) return 'standaloneTag'
-          return session.native.sessionId === session.native.rootSessionId || !session.native.rootSessionId ? 'nativeTag' : 'childTag'
+          return session.native?.sessionId === session.native?.rootSessionId || !session.native?.rootSessionId ? 'nativeTag' : 'childTag'
         }
 
         function RecordDetail({ session, events, view, run, busy, onBack, providers }) {
@@ -2722,7 +2622,7 @@ window.__ModuleLoader__.load({
               session.native ? h('p', { className: 'aw-note' }, tt('nativeReadOnly'), ' ', tt('modelPickerHint')) : null,
               h('div', { className: 'aw-row' },
                 connected ? h(Button, { size: 'sm', variant: 'outline', disabled: busy || !!activity?.stopId, onClick: () => run({ action: 'disconnect', sessionId: session.id, unlessRunning: true }) }, tt('disconnect'))
-                  : h(Button, { size: 'sm', variant: 'outline', disabled: busy || session.archived || !!session.native?.retired || !provider, onClick: () => run(session.native ? { action: 'native-connect', dshSessionId: session.native.sessionId, externalId: session.id } : { action: 'connect', sessionId: session.id }) }, tt(session.remoteId ? 'reconnect' : 'connect')),
+                  : h(Button, { size: 'sm', variant: 'outline', disabled: busy || session.archived || !!session.native?.retired || !provider, onClick: () => run({ action: 'native-connect', dshSessionId: session.native.sessionId, externalId: session.id }) }, tt(session.remoteId ? 'reconnect' : 'connect')),
                 activity?.stopId ? h(Button, { size: 'sm', variant: 'ghost', icon: h(IconStopFillRegular, { size: 14 }), disabled: busy || session.state === 'canceling', onClick: () => run(stopOperation(session)) }, tt('stopTurn')) : null,
                 session.native && !session.native.retired ? h(Button, { size: 'sm', variant: 'ghost', disabled: busy || BUSY.has(session.state), onClick: () => { if (window.confirm(tt('newContextConfirm'))) void run({ action: 'native-reset', externalId: session.id }) } }, tt('newContext')) : null,
                 session.archived
@@ -2930,7 +2830,6 @@ window.__ModuleLoader__.load({
           return h(ProjectScriptsView, { sessionId, targetFor, useSessionAccess, data, error, busy, log, act, reload: () => { setError(''); refresh() } })
         }
 
-        // Only an opened monitor samples the assigned port. Listing scripts and terminal status stays passive.
         function ServiceReadiness({ sessionId, run }) {
           const tt = useT(), [sample, show] = React.useState(null)
           const { terminalId, servicePort, startedAt, name } = run
@@ -2999,7 +2898,7 @@ window.__ModuleLoader__.load({
           return root.replace(/\\/g, '/').replace(/\/+$/, '') + '/' + path
         }
         function fileAddress(sessionId, absolute) {
-          // DSH file/session addresses accept absolute paths. Do not strip the effective cwd: the preview resolves relative paths against header.cwd.
+          // external: DSH file/session resource URIs resolve relative paths against header.cwd, so pass absolute paths
           return 'dsh-resource://file/session/' + encodeURIComponent(sessionId) + '/' + absolute.split('/').map(part => encodeURIComponent(part).replace(/%3A/giu, ':')).join('/')
         }
         function verifyWindow(patch, offset, lines, eof) {
@@ -3068,8 +2967,6 @@ window.__ModuleLoader__.load({
               !snapshot && side && (current.lines.length || !file.line || current.noText || offset !== file.line) ? h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: openInSidebar }, tt('reviewFull')) : null) : null)
         }
         const fullOid = sha => typeof sha === 'string' && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(sha)
-        // Old-line navigation never reads the working file. The patch is already available even
-        // when Forge cannot identify a complete old blob (e.g. an arbitrary branch merge base).
         function BeforePreview({ sessionId, file, patch, source, comparison, line, close }) {
           const tt = useT(), labels = useToolLabels(), path = file.previousPath || file.path
           const captured = React.useMemo(() => patch.filter(r => r.old > 0), [patch])
@@ -3089,7 +2986,6 @@ window.__ModuleLoader__.load({
                 if (!fullOid(sha) || !sha.startsWith(source.head)) throw new Error(tt('commitHeadMoved'))
               }
               if (source.kind !== 'index' && !fullOid(sha)) throw new Error(tt('reviewStale'))
-              // Forge localText reads the index or the named commit blob, using the old path for renames.
               const readScope = source.kind === 'index' ? { kind: 'staged' } : { kind: 'branch', base: null, commits: { from: sha, to: sha } }
               signal.throwIfAborted()
               const text = reviewResult(await forge.localText(sessionId, readScope, path, signal)), lines = text.split('\n')
@@ -3193,8 +3089,7 @@ window.__ModuleLoader__.load({
             branch ? h(ReviewBase, { sessionId, base, select: setBase }) : null,
             commits ? h(CommitComparison, { key: base, sessionId, target, root, base, head, version }) : h(CheckoutDiff, { key: JSON.stringify([scope, base, head, version]), sessionId, target, root, comparison, before }))
         }
-        // Forge lists parents before children. A consecutive list segment is a range only while
-        // every following commit names its predecessor as first parent; a merge can break that chain.
+        // external: DSH Forge localCommits lists parents before children and merges can break the first-parent chain
         function commitEnds(commits, from) {
           const i = commits.findIndex(c => c.sha === from)
           if (i < 0) return EMPTY
@@ -3259,7 +3154,7 @@ window.__ModuleLoader__.load({
           const toggle = (key, label) => h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': open === key, onClick: () => { select(null); setOpen(open === key ? null : key) } }, tt(label))
           const name = catalog.byId[item.sessionId]?.title || item.title, provider = providers.find(p => p.id === item.providerId)?.label || item.providerId
           const longReply = !!item.reply && (item.reply.length > 200 || item.reply.split('\n').length > 3)
-          return h('article', { className: 'aw-card aw-section', onClickCapture: event => { const link = event.target.closest?.('.aw-file-link'); if (link) opener.current = link } }, h('div', { className: 'aw-row' }, h(StateDot, { state: DOT[item.state] || 'warning', size: 8 }), h('strong', { className: 'aw-grow' }, name), h(Tag, { tone: 'quiet' }, tt(item.reviewed === 'seen' ? 'reviewed' : item.reviewed === 'legacy' ? 'legacyReview' : 'unseen'))),
+          return h('article', { className: 'aw-card aw-section', onClickCapture: event => { const link = event.target.closest?.('.aw-file-link'); if (link) opener.current = link } }, h('div', { className: 'aw-row' }, h(StateDot, { state: DOT[item.state] || 'warning', size: 8 }), h('strong', { className: 'aw-grow' }, name), h(Tag, { tone: 'quiet' }, tt(item.reviewed === 'seen' ? 'reviewed' : 'unseen'))),
             h('div', { className: 'aw-note' }, [provider, tt('resultTurn', { n: item.turn }), stateText(item.state), stamp(item.at)].join(' · ')),
             item.reply ? h(React.Fragment, null,
               h('p', { className: longReply && !replyOpen ? 'aw-text aw-reply-clamped' : 'aw-text' }, item.reply),
@@ -3374,7 +3269,6 @@ window.__ModuleLoader__.load({
         }
 
         const fileSearchScope = { kind: 'file-search' }
-        /** Search names in one session's effective working directory. Typing never reads file contents. */
         function OpenTerminalButton({ sessionId, target, terminalId, useSessionAccess }) {
           const tt = useT(), [error, fail] = React.useState(''), allowed = useSessionAccess(sessionId, 'terminal/attach')
           if (!allowed || !ctx.get('webTerminals') || !ctx.get('sidebarRightTabs')?.get('terminal') || !ctx.get('sidebarRight')) return null
@@ -3512,7 +3406,6 @@ window.__ModuleLoader__.load({
             (!allowed || held) && h(Tag, { tone: 'quiet' }, tt(allowed ? 'batch.active' : 'batch.denied')))
         }
 
-        // This is a view over explicit DSH session IDs, never a bulk archive of external records or tabs.
         function ArchiveBatch({ project, members, archived, data, busy, useSessionAccess, open, show }) {
           const tt = useT(), [choose, remind] = React.useState(false), [running, spin] = React.useState(false), [outcomes, report] = React.useState([])
           const lock = React.useRef(null), latest = React.useRef(data); latest.current = data
@@ -3524,7 +3417,7 @@ window.__ModuleLoader__.load({
             event.preventDefault()
             if (lock.current || busy) return
             const ids = new Set(new FormData(event.currentTarget).getAll('dsh-session'))
-            const targets = members.filter(m => ids.has(m.id)) // visible, authorized and individually checked
+            const targets = members.filter(m => ids.has(m.id))
             remind(!targets.length)
             if (!targets.length) return
             if (!window.confirm([label + ' · ' + project.title, ...targets.map(m => m.title + ' (' + m.id + ')'), tt(archived ? 'batch.restoreNote' : 'batch.archiveNote')].join('\n'))) return
@@ -3541,7 +3434,6 @@ window.__ModuleLoader__.load({
                   if (!available(id)) reason = tt('batch.changed')
                   else if (held(id)) reason = tt('batch.active')
                   else if (!archived) {
-                    // A managed checkout can be reclaimed on archive. Keep that decision in its single-session flow.
                     const state = await api({ action: 'checkout-info', workspaceId: project.workspaceId, dshSessionId: id }, controller.signal)
                     if (state.sessionId !== id || state.archived || !available(id)) reason = tt('batch.changed')
                     else if (state.busy || state.restoring || held(id)) reason = tt('batch.active')
@@ -3639,7 +3531,6 @@ window.__ModuleLoader__.load({
               const fields = [title, owner.title, owner.path, id, engine, s?.providerId, s?.cwd, row?.cwd].filter(Boolean).map(v => v.toLowerCase())
               if (words.every(word => fields.some(value => value.includes(word)))) members.push({ id, title, row, s, engine })
             }
-            // Pinning is owned by DSH. Keep the workspace's own order inside each block.
             members.sort((a, b) => Number(pinned.has(b.id)) - Number(pinned.has(a.id)))
             return { owner, members }
           }).filter(group => group.members.length)
@@ -3732,7 +3623,7 @@ window.__ModuleLoader__.load({
                 ? h('div', { className: 'aw-stack' },
                   h('div', { className: 'aw-banner' }, h(IconInfoOutlineRegular, { size: 14 }),
                     h('div', { className: 'aw-banner-text' }, h('span', null, tt('engineHint')), h('span', null, tt('delegateHint')), h('span', null, tt('warning')), h('span', null, tt('scopeOnce')))),
-                  h(ProvidersTab, { providers: view.data.providers, run, busy, cwdHint: view.data.sessions[0]?.cwd, onImported: id => { setSelected(id); setTab('records') } }))
+                  h(ProvidersTab, { providers: view.data.providers, run, busy, cwdHint: view.data.sessions[0]?.cwd }))
                 : tab === 'projects' ? h(Projects, { data: view.data, run, busy, scheduleAccess, useSessionAccess, useWorkspaceAccess, renderFactorySlot, onRecord: id => { setSelected(id); setTab('records') } })
                 : h(ActivityInbox, { view, run, busy, selected, onSelect: setSelected, providers: view.data.providers, onSetup: () => setTab('providers') }))))
         }

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Title model",
-    "description": "Pick a separate model for session title generation without changing your conversation model or title strategy. Note: disabling the plugin keeps the saved setting, so switch back to Same as session before removing it."
+    "description": "Use a separate model for session title generation without changing the conversation model or title strategy."
   }
 }

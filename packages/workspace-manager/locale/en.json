@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Workspace manager",
-    "description": "Remove saved workspace records and clean up entries whose directories are gone on the Host. Keeps all disk files and sessions intact."
+    "description": "Inspect saved workspace paths on the Host and remove missing or unwanted entries while keeping files and sessions intact."
   }
 }

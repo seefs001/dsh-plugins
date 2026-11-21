@@ -1,18 +1,3 @@
-/**
- * dsh-image-gen — Host half.
- *
- * Registers agent image tools that call the hosted `image_generation` tool through
- * one of your local llm-pi-ai Responses routes, the same way dsh-web-access
- * calls hosted search. Per backend you pick a local provider/model; the
- * endpoint and key come from that provider route (`baseURL`, `apiKeyEnv`).
- *
- * - `openai` → `openai_image`: OpenAI hosted image_generation (size, quality, background, format).
- * - `grok`   → `grok_image`: xAI hosted image_generation (Grok Imagine; aspect ratio via the prompt).
- *
- * Images are written to `outputDir` under the agent's working directory and
- * stored as durable attachments, so the conversation shows them. The calling
- * model receives the images only when its route declares image input.
- */
 import { mkdir, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 
@@ -46,13 +31,10 @@ export const GROK_ASPECTS = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', 
 
 const INSTRUCTIONS = 'You are an image generator. Call the image_generation tool exactly once to create a new image from the user prompt. Do not ask questions. After the image is generated, reply with one short sentence.'
 
-/** A tool failure whose message is shown to the model. */
 export class ImageError extends Error {}
 
 const isRecord = v => v !== null && typeof v === 'object' && !Array.isArray(v)
 const str = v => (typeof v === 'string' ? v.trim() : '')
-
-// ---------------------------------------------------------------- config
 
 export function backendOf(kind, raw) {
   const d = DEFAULTS[kind]
@@ -60,7 +42,6 @@ export function backendOf(kind, raw) {
   return { kind, enabled: r.enabled === undefined ? d.enabled : r.enabled === true, provider: str(r.provider), model: str(r.model) }
 }
 
-/** A relative output directory may not climb out of the working directory. */
 export function outputDirOf(raw) {
   const dir = str(raw) || DEFAULTS.outputDir
   if (!isAbsolute(dir)) {
@@ -75,14 +56,11 @@ export function settingsOf(config) {
   return { timeoutMs, outputDir: outputDirOf(config?.outputDir), openai: backendOf('openai', config?.openai), grok: backendOf('grok', config?.grok) }
 }
 
-/** Why a backend cannot register a tool; `undefined` when it can. */
 export function unusable(b) {
   if (!b.enabled) return 'disabled'
   if (b.provider === '' || b.model === '') return 'no model selected'
   return undefined
 }
-
-// ---------------------------------------------------------------- routes
 
 export function piAiProviders(editor) {
   if (editor === undefined) return {}
@@ -95,7 +73,6 @@ export function piAiProviders(editor) {
   return {}
 }
 
-/** Provider ids whose route speaks the Responses API. */
 export const responsesProviders = providers => Object.entries(providers).filter(([, p]) => p?.api === RESPONSES_API).map(([id]) => id)
 
 export function routeOf(providers, id) {
@@ -127,8 +104,6 @@ export async function ready(ctx, b) {
   }
 }
 
-// ---------------------------------------------------------------- arguments
-
 const pick = (args, field, allowed) => {
   const v = args?.[field]
   if (v === undefined || v === null) return undefined
@@ -143,7 +118,6 @@ export function promptOf(args) {
   return p
 }
 
-/** The hosted `image_generation` tool entry for one call. */
 export function imageTool(b, args) {
   if (b.kind === 'grok') return { type: 'image_generation', action: 'generate' }
   const size = pick(args, 'size', OPENAI_SIZES)
@@ -161,12 +135,11 @@ export function imageTool(b, args) {
   }
 }
 
-/** The Responses request body for one call. */
 export function requestBody(b, args) {
   const prompt = promptOf(args)
   const tool = imageTool(b, args)
   if (b.kind === 'grok') {
-    // xAI's tool takes no size parameter; the model follows a ratio named in the prompt.
+    // external: xAI image_generation takes no size field; aspect ratio must be passed in prompt
     const aspect = pick(args, 'aspect_ratio', GROK_ASPECTS)
     const text = aspect ? `${prompt}\n\nAspect ratio: ${aspect}.` : prompt
     return { model: b.model, input: [{ role: 'system', content: INSTRUCTIONS }, { role: 'user', content: text }], tools: [tool] }
@@ -181,9 +154,6 @@ export function requestBody(b, args) {
   }
 }
 
-// ---------------------------------------------------------------- responses
-
-/** Media type from magic bytes; `undefined` for anything that is not PNG, JPEG, WebP, or GIF. */
 export function sniff(bytes) {
   if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png'
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
@@ -194,7 +164,6 @@ export function sniff(bytes) {
 
 const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' }
 
-/** Parse a Responses SSE body into the final response, failing on stream errors. */
 export function parseSse(text) {
   const items = []
   let completed
@@ -210,17 +179,13 @@ export function parseSse(text) {
     if ((event.type === 'response.completed' || event.type === 'response.incomplete') && isRecord(event.response)) completed = event.response
   }
   if (completed === undefined && items.length === 0) throw new ImageError('stream ended without a response')
-  // Some servers drop the base64 from the final response; prefer the per-item copies when they carry it.
+  // external: some Responses servers omit base64 result in response.completed; prefer output_item.done
   const finalOutput = Array.isArray(completed?.output) ? completed.output : []
   const hasImage = list => list.some(i => i?.type === 'image_generation_call' && typeof i.result === 'string' && i.result !== '')
   const output = hasImage(finalOutput) || !hasImage(items) ? (finalOutput.length > 0 ? finalOutput : items) : items
   return { ...completed, output }
 }
 
-/**
- * Images and the model's text from Responses `output`. OpenAI names the
- * rewritten prompt `revised_prompt`; xAI names the prompt it wrote `prompt`.
- */
 export function extractImages(output) {
   const images = []
   const text = []
@@ -255,7 +220,6 @@ function errorDetail(text, secret) {
   return redact(detail, secret).slice(0, 500)
 }
 
-/** Run one hosted image generation on a backend and return the decoded images. */
 export async function generate(ctx, b, args, signal) {
   const body = requestBody(b, args)
   const route = routeOf(piAiProviders(ctx.get('configEditor')), b.provider)
@@ -284,18 +248,14 @@ export async function generate(ctx, b, args, signal) {
   return result.images
 }
 
-// ---------------------------------------------------------------- output
-
 const stamp = () => new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15)
 
-/** The agent's working directory, or the default one outside an agent. */
 async function cwdOf(ctx, exec) {
   const wd = ctx.get('workingDirectory')
   if (wd === undefined) throw new ImageError('no working directory service is mounted')
   return exec.agent ? wd.ensure(exec.agent, exec.signal) : wd.defaultDirectory
 }
 
-/** Whether the calling model route declares image input. */
 async function modelSeesImages(ctx, exec) {
   try {
     const routed = exec.agent?.session.requestHeader()?.config
@@ -310,7 +270,6 @@ async function modelSeesImages(ctx, exec) {
   }
 }
 
-/** Write the images to disk and the attachment store. */
 export async function saveImages(ctx, exec, b, images, outputDir) {
   const cwd = await cwdOf(ctx, exec)
   const dir = resolve(cwd, outputDir)
@@ -338,8 +297,6 @@ export async function saveImages(ctx, exec, b, images, outputDir) {
   }
   return out
 }
-
-// ---------------------------------------------------------------- tools
 
 function optionalParameters(properties) {
   return Object.fromEntries(Object.entries(properties).map(([key, schema]) => {
@@ -401,7 +358,6 @@ export const OUTPUT_SCHEMA = {
   required: ['provider', 'model', 'visible', 'images'],
 }
 
-/** Model-facing blocks: the saved paths, then the images when the caller can see them. */
 export function renderResult(value) {
   const lines = [`Generated ${value.images.length} image${value.images.length === 1 ? '' : 's'} with ${value.model}:`]
   for (const image of value.images) {
@@ -450,8 +406,6 @@ export function toolOf(ctx, b, settings) {
   }
 }
 
-// ---------------------------------------------------------------- settings routes
-
 function sendJson(res, status, payload, headers = {}) {
   if (res.writableEnded) return
   res.statusCode = status
@@ -471,7 +425,7 @@ async function readBody(req) {
   }
   return Buffer.concat(chunks).toString('utf8')
 }
-/** Validate a settings-page body; returns the config to save or an error message. */
+
 export function parseSettings(body) {
   if (!isRecord(body)) return { error: 'expected { openai, grok, outputDir }' }
   const out = {}
@@ -496,7 +450,6 @@ export function apply(ctx, config) {
   for (const kind of Object.keys(KINDS)) {
     const b = settings[kind]
     if (unusable(b) !== undefined) continue
-    // Offered only while the route resolves and its key is present.
     ctx.tools.register(toolOf(ctx, b, settings), { when: () => ready(ctx, b) })
   }
 
@@ -543,10 +496,8 @@ export function apply(ctx, config) {
       const entry = ctx.fiber.entry
       const editor = ctx.get('configEditor')
       if (entry === undefined || editor === undefined) return sendJson(res, 500, { message: 'configuration cannot be saved in this profile' })
-      // Resolve display metadata while this instance still owns its services.
       const confirmed = await state(settingsOf(parsed.value))
       try {
-        // Saving reconciles this plugin and re-registers the tools.
         await editor.edit(entry, current => ({ ...current, ...parsed.value }))
       } catch (error) {
         ctx.logger?.warn?.(`image-gen: failed to save settings: ${error?.message ?? error}`)

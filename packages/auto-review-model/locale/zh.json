@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "自动审查模型",
-    "description": "给 Auto review 单独指定审查模型（从本地可用模型里挑），也可以在内置审查提示词后追加规则或直接整段替换。"
+    "description": "为 Auto review 单独指定审查模型与提示词，并在会话内查看实时审查日志。"
   }
 }

@@ -3,8 +3,7 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-// Use the running Harness's public exports, never another installed generation.
-// This also supports source launches whose release has not reached npm yet.
+// external: resolve DSH packages from the running host so class instances and Zod match
 const anchor = process.env.DSH_INSTALL_DIR
   ? join(process.env.DSH_INSTALL_DIR, 'package.json')
   : process.argv[1]
@@ -19,7 +18,6 @@ const [tools, pipeline, schema] = await Promise.all([
 const toolsRequire = createRequire(require.resolve('@deepseek-ai/dsh-tools'))
 const [{ scopeOf, scopeChainOf, scopeTarget }, { appendPluginRecord, pluginRecordOf }] = await Promise.all([
   import(pathToFileURL(toolsRequire.resolve('@deepseek-ai/dsh-scope')).href),
-  // Plugin records must use the Harness's own Session class.
   import(pathToFileURL(toolsRequire.resolve('@deepseek-ai/dsh-session')).href),
 ])
 const projectionRequire = createRequire(require.resolve('@deepseek-ai/dsh-session-projection'))
@@ -35,7 +33,6 @@ export const Config = Schema.object({
   tools: Schema.array(Schema.union(['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls']))
     .default(['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls']),
   codemode: Schema.boolean().default(true),
-  codemodeBackend: Schema.union(['moejs', 'quickjs']).default('moejs'),
   toolSearch: Schema.boolean().default(true),
   scopedTools: Schema.array(Schema.string().min(1)).default([])
     .description('Native DSH tool names mounted in this preset, enabled by default unless the session has an explicit selection.'),

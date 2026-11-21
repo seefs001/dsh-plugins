@@ -7,12 +7,12 @@ window.__ModuleLoader__.load({
       Button, Checkbox, Input, Modal, IconChevronRightOutlineRegular, IconSearchOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const NS = 'pi-tools'
-    const supported = new Set(['read', 'write', 'edit', 'codemode', 'tool_search'])
+    const supported = new Set(['edit', 'codemode', 'tool_search'])
     const en = {
       tools: 'Tools', chooseTools: 'Tools for this conversation',
       toolsHint: 'Applies only to this conversation. The selection locks when its first turn starts.',
       defaults: 'Restore defaults', all: 'Select all', none: 'Clear', cancel: 'Cancel', save: 'Save', saving: 'Saving…',
-      searchTools: 'Filter tools', loading: 'Loading tools…', noMatches: 'No matching tools', unavailable: 'Tool options are unavailable.',
+      searchTools: 'Filter tools', noMatches: 'No matching tools', unavailable: 'Tool options are unavailable.',
       noGateway: 'Selected MCP tools need codemode or tool_search to become callable.',
       selectedCount: '{selected} of {total} selected', matchCount: '{count} matching', selectedOnly: 'Selected only',
       expandAll: 'Expand all', collapseAll: 'Collapse all', sectionCount: '{selected}/{total}',
@@ -29,17 +29,17 @@ window.__ModuleLoader__.load({
       sectionJobs: 'Jobs and schedules', sectionWeb: 'Web, search and images', sectionFiles: 'Presentation and Office',
       sectionInteraction: 'Skills and questions', sectionPlugins: 'Plugins', sectionOther: 'Other DSH tools',
       sectionMcpResources: 'MCP resources', sectionMcpServer: 'Server {server}',
-      read: 'Read', write: 'Write', edit: 'Edit', codemode: 'Script', tool_search: 'Tool search',
-      input: 'Input', output: 'Output', written: 'Written content', editDiff: 'Edit diff', diff: 'Applied diff', loaded: 'Loaded tools',
-      calls: 'Tool calls', inspect: 'Inspect call', open: 'Open file', noCalls: 'No tool calls',
+      codemode: 'Script', tool_search: 'Tool search',
+      input: 'Input', output: 'Output', editDiff: 'Edit diff', diff: 'Applied diff', loaded: 'Loaded tools',
+      inspect: 'Inspect call', open: 'Open file', noCalls: 'No tool calls',
       stepProgress: '{done}/{total} steps finished', stepsFailed: 'Failed steps: {count}',
-      ok: 'Succeeded', error: 'Failed', cancelled: 'Cancelled', running: 'Running', unknown: 'Unknown',
+      ok: 'Succeeded', error: 'Failed', running: 'Running',
     }
     const zh = {
       tools: '工具', chooseTools: '本对话保留的工具',
       toolsHint: '仅影响当前新对话。第一轮开始后，工具选择会锁定。',
       defaults: '恢复默认', all: '全选', none: '清空', cancel: '取消', save: '保存', saving: '保存中…',
-      searchTools: '筛选工具', loading: '正在加载工具…', noMatches: '没有匹配的工具', unavailable: '工具选项暂不可用。',
+      searchTools: '筛选工具', noMatches: '没有匹配的工具', unavailable: '工具选项暂不可用。',
       noGateway: '已保留的 MCP 工具需要 codemode 或 tool_search 才能调用。',
       selectedCount: '已保留 {selected}/{total}', matchCount: '匹配 {count} 个', selectedOnly: '只看已保留',
       expandAll: '全部展开', collapseAll: '全部折叠', sectionCount: '{selected}/{total}',
@@ -56,15 +56,14 @@ window.__ModuleLoader__.load({
       sectionJobs: '作业与定时', sectionWeb: '网页、搜索与画图', sectionFiles: '展示与 Office',
       sectionInteraction: '技能与提问', sectionPlugins: '插件', sectionOther: '其他 DSH 工具',
       sectionMcpResources: 'MCP 资源', sectionMcpServer: '服务 {server}',
-      read: '读取', write: '写入', edit: '编辑', codemode: '脚本', tool_search: '工具搜索',
-      input: '输入', output: '输出', written: '写入内容', editDiff: '编辑差异', diff: '实际差异', loaded: '已加载工具',
-      calls: '工具调用', inspect: '检查调用', open: '打开文件', noCalls: '未调用工具',
+      codemode: '脚本', tool_search: '工具搜索',
+      input: '输入', output: '输出', editDiff: '编辑差异', diff: '实际差异', loaded: '已加载工具',
+      inspect: '检查调用', open: '打开文件', noCalls: '未调用工具',
       stepProgress: '已完成 {done}/{total} 步', stepsFailed: '{count} 步失败',
-      ok: '成功', error: '失败', cancelled: '已取消', running: '运行中', unknown: '未知',
+      ok: '成功', error: '失败', running: '运行中',
     }
     const css = `
 .pi-tools-card{min-width:0;color:var(--dsw-alias-label-secondary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
-/* DSH renders the atomic view and its child tree as siblings. Match only this row's toggle, never a nested call's. */
 [data-chat-call-id] > :not([data-subcalls]):has([data-pi-fold-steps][aria-expanded="false"]) ~ [data-subcalls]{display:none}
 .pi-tools-head{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 .pi-tools-card button{font:inherit;color:inherit;border:0;background:transparent;padding:0;cursor:pointer;text-align:left}
@@ -78,14 +77,10 @@ window.__ModuleLoader__.load({
 .pi-tools-body{margin:6px 0 8px 20px;min-width:0;color:var(--dsw-alias-label-primary)}
 .pi-tools-body pre{margin:4px 0 8px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-1);font:calc(var(--dsh-content-font-size-secondary,13px) - 1px)/1.6 var(--ds-font-family-code,monospace);white-space:pre;overflow:auto;max-height:420px}
 .pi-tools-line{display:block;min-height:1.6em}
-.pi-tools-number{display:inline-block;min-width:4ch;margin-right:14px;text-align:right;color:var(--dsw-alias-label-secondary);user-select:none}
 .pi-tools-plus{color:var(--dsw-alias-state-success-primary)}
 .pi-tools-minus,.pi-tools-error{color:var(--dsw-alias-state-error-primary)}
 .pi-tools-note{font-size:12px;overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}
-.pi-tools-calls{list-style:none;padding:0;margin:0 0 8px}
-.pi-tools-call{border-left:2px solid var(--dsw-alias-border-l1);padding:2px 0 2px 10px;margin:4px 0}
-.pi-tools-call-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.pi-tools-call code,.pi-tools-loaded code{overflow-wrap:anywhere;font:calc(var(--dsh-content-font-size-secondary,13px) - 1px)/1.6 var(--ds-font-family-code,monospace)}
+.pi-tools-loaded code{overflow-wrap:anywhere;font:calc(var(--dsh-content-font-size-secondary,13px) - 1px)/1.6 var(--ds-font-family-code,monospace)}
 .pi-tools-loaded{padding-left:20px;margin:4px 0 8px}
 .pi-tools-inspect{font-size:12px!important;text-decoration:underline;text-underline-offset:3px}
 .pi-tools-picker{width:min(720px,100%);max-height:100%}
@@ -129,10 +124,8 @@ window.__ModuleLoader__.load({
 @media(max-width:520px){.pi-tools-body{margin-left:0}.pi-tools-badge{margin-left:0}.pi-tools-file{flex-basis:100%}}
 `
 
-    // The selector admits only this adapter's successful text results. Other
-    // presets, preparation, failures and image-bearing calls keep DSH's views.
     function select(owner) {
-      if (owner.phase !== 'result' || owner.block.isError || !['1.5.0', '1.5.2', '1.6.0'].includes(owner.block.meta?.piVersion)
+      if (owner.phase !== 'result' || owner.block.isError || owner.block.meta?.piVersion !== '1.6.0'
         || !supported.has(owner.toolName) || owner.block.content.some(block => block.type !== 'text')) return null
       let args
       try { args = JSON.parse(owner.block.call?.argsRaw ?? '') } catch { return null }
@@ -145,7 +138,6 @@ window.__ModuleLoader__.load({
         ? ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s` : ''
     }
 
-    // Group subcalls by name in first-call order, e.g. "grep × 2, read".
     function callSummary(calls, t) {
       if (!calls.length) return t('noCalls')
       const counts = new Map()
@@ -164,23 +156,6 @@ window.__ModuleLoader__.load({
 
     function textBlock(text, label) {
       return h('pre', { tabIndex: 0, 'aria-label': label }, text)
-    }
-
-    function readBody(text, args, details, line, label) {
-      if (details.truncation?.firstLineExceedsLimit) return textBlock(text, label)
-      const truncated = details.truncation?.content
-      const suffix = /\n\n\[\d+ more lines in file\. Use offset=\d+ to continue\.\]$/.exec(text)
-      // Use native truncation metadata; a user-limit notice has exactly the
-      // requested line count before its suffix. Never number the notice itself.
-      const limited = Number.isInteger(args.limit) && suffix
-        && text.slice(0, suffix.index).split('\n').length === args.limit
-      const body = typeof truncated === 'string' ? truncated : limited ? text.slice(0, suffix.index) : text
-      const notice = text.startsWith(body) ? text.slice(body.length).trim() : ''
-      return h(React.Fragment, null,
-        h('pre', { tabIndex: 0, 'aria-label': label }, body.split('\n').map((value, index) =>
-          h('span', { className: 'pi-tools-line', key: index },
-            h('span', { className: 'pi-tools-number', 'aria-hidden': true }, line + index), value || '\u200b'))),
-        notice ? h('div', { className: 'pi-tools-note' }, notice) : null)
     }
 
     function disclosureButton(toolName, expanded, toggle, bodyId, t) {
@@ -202,7 +177,7 @@ window.__ModuleLoader__.load({
     function PiCard({ matched, toolName, block, callId, cwd, home, openFile, inspect, expanded, toggle, t }) {
       const { args, details, file } = matched
       const path = typeof file?.path === 'string' ? file.path : typeof args.path === 'string' ? args.path : ''
-      const requestedLine = file?.line ?? (toolName === 'edit' ? details.firstChangedLine : args.offset)
+      const requestedLine = file?.line ?? details.firstChangedLine
       const line = Number.isInteger(requestedLine) && requestedLine > 0 ? requestedLine : 1
       const text = block.content.map(item => item.text).join('\n')
       const calls = Array.isArray(details.calls) ? details.calls : []
@@ -214,29 +189,14 @@ window.__ModuleLoader__.load({
       let body
       if (!expanded) {
         body = null
-      } else if (toolName === 'read') {
-        body = readBody(text, args, details, line, t('read'))
       } else if (toolName === 'edit' && typeof details.diff === 'string') {
         body = h(React.Fragment, null,
           h('div', { className: 'pi-tools-note' }, t('diff')),
           h('pre', { tabIndex: 0, 'aria-label': t('diff') }, details.diff.split('\n').map((value, index) =>
             h('span', { key: index, className: `pi-tools-line${value.startsWith('+') ? ' pi-tools-plus' : value.startsWith('-') ? ' pi-tools-minus' : ''}` }, value || '\u200b'))))
-      } else if (toolName === 'write' && typeof args.content === 'string') {
-        body = h(React.Fragment, null, h('div', { className: 'pi-tools-note' }, t('written')), textBlock(args.content, t('written')))
       } else if (toolName === 'codemode') {
-        // DSH renders recorded dispatches as child rows; keep Pi's fallback for older history.
-        const childIds = new Set(block.subCalls.map(child => child.callId))
-        const unlisted = calls.filter(call => !childIds.has(call.id))
         body = h(React.Fragment, null,
-          unlisted.length ? h('ul', { className: 'pi-tools-calls' }, unlisted.map((call, index) =>
-            h('li', { className: 'pi-tools-call', key: `${call.id ?? ''}:${index}` },
-              h('div', { className: 'pi-tools-call-head' },
-                h('code', null, call.name),
-                h('span', { className: call.status === 'error' || call.status === 'cancelled' ? 'pi-tools-error' : 'pi-tools-note' },
-                  t(['ok', 'error', 'cancelled', 'running'].includes(call.status) ? call.status : 'unknown')),
-                h('span', { className: 'pi-tools-note' }, duration(call.durationMs))),
-              typeof call.error === 'string' ? h('div', { className: 'pi-tools-error' }, call.error) : null)))
-            : calls.length ? null : h('div', { className: 'pi-tools-note' }, t('noCalls')),
+          calls.length ? null : h('div', { className: 'pi-tools-note' }, t('noCalls')),
           textBlock(text, t('output')))
       } else if (toolName === 'tool_search') {
         body = h(React.Fragment, null,
@@ -272,11 +232,8 @@ window.__ModuleLoader__.load({
       return value
     }
 
-    // Stock DSH renders this row only for a blank Session. The Host decides
-    // whether the Session belongs to a Pi preset and is still editable.
     const CARD_KEYS = ['codemode', 'tool_search']
 
-    // Read the argument view during render so streamed prefixes can refresh this keyed row.
     function PiPlainRow({ callId, toolName, phase, block, inspect, expanded, toggle, t }) {
       const failed = phase === 'result' && block?.isError
       const status = phase === 'result' ? (failed ? 'error' : 'ok') : 'running'
@@ -300,7 +257,6 @@ window.__ModuleLoader__.load({
     }
 
     function PiToolView({ nativeEdit, nativeProps, ...props }) {
-      // Keep the disclosure on the call, not on its transient running/result card.
       const disclosure = props.useDisclosure()
       const matched = select(props)
       if (nativeEdit && !(typeof matched?.details.diff === 'string' && matched.details.diff.length)) {
@@ -349,11 +305,9 @@ window.__ModuleLoader__.load({
         state.failure ? h('span', { role: 'alert', className: 'pi-tools-error' }, t('unavailable'), ' ', state.failure.message) : null)
     }
 
-    // Presentation-only sections. The catalog's group still decides Pi / DSH /
-    // MCP membership; unknown DSH tools fall back to "Other".
     const DSH_SECTIONS = [
       ['agents', ['subagent', 'subagent_fork', 'list_subagent_models', 'send_message', 'list_agents', 'wait_agent', 'workflow']],
-      ['planning', ['work_read', 'work_update', 'todo_write', 'create_goal', 'get_goal', 'update_goal', 'exit_plan_mode']],
+      ['planning', ['work_read', 'work_update', 'create_goal', 'get_goal', 'update_goal', 'exit_plan_mode']],
       ['jobs', ['job_list', 'job_output', 'job_kill', 'schedule_create', 'schedule_list', 'schedule_view', 'schedule_edit']],
       ['web', ['web_fetch', 'web_search', 'grok_search', 'openai_search', 'openai_image', 'grok_image']],
       ['files', ['present', 'office_render', 'office_convert', 'office_recalculate']],
@@ -391,8 +345,7 @@ window.__ModuleLoader__.load({
       return [...sections.values()].toSorted((a, b) => a.rank - b.rank || a.sort.localeCompare(b.sort))
     }
 
-    // A native checkbox: the shared Checkbox primitive has no mixed state.
-    // It changes only the rows passed in, so a filtered section never touches hidden tools.
+    // external: DSH Checkbox primitive lacks indeterminate state, so this uses a native checkbox
     function SectionCheckbox({ rows, selected, labels, disabled, onChange }) {
       const ref = React.useRef(null)
       const count = rows.filter(tool => selected.has(tool.name)).length
@@ -408,7 +361,6 @@ window.__ModuleLoader__.load({
       })
     }
 
-    // Simple (group-level) view is the default; the choice is remembered per browser.
     const VIEW_KEY = 'dsh-pi-tools:picker-view'
     function readView() {
       try { return localStorage.getItem(VIEW_KEY) === 'detailed' ? 'detailed' : 'simple' } catch { return 'simple' }
@@ -424,7 +376,6 @@ window.__ModuleLoader__.load({
     }
 
     function PiToolPicker({ catalog, committed, reload, save, act, t }) {
-      const disabled = false
       const [view, setViewState] = React.useState(readView)
       const setView = next => { setViewState(next); writeView(next) }
       const simple = view === 'simple'
@@ -446,7 +397,6 @@ window.__ModuleLoader__.load({
       const filter = query.trim().toLowerCase()
       const filtering = filter !== '' || selectedOnly
       const sections = buildSections(tools, t)
-      // Filtering always shows every matching row, whatever the stored fold state.
       const folded = section => !filtering
         && (collapsed[section.id] ?? (tools.length > LARGE_CATALOG && section.id !== 'pi'))
       const shown = sections.map(section => ({
@@ -459,7 +409,6 @@ window.__ModuleLoader__.load({
       const noGateway = ready && catalog.mcpExposure !== 'direct'
         && !selectedSet.has('codemode') && !selectedSet.has('tool_search')
         && tools.some(tool => tool.group === 'mcp' && selectedSet.has(tool.name))
-      // Keep the original order and any saved names that left the catalog.
       const setMany = (names, checked) => {
         const changed = new Set(names)
         setDraft(checked
@@ -491,7 +440,7 @@ window.__ModuleLoader__.load({
         h(Button, { variant: 'ghost', size: 'sm', disabled: saving || !!busy, onClick: refreshMcp },
           t(busy === 'mcp' ? 'refreshingMcp' : 'refreshMcp')))
       const commit = async () => {
-        if (!ready || saving || disabled) return
+        if (!ready || saving) return
         setSaving(true)
         setError(undefined)
         try {
@@ -562,7 +511,7 @@ window.__ModuleLoader__.load({
             })))
       }
       return h(React.Fragment, null,
-        h(Button, { variant: 'ghost', disabled, onClick: () => {
+        h(Button, { variant: 'ghost', onClick: () => {
           setDraft(undefined); setQuery(''); setSelectedOnly(false); setError(undefined); setNotice(undefined); setOpen(true); void reload()
         } }, t('tools')),
         h(Modal, {
@@ -570,7 +519,7 @@ window.__ModuleLoader__.load({
           description: t('toolsHint'), className: 'pi-tools-picker',
           footer: h(React.Fragment, null,
             h(Button, { variant: 'ghost', onClick: close, disabled: saving }, t('cancel')),
-            h(Button, { variant: 'primary', onClick: commit, disabled: !ready || saving || !!busy || disabled },
+            h(Button, { variant: 'primary', onClick: commit, disabled: !ready || saving || !!busy },
               t(saving ? 'saving' : 'save'))),
         },
         !ready ? h('p', { role: 'status' }, t('unavailable')) : simple ? h(React.Fragment, null,
@@ -623,8 +572,7 @@ window.__ModuleLoader__.load({
           document.head.append(style)
           return () => style.remove()
         })
-        // The stock edit row cannot display Pi's recorded diff (root or subcall).
-        // Delegate every other edit to the original row with its session bindings.
+        // external: DSH stock edit toolview does not render Pi diffs; priority -1 wraps it and delegates other edits
         ctx.slots.inject('tool.call.toolview', function* () {
           for (const key of CARD_KEYS) {
             yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, PiToolView)

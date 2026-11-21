@@ -1,4 +1,3 @@
-/** Workspace registry management without deleting directories or session logs. */
 window.__ModuleLoader__.load({
   id: 'dsh-workspace-manager',
   factory(require) {
@@ -7,11 +6,11 @@ window.__ModuleLoader__.load({
     const NS = 'workspace-manager'
     const EN = {
       panel: 'Workspace manager',
-      description: 'Remove saved workspace records without touching files or sessions on disk. Also updates the built-in workspace picker.',
+      description: 'Remove saved workspace records while keeping disk files and sessions intact.',
       scan: 'Check directories',
       scanning: 'Checking directories…',
       cleanup: 'Clean up missing entries',
-      cleanupHint: 'Checks all workspaces regardless of your search filter. Disconnected external drives can look missing, so double-check paths before confirming.',
+      cleanupHint: 'Checks all workspaces regardless of search. Disconnected external drives also appear missing, so verify paths before confirming.',
       search: 'Search names or paths',
       empty: 'No saved workspaces.',
       noMatches: 'No matching workspaces.',
@@ -23,9 +22,9 @@ window.__ModuleLoader__.load({
       unavailable: 'Could not check',
       unchecked: 'Not checked',
       sessions: '{n} sessions',
-      confirmOne: 'Remove workspace “{title}” from the list?\n\n{path}\n\nFiles and sessions will be kept.',
-      confirmMany: 'Remove these {n} invalid workspace entries? Files and sessions will be kept.\n\nCheck for disconnected drives before confirming:',
-      removed: 'Removed {n} workspace entries. Files and sessions were kept.',
+      confirmOne: 'Remove workspace “{title}”?\n\n{path}\n\nFiles and sessions are kept.',
+      confirmMany: 'Remove these {n} invalid workspace entries? Files and sessions are kept:',
+      removed: 'Removed {n} workspace entries.',
       noneInvalid: 'No missing or non-directory paths found.',
       skipped: '{n} entries could not be verified and were left alone.',
       scanFailed: 'Could not check directories',
@@ -34,11 +33,11 @@ window.__ModuleLoader__.load({
     }
     const ZH = {
       panel: '工作区管理',
-      description: '只移除工作区记录，不会删除磁盘上的文件和会话。原生工作区选择器也会同步更新。',
+      description: '移除已保存的工作区记录，保留磁盘文件和会话。',
       scan: '检查目录',
       scanning: '正在检查目录…',
       cleanup: '清理失效记录',
-      cleanupHint: '会检查全部工作区（不受搜索过滤影响）。外接磁盘断开时也会显示“目录不存在”，确认前先核对一下路径。',
+      cleanupHint: '会检查全部工作区（不受搜索条件影响）。未挂载的外接磁盘也会显示目录不存在，确认前请核对路径。',
       search: '搜索名称或路径',
       empty: '没有已保存的工作区。',
       noMatches: '没有匹配的工作区。',
@@ -50,9 +49,9 @@ window.__ModuleLoader__.load({
       unavailable: '无法检查',
       unchecked: '未检查',
       sessions: '{n} 个会话',
-      confirmOne: '从列表移除工作区“{title}”？\n\n{path}\n\n磁盘文件和会话都会保留。',
-      confirmMany: '移除以下 {n} 条失效工作区记录？磁盘文件和会话都会保留。\n\n请先确认这些路径不是暂时断开的磁盘：',
-      removed: '已移除 {n} 条工作区记录，磁盘文件和会话均已保留。',
+      confirmOne: '移除工作区“{title}”？\n\n{path}\n\n磁盘文件和会话会保留。',
+      confirmMany: '移除以下 {n} 条失效工作区记录？磁盘文件和会话会保留：',
+      removed: '已移除 {n} 条工作区记录。',
       noneInvalid: '没有发现不存在或非目录的路径。',
       skipped: '有 {n} 条记录无法核实，已保留。',
       scanFailed: '检查目录失败',
@@ -60,7 +59,6 @@ window.__ModuleLoader__.load({
       listFailed: '加载工作区失败',
     }
     const invalid = check => check?.status === 'missing' || check?.status === 'not-directory'
-    const statuses = new Set(['directory', 'missing', 'not-directory', 'unavailable'])
     const useSource = source => React.useSyncExternalStore(
       fn => source.subscribe(fn), () => source.getSnapshot())
 
@@ -123,10 +121,7 @@ window.__ModuleLoader__.load({
             })
             if (!response.ok) throw new Error(`HTTP ${response.status}`)
             const body = await response.json()
-            if (!Array.isArray(body.checks) || body.checks.some(row =>
-              !row || typeof row.workspaceId !== 'string' || typeof row.path !== 'string' || !statuses.has(row.status))) {
-              throw new Error('Invalid directory check response')
-            }
+            if (!Array.isArray(body?.checks)) throw new Error('Invalid directory check response')
             const checks = new Map(body.checks.map(row => [row.workspaceId, row]))
             update({ checks })
             return checks
@@ -135,7 +130,6 @@ window.__ModuleLoader__.load({
           }
         }
 
-        // All removals use the native API, including its authorization and live updates.
         async function run(action, workspace) {
           if (closed || state.busy) return
           update({ busy: true, error: null, message: null })

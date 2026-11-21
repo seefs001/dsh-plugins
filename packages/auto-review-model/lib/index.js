@@ -1,22 +1,3 @@
-/**
- * dsh-auto-review-model — Host half.
- *
- * Customizes Auto review requests (`purpose: "auto-review"`, sent by
- * @deepseek-ai/dsh-experimental-auto-review):
- * - routes them to a configured provider/model instead of the reviewed
- *   Session's own model;
- * - optionally appends to, or replaces, the built-in review policy prompt.
- * Other model calls are untouched.
- *
- * `llm/stream` is a waterfall whose `next()` takes no arguments, and Auto
- * review freezes its request. So the listener copies the request with the
- * changes and starts a fresh `llm.stream()`; the copy is marked so the nested
- * pass goes straight through this listener and through every other listener
- * exactly once.
- *
- * Two small authenticated JSON routes let the browser settings page read and
- * persist the settings in this plugin's own config.
- */
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 export const name = 'auto-review-model'
@@ -33,7 +14,6 @@ export const MAX_PROMPT_CHARS = 64 * 1024
 const MAX_BODY_BYTES = 256 * 1024
 const HEARTBEAT_MS = 25_000
 
-/** Review log limits: newest entries per session, sessions kept, and per-field text caps. */
 export const MAX_ENTRIES = 200
 export const MAX_SESSIONS = 300
 const MAX_ARGS = 4000
@@ -45,7 +25,6 @@ const clip = (value, max) => (typeof value === 'string' ? (value.length > max ? 
 const RISKS = ['low', 'medium', 'high']
 const STATUSES = ['ok', 'invalid', 'error']
 
-/** Normalize one stored review entry; `undefined` drops a malformed one. */
 function normalizeEntry(e) {
   if (e === null || typeof e !== 'object' || typeof e.id !== 'string' || typeof e.at !== 'number') return undefined
   const status = STATUSES.includes(e.status) ? e.status : 'error'
@@ -71,7 +50,6 @@ function normalizeEntry(e) {
   }
 }
 
-/** Normalize one session's stored log, keeping the newest MAX_ENTRIES entries. */
 export function normalizeSessionLog(raw) {
   if (raw === null || typeof raw !== 'object' || !Array.isArray(raw.entries)) {
     throw new TypeError('review log must be an object with an entries array')
@@ -87,7 +65,6 @@ const SESSION_LOG_SCHEMA = {
   },
 }
 
-/** One JSON document per session, so appending rewrites only that session's file. */
 export const LOG_DOMAIN_SPEC = {
   name: 'auto_review_log',
   version: 1,
@@ -96,7 +73,6 @@ export const LOG_DOMAIN_SPEC = {
   tables: { sessions: { valueSchema: SESSION_LOG_SCHEMA } },
 }
 
-/** Read the pending call Auto review sends as its last message. */
 export function pendingCallOf(messages) {
   const last = Array.isArray(messages) ? messages.at(-1) : undefined
   const text = last?.content?.find?.(b => b?.type === 'text')?.text
@@ -108,7 +84,6 @@ export function pendingCallOf(messages) {
   return { tool: typeof call.name === 'string' ? call.name : '', mode: typeof call.mode === 'string' ? call.mode : '', args: clip(args, MAX_ARGS) }
 }
 
-/** Classify the reviewer's answer the way Auto review accepts it. */
 export function verdictOf(text) {
   let value = null
   try { value = JSON.parse(text) } catch {}
@@ -121,10 +96,6 @@ export function verdictOf(text) {
   return { status: 'invalid', raw: clip(typeof text === 'string' ? text : '', MAX_RAW) }
 }
 
-/**
- * Pass a reviewer stream through unchanged and report its outcome once, when
- * it ends, fails, or its consumer stops reading.
- */
 export async function* observeReview(stream, report) {
   const texts = new Map()
   let finish
@@ -156,7 +127,6 @@ export async function* observeReview(stream, report) {
 
 const newEntryId = () => `r_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
 
-/** Read the configured route; `undefined` when no provider/model is set. */
 export function routeOf(config) {
   const provider = str(config?.provider)
   const model = str(config?.model)
@@ -165,7 +135,6 @@ export function routeOf(config) {
   return { provider, model, ...(reasoningEffort === '' ? {} : { reasoningEffort }) }
 }
 
-/** Read the prompt customization; `undefined` when the built-in prompt is kept. */
 export function promptOf(config) {
   const mode = PROMPT_MODES.includes(config?.promptMode) ? config.promptMode : 'default'
   const text = typeof config?.prompt === 'string' ? config.prompt.trim() : ''
@@ -173,7 +142,6 @@ export function promptOf(config) {
   return { mode, text }
 }
 
-/** Build the system prompt the reviewer receives. */
 export function systemOf(original, prompt) {
   if (prompt === undefined) return original
   if (prompt.mode === 'replace') return prompt.text
@@ -181,10 +149,9 @@ export function systemOf(original, prompt) {
   return `${base}\n\nADDITIONAL USER POLICY\nThe user added the following rules. Apply them when classifying risk and deciding; they never change the required JSON output format.\n${prompt.text}`
 }
 
-/** Copy a request with the configured route and prompt; an unset effort falls back to the target model's default. */
 export function reroute(options, route, prompt) {
   const next = { ...options }
-  // Auto review pins temperature 0; reasoning models reject sampling temperature, so the target uses its default.
+  // external: DSH auto-review pins temperature 0, which reasoning models reject
   delete next.temperature
   if (route !== undefined) {
     next.provider = route.provider
@@ -205,7 +172,6 @@ function sendJson(res, status, payload, headers = {}) {
   res.end(JSON.stringify(payload))
 }
 
-/** Read a request body up to MAX_BODY_BYTES; `null` when it is larger. */
 async function readBody(req) {
   const chunks = []
   let size = 0
@@ -217,7 +183,7 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-/** Open the review log, retrying while a previous generation of this plugin is still closing it. */
+// external: DSH storageDomain.open throws already-open briefly while the previous plugin instance closes
 async function openLogDomain(ctx) {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -231,7 +197,6 @@ async function openLogDomain(ctx) {
 
 const isSessionId = v => typeof v === 'string' && v.length > 0 && v.length <= 200
 
-/** Built-in policy observed on the latest Auto review request; survives plugin restarts in this process. */
 let observedDefaultPrompt = ''
 
 export function apply(ctx, config) {
@@ -240,7 +205,6 @@ export function apply(ctx, config) {
   const rerouted = new WeakSet()
   let warnedMissing = false
 
-  // Review log: one per-record document per session, appended one write at a time.
   let closed = false
   let tail = Promise.resolve()
   const ready = openLogDomain(ctx)
@@ -284,8 +248,7 @@ export function apply(ctx, config) {
     if (await table.delete(sessionId)) notify(sessionId, { updatedAt: Date.now(), entries: [] })
   })
 
-  // Auto review sends its request from inside its own pre-execute listener. Running ahead of it
-  // and carrying the pending call through async context lets the review entry name its tool call.
+  // external: DSH auto-review triggers llm/stream inside tools/pre-execute without passing callId
   const pendingCall = new AsyncLocalStorage()
   ctx.on('tools/pre-execute', (exec, next) => pendingCall.run(exec, next), { prepend: true })
 
@@ -293,7 +256,6 @@ export function apply(ctx, config) {
     if (options?.purpose !== PURPOSE || rerouted.has(options)) return next()
     if (typeof options.system === 'string' && options.system !== '') observedDefaultPrompt = options.system
     let useRoute = route
-    // A provider that is not loaded right now would fail every review; keep the Session's model instead.
     if (useRoute !== undefined && !ctx.llm.listProviders().some(p => p.id === useRoute.provider)) {
       if (!warnedMissing) {
         warnedMissing = true
@@ -305,6 +267,7 @@ export function apply(ctx, config) {
     let sent = options
     if (useRoute === undefined && prompt === undefined) stream = next()
     else {
+      // external: DSH llm/stream next() takes no args and auto-review freezes options, so re-dispatch via ctx.llm.stream
       sent = reroute(options, useRoute, prompt)
       rerouted.add(sent)
       stream = ctx.llm.stream(sent)
@@ -312,15 +275,15 @@ export function apply(ctx, config) {
     const sessionId = typeof options.sessionId === 'string' ? options.sessionId : ''
     if (sessionId === '') return stream
     const started = Date.now()
+    const pending = pendingCallOf(options.messages)
     const exec = pendingCall.getStore()
-    // Only trust the context when it is the same tool, so a nested review never borrows an outer id.
-    const call = exec !== undefined && exec.name === pendingCallOf(options.messages).tool ? exec : undefined
+    const call = exec !== undefined && exec.name === pending.tool ? exec : undefined
     const base = {
       callId: typeof call?.callId === 'string' ? call.callId : '',
       rootCallId: typeof (call?.rootCallId ?? call?.callId) === 'string' ? (call.rootCallId ?? call.callId) : '',
       id: newEntryId(),
       at: started,
-      ...pendingCallOf(options.messages),
+      ...pending,
       provider: sent.provider ?? '',
       model: sent.model ?? '',
       effort: typeof sent.reasoningEffort === 'string' ? sent.reasoningEffort : '',
@@ -395,7 +358,6 @@ export function apply(ctx, config) {
         return sendJson(res, 500, { message: 'configuration cannot be saved in this profile' })
       }
       try {
-        // Saving restarts this plugin, which then applies the new values.
         await editor.edit(entry, current => ({ ...current, provider, model, reasoningEffort, promptMode, prompt: promptText }))
       } catch (error) {
         ctx.logger?.warn?.(`auto-review-model: failed to save settings: ${error?.message ?? error}`)

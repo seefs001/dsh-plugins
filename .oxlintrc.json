@@ -1,11 +1,36 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "categories": { "correctness": "error", "suspicious": "warn" },
-  "env": { "browser": true, "node": true, "es2024": true },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "jsPlugins": ["./scripts/oxlint-plugin.mjs"],
+  "ignorePatterns": [
+    "packages/diagram-preview/lib/client.echarts.js",
+    "packages/diagram-preview/lib/client.graphviz.js",
+    "packages/diagram-preview/lib/client.mermaid.js",
+    "packages/message-actions/lib/client.js",
+    "packages/pi-tools/lib/generated/**",
+    "apps/docs/.next/**",
+    "apps/docs/.source/**",
+    "apps/docs/out/**",
+    "apps/docs/next-env.d.ts"
+  ],
   "rules": {
     "no-unused-vars": "error",
     "no-empty": ["error", { "allowEmptyCatch": true }],
+    "no-var": "error",
+    "prefer-const": "error",
+    "no-debugger": "error",
     "no-underscore-dangle": "off",
-    "unicorn/consistent-function-scoping": "off"
+    "unicorn/consistent-function-scoping": "off",
+    "dsh/no-comments": "error",
+    "dsh/no-suppression-comments": "error",
+    "dsh/no-legacy-compat": "error"
   }
 }

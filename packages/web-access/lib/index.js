@@ -1,19 +1,3 @@
-/**
- * dsh-web-access — Host half.
- *
- * Registers agent search tools that call a hosted search tool through one of
- * your local llm-pi-ai Responses routes. Per backend you pick a local
- * provider/model and the hosted tools it may use; the endpoint and key come
- * from that provider route (`baseURL`, `apiKeyEnv`), so nothing is typed twice.
- *
- * - `grok`   → `grok_search`, xAI-style hosted `web_search` and/or `x_search`.
- * - `openai` → `openai_search`, OpenAI-style hosted `web_search`.
- *
- * The backends exist because the vendors' hosted tools take different
- * parameters; each tool's schema lists only the options of its enabled hosted
- * tools. Two authenticated JSON routes let the browser settings page read and
- * save the choice in this plugin's own config.
- */
 export const name = 'web-access'
 export const inject = ['tools', 'webServer', 'connection']
 
@@ -29,7 +13,6 @@ export const DEFAULTS = {
   openai: { enabled: true, provider: '', model: '', tools: ['web_search'] },
 }
 
-/** Hosted tools each backend kind understands. */
 export const KINDS = {
   grok: { tool: 'grok_search', label: 'Grok', hosted: ['web_search', 'x_search'] },
   openai: { tool: 'openai_search', label: 'OpenAI', hosted: ['web_search'] },
@@ -43,15 +26,11 @@ const CONTEXT_SIZES = ['low', 'medium', 'high']
 const LOCATION_FIELDS = ['country', 'city', 'region', 'timezone']
 const INSTRUCTIONS = 'Search the web and answer using only what the search results say. Cite sources inline as markdown links. Be concise and factual.'
 
-/** A tool failure whose message is shown to the model. */
 export class SearchError extends Error {}
 
 const isRecord = v => v !== null && typeof v === 'object' && !Array.isArray(v)
 const str = v => (typeof v === 'string' ? v.trim() : '')
 
-// ---------------------------------------------------------------- config
-
-/** Resolve one backend's config with defaults; `tools` keeps only hosted tools its kind understands. */
 export function backendOf(kind, raw) {
   const d = DEFAULTS[kind]
   const r = isRecord(raw) ? raw : {}
@@ -64,7 +43,6 @@ export function settingsOf(config) {
   return { timeoutMs, grok: backendOf('grok', config?.grok), openai: backendOf('openai', config?.openai) }
 }
 
-/** Why a backend cannot register a tool; `undefined` when it can. */
 export function unusable(b) {
   if (!b.enabled) return 'disabled'
   if (b.tools.length === 0) return 'no hosted tools'
@@ -72,9 +50,6 @@ export function unusable(b) {
   return undefined
 }
 
-// ---------------------------------------------------------------- routes
-
-/** llm-pi-ai provider profiles (`id → profile`) from the composed config. */
 export function piAiProviders(editor) {
   if (editor === undefined) return {}
   try {
@@ -86,10 +61,8 @@ export function piAiProviders(editor) {
   return {}
 }
 
-/** Provider ids whose route speaks the Responses API. */
 export const responsesProviders = providers => Object.entries(providers).filter(([, p]) => p?.api === RESPONSES_API).map(([id]) => id)
 
-/** Endpoint, key name, and headers of a Responses route; throws SearchError when unusable. */
 export function routeOf(providers, id) {
   const p = providers[id]
   if (!isRecord(p)) throw new SearchError(`provider "${id}" is not configured in llm-pi-ai`)
@@ -100,10 +73,6 @@ export function routeOf(providers, id) {
   return { baseURL, apiKeyEnv: str(p.apiKeyEnv), headers }
 }
 
-/**
- * The bearer key behind `apiKeyEnv`: dsh credentials first, then the process
- * environment. `null` when the route names no key; `undefined` when it is missing.
- */
 export async function apiKeyOf(ctx, apiKeyEnv) {
   if (apiKeyEnv === '') return null
   try {
@@ -114,7 +83,6 @@ export async function apiKeyOf(ctx, apiKeyEnv) {
   return typeof env === 'string' && env !== '' ? env : undefined
 }
 
-/** Whether a backend's route resolves and has its key; local reads only. */
 export async function ready(ctx, b) {
   try {
     const route = routeOf(piAiProviders(ctx.get('configEditor')), b.provider)
@@ -123,8 +91,6 @@ export async function ready(ctx, b) {
     return false
   }
 }
-
-// ---------------------------------------------------------------- arguments
 
 const strList = (value, field, max) => {
   if (value === undefined || value === null) return undefined
@@ -142,7 +108,6 @@ export function queryOf(args) {
   return q
 }
 
-/** Validate `grok_search` arguments against the configured hosted tools and build the `tools` array. */
 export function grokTools(args, configured) {
   const sources = strList(args?.sources, 'sources', 2)?.map(s => (s === 'web' ? 'web_search' : s === 'x' ? 'x_search' : s)) ?? configured
   const bad = sources.find(s => !configured.includes(s))
@@ -177,7 +142,6 @@ export function grokTools(args, configured) {
   return tools
 }
 
-/** Validate `openai_search` arguments and build the hosted `web_search` entry. */
 export function openaiTools(args) {
   const allowed = domainList(args?.allowed_domains, 'allowed_domains', MAX_DOMAINS_OPENAI)
   const size = args?.search_context_size ?? undefined
@@ -203,7 +167,6 @@ export function openaiTools(args) {
   }]
 }
 
-/** The Responses request body for one search. */
 export function requestBody(b, args) {
   const q = queryOf(args)
   if (b.kind === 'grok') {
@@ -219,8 +182,6 @@ export function requestBody(b, args) {
   }
 }
 
-// ---------------------------------------------------------------- responses
-
 function cleanUrl(raw) {
   try {
     const url = new URL(raw)
@@ -233,12 +194,6 @@ function cleanUrl(raw) {
 
 export const MAX_SOURCES = 10
 
-/**
- * Answer text and sources from Responses `output` items. Cited sources
- * (`url_citation` annotations, then response-level `citations`) are the result;
- * raw search-call results are used only when nothing was cited, because they
- * list every page the search touched. Capped at MAX_SOURCES.
- */
 export function extractResult(output, citations) {
   const answer = []
   const collect = () => {
@@ -279,7 +234,7 @@ export function extractResult(output, citations) {
     }
   }
   cited.addAll(citations)
-  // Some gateways drop annotations; markdown links in the answer are still citations.
+  // external: some Responses gateways drop url_citation annotations, leaving markdown links in text
   if (cited.list.length === 0) {
     for (const [, title, url] of answer.join('\n').matchAll(/\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g)) cited.add(url, title)
   }
@@ -287,7 +242,6 @@ export function extractResult(output, citations) {
   return { answer: answer.join('\n\n'), sources }
 }
 
-/** Parse a Responses SSE body into the final response, failing on stream errors. */
 export function parseSse(text) {
   const items = []
   let completed
@@ -319,7 +273,6 @@ function errorDetail(text, secret) {
   return redact(detail, secret).slice(0, 500)
 }
 
-/** Run one search on a backend. */
 export async function search(ctx, b, args, signal) {
   const body = requestBody(b, args)
   const route = routeOf(piAiProviders(ctx.get('configEditor')), b.provider)
@@ -345,12 +298,9 @@ export async function search(ctx, b, args, signal) {
   return { provider: `${b.provider}/${b.model}`, model: b.model, ...result }
 }
 
-// ---------------------------------------------------------------- tools
-
 const STRINGS = { type: 'array', items: { type: 'string' } }
 
-// Strict Responses clients may require every property to be supplied. Nullable
-// options let them express “unused” without inventing dates or locations.
+// external: strict Responses tool schemas require optional fields to be nullable
 function optionalParameters(properties) {
   return Object.fromEntries(Object.entries(properties).map(([key, schema]) => {
     if (key === 'query') return [key, schema]
@@ -362,8 +312,6 @@ function optionalParameters(properties) {
   }))
 }
 
-
-/** `grok_search` schema; only options of the configured hosted tools are listed. */
 export function grokParameters(hosted) {
   const web = hosted.includes('web_search')
   const x = hosted.includes('x_search')
@@ -426,7 +374,6 @@ export const OUTPUT_SCHEMA = {
   additionalProperties: false,
 }
 
-/** Model-facing text for one result. */
 export function renderResult(value) {
   const lines = []
   if (value.answer) lines.push(value.answer, '')
@@ -444,7 +391,6 @@ function describe(b) {
   return `Search ${where} with ${b.model}. Returns a cited answer and source URLs.${b.tools.includes('x_search') ? ' Use X for posts, opinions, and breaking news.' : ''}`
 }
 
-/** The ToolDefinition for one backend. */
 export function toolOf(ctx, b, timeoutMs) {
   const toolName = KINDS[b.kind].tool
   return {
@@ -492,7 +438,6 @@ function sendJson(res, status, payload, headers = {}) {
   res.end(JSON.stringify(payload))
 }
 
-/** Read a request body up to MAX_BODY_BYTES; `null` when it is larger. */
 async function readBody(req) {
   const chunks = []
   let size = 0
@@ -504,7 +449,6 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-/** Validate a settings-page body; returns the backends to save or an error message. */
 export function parseSettings(body) {
   if (!isRecord(body)) return { error: 'expected { grok, openai }' }
   const out = {}
@@ -526,16 +470,12 @@ export function apply(ctx, config) {
   const webSearchTools = []
   for (const kind of Object.keys(KINDS)) {
     const b = settings[kind]
-    const reason = unusable(b)
-    if (reason !== undefined) continue
-    // Offered only while the route resolves and its key is present.
+    if (unusable(b) !== undefined) continue
     const definition = toolOf(ctx, b, settings.timeoutMs)
     ctx.tools.register(definition, { when: () => ready(ctx, b) })
     if (b.tools.includes('web_search')) webSearchTools.push({ backend: b, definition })
   }
 
-  // Mask only the redundant search tool, never web_fetch or its providers.
-  // Agent scope owns each restriction; plugin unload also lifts every mask.
   const restrictions = new Map()
   let disposed = false
   const restore = agent => {
@@ -563,8 +503,7 @@ export function apply(ctx, config) {
       restrictions.set(agent, agent.ctx.tools.restrict({ deny: ['web_search'] }))
     }
   }
-  // pre-step runs after tool resolution and prompt assembly. Apply the initial
-  // mask during creation so the first request never advertises native search.
+  // external: dsh agent/pre-step runs after initial tool resolution, so restrict on agent/created too
   ctx.on('agent/created', updateRestriction)
   ctx.on('agent/pre-step', async (payload, next) => {
     await updateRestriction(payload)
@@ -615,10 +554,8 @@ export function apply(ctx, config) {
       const entry = ctx.fiber.entry
       const editor = ctx.get('configEditor')
       if (entry === undefined || editor === undefined) return sendJson(res, 500, { message: 'configuration cannot be saved in this profile' })
-      // Resolve display metadata while this instance still owns its services.
       const confirmed = await state(settingsOf(parsed.value))
       try {
-        // Saving reconciles this plugin and re-registers the tools.
         await editor.edit(entry, current => ({ ...current, ...parsed.value }))
       } catch (error) {
         ctx.logger?.warn?.(`web-access: failed to save settings: ${error?.message ?? error}`)

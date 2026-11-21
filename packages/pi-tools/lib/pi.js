@@ -8,8 +8,7 @@ if (manifest.version !== PI_VERSION) {
   throw new Error(`dsh-pi-tools requires Pi ${PI_VERSION}; resolved ${manifest.version}`)
 }
 
-// These private module paths are intentionally coupled to the exact version above.
-// Import the tools, not Pi's CLI, extension loader, settings, or agent loop.
+// external: @earendil-works/pi-coding-agent does not export tool factories separately from its CLI
 const [read, bash, edit, write, mime, prompt, shell, find, grep, ls, codemode, search, truncation, outputFiles, paths, mcp, mcpPrompt] = await Promise.all([
   'core/tools/read.js',
   'core/tools/bash.js',
@@ -30,7 +29,7 @@ const [read, bash, edit, write, mime, prompt, shell, find, grep, ls, codemode, s
   'extensions/mcp/index.js',
 ].map(path => import(new URL(path, entry).href)))
 
-export const factories = {
+const factories = {
   read: read.createReadToolDefinition,
   bash: bash.createBashToolDefinition,
   edit: edit.createEditToolDefinition,
@@ -39,7 +38,7 @@ export const factories = {
   find: find.createFindToolDefinition,
   ls: ls.createLsToolDefinition,
 }
-export const { createCodemodeToolDefinition, createCodemodeDescription } = codemode
+export const { createCodemodeToolDefinition } = codemode
 export const { createToolSearchToolDefinition } = search
 export const { toToolExposure } = mcp
 export const { relativizeFindResultPath } = find
@@ -49,8 +48,6 @@ export const { sliceHead, sliceTail, truncateHead, truncateLine, formatSize, DEF
 export const detectImageMimeType = mime.detectSupportedImageMimeType
 export const getShellConfig = shell.getShellConfig
 
-// Keep Pi's complete prompt, including its preamble, docs, and cwd. Runtime
-// facts and enforcement still belong to DSH, not to a rewritten Pi persona.
 export function toolPrompt(definitions, { cwd = '.', mcpServers = [], mcpExposure = 'codemode' } = {}) {
   const servers = mcpPrompt.renderServersSection(mcpServers.map(name => ({
     entry: { name, config: { exposure: mcpExposure } },
@@ -67,12 +64,11 @@ export function toolPrompt(definitions, { cwd = '.', mcpServers = [], mcpExposur
 export function createDefinitions(cwd, operations, names = Object.keys(factories)) {
   return names.map(name => factories[name](cwd, {
     ...(operations ? { operations: operations[name] } : {}),
-    // There is no Pi SessionManager inside DSH. Do not advertise fictitious PI_* metadata.
     ...(name === 'bash' ? { exposeSessionEnvironment: false } : {}),
   }))
 }
 
-// Strip TypeBox's non-JSON metadata without changing the model-facing schema.
+// external: TypeBox schemas carry non-JSON symbol metadata that breaks structured serialization
 export function jsonValue(value) {
   return JSON.parse(JSON.stringify(value))
 }
@@ -93,5 +89,3 @@ export function prepareArguments(tool, args, exec) {
 export async function invoke(tool, args, exec, context, onUpdate) {
   return tool.execute(exec.callId, prepareArguments(tool, args, exec), exec.signal, onUpdate, context)
 }
-
-export const buildPiPromptSections = prompt.buildSystemPromptSections

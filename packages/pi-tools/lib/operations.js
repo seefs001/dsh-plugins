@@ -19,7 +19,6 @@ export function createOperations(ctx, exec, cwd, config = {}) {
 
   async function readFile(path) {
     const { target, info } = await file(path)
-    // Bound the backend read by the observed size, not an arbitrary compatibility limit.
     if (!Number.isSafeInteger(info.size) || info.size < 0) {
       throw new Error('Pi tools require a filesystem provider that reports regular-file sizes')
     }
@@ -73,8 +72,7 @@ export function createOperations(ctx, exec, cwd, config = {}) {
     edit: { readFile, writeFile, access: async path => { await file(path) } },
     write: {
       writeFile,
-      // writeText creates parents after the sandbox fence, as part of atomic publication.
-      // Creating directories through Node here would bypass that fence.
+      // external: DSH fs.writeText creates parent directories inside its sandbox fence; no-op mkdir avoids bypassing it
       mkdir: async () => {},
     },
     bash: {
@@ -95,7 +93,6 @@ async function runShell(ctx, command, cwd, { signal, timeout, onData }, policy) 
   const stdin = shell.commandTransport === 'stdin'
   let argv = [shell.shell, ...shell.args, ...(stdin ? [] : [command])]
   if (policy.mode !== 'danger-full-access') {
-    // No unconfined fallback if a runner is missing or refuses this policy.
     argv = (await ctx.sandbox.confine(argv, policy, signal)).argv
   }
   signal?.throwIfAborted()
@@ -105,7 +102,6 @@ async function runShell(ctx, command, cwd, { signal, timeout, onData }, policy) 
     stdio: { stdin: stdin ? { data: command } : 'ignore', stdout: 'pipe', stderr: 'pipe' },
     graceMs: 100,
     signal,
-    // Keep DSH's scrubbed environment; do not reinject Pi's copy of process.env.
   })
   let timedOut = false
   const timer = timeout === undefined ? undefined : setTimeout(() => {

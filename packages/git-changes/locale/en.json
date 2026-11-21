@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Git changes",
-    "description": "Shows the current branch and changed line counts below the composer; click to open the diff in the right sidebar. Requires Change requests & worktrees."
+    "description": "Show the current branch and uncommitted diff stats below the composer; click to open the diff in the right sidebar. Requires Change requests & worktrees."
   }
 }

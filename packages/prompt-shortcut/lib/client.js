@@ -1,4 +1,3 @@
-/** Browser-owned text snippets. The only composer mutation is a guarded insertText. */
 window.__ModuleLoader__.load({
   id: 'dsh-prompt-shortcut',
   factory(require) {
@@ -35,7 +34,6 @@ window.__ModuleLoader__.load({
       },
     }
 
-    // Stash-style composer banner. All neutral colors follow the host's current light/dark surface.
     const css = `
       .ps-trigger,.ps-panel{--ps-surface:var(--dsw-alias-bg-layer-1);--ps-ink:var(--dsw-alias-label-primary);--ps-muted:var(--dsw-alias-label-secondary);--ps-wash:color-mix(in srgb,var(--ps-ink) 6%,var(--ps-surface));--ps-line:color-mix(in srgb,var(--ps-ink) 13%,var(--ps-surface))}
       @supports(color:oklch(from white l 0 h)){.ps-trigger,.ps-panel{--ps-surface:oklch(from var(--dsw-alias-bg-layer-1) l 0 h);--ps-ink:oklch(from var(--dsw-alias-label-primary) l 0 h);--ps-muted:oklch(from var(--dsw-alias-label-secondary) l 0 h)}}
@@ -93,7 +91,6 @@ window.__ModuleLoader__.load({
       return h('svg', { className: 'ps-glyph', viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: name === 'more' ? 2.8 : 1.6, strokeLinejoin: 'round', strokeLinecap: 'round', 'aria-hidden': true }, h('path', { d: paths[name] }))
     }
 
-    // The overlay slot spans the card, unlike the full-conversation input dock.
     const seatId = sessionId => 'ps-stash-drawer-' + sessionId
     function DrawerSeat({ sessionId }) {
       return h('div', { id: seatId(sessionId), className: 'ps-seat' })
@@ -198,7 +195,6 @@ window.__ModuleLoader__.load({
         if (ready) (editing ? bodyField.current : primary.current)?.focus()
       }, [editing, hasItems, ready, sheet])
 
-      // Re-read before mutating: a save in another tab need not discard unrelated snippets.
       function change(transform) {
         try {
           const next = transform(readLibrary())
@@ -224,7 +220,7 @@ window.__ModuleLoader__.load({
         if (ok) { setForm(null); setQuery(''); setSaved(title) }
       }
       function insert(row) {
-        // Release modal focus before the native editor places its selection after the insert.
+        // external: close modal dialog before native editor sets selection, or top-layer focus traps it
         const el = dialog.current
         el.close()
         if (!inputActions.insertText(row.body, span)) {

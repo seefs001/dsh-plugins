@@ -1,4 +1,3 @@
-/** A model picker over the native title providers, not an LLM request interceptor. */
 window.__ModuleLoader__.load({
   id: 'dsh-title-model',
   factory(require) {
@@ -8,29 +7,25 @@ window.__ModuleLoader__.load({
     const DICTS = {
       en: {
         title: 'Title model',
-        hint: 'Choose a model for titles only. The conversation model and the active title strategy stay unchanged.',
+        hint: 'Pick a separate model for session titles. Conversation model and title cadence stay unchanged.',
         first: 'First-prompt titles', all: 'Conversation-following titles', model: 'Model',
         same: 'Same as session', missing: '(unavailable)', loading: 'Loading…',
-        reload: 'Reload settings', retry: 'Retry', save: 'Save', saving: 'Saving…', saved: 'Saved. Applies to subsequent title requests.',
-        loadFailed: 'Could not load title settings: ', saveFailed: 'Could not save: ',
-        catalogFailed: 'Could not load models: ', partial: 'Some providers could not load their models. You can still select the models shown.',
-        empty: 'No active title generator found. Enable first-prompt titles or Conversation-following titles in DSH settings, then reload.',
-        privacy: 'Title requests send eligible user prompts to the chosen provider and may incur separate charges. Failed requests keep the existing title.',
-        persist: 'Saved directly to the native title generator config, so disabling this plugin keeps your choice. Pick Same as session and save before removing the plugin if you want to revert.',
-        cadence: 'Only changes the model for future titles. Existing and pinned titles stay as they are.',
+        reload: 'Reload', retry: 'Retry', save: 'Save', saving: 'Saving…', saved: 'Saved.',
+        loadFailed: 'Could not load title settings: ', saveFailed: 'Save failed: ',
+        catalogFailed: 'Could not load models: ', partial: 'Some providers failed to load their models.',
+        empty: 'No active title generator. Enable first-prompt or conversation-following titles in DSH settings, then reload.',
+        note: 'Writes directly to the native title generator config (persists if this plugin is disabled) and applies to new titles only.',
       },
       zh: {
         title: '标题模型',
-        hint: '只替标题生成换模型，不影响主对话模型和标题触发规则。',
+        hint: '单独指定标题生成模型，不影响主对话模型和触发规则。',
         first: '首条消息标题', all: '随对话更新标题', model: '模型',
         same: '跟随会话', missing: '（不可用）', loading: '加载中…',
-        reload: '重新加载设置', retry: '重试', save: '保存', saving: '保存中…', saved: '已保存，后续标题会用这个模型生成。',
+        reload: '重新加载', retry: '重试', save: '保存', saving: '保存中…', saved: '已保存。',
         loadFailed: '无法加载标题设置：', saveFailed: '保存失败：',
-        catalogFailed: '无法加载模型：', partial: '部分 provider 的模型没拉下来，已列出的仍可正常选。',
-        empty: '还没有开启标题生成器。先在 DSH 设置里打开“首条消息标题”或“随对话更新标题”，再点重新加载。',
-        privacy: '生成标题会把对应的用户消息发给所选 provider（可能单独计费）；失败时保留原标题。',
-        persist: '设置直接保存在原生标题生成器里，停用插件不会还原。卸载前如果想恢复默认，请先切回“跟随会话”并保存。',
-        cadence: '只换之后生成标题的模型，已有标题和手动固定的标题都不会变。',
+        catalogFailed: '无法加载模型：', partial: '部分 provider 的模型加载失败。',
+        empty: '未启用标题生成器。先在 DSH 设置中开启「首条消息标题」或「随对话更新标题」，再点重新加载。',
+        note: '直接写入原生标题生成器配置（停用插件不会还原），仅对后续生成的标题生效。',
       },
     }
     const CSS = `
@@ -159,7 +154,7 @@ window.__ModuleLoader__.load({
               key: `${epoch}:${generator.id}`, generator, catalog, saving: busy, onBusy: setBusy,
               onSaved: result => setState({ status: 'ready', generators: result.generators }),
             })),
-            h('p', null, t('cadence')), h('p', null, t('privacy')), h('p', null, t('persist')))
+            h('p', null, t('note')))
         }
 
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({

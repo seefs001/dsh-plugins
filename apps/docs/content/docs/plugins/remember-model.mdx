@@ -1,26 +1,22 @@
 ---
 title: 记住上次模型
-description: 自动记住你在主会话选用的模型与推理强度，新建会话直接沿用。
+description: 自动记住顶层会话选用的模型与推理强度，新建会话直接沿用。
 ---
 
 <PluginFacts slug="remember-model" />
 
-在顶层会话切换到新的模型或推理强度后，自动更新 DSH 的默认模型配置，并在去抖后通知已连接的浏览器刷新目录，让下一次新建会话直接沿用上次选择。
+在顶层会话切换到新的模型或推理强度后，自动更新 DSH 默认模型，并通知已连接的浏览器刷新目录，让新建会话直接沿用上次选择。
 
 ## 安装
 
 <InstallCommand slug="remember-model" />
 
-本插件仅在 Host 运行，没有 Web 界面和独立配置页。
+纯 Host 插件，无界面与独立配置项。
 
 ## 工作机制
 
-1. 监听 `session/event` 中的 `model/selection` 事件。
-2. 自动忽略子代理会话的选择，仅响应人类操作的顶层主会话。
-3. 调用 DSH 原生的 `agentDefaultModel.saveSelection` 持久化最新选择。
-4. 延迟 400 ms 去抖后广播 `llm/models-updated`，触发浏览器端刷新默认模型。
+1. 监听顶层会话的 `model/selection` 事件，忽略子代理会话。
+2. 写入 DSH 原生的 `agent-default-model` 配置。
+3. 400 ms 去抖后广播 `llm/models-updated`，触发浏览器同步刷新默认模型。
 
-## 边界说明
-
-- 默认模型保存在 DSH 原生的 `agent-default-model` 配置中，停用或卸载本插件后不会回滚已记住的选择。
-- 不干预已有会话的模型，也不覆盖子代理的路由策略。
+停用或卸载后，已写入原生配置的默认模型保持不变。

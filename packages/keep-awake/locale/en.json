@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Keep awake",
-    "description": "Keeps your Mac from idle sleeping while the DSH Host runs, without keeping the screen awake or changing power settings. Disable the plugin or quit the Host to release."
+    "description": "Prevent macOS idle sleep while the DSH Host runs, while keeping display sleep and screen lock unchanged."
   }
 }

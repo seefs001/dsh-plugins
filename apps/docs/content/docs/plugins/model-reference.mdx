@@ -5,7 +5,7 @@ description: 在输入框输入 # 插入模型标签，自动带上该模型上�
 
 <PluginFacts slug="model-reference" />
 
-在输入框里按 `#` 选择模型后，插件会插入一个带推理强度和快速模式标记的模型标签（例如 `#GPT-6.1 Sol · xhigh ⚡`），让你可以在提示词里明确点名让子代理使用哪个模型，而不必手动拼写 provider 和参数。
+在输入框键入 `#` 选择模型后，插件会插入带推理强度与快速模式标记的引用标签（例如 `#GPT-6.1 Sol · High ⚡`），方便在提示词里直接指定子代理要用的模型和档位。
 
 ## 安装
 
@@ -16,33 +16,28 @@ description: 在输入框输入 # 插入模型标签，自动带上该模型上�
 <Steps>
 <Step>
 
-### 插入模型标签
+### 插入标签
 
-在输入框行首或空格后键入 `#`，继续输入模型名或 provider 名称过滤，按回车、Tab 或点击菜单项插入标签。按退格键可一次删掉整块标签；复制标签时得到 `#provider/model`。
+在输入框行首或空格后键入 `#`，继续输入模型名或 provider 名称筛选，按回车、Tab 或点击菜单项插入。按退格键可整块删除，复制标签得到 `#provider/model`。
 
 </Step>
 <Step>
 
-### 发送时的真实内容
+### 发送与回显
 
-标签发出时会展开为结构化文本：
+发出时标签会展开为结构化文本：
 
 ```text
-#model(provider=openai, model=gpt-6.1-sol, reasoning_effort=xhigh, service_tier=priority)
+#model(provider=openai, model=gpt-6.1-sol, reasoning_effort=high, service_tier=priority)
 ```
 
-历史消息气泡里同样会还原为带强度与 `⚡` 图标的胶囊标签。
+历史消息气泡中会自动还原为同款胶囊标签，悬停可查看完整文本。
 
 </Step>
 </Steps>
 
-## 标签状态从哪里来
+## 状态记忆与联动
 
-- **推理强度**：Host 监听顶层会话的 `model/selection` 事件，按 `provider/model` 记录你最近选用的推理强度（子代理会话的选择不会覆盖主会话记录），并写入 profile 的 `cordis.patch.yml`（`efforts` 字段）。
-- **快速模式（⚡）**：同时安装了 [快速模式](/docs/plugins/service-tier) 时，标签会自动同步该模型是否处于 `priority` 或 `ultrafast` 档位；未安装也能正常使用。
-
-## 边界说明
-
-- 插入 `#` 引用**不会切换当前会话自己的模型**，只向模型传递文本引用。
-- 从历史消息复制再粘贴回输入框时，不会自动变成可删除的交互标签，需重新通过 `#` 插入。
-- Host 只暴露只读的 `/model-reference/state` 接口（需 owner 鉴权）。
+- **推理强度记忆**：Host 监听顶层会话的 `model/selection` 事件（忽略子代理），按 `provider/model` 记录最后选用的推理强度并保存到 `cordis.patch.yml` 的 `efforts` 字段；切换回该模型或插入 `#` 标签时自动恢复。
+- **快速模式联动**：同时安装 [快速模式](/docs/plugins/service-tier) 时，标签会自动同步该模型的 `priority` 或 `ultrafast` 档位。
+- 插入 `#` 引用只向消息写入文本，不会切换当前会话的模型。

@@ -5,16 +5,17 @@ import { loadClient } from '../../../test-utils/load-client.js'
 
 const { id, plugin } = loadClient(fileURLToPath(new URL('../lib/client.js', import.meta.url)))
 const { parseRef, serialize, decorate } = plugin._internal
-// Values from the vm sandbox live in another realm; copy them before deep-equal.
 const plain = v => JSON.parse(JSON.stringify(v))
 const match = (...args) => plain(plugin._internal.match(...args))
 
 test('registers under the package name', () => assert.equal(id, 'dsh-model-reference'))
 
 test('parseRef / serialize round trip', () => {
-  assert.deepEqual(plain(parseRef('responses/gpt-6?effort=high&fast=1')), { provider: 'responses', model: 'gpt-6', effort: 'high', fast: true })
+  assert.deepEqual(plain(parseRef('responses/gpt-6?effort=high&tier=priority')), { provider: 'responses', model: 'gpt-6', effort: 'high', tier: 'priority', fast: true })
+  assert.deepEqual(plain(parseRef('responses/gpt-6?tier=ultrafast')), { provider: 'responses', model: 'gpt-6', tier: 'ultrafast', fast: true })
   assert.deepEqual(plain(parseRef('p/org/model')), { provider: 'p', model: 'org/model', fast: false })
-  assert.equal(serialize('responses/gpt-6?effort=high&fast=1'), '#model(provider=responses, model=gpt-6, reasoning_effort=high, service_tier=priority)')
+  assert.equal(serialize('responses/gpt-6?effort=high&tier=priority'), '#model(provider=responses, model=gpt-6, reasoning_effort=high, service_tier=priority)')
+  assert.equal(serialize('responses/gpt-6?tier=ultrafast'), '#model(provider=responses, model=gpt-6, service_tier=ultrafast)')
   assert.equal(serialize('p/m'), '#model(provider=p, model=m)')
 })
 
@@ -30,12 +31,14 @@ test('match: every query word must hit', () => {
   assert.deepEqual(match(groups, 'zzz'), [])
 })
 
-test('decorate: remembered effort, fallback to default, fast flag', () => {
+test('decorate: remembered effort, fallback to default, tier flag', () => {
   const [gpt] = match(groups, 'gpt')
   const prefs = { efforts: { 'responses/gpt-6': 'high' }, tiers: { 'responses/gpt-6': 'priority' }, fastProviders: ['responses'] }
   const d = decorate(gpt, prefs, null)
-  assert.equal(d.ref, 'responses/gpt-6?effort=high&fast=1')
+  assert.equal(d.ref, 'responses/gpt-6?effort=high&tier=priority')
   assert.equal(d.effortName, 'High')
+  const ultra = decorate(gpt, { efforts: {}, tiers: { 'responses/gpt-6': 'ultrafast' }, fastProviders: ['responses'] }, null)
+  assert.equal(ultra.ref, 'responses/gpt-6?effort=low&tier=ultrafast')
   const stale = decorate(gpt, { efforts: { 'responses/gpt-6': 'gone' }, tiers: {}, fastProviders: [] }, null)
   assert.equal(stale.ref, 'responses/gpt-6?effort=low')
   const [claude] = match(groups, 'claude')

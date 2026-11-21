@@ -3,7 +3,6 @@ import { join } from 'node:path'
 
 const mismatch = () => new Error('The selected worktree changed or is no longer available. Refresh Working directory before starting an agent.')
 
-/** A tiny, stable witness to the selected checkout, not a hash of the work inside it. */
 export async function checkoutMarker(fs, path, signal) {
   if (fs.processPath(await fs.resolve(path, { signal })) !== path) return null
   const file = join(path, '.git'), meta = await fs.lstat(file, undefined, signal)
@@ -13,7 +12,6 @@ export async function checkoutMarker(fs, path, signal) {
   return createHash('sha256').update(text).digest('hex')
 }
 
-/** Admit only a linked checkout Git still registers at the recorded path and branch. No shell, checkout, status refresh or user-controlled arguments. */
 async function registered(ctx, ownerId, tree, signal) {
   const policy = await ctx.get('sessionQuery').inspectSession(ownerId, s => ctx.get('sandboxPolicy').resolve({ session: s }), signal)
   const git = await ctx.subprocess.resolveExecutable('git', undefined, signal)
@@ -35,7 +33,6 @@ async function registered(ctx, ownerId, tree, signal) {
   } finally { child.terminate(); await child.waitForExit() }
 }
 
-/** Selection and the new root's membership are separate. Borrowing never writes a native worktree/created record. */
 export class CheckoutSharing {
   constructor(ctx, native, checkouts) { this.ctx = ctx; this.native = native; this.checkouts = checkouts }
   enabled() { return this.checkouts.enabled() && !!this.ctx.get('sandboxPolicy') && !!this.ctx.get('sandbox') }

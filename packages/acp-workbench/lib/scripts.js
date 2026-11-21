@@ -7,7 +7,6 @@ const screen = { offset: 0, count: 60, maxBytes: 8192 }
 const active = run => run && ['starting', 'running'].includes(run.state)
 const availableShell = shell => ['sh', 'bash', 'zsh', 'dash', 'ksh'].includes(basename(shell.path))
 
-/** paseo.json is a list of choices, never authority to run anything. Terminals belong to DSH. */
 export class WorkspaceScripts {
   constructor(ctx, native) {
     this.ctx = ctx; this.native = native; this.store = native.manager.store
@@ -23,7 +22,6 @@ export class WorkspaceScripts {
       return items.length ? [{ kind: 'acp-script', items }, ...rest] : rest
     })
     ctx.on('workspace/session-stop', async ({ sessionId }) => {
-      // Core writes the archive gate first. A still-unpublished start checks it again before input.
       for (const [, run] of this.table.entries()) {
         if (!this.terminals() || run.sessionId !== sessionId || !active(this.project(run)) || this.info(run)?.control !== 'agent') continue
         const owner = ctx.agents.get(sessionId)
@@ -57,7 +55,6 @@ export class WorkspaceScripts {
 
   async save(run) { await this.store.enqueue(() => this.table.put(run.key, run)); return run }
   info(run) { return this.terminals().list(run.sessionId).find(t => t.id === run.terminalId) }
-  // Only backend exit evidence completes a run. A missing terminal is not a successful command.
   project(run) {
     const info = this.info(run)
     if (!active(run)) return { ...run, retained: !!info }
@@ -117,7 +114,6 @@ export class WorkspaceScripts {
   }
 
   async assignPort(agent, cwd) {
-    // After the kernel releases its port, do not allocate it to another managed service that has not bound yet.
     for (let attempt = 0; attempt < 3; attempt++) {
       const port = await allocateServicePort(agent, cwd, this.life.signal)
       if (this.allocating.has(port) || [...this.table.entries()].some(([, r]) => r.servicePort === port && active(this.project(r)))) continue
@@ -149,7 +145,6 @@ export class WorkspaceScripts {
     let run
     try {
       if (!availableShell(terminal.info.shell) || this.native.cwd(agent) !== cwd) throw new Error('A POSIX shell in the reviewed checkout is required')
-      // Persist identity before delivery. Never interpolate repository text into PTY keystrokes or replay on recovery.
       run = await this.save({ key: spec.key, name: spec.name, type: spec.type, command: spec.command, ...(port ? { servicePort: port } : {}), sessionId: agent.id, terminalId: terminal.id, cwd, startedAt: Date.now(), state: 'starting' })
       this.life.signal.throwIfAborted()
       if (this.ctx.get('workspaceRegistry')?.archivedSessionIds.includes(agent.id) || this.native.cwd(agent) !== cwd) throw new Error('The session was archived or changed checkout')
@@ -170,7 +165,6 @@ export class WorkspaceScripts {
   }
 
   async observe(run) {
-    // Re-subscribable by persisted identity. A plugin reload does not take input or start a replacement.
     const controller = this.terminals(), signal = this.life.signal
     for await (const roster of controller.watch(run.sessionId, signal)) {
       if (signal.aborted) return

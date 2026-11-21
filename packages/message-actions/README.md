@@ -1,12 +1,6 @@
 # dsh-message-actions
 
-在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）每条已完成助手回复旁增加 **Wait, what?** 按钮：使用一次隔离的模型调用解释这条回复缺少的前提和逻辑连接，结果在弹窗中流式呈现，不修改主对话，也不占用后续上下文。
-
-| 项目 | 说明 |
-| --- | --- |
-| 运行位置 | Host + Web |
-| 前置依赖 | `@deepseek-ai/dsh-storage-domain` 及至少一个可用模型 provider |
-| 数据保存 | profile 的 `cordis.patch.yml`（专用模型配置） + Host `message_actions` storage domain（缓存最近 200 条解释） |
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）每条已完成助手回复旁添加 **Wait, what?** 按钮：发起一次隔离的模型调用，在弹窗中流式解释该回复缺失的前提与逻辑连接，不改动主对话也不占用上下文。
 
 ## 安装
 
@@ -14,29 +8,20 @@
 dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/message-actions"
 ```
 
-本地开发链接：
-
-```bash
-dsh plugin --profile web add "link:$PWD/packages/message-actions"
-```
-
 ## 用法与配置
 
-- **在对话中使用**：在任意已完成的文本回复底部操作栏点击 **Wait, what?**，弹窗通过 NDJSON 流式显示解释（支持查看所使用的提示词与模型，以及强制重新生成）。
-- **指定解释模型**：打开 **Plugins → dsh-message-actions**，可指定独立模型与推理强度，或留空以跟随原回复所用模型。
-- **Agent 工具**：插件同时注册 `message_actions` 工具（`get_settings`、`save_settings`、`inspect`、`generate`）。
+- **在对话中解释**：点击任意已完成文本回复底部的 **Wait, what?**，弹窗流式展示解释，并支持复制、查看原文与重新生成。
+- **独立模型设置**：在弹窗右上角或 **Plugins → dsh-message-actions** 中指定专用模型与推理强度，留空则沿用原回复的模型。
+- **Agent 工具**：同时注册 `message_actions` 工具（`get_settings`、`save_settings`、`inspect`、`generate`）。
 
-## 数据与边界
-
-- 插件使用固定的 ASD-STE100 简化技术英语（并按原回复语言输出）解释提示词，不支持自定义或编辑模板。
-- 生成时会把所选回复及前一条用户消息发往对应模型服务（不带工具、不读取项目文件），并将结果明文缓存于 Host `message_actions` storage domain（上限 200 条）。
+解释请求仅发送该条回复及前一条用户消息，不附带工具或文件访问权限。配置保存在 profile 的 `cordis.patch.yml`，解释结果缓存于 Host 的 `message_actions` storage domain（最多 200 条）。
 
 ## 开发构建
 
-本包前端源码位于 `src/client.js`，发布或修改前端代码后需重新打包 `lib/client.js`：
+修改前端源码 `src/client.js` 后重新打包 `lib/client.js`：
 
 ```bash
 pnpm --filter dsh-message-actions build
 ```
 
-更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/message-actions)。
+详细文档见[在线文档](https://seefs001.github.io/dsh-plugins/docs/plugins/message-actions)。

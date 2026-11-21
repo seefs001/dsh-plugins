@@ -1,16 +1,3 @@
-/**
- * dsh-roles — browser half.
- *
- * - A "Role" row in the composer's model menu (`conversation.input.model.options`)
- *   expands into the role list; picking one switches this session's role.
- * - A chip on the left of the composer shows the active role.
- * - A dedicated sidebar panel edits roles, previews the model-facing prompt,
- *   and manages inline skills plus references to local skills.
- * - The bundle's Plugins page links to that panel.
- *
- * Roles live on the Host (lib/index.js); this half reads `roles/state`,
- * follows `roles/events` (SSE), and sends every change to `roles/op`.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-roles',
   factory(require) {
@@ -19,68 +6,68 @@ window.__ModuleLoader__.load({
     const NS = 'roles'
     const KEY = 'dsh-roles'
     const PANEL_ID = 'roles'
-    const PACKAGE = 'dsh-roles'
+    const roleLabel = role => `${role.icon ? `${role.icon} ` : ''}${role.name}`
 
     const en = {
       panel: 'Roles',
       role: 'Role',
       none: 'None',
-      noneHint: 'No role: the agent keeps its usual behavior.',
+      noneHint: 'Use default agent behavior.',
       manage: 'Manage roles…',
       switchFailed: 'Could not switch role: {message}',
-      chipTitle: 'Role for this session: {name}. Click to edit it.',
-      intro: 'A role is a detailed prompt plus its own skills. Pick one per session from the Role row of the composer\'s model menu; it applies from the next step.',
-      configHint: 'Roles are edited on their own page in the sidebar.',
-      openManager: 'Open role manager',
+      chipTitle: 'Session role: {name}. Click to edit.',
+      intro: 'Pair a prompt with skills and pick a role per session from the model menu.',
+      configHint: 'Manage roles from the Roles panel in the sidebar.',
+      openManager: 'Open Roles',
       newRole: 'New role',
       search: 'Search roles',
       noMatches: 'No matching roles.',
-      empty: 'No roles yet. Create one, or restore the built-in roles.',
+      empty: 'No roles yet. Create one or restore the built-in roles.',
       restore: 'Restore {n} built-in roles',
       restored: 'Restored {n} built-in roles.',
       builtin: 'Built-in',
       modified: 'Edited',
-      unsavedNew: 'Not saved yet',
+      unsavedNew: 'Unsaved',
       unsaved: 'Unsaved changes',
       skillsCount: '{n} skills',
-      usedBy: 'In use by {n} sessions',
-      unused: 'Not in use',
+      usedBy: 'Used by {n} sessions',
+      unused: 'Unused',
       namePlaceholder: 'Role name',
-      descriptionPlaceholder: 'One line shown in the role list and menu',
+      descriptionPlaceholder: 'Short summary shown in lists and menus',
       pickIcon: 'Choose icon',
-      iconCustom: 'Or type any emoji',
+      iconCustom: 'Or type an emoji',
       tabPrompt: 'Prompt',
       tabSkills: 'Skills',
-      tabPreview: 'What the model sees',
-      promptHint: 'Responsibilities, working method, output format, and when to load which skill. Markdown.',
-      promptPlaceholder: 'You are now acting as …\n\n## Working method\n1. \n\n## Output format\n- ',
-      skillsHint: 'Each skill is loaded on demand through the skill tool, only in sessions using this role. A project or user skill with the same name wins.',
+      tabPreview: 'Preview',
+      promptHint: 'Role instructions in Markdown.',
+      promptPlaceholder: 'You are acting as …\n\n## Working method\n1. \n\n## Output format\n- ',
+      skillsHint: 'Loaded on demand through the skill tool in sessions using this role. Local skills with the same name take precedence.',
       addSkill: 'Add skill',
       localSkills: 'Local skill references',
-      localHint: 'Reference existing skills by name, without copying files. They load through the native skill tool, with their resource directories intact. This does not hide other session skills.',
+      localHint: 'Reference local skills by name without copying files. Other session skills stay available.',
       localCwd: 'Project directory (optional)',
-      localLoad: 'Read skill catalog',
+      localLoad: 'Load catalog',
       localSearch: 'Search local skills',
-      localEmpty: 'No local skills found in this catalog.',
-      localMissing: 'Not found in this catalog; check the session’s project directory.',
-      localPartial: 'Discovery is incomplete. Missing entries may still exist.',
-      localLimit: 'At most 20 local references per role.',
+      localEmpty: 'No local skills found.',
+      localMissing: 'Not found in this catalog; check the project directory.',
+      localPartial: 'Discovery is incomplete; some skills may be missing.',
+      localLimit: 'Up to 20 local references per role.',
       inlineSkills: 'Role-owned skills',
-      noSkills: 'No role-owned skills. Add one for role-specific reference material, or reference a local skill above.',
+      noSkills: 'No role-owned skills yet.',
       untitledSkill: 'untitled-skill',
       skillName: 'Name',
-      skillNameHint: 'kebab-case, such as review-checklist',
+      skillNameHint: 'kebab-case, e.g. review-checklist',
       skillDescription: 'Description',
-      skillDescriptionHint: 'One line the agent uses to decide when to load it.',
+      skillDescriptionHint: 'One line used to decide when to load this skill.',
       skillWhen: 'When to use',
-      skillWhenHint: 'Optional extra routing guidance.',
+      skillWhenHint: 'Optional routing guidance.',
       skillContent: 'Content',
-      skillContentHint: 'Full instructions in Markdown. Role skills have no files, so do not refer to relative paths.',
+      skillContentHint: 'Instructions in Markdown. Role skills have no files on disk.',
       removeSkill: 'Remove skill',
-      previewHint: 'Added to the system prompt right after the deployment persona. Unsaved edits are included.',
+      previewHint: 'Injected into the system prompt right after the deployment persona, including unsaved edits.',
       previewSkills: 'Skill catalog entries',
       previewLoading: 'Rendering…',
-      previewInvalid: 'Fix the highlighted fields to see the preview.',
+      previewInvalid: 'Fix highlighted fields to preview.',
       save: 'Save',
       create: 'Create role',
       saving: 'Saving…',
@@ -93,11 +80,11 @@ window.__ModuleLoader__.load({
       moveUp: 'Move up',
       moveDown: 'Move down',
       reset: 'Reset to built-in',
-      resetConfirm: 'Restore "{name}" to the built-in text? Your edits to it are lost.',
+      resetConfirm: 'Reset "{name}" to its built-in content? Your edits will be lost.',
       delete: 'Delete',
       deleteConfirm: 'Delete role "{name}"?',
-      deleteConfirmUsed: 'Delete role "{name}"? {n} sessions use it and go back to no role.',
-      conflict: 'This role was changed elsewhere after you started editing. Saving overwrites that change.',
+      deleteConfirmUsed: 'Delete role "{name}"? {n} sessions using it will switch to None.',
+      conflict: 'This role changed elsewhere after you started editing. Saving overwrites it.',
       loadLatest: 'Load latest',
       failed: 'Failed: {message}',
       loadFailed: 'Could not load roles: {message}',
@@ -106,12 +93,12 @@ window.__ModuleLoader__.load({
       chars: '{n} / {max}',
       errName: 'Enter a name.',
       errPrompt: 'Enter a prompt.',
-      errTooLong: 'Too long: at most {max} characters.',
-      errSkillName: 'Use kebab-case: lowercase letters, digits and single hyphens.',
-      errSkillDup: 'Another skill of this role has this name.',
+      errTooLong: 'At most {max} characters.',
+      errSkillName: 'Use kebab-case (lowercase letters, digits, single hyphens).',
+      errSkillDup: 'Duplicate skill name in this role.',
       errSkillDescription: 'Enter a description.',
-      errSkillContent: 'Enter the content.',
-      errSkills: 'Some skills need attention.',
+      errSkillContent: 'Enter content.',
+      errSkills: 'Fix invalid skills.',
       copySuffix: 'copy',
       newRoleName: 'New role',
     }
@@ -119,12 +106,12 @@ window.__ModuleLoader__.load({
       panel: '角色',
       role: '角色',
       none: '无',
-      noneHint: '不使用角色：Agent 保持默认行为。',
+      noneHint: '保持默认行为。',
       manage: '管理角色…',
       switchFailed: '切换角色失败：{message}',
-      chipTitle: '本会话的角色：{name}。点击编辑。',
-      intro: '角色由一段详细提示词和它自带的技能组成。在输入框模型菜单的“角色”一行为每个会话选择，从下一步起生效。',
-      configHint: '角色在侧边栏的独立页面里编辑。',
+      chipTitle: '当前角色：{name}，点击编辑。',
+      intro: '给角色配好提示词和技能，在输入框的模型菜单里按会话切换。',
+      configHint: '请在左侧栏的「角色」面板管理角色。',
       openManager: '打开角色管理',
       newRole: '新建角色',
       search: '搜索角色',
@@ -134,47 +121,47 @@ window.__ModuleLoader__.load({
       restored: '已恢复 {n} 个内置角色。',
       builtin: '内置',
       modified: '已修改',
-      unsavedNew: '尚未保存',
-      unsaved: '有未保存的修改',
+      unsavedNew: '未保存',
+      unsaved: '有未保存修改',
       skillsCount: '{n} 个技能',
-      usedBy: '{n} 个会话正在使用',
-      unused: '未被使用',
+      usedBy: '{n} 个会话使用中',
+      unused: '未使用',
       namePlaceholder: '角色名称',
-      descriptionPlaceholder: '一句话简介，显示在角色列表和菜单里',
+      descriptionPlaceholder: '一句话简介',
       pickIcon: '选择图标',
-      iconCustom: '或输入任意 emoji',
+      iconCustom: '或输入 emoji',
       tabPrompt: '提示词',
       tabSkills: '技能',
-      tabPreview: '模型看到的内容',
-      promptHint: '职责、工作方式、输出格式，以及什么时候加载哪个技能。支持 Markdown。',
+      tabPreview: '预览',
+      promptHint: '支持 Markdown。',
       promptPlaceholder: '你现在担任……\n\n## 工作方式\n1. \n\n## 输出格式\n- ',
-      skillsHint: '技能通过 skill 工具按需加载，只出现在使用这个角色的会话里。项目或用户技能同名时优先。',
+      skillsHint: '仅在使用该角色的会话中按需加载；同名本地技能优先。',
       addSkill: '添加技能',
       localSkills: '引用本地技能',
-      localHint: '按名称引用已有技能，不复制文件。通过原生 skill 工具加载，保留资源目录。本角色不会隐藏会话里的其他技能。',
+      localHint: '按名称引用本地技能，不复制文件，也不隐藏其他会话技能。',
       localCwd: '项目目录（可选）',
-      localLoad: '读取技能目录',
+      localLoad: '读取目录',
       localSearch: '搜索本地技能',
-      localEmpty: '这个目录里没有发现本地技能。',
-      localMissing: '当前目录中未找到，请核对使用角色的会话项目目录。',
-      localPartial: '技能发现尚未完成，未列出的技能仍可能存在。',
+      localEmpty: '未发现本地技能。',
+      localMissing: '当前目录未找到，请核对会话项目目录。',
+      localPartial: '扫描未完成，部分技能可能尚未列出。',
       localLimit: '每个角色最多引用 20 个本地技能。',
       inlineSkills: '角色自带技能',
-      noSkills: '还没有角色自带技能。可以在下方编写专用参考材料，或在上方引用已有的本地技能。',
+      noSkills: '暂无角色自带技能。',
       untitledSkill: '未命名技能',
       skillName: '名称',
-      skillNameHint: 'kebab-case，例如 review-checklist',
+      skillNameHint: 'kebab-case，如 review-checklist',
       skillDescription: '描述',
-      skillDescriptionHint: '一句话，Agent 据此判断何时加载。',
+      skillDescriptionHint: '一句话说明，用于决定何时加载。',
       skillWhen: '何时使用',
-      skillWhenHint: '可选，补充触发条件。',
+      skillWhenHint: '可选触发条件。',
       skillContent: '内容',
-      skillContentHint: 'Markdown 格式的完整说明。角色技能没有文件，不要引用相对路径。',
+      skillContentHint: 'Markdown 说明；角色自带技能无本地文件，勿引用相对路径。',
       removeSkill: '删除技能',
-      previewHint: '紧跟在部署人设之后加入系统提示词。包含未保存的修改。',
+      previewHint: '紧跟部署人设写入系统提示词，包含未保存的修改。',
       previewSkills: '技能目录条目',
-      previewLoading: '正在生成…',
-      previewInvalid: '先修正标出的字段，才能预览。',
+      previewLoading: '生成中…',
+      previewInvalid: '修正标出字段后可预览。',
       save: '保存',
       create: '创建角色',
       saving: '保存中…',
@@ -187,30 +174,29 @@ window.__ModuleLoader__.load({
       moveUp: '上移',
       moveDown: '下移',
       reset: '恢复内置内容',
-      resetConfirm: '把“{name}”恢复为内置内容？你对它的修改会丢失。',
+      resetConfirm: '将“{name}”恢复为内置内容？当前修改会丢失。',
       delete: '删除',
       deleteConfirm: '删除角色“{name}”？',
-      deleteConfirmUsed: '删除角色“{name}”？{n} 个会话正在使用它，删除后回到无角色。',
-      conflict: '你开始编辑后，这个角色在别处被修改了。保存会覆盖那次修改。',
+      deleteConfirmUsed: '删除角色“{name}”？正在使用它的 {n} 个会话将回到无角色。',
+      conflict: '该角色在别处已被更新，保存会覆盖新内容。',
       loadLatest: '载入最新',
       failed: '失败：{message}',
-      loadFailed: '无法加载角色：{message}',
+      loadFailed: '加载角色失败：{message}',
       retry: '重试',
-      loading: '正在加载角色…',
+      loading: '加载角色中…',
       chars: '{n} / {max}',
       errName: '请填写名称。',
       errPrompt: '请填写提示词。',
-      errTooLong: '太长了：最多 {max} 字。',
-      errSkillName: '使用 kebab-case：小写字母、数字和单个连字符。',
-      errSkillDup: '这个角色里已有同名技能。',
+      errTooLong: '最多 {max} 字。',
+      errSkillName: '请使用 kebab-case（小写字母、数字和单个连字符）。',
+      errSkillDup: '当前角色已有同名技能。',
       errSkillDescription: '请填写描述。',
       errSkillContent: '请填写内容。',
-      errSkills: '有技能需要修改。',
+      errSkills: '请先修正技能字段。',
       copySuffix: '副本',
       newRoleName: '新角色',
     }
 
-    // ── Shared store: one SSE stream while anything is mounted. ─────────────
     async function op(body) {
       const r = await fetch('roles/op', {
         signal: AbortSignal.timeout(20_000),
@@ -444,7 +430,6 @@ window.__ModuleLoader__.load({
       width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor',
       strokeWidth: 1.3, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
     }, children)
-    /** Sidebar glyph: two overlapping masks. */
     const IconRoles = ({ size = 16 }) => svg(size, [
       h('path', { key: 'a', d: 'M2.5 3.5h6.5v4.2a3.25 3.25 0 0 1-6.5 0z' }),
       h('path', { key: 'b', d: 'M7 7.3h6.5v3.9a3.25 3.25 0 0 1-6.5 0' }),
@@ -460,7 +445,6 @@ window.__ModuleLoader__.load({
 
     const EMOJIS = ['🎭', '🔍', '🏛️', '🐛', '✍️', '🧪', '🛡️', '⚙️', '🚀', '📐', '🧭', '🧠', '📊', '🗂️', '🎨', '🧹', '🔧', '📝', '💡', '🤖', '👩‍💻', '🧑‍🏫', '🕵️', '⚖️', '📚', '🌐', '🔒', '⏱️', '🧩', '📦', '🎯', '🦉']
 
-    // Mirrors the Host's checks in parseDraft, so problems show before a round trip.
     const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
     return {
@@ -469,7 +453,6 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'roles: dictionaries')
         const t = ctx.locale.bind(NS)
         const useLocale = () => React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
-        // The manager page reads `focus` once on mount and whenever it changes.
         const nav = { roleId: null, seq: 0, listeners: new Set() }
         const navStore = {
           subscribe: fn => { nav.listeners.add(fn); return () => nav.listeners.delete(fn) },
@@ -479,10 +462,9 @@ window.__ModuleLoader__.load({
           nav.roleId = roleId
           nav.seq++
           nav.listeners.forEach(fn => fn())
-          try { ctx.layout.selectPanel(PANEL_ID) } catch { ctx.get('pluginNavigation')?.openBundle(PACKAGE) }
+          ctx.layout.selectPanel(PANEL_ID)
         }
 
-        // ── Model menu row ────────────────────────────────────────────────
         function RoleOption({ sessionId, useSession, locked, dismiss, reportFailure }) {
           useLocale()
           const isChild = useSession(snapshot => snapshot.subagent !== null)
@@ -545,7 +527,6 @@ window.__ModuleLoader__.load({
           locale: NS,
         }, RoleOption))
 
-        // ── Composer chip ─────────────────────────────────────────────────
         function RoleChip({ sessionId }) {
           useLocale()
           const { roles, sessions } = useRoles()
@@ -565,14 +546,9 @@ window.__ModuleLoader__.load({
           locale: NS,
         }, RoleChip))
 
-        // ── Role manager (sidebar panel) ─────────────────────────────────
-        // Drafts outlive the page: switching roles or leaving the panel keeps
-        // unsaved edits, so no navigation ever asks to discard them. A draft is
-        // keyed by role id, or `new:<n>` for a role that is not stored yet.
         const formOf = role => ({
           name: role.name, icon: role.icon, description: role.description, prompt: role.prompt,
           localSkills: role.localSkills ?? [],
-          // Stable keys, so a stored copy re-read after any broadcast keeps open skill cards open.
           skills: role.skills.map((s, i) => ({ key: `${role.id ?? 'copy'}:${i}`, name: s.name, description: s.description, whenToUse: s.whenToUse ?? '', content: s.content })),
         })
         const payloadOf = form => ({
@@ -603,7 +579,6 @@ window.__ModuleLoader__.load({
         const useUi = () => React.useSyncExternalStore(ui.subscribe, ui.get)
         const isNewKey = key => typeof key === 'string' && key.startsWith('new:')
 
-        /** Whether a draft differs from what is stored (a new draft always does). */
         const isDirty = (key, roles) => {
           const draft = ui.state.drafts[key]
           if (!draft) return false
@@ -620,7 +595,6 @@ window.__ModuleLoader__.load({
           return () => window.removeEventListener('beforeunload', warn)
         }, 'roles: warn about unsaved drafts')
 
-        /** Field problems keyed by path; `required` problems only show after a save attempt. */
         function validate(form, limits) {
           const errors = {}
           const put = (path, message, required = false) => { errors[path] = { message, required } }
@@ -645,7 +619,6 @@ window.__ModuleLoader__.load({
           return errors
         }
 
-        /** Close a popover on outside pointer-down or Escape. */
         function usePopover() {
           const [open, setOpen] = React.useState(false)
           const ref = React.useRef(null)
@@ -1025,7 +998,6 @@ window.__ModuleLoader__.load({
           const [note, setNote] = React.useState(null)
           const searchRef = React.useRef(null)
 
-          // A chip or menu click names the role to show.
           React.useEffect(() => { if (nav.roleId) ui.set({ selected: nav.roleId, query: '' }) }, [navSeq])
 
           const newKeys = Object.keys(drafts).filter(isNewKey)
@@ -1123,7 +1095,6 @@ window.__ModuleLoader__.load({
           name: 'sidebar.panellist', id: PANEL_ID, order: 40, locale: NS, label: () => t('panel'),
         }, IconRoles))
 
-        // The Plugins page points to the panel instead of embedding a second editor.
         function ConfigLink() {
           useLocale()
           return h('div', { className: 'rlc' }, h('style', null, PAGE_CSS),

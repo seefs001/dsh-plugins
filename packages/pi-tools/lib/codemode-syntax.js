@@ -1,5 +1,3 @@
-// Keep native source and tool declarations intact. Recovery belongs to the
-// next model-authored call, never a guessed rewrite or an automatic replay.
 export const CODEMODE_STRING_GUIDANCE = [
   'These JavaScript rules apply inside codemode to every string argument: shell commands, file contents, edit text, paths, regex/glob patterns, and MCP fields. Ordinary quoted strings cannot contain literal line breaks or unescaped matching quotes.',
   'Use String.raw template literals for literal backslashes or nested quotes when the text contains neither backticks nor ${...}. Ordinary JS strings interpret escapes: \\n becomes a newline, \\t a tab, and \\d loses its backslash. Use ordinary escapes only when that conversion is intended.',

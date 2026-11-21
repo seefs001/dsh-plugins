@@ -50,7 +50,6 @@ function artifact(value) {
   return result
 }
 
-/** Validate the complete public snapshot. Files remain references, never read here. */
 export function parseSnapshot(value) {
   object(value, ['title', 'objective', 'status', 'outcome', 'steps', 'artifacts'])
   const result = {
@@ -66,7 +65,6 @@ export function parseSnapshot(value) {
   return result
 }
 
-/** Prepare only. The caller must persist through a successful top-level result. */
 export function prepareUpdate(current, args, newId) {
   object(args, ['action', 'workId', 'expectedRevision', 'reason', 'snapshot'])
   choice(args.action, ['create', 'replace'], 'action')
@@ -101,7 +99,6 @@ function changes(before = [], after) {
 
 export const emptyState = (_header, inheritedEventCount = 0) => ({ current: null, history: [], inherited: false, inheritedEventCount })
 
-/** Successful recorded snapshots are authoritative; failed/duplicate events are inert. */
 export function foldWork(state, event) {
   if (event.type !== 'tool/result' || event.data.message.isError) return state
   const update = event.data.meta?.[META]
@@ -119,7 +116,7 @@ export function foldWork(state, event) {
     inherited: event.seq < state.inheritedEventCount, inheritedEventCount: state.inheritedEventCount }
 }
 
-// The registry accepts parse/safeParse schemas; no runtime dependency on another Zod generation.
+// external: DSH sessionProjections accepts parse/safeParse schemas without a Zod dependency
 export const stateSchema = {
   parse(value) {
     object(value, ['current', 'history', 'inherited', 'inheritedEventCount'])

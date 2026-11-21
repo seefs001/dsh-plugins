@@ -1,11 +1,3 @@
-/**
- * dsh-message-edit — browser half.
- *
- * Renders your messages with saved edits and a Copy / Edit action row. By default, editing
- * overwrites the message and clears later model context in the current
- * session without rerunning anything. Keeping later context is optional;
- * forking and resending is an explicit alternative.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-message-edit',
   factory(require) {
@@ -85,7 +77,6 @@ window.__ModuleLoader__.load({
       return data.value
     }
 
-    // One shared, invalidatable edit list per session for its bubbles and badges.
     const lists = new Map()
     function editsStore(sessionId) {
       let entry = lists.get(sessionId)
@@ -105,8 +96,7 @@ window.__ModuleLoader__.load({
       return entry
     }
 
-    // Child-slot declarations have one owner, even when an entry is shadowed.
-    // Keep a private seat and follow the original seat's live contributions.
+    // external: dsh child-slot declarations have a single owner, so mirror conversation.chat.user.before into a private slot
     function mirrorSlot(ctx, source, target) {
       ctx.slots.inject(target, () => {
         let disposers = []

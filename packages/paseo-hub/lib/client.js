@@ -1,16 +1,3 @@
-/**
- * dsh-paseo-hub — browser half.
- *
- * A "Paseo Hub" launcher in the sidebar panel list opens a main page with five
- * tabs: Overview (connection, counts, latest runs and activity), Runs (search,
- * status filter, pagination, per-run actions), Activity (the Host's journal of
- * connection changes, Hub requests and run outcomes), and Setup (modes and the
- * trigger snippet). Hub API manages the organization independently of enrollment.
- *
- * Reads: `paseo-hub/state`, `paseo-hub/runs`, `paseo-hub/events`. Writes:
- * `paseo-hub/op` and `paseo-hub/api`. Local lists refresh every 10 seconds while the page is visible,
- * every 2 seconds while signing in.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-paseo-hub',
   factory(require) {
@@ -21,70 +8,70 @@ window.__ModuleLoader__.load({
     const PAGE_SIZES = [10, 20, 50]
 
     const EN = {
-      "tab_api": "Hub API",
-      "apiIntro": "Manage organization triggers and manual runs directly via API, even when this Host isn\u2019t connected as a daemon. Public API keys can\u2019t manage members, connections, projects, or list all Hub runs.",
-      "apiCredentials": "Organization API access",
-      "apiConfigured": "Key saved",
-      "apiNotConfigured": "No key saved",
-      "apiCheck": "Check read access",
-      "apiKeyHintLong": "Create a scoped key in Hub → API keys. Stored only in Host credentials for this Hub origin (separate from daemon credentials). Use HTTPS outside localhost.",
-      "apiKeyLabel": "Organization API key",
-      "apiKeyUnchanged": "Leave blank to keep the saved key for this origin",
-      "apiToolWrites": "Allow agent tools to install triggers and dispatch runs",
-      "apiToolHint": "Reads use paseo_hub; writes use paseo_hub_write (off by default, and still gated by the agent\u2019s tool permissions). Only you can toggle this.",
-      "apiSave": "Save API access",
-      "apiSaved": "API access saved locally. Use “Check read access” to verify.",
-      "apiForget": "Remove saved key",
-      "apiForgetTitle": "Remove API access?",
-      "apiForgetText": "Removes this plugin’s organization key locally. It does not revoke the key in Hub or disconnect this Host.",
-      "apiBusy": "Another API operation is in progress.",
-      "apiUnavailable": "Restart DSH to load the new Hub API Host endpoint.",
-      "apiSections": "Organization operations",
-      "api_triggers": "Triggers",
-      "api_dispatch": "Manual run",
-      "api_resources": "Resources",
-      "api_legacy": "Legacy configuration",
-      "apiSearch": "Search trigger names or IDs",
-      "apiNew": "New from template",
-      "apiEdit": "View / edit YAML",
-      "apiEnabled": "Enabled",
-      "apiDisabled": "Disabled",
-      "apiYaml": "Trigger YAML",
-      "apiYamlHint": "Install creates or updates by YAML name and immediately activates the revision. Set enabled: false in YAML to disable a trigger. The target daemon must be online for validation. Validate again after editing.",
-      "apiValidate": "Validate only",
-      "apiValid": "Validation passed. Nothing installed.",
-      "apiInstall": "Install / update",
-      "apiInstallTitle": "Activate this configuration?",
-      "apiInstallText": "Creates or replaces the trigger with this YAML name. It becomes active immediately and may start automatic work. Check the name, filters, target directory, and mode.",
-      "apiInstalled": "Installed and activated in Hub.",
-      "apiDispatch": "Dispatch run",
-      "apiDispatchTitle": "Dispatch a real Hub run?",
-      "apiDispatchText": "The selected trigger may execute code and perform external operations. The actor must be permitted by its filters.",
-      "apiDispatched": "Dispatch accepted. The response is a receipt, not a live completion status.",
-      "apiDispatchHint": "Choose a configured manual.run trigger. The actor must match its from_users allowlist. API input follows your Hub version: use text for prompt input, or JSON for older structured inputs.",
-      "apiProject": "Project slug",
-      "apiLoadProjects": "Load project choices",
-      "apiTrigger": "Manual trigger name",
-      "apiActor": "Actor",
-      "apiInput": "Input / prompt",
-      "apiInputJson": "Parse input as JSON",
-      "apiDeliveryKey": "Delivery key",
-      "apiNewDeliveryKey": "New key for a new run",
-      "apiDeliveryHint": "Keep this key for retries of the same intended run. Hub provides durable deduplication, not guaranteed exactly-once execution or response replay. After a timeout check Hub first. Generate a new key only for a separate run.",
-      "apiRevision": "Expected version ID (optional)",
-      "apiRead_projects": "List projects",
-      "apiRead_resources": "Daemons & integrations",
-      "apiRead_setup-resources": "Provider filter IDs",
-      "apiResourceHint": "Read-only resources from the key’s organization. Project choices show the first 100 matches; use the agent’s paged projects action for larger lists.",
-      "apiLegacyHint": "Advanced: paste a complete JSON bundle with projectSlug and files: [{path, content}]. Include .paseo/hub.yml, direct workflow YAMLs and referenced partials. Local request limit: 8 MiB. This replaces the project’s complete active configuration, not one file.",
-      "apiLegacyBundle": "Legacy JSON configuration bundle",
-      "apiLegacyInstallText": "Replaces the entire active configuration of the project in this JSON bundle, including workflows. It does not merge files.",
-      "apiResult": "API response",
-      "apiViewActivity": "View local activity",
-      "group_api": "Organization API",
+      tab_api: 'Hub API',
+      apiIntro: 'Manage organization triggers and manual runs via the Hub API without connecting this Host as a daemon.',
+      apiCredentials: 'Organization API access',
+      apiConfigured: 'Key saved',
+      apiNotConfigured: 'No key saved',
+      apiCheck: 'Check read access',
+      apiKeyHintLong: 'Create a scoped key in Hub → API keys. Stored in Host credentials for this origin (separate from daemon credentials).',
+      apiKeyLabel: 'Organization API key',
+      apiKeyUnchanged: 'Leave blank to keep the saved key',
+      apiToolWrites: 'Allow agent tools to install triggers and dispatch runs',
+      apiToolHint: 'Reads use paseo_hub; writes use paseo_hub_write (disabled by default).',
+      apiSave: 'Save API access',
+      apiSaved: 'Saved. Click “Check read access” to verify.',
+      apiForget: 'Remove saved key',
+      apiForgetTitle: 'Remove API access?',
+      apiForgetText: 'Removes the saved key locally without revoking it in Hub or disconnecting this daemon.',
+      apiBusy: 'Another API request is in progress.',
+      badResponse: 'Unexpected response (HTTP {status}).',
+      apiSections: 'Organization operations',
+      api_triggers: 'Triggers',
+      api_dispatch: 'Manual run',
+      api_resources: 'Resources',
+      api_legacy: 'Legacy configuration',
+      apiSearch: 'Search trigger names or IDs',
+      apiNew: 'New from template',
+      apiEdit: 'View / edit YAML',
+      apiEnabled: 'Enabled',
+      apiDisabled: 'Disabled',
+      apiYaml: 'Trigger YAML',
+      apiYamlHint: 'Install creates or updates by name and activates immediately. Target daemon must be online during validation.',
+      apiValidate: 'Validate only',
+      apiValid: 'Validation passed.',
+      apiInstall: 'Install / update',
+      apiInstallTitle: 'Activate this configuration?',
+      apiInstallText: 'Creates or replaces the trigger immediately. Verify name, filters, target directory, and mode.',
+      apiInstalled: 'Installed and activated.',
+      apiDispatch: 'Dispatch run',
+      apiDispatchTitle: 'Dispatch a Hub run?',
+      apiDispatchText: 'Starts a real run on the target daemon. The actor must match trigger filters.',
+      apiDispatched: 'Dispatch accepted.',
+      apiDispatchHint: 'Pick a manual.run trigger whose from_users filter allows this actor. Use text for prompts, or JSON for legacy structured inputs.',
+      apiProject: 'Project slug',
+      apiLoadProjects: 'Load projects',
+      apiTrigger: 'Manual trigger name',
+      apiActor: 'Actor',
+      apiInput: 'Input / prompt',
+      apiInputJson: 'Parse input as JSON',
+      apiDeliveryKey: 'Delivery key',
+      apiNewDeliveryKey: 'New key',
+      apiDeliveryHint: 'Reuse this key when retrying the same run; generate a new key for a separate run.',
+      apiRevision: 'Expected version ID (optional)',
+      apiRead_projects: 'List projects',
+      apiRead_resources: 'Daemons & integrations',
+      'apiRead_setup-resources': 'Provider filter IDs',
+      apiResourceHint: 'Read-only organization resources (first 100 projects shown here; use paseo_hub for pagination).',
+      apiLegacyHint: 'Paste a JSON bundle ({ projectSlug, files: [{ path, content }] }, up to 8 MiB). Replaces the project’s full active configuration.',
+      apiLegacyBundle: 'Legacy JSON configuration bundle',
+      apiLegacyInstallText: 'Replaces the project’s entire active configuration without merging.',
+      apiResult: 'API response',
+      apiViewActivity: 'View activity',
+      group_api: 'Organization API',
       panel: 'Paseo Hub',
-      intro: 'Run Paseo Hub automations as DSH sessions on this Host.',
-      introLong: 'Hub triggers from GitHub, Slack, Discord, Linear, and Telegram start DSH sessions here with provider "dsh". Runs happen only while this Host is running.',
+      intro: 'Run Paseo Hub automations locally as DSH sessions.',
+      introLong: 'Triggers from GitHub, Slack, Discord, Linear, and Telegram start local DSH sessions with provider "dsh" while this Host is running.',
       refresh: 'Refresh',
       tabsLabel: 'Paseo Hub sections',
       tab_overview: 'Overview',
@@ -92,9 +79,9 @@ window.__ModuleLoader__.load({
       tab_activity: 'Activity',
       tab_setup: 'Setup',
       origin: 'Hub address',
-      originHint: 'The address you open Hub at, for example https://hub.example.com.',
+      originHint: 'Hub origin without a path, e.g. https://hub.example.com.',
       apiKey: 'Organization API key (optional)',
-      apiKeyHint: 'Leave empty to approve the sign-in in your browser. A key needs the "Enroll daemons" scope.',
+      apiKeyHint: 'Leave empty to sign in via browser. Requires the "Enroll daemons" scope.',
       signInTitle: 'Connect this Host',
       signIn: 'Sign in',
       signingIn: 'Waiting for approval',
@@ -121,7 +108,7 @@ window.__ModuleLoader__.load({
       openHub: 'Open Hub',
       disconnect: 'Disconnect',
       disconnectTitle: 'Disconnect from Hub?',
-      disconnectText: 'Hub revokes this daemon and its triggers stop reaching this Host. Existing DSH sessions stay. Hub: {hub}',
+      disconnectText: 'Revokes this daemon in Hub so triggers stop reaching this Host. Existing DSH sessions stay. Hub: {hub}',
       stat_total: 'Runs',
       stat_running: 'Running',
       stat_finished: 'Finished',
@@ -130,19 +117,19 @@ window.__ModuleLoader__.load({
       latestRuns: 'Latest runs',
       latestActivity: 'Latest activity',
       viewAll: 'View all',
-      modes: 'Modes Hub can choose',
-      modesHint: 'Each Hub mode is a DSH permission preset. A trigger names one with agent.mode; the run never gets a wider preset.',
-      noPresets: 'No permission presets are configured, so Hub runs cannot start. Configure @deepseek-ai/dsh-permission-presets.',
+      modes: 'Available modes',
+      modesHint: 'Each Hub mode maps to a DSH permission preset specified via agent.mode.',
+      noPresets: 'No permission presets configured. Enable @deepseek-ai/dsh-permission-presets.',
       defaultMode: 'Default',
       triggerYaml: 'Trigger snippet',
-      triggerHint: 'Paste into a Hub trigger. Replace the daemon name and directory.',
+      triggerHint: 'Paste into a Hub trigger and replace daemon and cwd.',
       settings: 'Plugin settings',
       agentPreset: 'Agent preset',
       deploymentDefault: 'Deployment default',
-      listWorkspaces: 'List run directories in the sidebar',
+      listWorkspaces: 'List run directories in sidebar',
       yes: 'Yes',
       no: 'No',
-      settingsHint: 'Change these in the plugin configuration on the Plugins page.',
+      settingsHint: 'Configure these on the Plugins page.',
       search: 'Search',
       searchRuns: 'Search title, directory, model, or session ID',
       searchActivity: 'Search messages',
@@ -155,8 +142,8 @@ window.__ModuleLoader__.load({
       status_canceled: 'Canceled',
       status_idle: 'Idle',
       status_archived: 'Archived',
-      noRuns: 'No Hub runs yet. They appear here when a Hub trigger fires.',
-      noMatches: 'Nothing matches these filters.',
+      noRuns: 'No Hub runs yet.',
+      noMatches: 'No matching results.',
       clearFilters: 'Clear filters',
       turns: '{n} turns',
       createdAt: 'Started',
@@ -183,7 +170,7 @@ window.__ModuleLoader__.load({
       restore: 'Restore',
       forget: 'Remove from list',
       forgetTitle: 'Remove this run from the list?',
-      forgetText: 'The DSH session stays. Hub can no longer address this run from this Host.',
+      forgetText: 'Keeps the DSH session locally; Hub can no longer address this run.',
       runActivity: 'Run activity',
       level: 'Level',
       level_problems: 'Problems',
@@ -192,10 +179,10 @@ window.__ModuleLoader__.load({
       group_run: 'Runs',
       group_op: 'Page actions',
       group_hub: 'Hub requests',
-      noActivity: 'No activity recorded yet.',
+      noActivity: 'No activity recorded.',
       clearActivity: 'Clear activity',
       clearActivityTitle: 'Clear all activity?',
-      clearActivityText: 'Deletes every activity entry on this Host. Runs and sessions stay.',
+      clearActivityText: 'Deletes all local activity logs. Runs and sessions stay.',
       clear: 'Clear',
       session: 'Session',
       range: '{from}–{to} of {total}',
@@ -210,76 +197,75 @@ window.__ModuleLoader__.load({
       loadFailed: 'Could not load Paseo Hub',
       opFailed: 'Failed',
       retry: 'Retry',
-      legacyHost: 'The Host is still running the previous version of this plugin. Restart DSH to enable the run list, activity, and run actions.',
       never: 'never',
       justNow: 'just now',
       updated: 'Updated {time}',
     }
     const ZH = {
-      "tab_api": "Hub API",
-      "apiIntro": "直接通过 API 管理组织里的触发器和手动运行，不依赖本机 daemon 是否在线（公开 API key 无法管理成员、连接、项目，也不能列出全部 Hub 运行）。",
-      "apiCredentials": "组织 API 访问",
-      "apiConfigured": "已保存 Key",
-      "apiNotConfigured": "未配置 Key",
-      "apiCheck": "检查读取权限",
-      "apiKeyHintLong": "去 Hub → API keys 创建一个带对应权限的 Key。只会存在这台 Host 的凭据里并绑定当前 Hub 地址，不和 daemon 混用。非本机地址请走 HTTPS。",
-      "apiKeyLabel": "组织 API key",
-      "apiKeyUnchanged": "留空则保留当前已保存的 Key",
-      "apiToolWrites": "允许 Agent 工具安装配置和触发真实运行",
-      "apiToolHint": "查询和校验走 paseo_hub；写入走 paseo_hub_write（默认关闭，且受当前 Agent 工具权限限制），只有你能开这个开关。",
-      "apiSave": "保存 API 访问",
-      "apiSaved": "已在本地保存。点击“检查读取权限”验证连接。",
-      "apiForget": "移除已保存的 Key",
-      "apiForgetTitle": "移除 API 访问？",
-      "apiForgetText": "仅删除插件本地保存的组织 Key，不在 Hub 撤销 Key，也不会断开本机 daemon。",
-      "apiBusy": "另一个 API 操作正在进行。",
-      "apiUnavailable": "请重启 DSH，加载新增的 Hub API Host 接口。",
-      "apiSections": "组织操作",
-      "api_triggers": "触发器",
-      "api_dispatch": "手动运行",
-      "api_resources": "资源",
-      "api_legacy": "旧版配置",
-      "apiSearch": "搜索触发器名称或 ID",
-      "apiNew": "从模板新建",
-      "apiEdit": "查看 / 编辑 YAML",
-      "apiEnabled": "已启用",
-      "apiDisabled": "已停用",
-      "apiYaml": "触发器 YAML",
-      "apiYamlHint": "安装按 YAML name 创建或更新，并立即激活版本。设 enabled: false 可停用触发器。校验要求目标 daemon 在线。编辑后需重新校验。",
-      "apiValidate": "仅校验",
-      "apiValid": "校验通过，尚未安装。",
-      "apiInstall": "安装 / 更新",
-      "apiInstallTitle": "激活这份配置？",
-      "apiInstallText": "按 YAML name 新建或覆盖触发器，立即生效，可能启动自动化任务。请核对名称、筛选条件、目标目录及 mode。",
-      "apiInstalled": "已在 Hub 安装并激活。",
-      "apiDispatch": "触发运行",
-      "apiDispatchTitle": "触发真实 Hub 运行？",
-      "apiDispatchText": "选定的触发器可能执行代码和对外操作。actor 必须符合触发器筛选条件。",
-      "apiDispatched": "已接受触发请求。返回的是回执，不是实时完成状态。",
-      "apiDispatchHint": "选择已配置的 manual.run 触发器，actor 必须符合 from_users 白名单。input 根据 Hub 版本可使用提示词文本，旧版结构化输入可切换为 JSON。",
-      "apiProject": "项目 slug",
-      "apiLoadProjects": "加载项目选项",
-      "apiTrigger": "手动触发器名称",
-      "apiActor": "Actor",
-      "apiInput": "输入 / 提示词",
-      "apiInputJson": "将输入解析为 JSON",
-      "apiDeliveryKey": "Delivery key",
-      "apiNewDeliveryKey": "为新运行生成 Key",
-      "apiDeliveryHint": "重试同一次任务请保留此 Key。Hub 持久去重，但不保证恰好执行一次或重放旧响应。超时后先到 Hub 核对；只有新任务才生成新 Key。",
-      "apiRevision": "预期版本 ID（可选）",
-      "apiRead_projects": "查询项目",
-      "apiRead_resources": "Daemon 与集成",
-      "apiRead_setup-resources": "平台筛选 ID",
-      "apiResourceHint": "只读查询 Key 所属组织的资源。项目选项展示前 100 条，更多项目可用 agent 工具分页查询。",
-      "apiLegacyHint": "高级功能：粘贴含 projectSlug、files: [{path, content}] 的完整 JSON bundle。包含 .paseo/hub.yml、直接工作流 YAML 及引用的 partial。单次本地请求上限 8 MiB。安装会替换项目整份活动配置，不是修改单个文件。",
-      "apiLegacyBundle": "旧版配置 JSON bundle",
-      "apiLegacyInstallText": "替换 JSON 中目标项目的整份活动配置及工作流，不会合并文件。",
-      "apiResult": "API 响应",
-      "apiViewActivity": "查看本地活动",
-      "group_api": "组织 API",
+      tab_api: 'Hub API',
+      apiIntro: '通过组织 API 直接管理触发器和手动运行，不依赖本机 daemon 是否在线。',
+      apiCredentials: '组织 API 访问',
+      apiConfigured: '已保存 Key',
+      apiNotConfigured: '未配置 Key',
+      apiCheck: '检查读取权限',
+      apiKeyHintLong: '在 Hub → API keys 创建带权限的 Key，仅存在本机 Host 凭据中并绑定当前地址（与 daemon 凭据分开）。',
+      apiKeyLabel: '组织 API key',
+      apiKeyUnchanged: '留空保留当前已保存的 Key',
+      apiToolWrites: '允许 Agent 工具安装触发器和触发运行',
+      apiToolHint: '只读查询走 paseo_hub；写入走 paseo_hub_write（默认关闭）。',
+      apiSave: '保存 API 访问',
+      apiSaved: '已保存，点击“检查读取权限”验证。',
+      apiForget: '移除已保存的 Key',
+      apiForgetTitle: '移除 API 访问？',
+      apiForgetText: '仅删除本地保存的 Key，不会在 Hub 撤销，也不影响 daemon 连接。',
+      apiBusy: '另一个 API 请求正在进行。',
+      badResponse: '响应异常（HTTP {status}）。',
+      apiSections: '组织操作',
+      api_triggers: '触发器',
+      api_dispatch: '手动运行',
+      api_resources: '资源',
+      api_legacy: '旧版配置',
+      apiSearch: '搜索触发器名称或 ID',
+      apiNew: '从模板新建',
+      apiEdit: '查看 / 编辑 YAML',
+      apiEnabled: '已启用',
+      apiDisabled: '已停用',
+      apiYaml: '触发器 YAML',
+      apiYamlHint: '安装按名称创建或覆盖并立即生效；校验时目标 daemon 需在线。',
+      apiValidate: '仅校验',
+      apiValid: '校验通过。',
+      apiInstall: '安装 / 更新',
+      apiInstallTitle: '激活这份配置？',
+      apiInstallText: '按名称新建或覆盖触发器并立即生效，请核对名称、筛选条件、目录与 mode。',
+      apiInstalled: '已安装并激活。',
+      apiDispatch: '触发运行',
+      apiDispatchTitle: '触发 Hub 运行？',
+      apiDispatchText: '将在目标 daemon 上启动真实任务，actor 需符合触发器筛选条件。',
+      apiDispatched: '已接受触发请求。',
+      apiDispatchHint: '选择已配置的 manual.run 触发器，actor 须符合 from_users 白名单；旧版结构化输入可勾选 JSON。',
+      apiProject: '项目 slug',
+      apiLoadProjects: '加载项目',
+      apiTrigger: '手动触发器名称',
+      apiActor: 'Actor',
+      apiInput: '输入 / 提示词',
+      apiInputJson: '将输入解析为 JSON',
+      apiDeliveryKey: 'Delivery key',
+      apiNewDeliveryKey: '生成新 Key',
+      apiDeliveryHint: '重试同一次任务请保留此 Key；发起新任务时再生成新 Key。',
+      apiRevision: '预期版本 ID（可选）',
+      apiRead_projects: '查询项目',
+      apiRead_resources: 'Daemon 与集成',
+      'apiRead_setup-resources': '平台筛选 ID',
+      apiResourceHint: '只读查询组织资源（此处最多列 100 个项目，分页查询请用 paseo_hub 工具）。',
+      apiLegacyHint: '粘贴含 projectSlug 与 files: [{path, content}] 的 JSON bundle（上限 8 MiB），安装会整份替换项目活动配置。',
+      apiLegacyBundle: '旧版配置 JSON bundle',
+      apiLegacyInstallText: '将整份替换目标项目的活动配置，不合并文件。',
+      apiResult: 'API 响应',
+      apiViewActivity: '查看活动',
+      group_api: '组织 API',
       panel: 'Paseo Hub',
-      intro: '在这台 Host 上把 Paseo Hub 自动化作为 DSH 会话运行。',
-      introLong: 'Hub 来自 GitHub、Slack、Discord、Linear 和 Telegram 的触发会在这里启动 DSH 会话，provider 为 "dsh"。只在 Host 运行期间工作。',
+      intro: '在本机把 Paseo Hub 自动化跑成 DSH 会话。',
+      introLong: '来自 GitHub、Slack、Discord、Linear 和 Telegram 的触发会在本机启动 provider 为 "dsh" 的 DSH 会话。',
       refresh: '刷新',
       tabsLabel: 'Paseo Hub 分区',
       tab_overview: '概览',
@@ -287,9 +273,9 @@ window.__ModuleLoader__.load({
       tab_activity: '活动',
       tab_setup: '设置',
       origin: 'Hub 地址',
-      originHint: '你打开 Hub 用的地址，例如 https://hub.example.com。',
+      originHint: '仅填 origin，不含路径，例如 https://hub.example.com。',
       apiKey: '组织 API key（可选）',
-      apiKeyHint: '留空则在浏览器里批准登录。使用 key 时需要 “Enroll daemons” 权限。',
+      apiKeyHint: '留空则走浏览器授权登录；使用 Key 需带 “Enroll daemons” 权限。',
       signInTitle: '连接这台 Host',
       signIn: '登录',
       signingIn: '等待批准',
@@ -316,7 +302,7 @@ window.__ModuleLoader__.load({
       openHub: '打开 Hub',
       disconnect: '断开',
       disconnectTitle: '断开与 Hub 的连接？',
-      disconnectText: 'Hub 会撤销这个 daemon，它的触发不再到达这台 Host。已有的 DSH 会话保留。Hub：{hub}',
+      disconnectText: '将在 Hub 撤销本机 daemon，触发不再下发；已有 DSH 会话保留。Hub：{hub}',
       stat_total: '运行',
       stat_running: '运行中',
       stat_finished: '已完成',
@@ -325,19 +311,19 @@ window.__ModuleLoader__.load({
       latestRuns: '最近运行',
       latestActivity: '最近活动',
       viewAll: '查看全部',
-      modes: 'Hub 可选的 mode',
-      modesHint: '每个 Hub mode 对应一个 DSH 权限预设。触发器用 agent.mode 指定，运行不会拿到更宽的预设。',
-      noPresets: '没有配置权限预设，Hub 运行无法启动。请配置 @deepseek-ai/dsh-permission-presets。',
+      modes: '可选 mode',
+      modesHint: '每个 Hub mode 对应一个 DSH 权限预设，在触发器里通过 agent.mode 指定。',
+      noPresets: '未配置权限预设，请启用 @deepseek-ai/dsh-permission-presets。',
       defaultMode: '默认',
       triggerYaml: '触发器片段',
-      triggerHint: '粘贴到 Hub 触发器里，替换 daemon 名称和目录。',
+      triggerHint: '粘贴到 Hub 触发器并替换 daemon 名称和目录。',
       settings: '插件设置',
       agentPreset: 'Agent 预设',
       deploymentDefault: '部署默认',
       listWorkspaces: '在侧栏列出运行目录',
       yes: '是',
       no: '否',
-      settingsHint: '在插件页的插件配置里修改。',
+      settingsHint: '在插件页修改配置。',
       search: '搜索',
       searchRuns: '搜索标题、目录、模型或会话 ID',
       searchActivity: '搜索消息',
@@ -350,8 +336,8 @@ window.__ModuleLoader__.load({
       status_canceled: '已取消',
       status_idle: '空闲',
       status_archived: '已归档',
-      noRuns: '还没有 Hub 运行。Hub 触发后会显示在这里。',
-      noMatches: '没有符合筛选条件的结果。',
+      noRuns: '暂无 Hub 运行记录。',
+      noMatches: '没有匹配的结果。',
       clearFilters: '清除筛选',
       turns: '{n} 轮',
       createdAt: '开始',
@@ -378,7 +364,7 @@ window.__ModuleLoader__.load({
       restore: '恢复',
       forget: '从列表移除',
       forgetTitle: '从列表移除这次运行？',
-      forgetText: 'DSH 会话保留。Hub 之后无法再通过这台 Host 访问这次运行。',
+      forgetText: '本地 DSH 会话保留，Hub 将不再索引这次运行。',
       runActivity: '运行活动',
       level: '级别',
       level_problems: '问题',
@@ -387,10 +373,10 @@ window.__ModuleLoader__.load({
       group_run: '运行',
       group_op: '页面操作',
       group_hub: 'Hub 请求',
-      noActivity: '还没有活动记录。',
+      noActivity: '暂无活动记录。',
       clearActivity: '清空活动',
       clearActivityTitle: '清空全部活动？',
-      clearActivityText: '删除这台 Host 上的全部活动记录。运行和会话保留。',
+      clearActivityText: '删除本机全部活动记录，运行与会话保留。',
       clear: '清空',
       session: '会话',
       range: '第 {from}–{to} 条，共 {total} 条',
@@ -402,17 +388,14 @@ window.__ModuleLoader__.load({
       copied: '已复制',
       copy: '复制',
       done: '已完成',
-      loadFailed: '无法加载 Paseo Hub',
+      loadFailed: '加载 Paseo Hub 失败',
       opFailed: '失败',
       retry: '重试',
-      legacyHost: 'Host 仍在运行这个插件的旧版本。重启 DSH 后启用运行列表、活动记录和运行操作。',
       never: '从未',
       justNow: '刚刚',
       updated: '{time}更新',
     }
 
-    // Geometry and type follow the Plugin Manager page; controls copy the host
-    // Button, Tag, SegmentedTabs, Input and Modal primitives under the ph- prefix.
     const CSS = `
 .ph-page{--ph-inset:clamp(24px,4vw,48px);--ph-hover:var(--dsw-alias-interactive-bg-hover);--ph-line:var(--dsw-alias-border-l2);--ph-tertiary:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));--ph-focus:var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));--ph-mono:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);height:100%;overflow-x:hidden;overflow-y:auto;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}
 @media (max-width:767px){.ph-page{--ph-inset:20px}}
@@ -629,8 +612,6 @@ window.__ModuleLoader__.load({
         const openSession = id => ctx.get('uiWorkspace')?.openSession(id)
         const canOpen = () => ctx.get('uiWorkspace') != null
 
-        // ---- shared state ----
-
         const Ctx = React.createContext(null)
         const useApp = () => React.useContext(Ctx)
 
@@ -649,9 +630,10 @@ window.__ModuleLoader__.load({
 
         function useResource(path, params, fast = false) {
           const [state, setState] = React.useState({ data: null, error: null, loading: true })
+          const [bump, setBump] = React.useState(0)
           const { n, ...selection } = params
           const identity = `${path}?${qs(selection)}`
-          const key = `${identity}&n=${encodeURIComponent(n ?? 0)}`
+          const key = `${identity}&n=${encodeURIComponent(n ?? 0)}&r=${bump}`
           const load = React.useCallback(async signal => {
             try {
               const data = await request(key, { signal })
@@ -661,10 +643,9 @@ window.__ModuleLoader__.load({
             }
           }, [key])
           usePoll(load, [load], fast)
-          return state.identity === identity ? state : { data: null, loading: true, error: null }
+          const reload = React.useCallback(() => setBump(v => v + 1), [])
+          return { ...(state.identity === identity ? state : { data: null, loading: true, error: null }), reload }
         }
-
-        // ---- primitives ----
 
         function Btn({ variant, size, icon, label, children, ...rest }) {
           return h('button', { type: 'button', className: `ph-btn${icon && !label && !children ? ' ph-icon' : ''}`, 'data-variant': variant, 'data-size': size, ...rest }, icon ? h(icon) : null, label ?? children)
@@ -767,7 +748,6 @@ window.__ModuleLoader__.load({
               : h('kbd', { className: 'ph-kbd', 'aria-hidden': true }, '/'))
         }
 
-        /** `/` focuses the list's search box unless the user is typing elsewhere. */
         function useSlashFocus(ref) {
           React.useEffect(() => {
             const onKey = e => {
@@ -783,14 +763,11 @@ window.__ModuleLoader__.load({
           }, [ref])
         }
 
-        /** Debounced copy of a search value, so typing does not refetch per keystroke. */
         function useDebounced(value, ms = 250) {
           const [out, setOut] = React.useState(value)
           React.useEffect(() => { const id = setTimeout(() => setOut(value), ms); return () => clearTimeout(id) }, [value, ms])
           return out
         }
-
-        // ---- overview ----
 
         function ConnectionSection({ data }) {
           const { op, confirm, copy } = useApp()
@@ -856,8 +833,6 @@ window.__ModuleLoader__.load({
                 ? h('p', { className: 'ph-note' }, t('noActivity'))
                 : h('div', null, data.activity.map(event => h(EventRow, { key: event.id, event })))))
         }
-
-        // ---- runs ----
 
         function RunRow({ run, compact }) {
           const { runOp, confirm, copy, goto } = useApp()
@@ -936,8 +911,6 @@ window.__ModuleLoader__.load({
             h(Pager, { data, onPage: setPage, onSize: setSize }))
         }
 
-        // ---- activity ----
-
         function EventRow({ event }) {
           const { goto } = useApp()
           return h('div', { className: 'ph-event', 'data-level': event.level },
@@ -997,8 +970,6 @@ window.__ModuleLoader__.load({
             h(Pager, { data, onPage: setPage, onSize: setSize }))
         }
 
-        // ---- setup ----
-
         function SetupTab({ data }) {
           const { copy } = useApp()
           const mode = data.defaultModeId ?? data.modes[0]?.id ?? '<mode>'
@@ -1027,12 +998,10 @@ window.__ModuleLoader__.load({
               h('p', { className: 'ph-note' }, t('settingsHint'))))
         }
 
-        // ---- organization API console ----
-
         async function apiRequest(args) {
           const res = await fetch('paseo-hub/api', { method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/json' }, body: JSON.stringify(args) })
           let result
-          try { result = await res.json() } catch { throw new Error(t('apiUnavailable')) }
+          try { result = await res.json() } catch { throw new Error(tf('badResponse', { status: res.status })) }
           if (!res.ok) {
             const issues = (result.issues ?? []).map(issue => `${(issue.path ?? []).join('.')}: ${issue.message}`)
             throw new Error([result.message ?? `HTTP ${res.status}`, result.requiredScope, ...issues, result.requestId ? `requestId: ${result.requestId}` : ''].filter(Boolean).join('\n'))
@@ -1075,8 +1044,6 @@ window.__ModuleLoader__.load({
           const inputRef = React.useRef(null)
           useSlashFocus(inputRef)
 
-          // The key itself is never read back. Saving/forgetting updates this
-          // component immediately; Host polling only supplies non-secret status.
           React.useEffect(() => setPage(1), [search])
           React.useEffect(() => {
             if (!saved.configured) { setList(null); return }
@@ -1159,7 +1126,6 @@ window.__ModuleLoader__.load({
 
           return h(React.Fragment, null,
             h('p', { className: 'ph-note' }, t('apiIntro')),
-            !data.api ? h('div', { className: 'ph-banner', 'data-tone': 'warn' }, h('p', null, t('apiUnavailable'))) : null,
             configureSection,
             error ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' }, h('pre', { className: 'ph-api-error' }, error), h(Btn, { icon: Icon.close, 'aria-label': t('cancel'), onClick: () => setError(null) })) : null,
             notice ? h('p', { className: 'ph-note', role: 'status' }, notice) : null,
@@ -1212,8 +1178,6 @@ window.__ModuleLoader__.load({
               h(Btn, { variant: 'ghost', onClick: () => goto('activity') }, t('apiViewActivity'))) : null)
         }
 
-        // ---- sign-in ----
-
         function SignIn({ data }) {
           const { op } = useApp()
           const [origin, setOrigin] = React.useState(() => data.login?.origin ?? data.hubOrigin ?? '')
@@ -1263,25 +1227,14 @@ window.__ModuleLoader__.load({
               h(Btn, { size: 'md', onClick: () => op({ action: 'cancel-sign-in' }) }, t('cancel'))))
         }
 
-        // ---- page ----
-
         const TABS = ['overview', 'runs', 'activity', 'api', 'setup']
-        const EMPTY_STATS = { total: 0, last24h: 0, running: 0, finished: 0, completed: 0, failed: 0, canceled: 0, idle: 0, archived: 0 }
 
         function HubPage() {
           useLocale()
           const [nonce, setNonce] = React.useState(0)
           const [fast, setFast] = React.useState(false)
           const state = useResource('paseo-hub/state', { n: nonce }, fast)
-          // A Host still running 0.1.0 sends `runs` instead of stats and has no list routes until DSH restarts.
-          const legacy = state.data != null && state.data.stats === undefined
-          const data = React.useMemo(() => {
-            if (!state.data || !legacy) return state.data
-            const recent = (state.data.runs ?? []).map(run => ({ ...run, status: run.running ? 'running' : run.archivedAt ? 'archived' : 'idle' }))
-            const stats = { ...EMPTY_STATS, total: recent.length, last24h: recent.filter(run => Date.parse(run.createdAt) >= Date.now() - 86_400_000).length }
-            for (const run of recent) stats[run.status] += 1
-            return { ...state.data, stats, recent: recent.slice(0, 5), activity: [] }
-          }, [state.data, legacy])
+          const data = state.data
           React.useEffect(() => setFast(data?.state === 'signing_in' || data?.state === 'connecting'), [data?.state])
           const [tab, setTab] = React.useState(() => sessionStorage.getItem('paseo-hub:tab') || 'overview')
           const [tabArgs, setTabArgs] = React.useState(null)
@@ -1342,7 +1295,6 @@ window.__ModuleLoader__.load({
                   h(Btn, { icon: Icon.refresh, 'aria-label': t('refresh'), title: t('refresh'), onClick: refresh }))),
               state.error ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' },
                 h('p', null, `${t('loadFailed')}: ${state.error}`), h(Btn, { onClick: refresh }, t('retry'))) : null,
-              legacy ? h('div', { className: 'ph-banner', 'data-tone': 'warn', role: 'status' }, h('p', null, t('legacyHost'))) : null,
               data ? h('div', { className: 'ph-tabs', role: 'tablist', 'aria-label': t('tabsLabel'), onKeyDown: onTabKey },
                 TABS.map(key => h('button', {
                   key, id: `ph-tab-${key}`, type: 'button', role: 'tab', className: 'ph-tab',

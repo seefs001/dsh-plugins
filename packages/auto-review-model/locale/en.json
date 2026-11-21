@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Auto review model",
-    "description": "Pick a separate local model for Auto review tool checks, and append rules to or replace the built-in review prompt."
+    "description": "Route Auto review requests to a separate model, customize the review prompt, and inspect session review logs."
   }
 }

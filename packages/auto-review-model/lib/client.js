@@ -1,19 +1,10 @@
-/**
- * dsh-auto-review-model — browser half.
- *
- * Settings on this bundle's Plugins page: pick the Auto review model from the
- * Host's live model catalog (the same providers and models as the composer's
- * model picker), plus an optional reasoning effort.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-auto-review-model',
   factory(require) {
     const React = require('react')
     const ReactDOM = require('react-dom')
     const h = React.createElement
-    // Mirrors MAX_ENTRIES in the Host half.
     const MAX_LOG = 200
-    // The panel shows this many newest reviews at a time and never grows taller than PANEL_MAX_HEIGHT.
     const PAGE_SIZE = 20
     const PANEL_MAX_HEIGHT = 360
     const NS = 'auto-review-model'
@@ -23,7 +14,7 @@ window.__ModuleLoader__.load({
 
     const en = {
       title: 'Auto review model',
-      hint: 'Auto review sends one extra request per tool call. Choose the model that judges those calls. "Same as session" keeps the built-in behavior.',
+      hint: 'Pick the model that judges Auto review tool calls. "Same as session" keeps the built-in behavior.',
       model: 'Model',
       effort: 'Reasoning effort',
       sameAsSession: 'Same as session',
@@ -37,36 +28,34 @@ window.__ModuleLoader__.load({
       saving: 'Saving…',
       saved: 'Saved.',
       saveFailed: 'Save failed: ',
-      warning: 'The reviewer must answer with strict JSON. Small models may fail often, and a failed review blocks the tool call.',
+      warning: 'The reviewer must return strict JSON; invalid output blocks the tool call.',
       promptTitle: 'Review prompt',
       promptMode: 'Mode',
       modeDefault: 'Built-in',
       modeAppend: 'Append rules',
       modeReplace: 'Replace',
-      appendHint: 'Added after the built-in rules, keeping the risk levels and JSON output format.',
-      replaceHint: 'Replaces the built-in policy completely. Keep the reviewer outputting strictly one of: {"risk":"low","decision":"allow"}, {"risk":"medium","decision":"allow"}, {"risk":"medium","decision":"deny","reason":"..."}, {"risk":"high","decision":"deny","reason":"..."}, or the tool call will be blocked.',
+      appendHint: 'Appended to the built-in policy while keeping risk levels and JSON output rules.',
+      replaceHint: 'Replaces the built-in policy. Output must strictly be {"risk":"low|medium","decision":"allow"} or {"risk":"medium|high","decision":"deny","reason":"..."}.',
       appendPlaceholder: 'For example:\n- Treat git push as medium risk unless I named the branch.\n- Deleting files under /tmp is low risk.',
       loadDefault: 'Load built-in prompt',
-      defaultUnknown: 'The built-in prompt becomes available after Auto review runs once.',
-      restartNeeded: 'The Host is still running an older version of this plugin. Restart dsh to enable review prompt settings.',
+      defaultUnknown: 'Available after Auto review runs once.',
       chipPrefix: 'Review',
       chipSession: 'Same as session',
       chipTitle: 'Auto review model: {model}',
-      chipTitleSession: 'Auto review uses this session\'s model (the composer model picker).',
-      chipMissing: 'Provider "{provider}" is not available; Auto review falls back to the session model.',
+      chipTitleSession: 'Auto review uses this session\'s model.',
+      chipMissing: 'Provider "{provider}" is unavailable; falling back to the session model.',
       chipPrompt: 'Review prompt: {mode}',
-      chipOpen: 'Click to change the review model.',
-      chipOpenLog: 'Click to see this session\'s reviews.',
+      chipOpenLog: 'Click to inspect this session\'s reviews.',
       logTitle: 'Auto reviews in this session',
       logSummary: '{allow} allowed · {deny} denied · {fail} failed',
       logSettings: 'Review settings',
       logClear: 'Clear',
       logClearConfirm: 'Delete the stored review records of this session?',
       logLoading: 'Loading…',
-      logEmpty: 'No reviews yet. Each tool call reviewed in Auto mode appears here.',
-      logUnavailable: 'The review log is unavailable. Check the connection and Host plugin version.',
+      logEmpty: 'No reviews yet.',
+      logUnavailable: 'Review log unavailable.',
       logClearFailed: 'Could not clear the review log: ',
-      logLimit: 'Keeps the latest {n} reviews per session, stored on this machine.',
+      logLimit: 'Keeps the latest {n} reviews per session locally.',
       logAllow: 'Allowed',
       logDeny: 'Denied',
       logFailed: 'Review failed',
@@ -83,7 +72,7 @@ window.__ModuleLoader__.load({
     }
     const zh = {
       title: '自动审查模型',
-      hint: '自动审查会为每次工具调用额外发一次请求。在这里选择负责审查的模型；“跟随会话”保持内置行为。',
+      hint: '选择负责 Auto review 工具调用审查的模型；「跟随会话」沿用默认行为。',
       model: '模型',
       effort: '推理强度',
       sameAsSession: '跟随会话',
@@ -97,25 +86,23 @@ window.__ModuleLoader__.load({
       saving: '保存中…',
       saved: '已保存。',
       saveFailed: '保存失败：',
-      warning: '审查模型必须输出严格的 JSON。小模型可能经常失败，审查失败时该工具调用不会执行。',
+      warning: '审查模型必须严格输出 JSON；回复不合规时会拦截工具调用。',
       promptTitle: '审查提示词',
       promptMode: '模式',
       modeDefault: '内置',
       modeAppend: '追加规则',
       modeReplace: '替换',
-      appendHint: '会接在内置规则后面，风险分级和 JSON 格式沿用内置要求。',
-      replaceHint: '会整段替换内置规则，但仍要让模型严格只输出以下 JSON 之一：{"risk":"low","decision":"allow"}、{"risk":"medium","decision":"allow"}、{"risk":"medium","decision":"deny","reason":"..."}、{"risk":"high","decision":"deny","reason":"..."}，否则会按审查失败直接拦下调用。',
+      appendHint: '接在内置规则末尾，沿用原有风险分级和 JSON 格式要求。',
+      replaceHint: '整段替换内置规则；必须严格输出 {"risk":"low|medium","decision":"allow"} 或 {"risk":"medium|high","decision":"deny","reason":"..."}。',
       appendPlaceholder: '例如：\n- git push 一律视为 medium，除非我点名了分支。\n- 删除 /tmp 下的文件视为低风险。',
       loadDefault: '载入内置提示词',
-      defaultUnknown: '内置提示词要在自动审查运行过一次后才能载入。',
-      restartNeeded: 'Host 仍在运行旧版插件，重启 dsh 后才能使用审查提示词设置。',
+      defaultUnknown: '自动审查运行过一次后即可载入。',
       chipPrefix: '审查',
       chipSession: '跟随会话',
       chipTitle: '自动审查模型：{model}',
-      chipTitleSession: '自动审查使用当前会话的模型（即输入框模型选择器里的模型）。',
-      chipMissing: 'Provider「{provider}」当前不可用，自动审查会回退到会话模型。',
+      chipTitleSession: '自动审查使用当前会话的模型。',
+      chipMissing: 'Provider「{provider}」不可用，已回退到会话模型。',
       chipPrompt: '审查提示词：{mode}',
-      chipOpen: '点击修改审查模型。',
       chipOpenLog: '点击查看本会话的审查记录。',
       logTitle: '本会话的自动审查',
       logSummary: '放行 {allow} · 拒绝 {deny} · 失败 {fail}',
@@ -123,10 +110,10 @@ window.__ModuleLoader__.load({
       logClear: '清空',
       logClearConfirm: '删除本会话已保存的审查记录？',
       logLoading: '加载中…',
-      logEmpty: '还没有审查记录。自动审查模式下每次工具调用都会出现在这里。',
-      logUnavailable: '暂时无法读取审查记录，请检查连接和 Host 插件版本。',
+      logEmpty: '暂无审查记录。',
+      logUnavailable: '暂时无法读取审查记录。',
       logClearFailed: '未能清空审查记录：',
-      logLimit: '每个会话保留最近 {n} 条，存储在本机。',
+      logLimit: '每个会话本地保留最近 {n} 条。',
       logAllow: '放行',
       logDeny: '拒绝',
       logFailed: '审查失败',
@@ -136,7 +123,7 @@ window.__ModuleLoader__.load({
       logMore: '显示更早的（还有 {n} 条）',
       logJump: '跳转到这次工具调用',
       logJumpPtc: '跳转到发起这次调用的 run_code',
-      logJumpMissing: '这次调用不在已加载的对话里。往上滚动加载更早的消息后再试。',
+      logJumpMissing: '这次调用不在已加载的对话里，向上滚动加载更早消息后再试。',
       risk_low: '低风险',
       risk_medium: '中风险',
       risk_high: '高风险',
@@ -173,7 +160,6 @@ window.__ModuleLoader__.load({
       return data
     }
 
-    // Fill fields an older Host omits, so the page never shows an undefined mode.
     const MODES = ['default', 'append', 'replace']
     function normalize(s) {
       const text = v => (typeof v === 'string' ? v : '')
@@ -184,8 +170,6 @@ window.__ModuleLoader__.load({
         promptMode: MODES.includes(s?.promptMode) ? s.promptMode : 'default',
         prompt: text(s?.prompt),
         defaultPrompt: text(s?.defaultPrompt),
-        // An older Host omits promptMode and silently drops prompt settings.
-        legacy: s === null || typeof s !== 'object' || !('promptMode' in s),
       }
     }
 
@@ -241,7 +225,6 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'auto-review-model: dictionaries')
         const t = ctx.locale.bind(NS)
 
-        // Shared snapshot of the saved review route and the model catalog, read by every composer chip.
         let shared = { config: null, groups: [] }
         const listeners = new Set()
         const publish = next => { shared = { ...shared, ...next }; listeners.forEach(fn => fn()) }
@@ -252,14 +235,14 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
           try {
             const raw = await getJson('auto-review-model/state')
             if (id === configRead) publish({ config: normalize(raw) })
-          } catch { /* Keep the last confirmed route. */ }
+          } catch {}
         }
         const refreshCatalog = async () => {
           const id = ++catalogRead
           try {
             const res = await ctx.remote.session.modelCatalog()
             if (res.ok && id === catalogRead) publish({ groups: res.value.groups })
-          } catch { /* Keep the last available catalog. */ }
+          } catch {}
         }
         const refreshAll = () => { refreshConfig(); refreshCatalog() }
         const subscribe = fn => {
@@ -272,12 +255,10 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
             ctx.remote.$on('llm/adapters-updated', refreshCatalog),
             ctx.remote.$on('settings/document-updated', refreshAll),
           ]
-          // Saving restarts the Host half; refresh when the user comes back to the tab.
           window.addEventListener('focus', refreshConfig)
           return () => { offs.forEach(off => { try { off() } catch {} }); window.removeEventListener('focus', refreshConfig) }
         }, 'auto-review-model: chip data')
 
-        /** Follow one session's stored review log over SSE while mounted. */
         function useReviewLog(sessionId, enabled) {
           const [log, setLog] = React.useState({ status: 'loading', entries: [] })
           React.useEffect(() => {
@@ -288,7 +269,6 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
               try { data = JSON.parse(e.data) } catch {}
               if (data && Array.isArray(data.entries)) setLog({ status: 'ready', entries: data.entries })
             })
-            // A disconnect is not proof of a Host version mismatch; allow SSE to reconnect.
             es.addEventListener('error', () => setLog(l => ({ ...l, status: 'unavailable' })))
             return () => es.close()
           }, [sessionId, enabled])
@@ -302,14 +282,12 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
         }
         const fmtMs = ms => (ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`)
 
-        /** Verdict label and tone for one entry. */
         function verdictOf(e) {
           if (e.status === 'error') return { tone: 'err', text: t('logFailed') }
           if (e.status === 'invalid') return { tone: 'err', text: t('logInvalid') }
           return { tone: e.decision === 'allow' ? (e.risk === 'low' ? 'ok' : 'warn') : 'err', text: `${t(e.decision === 'allow' ? 'logAllow' : 'logDeny')} · ${t(`risk_${e.risk}`)}` }
         }
 
-        /** Open folded ancestors: `hidden="until-found"` rows listen for beforematch, details open directly. */
         function reveal(el) {
           let changed = false
           for (let p = el.parentElement; p !== null; p = p.parentElement) {
@@ -321,7 +299,7 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
 
         const findCard = id => document.querySelector(`[data-chat-call-id="${CSS.escape(id)}"]`)
 
-        /** Scroll instantly: a smooth scroll lasts long enough for the Chat's tail-follow to undo it. */
+        // external: DSH chat tail-follow overrides smooth scroll, so jump instantly and re-land once
         function land(card) {
           const scroller = card.closest('[data-conversation-scroll]')
           if (scroller !== null) {
@@ -335,13 +313,11 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
 
         let flashed = null
         let flashTimer = null
-        /** Scroll the tool card of one reviewed call into view and flash it; `false` when it is not loaded. */
         function jumpToCall(id) {
           let card = findCard(id)
           if (card === null) return false
           if (reveal(card)) card = findCard(id) ?? card
           land(card)
-          // Re-land once if the Chat's own scroll logic moved the view back.
           setTimeout(() => { const again = findCard(id); if (again !== null) land(again) }, 150)
           if (flashed !== null) flashed.removeAttribute('data-arm-flash')
           if (flashTimer !== null) clearTimeout(flashTimer)
@@ -394,7 +370,6 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
               const r = anchor.current?.getBoundingClientRect()
               if (!r) return
               const width = Math.min(440, window.innerWidth - 16)
-              // Cap the height so a long log scrolls inside the panel instead of growing up the page.
               setPos({ left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)), bottom: window.innerHeight - r.top + 6, width, maxHeight: Math.min(PANEL_MAX_HEIGHT, Math.max(160, r.top - 16)) })
             }
             place()
@@ -554,7 +529,13 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
           const save = async () => {
             setStatus({ kind: 'saving' })
             try {
-              const { defaultPrompt: _ignored, legacy: _legacy, ...body } = value
+              const body = {
+                provider: value.provider,
+                model: value.model,
+                reasoningEffort: value.reasoningEffort,
+                promptMode: value.promptMode,
+                prompt: value.prompt,
+              }
               const s = normalize(await getJson('auto-review-model/set', { method: 'POST', body: JSON.stringify(body) }))
               setSaved(s)
               setDraft(s)
@@ -598,10 +579,9 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
             value.provider === '' ? null : h('div', { className: 'arm-note warn' }, t('warning')),
             h('div', { className: 'arm-section' },
               h('h4', { className: 'arm-title' }, t('promptTitle')),
-              saved?.legacy ? h('div', { className: 'arm-note warn' }, t('restartNeeded')) : null,
               h('label', { className: 'arm-row' },
                 h('span', null, t('promptMode')),
-                h('select', { value: value.promptMode, onChange: onMode, disabled: busy || saved?.legacy },
+                h('select', { value: value.promptMode, onChange: onMode, disabled: busy },
                   h('option', { value: 'default' }, t('modeDefault')),
                   h('option', { value: 'append' }, t('modeAppend')),
                   h('option', { value: 'replace' }, t('modeReplace')))),

@@ -1,48 +1,41 @@
 ---
 title: 安装
-description: 从 GitHub 或本地仓库安装插件，并确认它已经在目标 profile 中生效。
+description: 从 GitHub 或本地仓库安装插件到目标 profile。
 ---
 
-## 环境要求
-
-- 最新版 DeepSeek Harness 与本仓库 `main` 分支（不维护旧版本兼容）。
-- 带有 Web 界面的插件需要在 `dsh web` 下使用。
-
-下文命令均以 `web` profile 为例；安装时的 `--profile` 必须与实际启动使用的 profile 一致。
+下文命令以 `web` profile 为例，使用时将 `--profile` 替换为实际运行的 profile；带 Web 部分的插件需在 `dsh web` 中使用。
 
 ## 从 GitHub 安装
 
 <Steps>
 <Step>
 
-### 选定插件目录名
+### 选择插件目录名
 
-在 [插件目录](/docs/plugins) 找到想装的插件，记下目录名（例如 `model-reference`）。
+在 [插件目录](/docs/plugins) 找到目标插件，记下目录名（例如 `model-reference`）。
 
 </Step>
 <Step>
 
-### 执行安装命令
+### 运行安装命令
 
 <InstallCommand slug="model-reference" />
 
-`path:` 参数指定只安装仓库中的这一个包，无需手动构建。也可以直接打开 Web 界面的 **Plugins** 页面，粘贴上面的 `github:` 地址安装。
+也可以在 Web 界面的 **Plugins** 页面直接粘贴同一条 `github:` 地址。
 
 </Step>
 <Step>
 
-### 确认生效
+### 让插件生效
 
-安装完成后 Plugin Manager 会选中该 bundle：
-
-- profile 开启了 HMR 且返回 `applied`：Host 侧立即生效；
-- 返回 `restart-required`：重启该 profile 的 DSH 进程；
-- 包含 Web 部分的插件：刷新浏览器页面即可加载新版前端。
+- 返回 `applied`：Host 侧立即生效；
+- 返回 `restart-required`：重启该 profile 的 DSH；
+- 包含 Web 部分的插件：刷新浏览器页面即可加载。
 
 </Step>
 </Steps>
 
-## 从本地仓库安装（开发或试新改动）
+## 从本地仓库安装
 
 ```bash
 git clone https://github.com/seefs001/dsh-plugins.git
@@ -50,31 +43,20 @@ cd dsh-plugins
 dsh plugin --profile web add "link:$PWD/packages/model-reference"
 ```
 
-`link:` 直接引用本地源码目录（`dsh-message-actions` 如修改 `src/client.js` 需先执行 `pnpm --filter dsh-message-actions build`，其余包均为原生 ES 模块）。详见 [开发与发布](/docs/development)。
+## 批量安装命令
 
-## 批量安装命令参考
-
-按四大分类整理的完整安装命令，按需复制对应行即可：
+按分类整理的完整安装命令，按需复制对应行即可：
 
 <InstallAll />
 
-<Callout type="warn" title="先核对额外依赖">
-部分插件依赖特定 DSH bundle（如 Auto review、Forge worktrees、storage domain）或外部环境（如 macOS、本机 ACP CLI、`rg`/`fd`）。安装前请对照 [依赖与边界](/docs/compatibility)。
-</Callout>
-
-## 排查未生效
-
-1. 检查安装时的 `--profile` 是否就是当前启动的 profile，在 **Plugins** 页面确认 bundle 已开启且无报错。
-2. 确认是否需要重启 DSH（`restart-required`）并刷新浏览器页面。
-3. 核对触发条件：`⚡` 只在 `openai-responses` 模型旁显示；子代理模型只出现在子代理会话；Git 变更与分支切换需要 Git 仓库及 Forge bundle；AI 吉祥物只匹配 GPT / Claude 模型 ID；`pi` 工具只在选用 `pi` 预设的新会话中加载。
-4. 若 Plugin Manager 拒绝安装，请先将 DSH 更新至最新版本。
+部分插件需要特定 DSH bundle 或本机工具，安装前可查看 [依赖与运行](/docs/compatibility)。
 
 ## 移除插件
 
-在 **Plugins** 页面停用或移除对应 bundle，或运行命令行：
+在 **Plugins** 页面停用或移除对应 bundle，或运行：
 
 ```bash
 dsh plugin --profile web remove dsh-model-reference
 ```
 
-移除插件不会删除已经写入 Host storage domain（如会话分组、角色库、ACP 记录、审查日志）或 DSH 原生配置的数据。
+移除插件会保留已写入 Host storage domain 与 DSH 原生配置中的数据。

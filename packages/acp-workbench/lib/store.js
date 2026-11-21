@@ -16,18 +16,15 @@ export const DOMAIN_SPEC = {
   },
 }
 
-/** Ordered writes, coalesced streaming tails, and a stable sequence for paging. */
 export class WorkbenchStore {
   constructor(domain, onError) {
     this.domain = domain
     this.onError = onError
     this.sessions = new Map([...domain.table('sessions').entries()].map(([key, value]) => [key, structuredClone(value)]))
     this.providers = new Map([...domain.table('providers').entries()].map(([key, value]) => [key, structuredClone(value)]))
-    // Native snapshots are polled while calls stream; never rescan every project link for a composer badge.
     this.sharedGroups = new Map()
     for (const [, link] of domain.table('checkout_links').entries()) this.indexCheckoutLink(link)
     this.dirty = new Map()
-    // Keep the latest chunk while its previous snapshot is still being written.
     this.chunks = new Map()
     this.tail = Promise.resolve()
     this.failure = null
@@ -107,8 +104,6 @@ export class WorkbenchStore {
     return this.enqueue(async () => {
       for (const [key, chunk] of chunks) await this.domain.table('chunks').put(key, chunk)
       for (const session of sessions) await this.domain.table('sessions').put(session.id, session)
-      // Written chunks are served by the domain again. Keep only each session's open tail
-      // and anything appended while this write ran, so long histories do not stay cached twice.
       for (const [key, chunk] of chunks) {
         if (this.dirty.has(key)) continue
         const seq = this.sessions.get(chunk.sessionId)?.eventSeq ?? 0

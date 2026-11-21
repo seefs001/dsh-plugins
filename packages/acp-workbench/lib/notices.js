@@ -1,4 +1,3 @@
-/** A notice is plain text from a specific remote, never an assistant message or a request for approval. */
 function noticeReceipt(event, remoteId) {
   const data = event?.data, params = data?.params, u = params?.update
   if (event?.type !== 'notification' || data?.method !== 'session/update' || typeof remoteId !== 'string' || !remoteId.trim() || params?.sessionId !== remoteId || u?.sessionUpdate !== 'notice' ||
@@ -9,13 +8,12 @@ function noticeReceipt(event, remoteId) {
     ...(typeof parent === 'string' && parent.trim() && { cliParent: parent }) }
 }
 
-// Only off-turn notices need another surface. Keep lightweight heads for this live connection, not a second inbox on disk.
 function rememberNotice(runtime, event) {
   const remoteId = event.data.params?.sessionId, row = noticeReceipt(event, remoteId)
   if (!row || row.phase === 'turn') return
   const { description, title, ...fields } = row
   const head = title.length > 180 ? title.slice(0, 180) + '…' : title
-  // session/new can emit notices before returning its real remote ID. Do not let another ID evict its headlines.
+  // external: ACP session/new may emit notice updates before returning its sessionId
   const byRemote = runtime.noticeHeads ??= new Map(), recent = byRemote.get(remoteId) ?? []
   if (!byRemote.has(remoteId)) byRemote.set(remoteId, recent)
   recent.unshift({ ...fields, title: head, hasDetail: !!description || head !== title })

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "ACP Conversation Integration",
-    "description": "Run Cursor, Antigravity, Claude Code, and other local ACP agents directly in DSH conversations or as continuable subagents, keeping the composer, timeline, and approvals in place. External CLIs run outside the DSH sandbox."
+    "title": "ACP Workbench",
+    "description": "Connect local ACP CLIs (Cursor, Antigravity, Claude Code, and more) directly to DSH conversations and subagents. External CLIs run outside the DSH sandbox."
   }
 }

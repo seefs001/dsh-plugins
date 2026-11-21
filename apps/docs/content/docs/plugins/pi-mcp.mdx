@@ -1,23 +1,23 @@
 ---
 title: Pi MCP 服务器
-description: 在 DSH 里共用 Pi 的 ~/.pi/agent/mcp.json，修改配置文件后自动热同步。
+description: 在 DSH 中共用 Pi 的 ~/.pi/agent/mcp.json，修改后自动热同步。
 ---
 
 <PluginFacts slug="pi-mcp" />
 
-直接读取 Pi 的用户级 MCP 配置文件（`~/.pi/agent/mcp.json`，支持通过 `PI_CODING_AGENT_DIR` 指定目录），将其中启用的服务器注册到 DSH 原生 MCP 管理器，并持续监听目录变更实时同步。
+读取 Pi 的 `~/.pi/agent/mcp.json`（支持通过 `PI_CODING_AGENT_DIR` 指定目录），将启用的服务器注册到 DSH MCP 管理器，并持续监听变更实时同步。
 
 ## 安装
 
 <InstallCommand slug="pi-mcp" />
 
-纯 Host 插件，依赖默认 profile 自带的 `@deepseek-ai/dsh-mcp-manager`。
+纯 Host 插件，依赖默认 profile 内置的 `@deepseek-ai/dsh-mcp-manager`。
 
-## 配置转换规则
+## 配置转换
 
-- **支持的传输方式**：
-  - `stdio`：支持 `command`、`args`、`env`、`cwd`，自动展开开头 `~/` 路径；
-  - `streamable-http`：支持 `url` 与 `headers`，可将秒级 `timeout` 转为毫秒超时。
-- **安全凭据引用**：Pi 写法 `${VAR}` 会自动转换为 DSH 的 `${credential:VAR}`，运行时从 DSH credentials 或环境变量解析，避免明文密钥进入日志或配置快照。
-- **跳过条目**：`enabled: false`、带 `oauth` 字段、`!command` 动态命令、不合法的服务名，以及仅 `-` 与 `_` 差异的重复服务名会被跳过并记录警告。
-- **安全热更新**：通过监听目录配合 300 ms 去抖识别原子替换保存；如果文件正在写入或临时存在语法错误，插件会保留当前已注册的服务，不中断现有会话。
+- **传输方式**：
+  - `stdio`：支持 `command`、`args`、`env`、`cwd`，自动展开开头 `~/`；
+  - `streamable-http`：支持 `url` 和 `headers`，秒级 `timeout` 转为毫秒。
+- **凭据引用**：Pi 的 `${VAR}` 转为 DSH 的 `${credential:VAR}`，运行时从 DSH credentials 或环境变量解析。
+- **跳过条目**：`enabled: false`、含 `oauth` 字段、`!command` 动态命令、非法服务名，以及仅 `-` 和 `_` 不同的重名条目会被跳过并记警告日志。
+- **热更新**：监听 `mcp.json` 所在目录（300 ms 去抖）以识别原子保存；文件解析失败时保留当前已注册的服务。

@@ -1,20 +1,9 @@
-/**
- * dsh-tool-lens — browser-only plugin.
- *
- * A set of replacement views for tool-call rows in the Chat. Each lens shadows
- * the built-in view of one tool in the keyed `tool.call.toolview` slot; disabling
- * the plugin restores the built-in rows.
- *
- * Lenses:
- *   - skill: the skill row's name opens the skill's SKILL.md in the right Sidebar.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-tool-lens',
   factory(require) {
     const React = require('react')
     const h = React.createElement
     const NS = 'toolLens'
-    // Built-in toolviews register at the default priority 0; the lowest priority renders.
     const PRIORITY = -10
     const MISSING_MS = 2400
 
@@ -95,10 +84,7 @@ window.__ModuleLoader__.load({
 @media (prefers-reduced-motion:reduce){.dtl-row,.dtl-icon-idle,.dtl-chevron,.dtl-link-icon,.dtl-inspect{transition:none}.dtl-shimmer{animation:none}}
 `
 
-    // ---- shared pieces -------------------------------------------------------
-
     const svg = (viewBox, children, extra) => h('svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox, fill: 'none', strokeWidth: 1, 'aria-hidden': true, ...extra }, ...children)
-    // Glyphs copied from the host icon set so the row matches the built-in one.
     const IconSkill = () => svg('0 0 17 17', [
       h('path', { key: 1, d: 'M4.57788 5.77124H10.7029', stroke: 'currentColor' }),
       h('path', { key: 2, d: 'M4.57788 8.89819H7.91879', stroke: 'currentColor' }),
@@ -106,7 +92,6 @@ window.__ModuleLoader__.load({
       h('path', { key: 4, d: 'M12.0051 15.1056C12.0051 13.6395 10.8166 12.451 9.35059 12.451C10.8166 12.451 12.0051 11.2626 12.0051 9.79651C12.0051 11.2626 13.1936 12.451 14.6597 12.451C13.1936 12.451 12.0051 13.6395 12.0051 15.1056Z', stroke: 'currentColor' }),
     ])
     const IconChevron = () => svg('0 0 16 16', [h('path', { key: 1, d: 'M4 6L7.29289 9.29289C7.68342 9.68342 8.31658 9.68342 8.70711 9.29289L12 6', stroke: 'currentColor' })], { width: 14, height: 14 })
-    // Panel-right glyph: a frame with its right column filled, read as "open in the side panel".
     const IconSidePanel = () => svg('0 0 16 16', [
       h('rect', { key: 1, x: 2, y: 3, width: 12, height: 10, rx: 2, stroke: 'currentColor', strokeWidth: 1.2 }),
       h('path', { key: 2, d: 'M10 3.6V12.4', stroke: 'currentColor', strokeWidth: 1.2 }),
@@ -114,7 +99,6 @@ window.__ModuleLoader__.load({
 
     const firstLine = text => { const i = text.indexOf('\n'); return i === -1 ? text : text.slice(0, i) }
 
-    /** Durable result blocks flattened like the generic Tool row does. */
     function resultText(block) {
       if (!('kind' in block)) return null
       const parts = []
@@ -138,7 +122,6 @@ window.__ModuleLoader__.load({
       return { raw, args: null }
     }
 
-    /** Leading cell: tool glyph at rest, chevron on hover or while open. */
     function Leading({ icon, open, expandable }) {
       if (!expandable) return h('span', { className: 'dtl-leading' }, icon)
       return h('span', { className: 'dtl-leading', 'data-open': open || undefined },
@@ -146,11 +129,8 @@ window.__ModuleLoader__.load({
         h('span', { className: 'dtl-chevron' }, h(IconChevron)))
     }
 
-    // ---- skill lens ----------------------------------------------------------
-
     const decodeEntities = text => text.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&')
 
-    /** `Base directory for this skill: <dir>` from the recorded `<skill_content>` output. */
     function baseDirectory(output) {
       const m = /^Base directory for this skill: (.+)$/m.exec(output ?? '')
       return m === null ? undefined : decodeEntities(m[1].trim())
@@ -231,10 +211,6 @@ window.__ModuleLoader__.load({
           : null)
     }
 
-    /**
-     * Resolve a skill's file through the Session's catalog, which knows single-file
-     * skills too; fall back to `<base directory>/SKILL.md` from the recorded output.
-     */
     function createSkillResolver(ctx) {
       const catalogs = new Map()
       const catalog = sessionId => {
@@ -243,7 +219,6 @@ window.__ModuleLoader__.load({
         entry = ctx.remote.skills.list({ sessionId }, new AbortController().signal)
           .then(result => (result.ok ? result.value.skills : []), () => [])
         catalogs.set(sessionId, entry)
-        // A failed or empty answer is retried on the next click.
         entry.then(list => { if (list.length === 0 && catalogs.get(sessionId) === entry) catalogs.delete(sessionId) })
         return entry
       }
@@ -254,12 +229,6 @@ window.__ModuleLoader__.load({
     const LENSES = [
       { key: 'skill', component: SkillRow },
     ]
-
-    // ---- augmenting lenses ---------------------------------------------------
-    //
-    // These keep the built-in row and float extra actions over its right end.
-    // Every target registers with the `conversation` locale and no entry-level
-    // inject, so the wrapper renders the built-in component with its own props.
 
     const AUGMENTED = [
       'bash', 'grep', 'glob', 'web_search', 'web_fetch',
@@ -274,7 +243,6 @@ window.__ModuleLoader__.load({
     const settledText = block => ('kind' in block ? resultText(block) : null)
     const metaOf = block => (typeof block.meta === 'object' && block.meta !== null && !Array.isArray(block.meta) ? block.meta : undefined)
 
-    /** Path of the spill-policy file named by the result's final notice. */
     function spillPath(block) {
       const text = settledText(block)
       if (text === null) return undefined
@@ -286,38 +254,22 @@ window.__ModuleLoader__.load({
       return /^(?:\/|[A-Za-z]:[\\/])/.test(path) ? path : undefined
     }
 
-    /** Session id (rc.1) or model-facing agent name (rc.2) in a settled call. */
     function subagentChild(toolName, block) {
       if (!('kind' in block) || block.isError) return undefined
       if (toolName === 'subagent') {
-        const meta = metaOf(block)
-        const reference = meta?.subagentId ?? meta?.name
-        if (typeof reference === 'string' && reference !== '') return reference
-        return /started subagent (\S+)/.exec(settledText(block) ?? '')?.[1]
+        const reference = metaOf(block)?.name
+        return typeof reference === 'string' && reference !== '' ? reference : undefined
       }
       if (toolName !== 'send_message' && toolName !== 'interrupt_agent') return undefined
-      const args = parseArgs(block).args
-      const reference = args?.agent_id ?? args?.agent
+      const reference = parseArgs(block).args?.agent
       return typeof reference === 'string' && reference !== '' ? reference : undefined
     }
 
-    /** Resolve names through durable catalogs, never use a name as a Session id. */
     async function resolveSubagentAddress(sessions, parent, reference) {
       if (reference === 'lead') return undefined
-      const retained = sessions.subagentAddress?.(reference)
-      if (retained !== undefined) return retained
-      const state = sessions.list.getSnapshot()
-      for (const [parentId, projection] of Object.entries(state.projectionsBySession ?? {})) {
-        const entry = projection.values?.subagentCatalog?.find(item => item.id === reference)
-        if (entry !== undefined) return entry.mode === 'external' ? undefined : {
-          parentSessionId: parentId, childSessionId: entry.id, mode: entry.mode,
-        }
-      }
-
-      // Names are absolute paths from the subagent tree root, also in child chats.
       let current = parent
       const visited = new Set()
-      for (let address = sessions.subagentAddress?.(current); address !== undefined; address = sessions.subagentAddress?.(current)) {
+      for (let address = sessions.subagentAddress(current); address !== undefined; address = sessions.subagentAddress(current)) {
         if (visited.has(current)) return undefined
         visited.add(current)
         current = address.parentSessionId
@@ -337,7 +289,6 @@ window.__ModuleLoader__.load({
       return target
     }
 
-    /** grep/glob result files from the recorded metadata. */
     function searchFiles(block) {
       if (!('kind' in block) || block.isError) return []
       const meta = metaOf(block)
@@ -352,7 +303,6 @@ window.__ModuleLoader__.load({
       return []
     }
 
-    /** web_search sources, or the fetched URL. */
     function webLinks(toolName, block) {
       if (!('kind' in block) || block.isError) return []
       const meta = metaOf(block)
@@ -391,7 +341,6 @@ window.__ModuleLoader__.load({
     const tail = path => path.replace(/\\/g, '/').split('/').filter(Boolean).slice(-2).join('/') || path
     const hostOf = url => { try { return new URL(url).host } catch { return url } }
 
-    /** Build the wrapper component for one plugin activation. */
     function createAugmentLens(ctx) {
       const tt = ctx.locale.bind(NS)
       const subscribeLocale = fn => ctx.locale.subscribe(fn)
@@ -421,7 +370,6 @@ window.__ModuleLoader__.load({
         }
       }
 
-      /** The built-in entry this registration shadows for the same key. */
       const baseEntry = (key, self) => {
         let best
         for (const entry of ctx.slots.entries('tool.call.toolview')) {
@@ -586,7 +534,6 @@ window.__ModuleLoader__.load({
 
         const sessionInject = {
           skill: sessionId => ({
-            /** @returns whether a file was opened. */
             async openSkill(name, baseDir) {
               const list = await resolver.catalog(sessionId)
               const path = list.find(skill => skill.name === name)?.path
@@ -614,11 +561,6 @@ window.__ModuleLoader__.load({
           }, lens.component))
         }
 
-        // Augmenting lenses need the raw entry list to find the built-in view they wrap.
-        if (typeof ctx.slots.entries !== 'function') {
-          console.warn('[dsh-tool-lens] slots.entries is unavailable; augmenting lenses are off')
-          return
-        }
         const AugmentedRow = createAugmentLens(ctx)
         for (const key of AUGMENTED) {
           ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
@@ -631,8 +573,6 @@ window.__ModuleLoader__.load({
       },
       _internal: { baseDirectory, fileAddressFor, spillPath, subagentChild, resolveSubagentAddress, searchFiles, webLinks },
     }
-
-    // ---- file addresses (mirrors @deepseek-ai/dsh-util-workspace-path) --------
 
     function encodeSegment(segment) { return encodeURIComponent(segment).replace(/%3A/gi, ':') }
     function sessionFileAddress(sessionId, path) {

@@ -1,10 +1,3 @@
-/**
- * dsh-bark-notify — browser half.
- *
- * Settings on this bundle's Plugins page: configure Bark server URL, import
- * from a Bark URL template, save the device key into Host credentials, pick
- * notification triggers and delay, and send a test push.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-bark-notify',
   factory(require) {

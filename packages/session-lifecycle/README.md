@@ -1,22 +1,43 @@
 # dsh-session-lifecycle
 
-Organize DSH sessions without archiving, stopping or answering them. This is a Host + Web plugin; the sidebar works with Pi agents without a DSH core change.
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）中按处理状态整理会话：把待审批和提问提到侧栏顶部，折叠进行中的会话，并通过 Host 同步暂缓、归置和未读轮次结果。
 
-| Sidebar section | What goes there |
+| 项目 | 说明 |
 | --- | --- |
-| Needs you | Approvals, plan reviews and questions. A child request opens the child that asked it. Only these conversations count toward the badge. |
-| Recently returned | Sessions that ended or woke in the last day, newest return first. Background messages do not reorder them. |
-| Working | Running sessions, delegated work and queued turns. Collapsed by default; pinning a session or keeping it open preserves its ordinary row. |
-| Snoozed / Settled | Sessions you set aside until a time, or put away until a new prompt. Expand a shelf or use the session menu to bring one back. |
+| 运行位置 | Host + Web |
+| 前置依赖 | `@deepseek-ai/dsh-storage-domain` |
+| 数据保存 | Host `session_lifecycle` 与 `session_lifecycle_summary` storage domain |
+| 结果投影 | `session-lifecycle-outcome` |
 
-Use the session context menu to snooze until a preset or local date/time, settle, or exempt a session from auto-settlement. Placement changes offer Undo; it will not overwrite a newer placement from another client. The plugin does not write the native pin, archive, order or group membership. Search shows native results. In **Triage → Settings**, turn off the Working fold or change the default seven-day idle threshold. The Host checks every minute, even with the page closed. Ordinary completion does not wake a snooze; new decisions and failed turns can. A question that was already open when you snoozed stays deferred.
+## 安装
 
-**Triage** also includes per-question Later, unread turn outcomes, worker failures, registered deliverables, direct links back to the original row and bounded history backfill. A focused conversation acknowledges a turn only after its matching end event arrives. Read marks and lifecycle settings are shared through the Host. Shelf expansion is browser-local.
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-lifecycle"
+```
 
-**Optional summaries** are off on a new profile. The owner can preview the exact root-reply excerpt and choose one provider/model and exact working directory. Trials count toward the 12-call daily UTC quota. There is no history backfill or model fallback for AI calls. Do not enable summaries for sensitive directories.
+本地开发链接：
 
-## Replacing dsh-inbox
+```bash
+dsh plugin --profile web add "link:$PWD/packages/session-lifecycle"
+```
 
-Disable the old bundle **before** enabling this one. Both use the same outcome projection and summary storage; they are replacements, not companion plugins. No archive or storage reset is necessary. The same profile reuses its previous summary opt-in, cache and quota. Opening the new UI imports valid old read markers and unexpired per-question reminders from that browser. Markers are removed only after the Host accepts them. Open each browser that used Inbox to import its local marks.
+## 侧栏分区
 
-Install through **Plugins → Add plugin** using this package directory. The optional Pi tool `session_lifecycle` acts only on its calling top-level session. Select it in Pi's tool picker if needed; the Web UI does not depend on the tool. Lifecycle HTTP endpoints and summaries require the profile owner.
+| 分区 | 包含内容 |
+| --- | --- |
+| 需要你 | 等待审批、计划审阅或回答问题的会话；子任务归并到主会话下，点击直接打开提问的子会话。只有此类会话计入角标。 |
+| 进行中 | 正在运行、排队等待继续或子任务仍在执行的会话，默认折叠；当前打开或已置顶的会话保留原位。 |
+| 最近返回 | 近 24 小时内结束、唤醒或取消归置的会话，按返回时间排序。 |
+| 已暂缓 / 已归置 | 设定了提醒时间或手动/自动归置的会话，收在侧栏底部。 |
+
+在会话右键菜单中可选择 **暂缓**（预设或自定义本地时间）、**归置**、**立即唤醒**、**取消归置** 或 **永不自动归置**；每次调整均支持撤销。
+
+在 **待处理 → 设置** 中可开关「折叠进行中的会话」和调整自动归置闲置天数（默认 7 天，可关闭）。Host 每分钟巡检一次：暂缓到期、出现新请求或轮次失败时自动唤醒；给已归置的会话发新消息时自动放回列表。
+
+## 待处理面板与可选摘要
+
+- **待处理面板**：集中查看待处理请求（普通问题可单独「稍后回答」）、未读轮次结果、子任务失败与已登记交付物，支持单条或批量标为已读。
+- **可选提取式摘要**：默认关闭。Profile owner 可在 **待处理 → 设置 → 摘要** 中指定单个模型与精确工作目录，仅对启用后新完成的主会话纯文本长回复提取 1–2 句原文作为摘要（每日上限 12 次，按 UTC 重置，缓存最新 100 条）。请勿对敏感目录开启。
+- **Agent 工具**：可选注册 `session_lifecycle` 工具，仅操作当前调用的顶层会话。
+
+更多说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/session-lifecycle)。

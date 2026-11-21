@@ -14,7 +14,7 @@ const EN = {
   settingsTitle: 'Explanation model',
   followOriginal: 'Use each original reply’s model', selectModel: 'Model', effort: 'Reasoning effort', modelDefault: 'Model default',
   unavailable: '(unavailable)', save: 'Save model', saveAndExplain: 'Save and explain', saving: 'Saving…', saved: 'Model saved',
-  refresh: 'Refresh models', unsaved: 'Unsaved changes', restart: 'Restart DSH to load the updated Wait, what? plugin.',
+  refresh: 'Refresh models', unsaved: 'Unsaved changes',
 }
 const ZH = {
   action: 'Wait, what?', title: 'Wait, what?', close: '关闭', settings: '模型设置', hideSettings: '收起设置',
@@ -26,7 +26,7 @@ const ZH = {
   settingsTitle: '解释模型',
   followOriginal: '沿用每条原回复的模型', selectModel: '模型', effort: '推理强度', modelDefault: '模型默认',
   unavailable: '（不可用）', save: '保存模型', saveAndExplain: '保存并解释', saving: '正在保存…', saved: '模型已保存',
-  refresh: '刷新模型列表', unsaved: '未保存', restart: '重启一下 DSH 就能加载新版 Wait, what? 插件。',
+  refresh: '刷新模型列表', unsaved: '未保存',
 }
 const CSS = `
 .dma-entry{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
@@ -98,7 +98,6 @@ const CSS = `
 @media(max-width:600px){.dma-dialog{width:calc(100vw - 24px);max-height:calc(100dvh - 24px);border-radius:16px}.dma-header{padding:18px 16px 16px;gap:12px;flex-wrap:wrap}.dma-heading{flex:1 1 200px}.dma-header-actions{margin-left:auto}.dma-mark{width:34px;height:34px;border-radius:10px}.dma-output{padding:18px 16px}.dma-settings{padding:16px}.dma-dialog .dma-settings{margin:16px 16px 0;padding:14px}.dma-fields.has-effort{grid-template-columns:minmax(0,1fr)}.dma-footer{padding:14px 16px;gap:12px;align-items:stretch;flex-direction:column}.dma-footer>.dma-btn{align-self:stretch}.dma-header-actions .dma-btn{min-height:36px}}
 `
 
-/** One owner-authenticated NDJSON operation; an explicit done frame is required. */
 async function request(body, signal, onDelta = () => {}) {
   const response = await fetch('message-actions/op', {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal,
@@ -142,8 +141,6 @@ function Icon({ name }) {
   return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: paths[name] }))
 }
 
-// The renderer never interprets raw HTML. Links retain react-markdown's default
-// URL filtering; image references are links so model output makes no image requests.
 const markdownComponents = {
   a: ({ href, title, children }) => href
     ? h('a', { href, title, target: '_blank', rel: 'noopener noreferrer' }, children)
@@ -183,8 +180,6 @@ export default {
     }
     const button = (label, onClick, disabled = false, className = '', icon = '', props = {}) => h('button', { ...props, type: 'button', className: `dma-btn ${className}`, onClick, disabled }, icon ? h(Icon, { name: icon }) : null, label)
 
-    // Settings: loading -> idle -> saving -> idle/error. A failed save retains
-    // the draft. Saving is single-flight; unmount aborts and ignores late replies.
     function Settings({ onSaved, onSaving } = {}) {
       useLocale()
       const alive = React.useRef(true)
@@ -304,7 +299,6 @@ export default {
         try {
           const value = await op({ action: 'inspect' })
           if (!alive.current || !value) return
-          if (!Object.hasOwn(value, 'result')) throw new Error(t('restart'))
           setData(value)
           if (!value.result) await generate()
         } catch (e) { if (alive.current) setError(e.message) }

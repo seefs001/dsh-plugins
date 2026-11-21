@@ -35,7 +35,7 @@ window.__ModuleLoader__.load({
         emptyTitle: 'No work recorded',
         emptyBody: 'When the agent tracks multi-step work with work_update, its plan, revisions and linked files appear here.',
         showLess: 'Show less',
-        legacy: 'Task list', error: 'Could not open: {message}',
+        error: 'Could not open: {message}',
       },
       zh: {
         title: '工作时间线', overview: '工作概览', open: '打开工作详情',
@@ -64,7 +64,7 @@ window.__ModuleLoader__.load({
         emptyTitle: '还没有工作记录',
         emptyBody: 'Agent 用 work_update 跟踪多步骤任务后，计划、修订过程和关联文件会显示在这里。',
         showLess: '收起',
-        legacy: '任务清单', error: '无法打开：{message}',
+        error: '无法打开：{message}',
       },
     }
     const CSS = `
@@ -91,7 +91,6 @@ window.__ModuleLoader__.load({
 .wt-meter>[data-status=canceled]{background:transparent;box-shadow:inset 0 0 0 1px var(--dsw-alias-border-l2)}
 .wt-error{color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}
 
-/* Composer dock: same column, surface and type scale as the host Todo and Goal cards. */
 .wt-dock{container-type:inline-size;flex:none;margin:0 auto;
   width:calc(100% - 2 * var(--dsh-composer-side-clearance,16px) - 4 * var(--dsh-composer-dock-inset,8px));
   max-width:calc(var(--dsh-composer-card-max-width,760px) - 4 * var(--dsh-composer-dock-inset,8px))}
@@ -109,12 +108,9 @@ window.__ModuleLoader__.load({
 .wt-dock .wt-meter{flex:none;width:56px}
 .wt-chevron{display:inline-grid;flex:none;place-items:center;width:14px;height:14px;color:var(--dsw-alias-label-tertiary)}
 .wt-dock .wt-error{padding:0 12px 6px}
-.wt-legacy-list{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;padding:2px 12px 8px}
-.wt-legacy-list li{display:flex;align-items:center;gap:10px;color:var(--dsw-alias-label-secondary);min-width:0}
 @container (max-width:460px){.wt-dock-focus{display:none}.wt-dock-title{flex:1 1 auto;max-width:none}}
 @container (max-width:300px){.wt-dock .wt-meter{display:none}}
 
-/* Sidebar page: one scroll container holding the overview, tab strip and the selected view. */
 .wt-page{container-type:inline-size;display:flex;flex-direction:column;height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .wt-head{flex:none;display:flex;flex-direction:column;gap:10px;padding:16px 20px 12px}
 .wt-page-error{margin:0 20px 8px}
@@ -171,7 +167,6 @@ window.__ModuleLoader__.load({
 .wt-empty p,.wt-inline-empty{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;max-width:320px}
 .wt-inline-empty{padding:12px 0}
 
-/* Plan stepper. */
 .wt-steps{display:flex;flex-direction:column}
 .wt-step{position:relative;display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:12px;padding:6px 8px 14px;margin:0 -8px;border-radius:var(--dsw-radius-sm,8px);scroll-margin:12px}
 .wt-step:not(:last-child)::before{content:'';position:absolute;left:15.5px;top:28px;bottom:-4px;width:1px;background:var(--dsw-alias-border-l2)}
@@ -199,7 +194,6 @@ window.__ModuleLoader__.load({
 .wt-chip svg{flex:none;color:var(--dsw-alias-label-tertiary)}
 .wt-chip[data-role=deliverable] svg{color:var(--dsw-alias-link,var(--dsw-alias-brand-primary))}
 
-/* Process timeline. */
 .wt-revs{display:flex;flex-direction:column}
 .wt-rev{position:relative;display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:12px;padding-bottom:18px}
 .wt-rev:not(:last-child)::before{content:'';position:absolute;left:7.5px;top:14px;bottom:-2px;width:1px;background:var(--dsw-alias-border-l2)}
@@ -219,7 +213,6 @@ window.__ModuleLoader__.load({
 .wt-change-delta b{font-weight:500;color:var(--dsw-alias-label-secondary)}
 .wt-work-change{color:var(--dsw-alias-label-secondary);font-size:12px}
 
-/* Artifacts. */
 .wt-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;min-width:0}
 .wt-toolbar label{flex:none;color:var(--dsw-alias-label-tertiary);font-size:12px}
 .wt-toolbar select{flex:1 1 auto;min-width:0;max-width:100%;height:28px;padding:0 6px;border-radius:var(--dsw-radius-sm,8px);
@@ -251,11 +244,9 @@ window.__ModuleLoader__.load({
 
 `
     const encode = value => encodeURIComponent(value).replace(/%3A/gi, ':')
-    // Public Session file-address format; opening stays in the Host's authorized filesystem.
     const fileAddress = (sessionId, path) => `dsh-resource://file/session/${encode(sessionId)}/${path.replace(/\\/g, '/').split('/').map(encode).join('/')}`
     const svg = (size, viewBox, children, extra) => h('svg', { width: size, height: size, viewBox, fill: 'none', 'aria-hidden': true, focusable: 'false', ...extra }, ...children)
 
-    /** Work glyph: two finished steps run along a rail into the document they produced. */
     function WorkGlyph({ size = 16, className }) {
       return svg(size, '0 0 24 24', [
         h('path', { key: 'd', d: 'M13 4h4.2L21 7.8v10.7a1.5 1.5 0 0 1-1.5 1.5H13a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 13 4Z', stroke: 'currentColor', strokeWidth: 1.5, strokeLinejoin: 'round' }),
@@ -294,7 +285,6 @@ window.__ModuleLoader__.load({
     const glyphOf = tone => tone === 'active' ? 'in_progress' : tone
     const progressText = (sum, t) => sum.total === 0 ? t(sum.canceled ? 'progressCanceled' : 'progressEmpty') : t('progress', { done: sum.completed, total: sum.total })
     function Meter({ steps }) {
-      // One segment per step keeps order visible; long plans collapse into proportional runs.
       const segments = steps.length <= 24
         ? steps.map(step => ({ key: step.id, status: step.status, grow: 1 }))
         : ['completed', 'in_progress', 'blocked', 'pending', 'canceled'].map(status => ({ key: status, status, grow: steps.filter(step => step.status === status).length })).filter(item => item.grow)
@@ -315,29 +305,12 @@ window.__ModuleLoader__.load({
         }
         const style = h('style', null, CSS)
 
-        function LegacyDock({ todos, t }) {
-          const [open, setOpen] = React.useState(false)
-          const sum = count(todos)
-          return h('div', { className: 'wt wt-dock' }, style,
-            h('section', { className: 'wt-card', 'aria-label': t('legacy') },
-              h('button', { type: 'button', className: 'wt-dock-main', 'aria-expanded': open, onClick: () => setOpen(value => !value) },
-                h('span', { className: 'wt-glyph', 'aria-hidden': true }, h(WorkGlyph, { size: 16 })),
-                h('span', { className: 'wt-dock-title wt-ellipsis' }, t('legacy')),
-                h('span', { className: 'wt-dock-focus wt-ellipsis' }, focusOf(todos)?.content ?? ''),
-                h('span', { className: 'wt-dock-count' }, sum.total ? `${sum.completed}/${sum.total}` : progressText(sum, t)),
-                h(Chevron, { up: !open, down: open })),
-              open && h('ul', { className: 'wt-legacy-list' }, todos.map((item, index) => h('li', { key: `${index}:${item.content}` },
-                h(StatusGlyph, { status: item.status }), h('span', { className: 'wt-sr' }, t(item.status)),
-                h('span', { className: 'wt-ellipsis' }, item.content))))))
-        }
-
         function Dock({ useProjection }) {
           const t = useLocale()
           const state = useProjection(KEY)
-          const todos = useProjection('todos')
           const [error, setError] = React.useState('')
           const current = state?.current
-          if (!current) return todos?.length ? h(LegacyDock, { todos, t }) : null
+          if (!current) return null
           const snapshot = current.snapshot
           const tone = toneOf(snapshot)
           const sum = count(snapshot.steps)
@@ -363,8 +336,6 @@ window.__ModuleLoader__.load({
               error && h('p', { role: 'alert', className: 'wt-error' }, t('error', { message: error }))))
         }
 
-
-        /** What the reader should look at first: every blocker, else reported in-progress steps, else the next pending step. */
         function Attention({ snapshot, showStep, t }) {
           if (snapshot.status !== 'active') return null
           const blocked = snapshot.steps.filter(step => step.status === 'blocked')
@@ -386,7 +357,6 @@ window.__ModuleLoader__.load({
               t(`more.${kind}`, { n: items.length - shown.length })))
         }
 
-        /** Explicit deliverables only; evidence stays in the Artifacts view and no file is promoted as primary or latest. */
         function Deliverables({ snapshot, preview, openAll, t }) {
           const items = snapshot.artifacts.filter(artifact => artifact.role === 'deliverable')
           if (!items.length) return null
@@ -407,7 +377,6 @@ window.__ModuleLoader__.load({
           const tone = toneOf(snapshot)
           const sum = count(snapshot.steps)
           const latest = state.history.at(-1)
-          // Clamped text has one guaranteed full-text entry: the always-present Details toggle.
           const clamp = !details
           return h('header', { className: 'wt-head', 'aria-label': t('overview') },
             h('div', { className: 'wt-eyebrow' },
@@ -551,7 +520,6 @@ window.__ModuleLoader__.load({
             element?.scrollIntoView?.({ block: 'nearest' })
             element?.focus({ preventScroll: true })
           }, [target, view, jump])
-          // The page is the only scroller: keep the tab strip in view so the selected view starts on screen.
           const select = next => { setView(next); setTarget(null); strip.current?.scrollIntoView?.({ block: 'start' }) }
           const locate = key => { setTarget(key); setJump(value => value + 1) }
           const showStep = id => { setView('plan'); locate(`step:${id}`) }
@@ -602,7 +570,7 @@ window.__ModuleLoader__.load({
           guide: [{ id: 'work', order: 30, icon: WorkGlyph, title: () => translate('title'), description: () => `${translate('plan')} · ${translate('process')} · ${translate('artifacts')}` }],
         }))
         ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: TYPE }, Panel))
-        ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'todo', order: 0 }, Dock))
+        ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'work-timeline', order: 0 }, Dock))
       },
     }
   },

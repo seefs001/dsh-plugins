@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "AI Mascot",
-    "description": "Adds a GPT or Claude companion in the lower-right corner that reacts to the active conversation. Artwork has separate non-commercial and attribution terms."
+    "description": "Draggable GPT / Claude companion in the corner reacting to the active chat. Artwork has separate non-commercial terms."
   }
 }

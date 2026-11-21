@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Message edit",
-    "description": "Hover your message and click the pencil icon to edit it. Overwrites the message and clears later model context by default (uncheck to keep it), or fork and resend into a new session."
+    "description": "Edit your sent messages in place (clearing later context by default) or fork and resend into a new session."
   }
 }

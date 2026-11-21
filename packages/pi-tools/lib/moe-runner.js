@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url'
 
 const binary = fileURLToPath(new URL(`../bin/${process.platform}-${process.arch}/moejs${process.platform === 'win32' ? '.exe' : ''}`, import.meta.url))
 
-// Pi's VmLauncher protocol. No DSH objects or functions enter the child.
 function message([kind, a, b, c]) {
   if (kind === 'call' || kind === 'global') return { type: 'call', target: kind === 'call' ? 'tool' : 'global', id: a, name: b, args: c ?? undefined }
   if (kind === 'done') return a ? { type: 'done', ok: true, value: b ?? undefined, writes: c } : { type: 'done', ok: false, error: b }
@@ -13,8 +12,6 @@ function message([kind, a, b, c]) {
   return { type: 'output', item: a === 'image' ? { type: 'image', data: b, mimeType: c } : { type: 'text', text: b, ...(a === 'console' && { console: true }) } }
 }
 
-// Multiple presets can share one host process. Keep the idle processes under
-// the same process-wide admission limit as active ones, without sharing VMs.
 let shared
 export function borrowRunnerPool() {
   shared ??= { pool: new MoeRunnerPool(), owners: 0 }
@@ -34,8 +31,6 @@ export function borrowRunnerPool() {
   }
 }
 
-// Each process owns at most one run. Admission is already bounded by Pi. A
-// slot isn't returned until the VM unwinds, or until the process actually exits.
 export class MoeRunnerPool {
   workers = new Set()
   sequence = 0

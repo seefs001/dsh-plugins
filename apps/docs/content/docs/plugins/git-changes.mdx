@@ -1,11 +1,11 @@
 ---
 title: Git 变更
-description: 在输入框下方显示当前分支和未提交改动统计，点一下打开右侧 diff。
+description: 在输入框下方显示当前分支与未提交改动统计，点击打开右侧 diff。
 ---
 
 <PluginFacts slug="git-changes" />
 
-在输入框底部状态栏（活动与用量标签旁）显示当前所在 Git 分支、未提交的新增/删除行数以及变更文件数。点击它直接在右侧边栏打开本地变更面板，并自动把默认范围切到 **未提交**。
+在输入框底部状态栏显示当前 Git 分支、未提交增删行数和变更文件数，点击直接在右侧边栏打开本地变更面板，并将新开标签默认切到 **未提交** 范围。
 
 <Callout type="info" title="依赖 Forge 服务">
 需要启用 `Change requests & worktrees`（`@deepseek-ai/dsh-experimental-forge-bundle`）。非 Git 目录或未启用 Forge 时自动隐藏。
@@ -17,6 +17,6 @@ description: 在输入框下方显示当前分支和未提交改动统计，点�
 
 ## 工作方式
 
-- 监听 `forgePanel.follow` 并在工作目录或提交变化时（400 ms 防抖）查询 `uncommitted` 差异统计，包含未跟踪文件提醒。
-- 点击胶囊打开右侧的 `local` 变更面板，并自动将新打开标签的默认视角从「分支对比」调整为 **未提交**，方便立即审阅当前工作区改动。
-- 纯 Web 端读取 Forge 流，不自己启动 `git` 进程，也不保存额外状态。
+- 订阅 `forgePanel.follow` 流，在工作区或提交变化时以 400 ms 防抖查询 `uncommitted` 差异统计（含未跟踪文件数）。
+- 点击打开右侧 `local` 变更面板，自动将新开标签的默认范围切为 **未提交**。
+- 纯 Web 端消费 Forge 数据流，无额外配置。

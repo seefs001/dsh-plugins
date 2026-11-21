@@ -1,30 +1,26 @@
 ---
 title: GitHub Pages
-description: 通过 GitHub Actions 将 Fumadocs 静态导出并部署到 GitHub Pages。
+description: 通过 GitHub Actions 静态导出并部署文档站到 GitHub Pages。
 ---
 
-文档站通过 Next.js `output: 'export'` 生成纯静态产物（输出在 `apps/docs/out`），线上无需 Node.js 服务。在线地址为：
+文档站使用 Next.js `output: 'export'` 生成静态产物到 `apps/docs/out`，在线地址：
 
 ```text
 https://seefs001.github.io/dsh-plugins/
 ```
 
-## 启用方式
+## 启用
 
-1. 将文档改动合入 `main` 分支。
+1. 将文档改动合入 `main`。
 2. 在仓库 **Settings → Pages → Build and deployment → Source** 中选择 **GitHub Actions**。
-3. 在 **Actions → Documentation** 手动触发，或由后续改动自动触发部署。
+3. 在 **Actions → Documentation** 手动运行一次，之后相关改动会自动触发部署。
 
-工作流使用 GitHub 内置 `GITHUB_TOKEN` 与 OIDC 权限，不需要配置部署密钥，也不使用 `gh-pages` 分支。
+## 子路径构建
 
-## 触发与子路径
-
-`.github/workflows/docs.yml` 会在文档、插件 `package.json` / `locale`、依赖或工作流变动时执行：PR 仅运行 `docs:typecheck` 与静态构建；合入 `main` 后执行构建并部署。
-
-由于 GitHub Pages 项目站点位于 `/dsh-plugins/` 子路径下，CI 构建时会自动传入：
+GitHub Pages 项目站点挂载在 `/dsh-plugins/`，构建时通过环境变量指定前缀：
 
 ```bash
 NEXT_PUBLIC_BASE_PATH=/dsh-plugins pnpm run docs:build
 ```
 
-本地开发 `pnpm run docs:dev` 默认挂载在根路径 `http://localhost:3000`。若要本地验证线上前缀与静态搜索索引（`/dsh-plugins/search-index.json`），可将 `apps/docs/out` 挂载在 `/dsh-plugins/` 路径下预览。若后续切换为自定义根域名，只需从工作流移除 `NEXT_PUBLIC_BASE_PATH` 环境变量后重新构建即可。
+本地预览 `pnpm run docs:dev` 挂载在根路径 `http://localhost:3000`。若切换到自定义根域名，移除工作流中的 `NEXT_PUBLIC_BASE_PATH` 重新构建即可。

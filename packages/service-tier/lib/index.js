@@ -1,12 +1,3 @@
-/**
- * dsh-service-tier — Host half.
- *
- * Sends the selected `service_tier` for each `provider/model` pair,
- * only on `openai-responses` routes. DSH 0.2.2-rc.2 removed the
- * `llm-pi-ai/model-defaults` waterfall, so the option is added by wrapping
- * pi-ai's request entry point (see pi-ai-hook.js). Two small authenticated JSON routes let the browser toggle read
- * and persist the choice in this plugin's own config (`tiers`).
- */
 import { addPiAiRequestTransform, catalogProvidersWithApi } from './pi-ai-hook.js'
 
 export const name = 'service-tier'
@@ -18,14 +9,13 @@ export const STATE_PATH = '/service-tier/state'
 export const SET_PATH = '/service-tier/set'
 const MAX_BODY_BYTES = 16 * 1024
 
-// Model IDs listed at https://developers.openai.com/api/docs/guides/ultrafast-mode
+// external: https://developers.openai.com/api/docs/guides/ultrafast-mode
 const ULTRAFAST_MODELS = ['gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-6.1-sol', 'gpt-6-astra']
 
 function supportsTier(model, tier) {
   return tier === 'priority' || (tier === 'ultrafast' && ULTRAFAST_MODELS.includes(model))
 }
 
-/** Keep only explicit, supported tiers for provider/model pairs. */
 export function normalizeTiers(raw) {
   const out = {}
   if (raw === null || typeof raw !== 'object') return out
@@ -36,9 +26,7 @@ export function normalizeTiers(raw) {
   return out
 }
 
-/** Null removes the override; booleans retain the original toggle semantics. */
-export function toggleTier(tiers, provider, model, selection) {
-  const tier = typeof selection === 'boolean' ? (selection ? 'priority' : null) : selection
+export function toggleTier(tiers, provider, model, tier) {
   const key = `${provider}/${model}`
   const next = { ...tiers }
   if (tier === null) delete next[key]
@@ -46,7 +34,6 @@ export function toggleTier(tiers, provider, model, selection) {
   return next
 }
 
-/** pi-ai provider ids whose route speaks the OpenAI Responses API, read from the composed config. */
 export function responsesProviders(editor, catalogResponses = new Set()) {
   if (editor === undefined) return []
   try {
@@ -54,8 +41,6 @@ export function responsesProviders(editor, catalogResponses = new Set()) {
       const pkg = entry?.options?.name ?? entry?.name
       if (pkg !== PI_AI_PACKAGE) continue
       const providers = { ...inherited?.providers, ...override?.providers }
-      // A catalog route without its own `api` (e.g. `openai` through a gateway)
-      // keeps the catalog's Responses protocol.
       return Object.entries(providers)
         .filter(([id, p]) => p?.api === RESPONSES_API || (p && p.api === undefined && catalogResponses.has(id)))
         .map(([id]) => id)
@@ -72,7 +57,6 @@ function sendJson(res, status, payload, headers = {}) {
   res.end(JSON.stringify(payload))
 }
 
-/** Read a request body up to MAX_BODY_BYTES; `null` when it is larger. */
 async function readBody(req) {
   const chunks = []
   let size = 0
@@ -84,10 +68,7 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-/**
- * Apply the selected `service_tier` to Responses requests. pi-ai's simple-stream options drop `serviceTier`, so the field goes
- * in through `onPayload`, after any payload hook DSH already set.
- */
+// external: pi-ai streamSimple drops serviceTier from options, so inject it via onPayload
 export function serviceTierTransform(readTiers) {
   return request => {
     const { model, options } = request
@@ -111,13 +92,6 @@ export function serviceTierTransform(readTiers) {
 export async function apply(ctx, config) {
   let tiers = normalizeTiers(config?.tiers)
 
-  // DSH 0.2.2-rc.1 still has this waterfall; later releases use the pi-ai hook below.
-  ctx.on('llm-pi-ai/model-defaults', (request, next) => {
-    const base = next() ?? {}
-    const tier = tiers[`${request.provider}/${request.model}`]
-    if (request.api !== RESPONSES_API || tier === undefined) return base
-    return { ...base, serviceTier: tier }
-  })
   const hooked = addPiAiRequestTransform(serviceTierTransform(() => tiers))
   const catalogResponses = catalogProvidersWithApi(RESPONSES_API).catch(error => {
     ctx.logger?.warn?.(`service-tier: cannot read the pi-ai catalog; catalog routes show no toggle (${error instanceof Error ? error.message : error})`)
@@ -152,11 +126,10 @@ export async function apply(ctx, config) {
       if (raw === null) return sendJson(res, 413, { message: `body exceeds ${MAX_BODY_BYTES} bytes` })
       let body = null
       try { body = JSON.parse(raw) } catch {}
-      const { provider, model, fast } = body ?? {}
-      const hasTier = body?.tier !== undefined
-      const valid = hasTier ? body.tier === null || supportsTier(model, body.tier) : typeof fast === 'boolean'
+      const { provider, model, tier } = body ?? {}
+      const valid = tier === null || supportsTier(model, tier)
       if (typeof provider !== 'string' || !provider || typeof model !== 'string' || !model || !valid) {
-        return sendJson(res, 400, { message: 'expected provider, model and a supported tier (priority, ultrafast or null), or fast: boolean' })
+        return sendJson(res, 400, { message: 'expected provider, model and tier (priority, ultrafast or null)' })
       }
       const entry = ctx.fiber.entry
       const editor = ctx.get('configEditor')
@@ -166,7 +139,7 @@ export async function apply(ctx, config) {
       try {
         let next
         await editor.edit(entry, current => {
-          next = toggleTier(normalizeTiers(current.tiers), provider, model, hasTier ? body.tier : fast)
+          next = toggleTier(normalizeTiers(current.tiers), provider, model, tier)
           return { ...current, tiers: next }
         })
         tiers = next

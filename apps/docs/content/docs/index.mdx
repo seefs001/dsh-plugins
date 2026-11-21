@@ -1,44 +1,36 @@
 ---
 title: 概览
-description: dsh-plugins 是什么、如何按场景挑选插件，以及 Host 与 Web 两部分的运行边界。
+description: 按场景挑选 DeepSeek Harness 插件，了解 Host 与 Web 两端的运行方式。
 ---
 
-`dsh-plugins` 是 seefs 自用并持续维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件集，共 32 个独立 bundle。每个插件都可以单独安装、启用、停用和卸载，互不捆绑。
+`dsh-plugins` 包含 32 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成，每个插件都可以按需单独安装。
 
 <Cards>
-  <Card title="安装" href="/docs/quick-start" description="从 GitHub 或本地仓库安装单个或一组插件，并确认已经生效。" />
-  <Card title="配置与数据" href="/docs/configuration" description="了解设置在 profile、storage domain、凭据和浏览器中的存放位置。" />
-  <Card title="依赖与边界" href="/docs/compatibility" description="查看每个插件的前置 bundle、外部依赖与明确不会改变的行为。" />
-  <Card title="插件目录" href="/docs/plugins" description="按四大分类浏览全部 32 个插件的详细说明。" />
+  <Card title="安装" href="/docs/quick-start" description="从 GitHub 或本地仓库安装插件。" />
+  <Card title="配置与数据" href="/docs/configuration" description="了解配置、存储域、凭据与浏览器本地数据的存放位置。" />
+  <Card title="依赖与运行" href="/docs/compatibility" description="查看每个插件需要的前置 bundle 与外部工具。" />
+  <Card title="插件目录" href="/docs/plugins" description="按四大分类浏览全部 32 个插件。" />
 </Cards>
 
-## 按常见场景挑选
+## 按场景挑选
 
-| 你想解决什么问题 | 推荐插件 |
+| 需求 | 插件 |
 | --- | --- |
-| 在提示词里点名模型，并携带其推理强度与快速档 | [# 引用模型](/docs/plugins/model-reference) + [快速模式](/docs/plugins/service-tier) |
-| 新建会话沿用上次选的模型 / 单独指定标题模型 | [记住上次模型](/docs/plugins/remember-model)、[标题模型](/docs/plugins/title-model) |
-| 查看子代理使用的模型 / 为 Auto review 定制模型和提示词 | [子代理模型](/docs/plugins/subagent-model)、[自动审查模型](/docs/plugins/auto-review-model) |
-| 预设系统提示词与专属技能，在对话里随时切换角色 | [角色管理](/docs/plugins/roles) |
-| 按标题或聊过的内容找回旧对话 | [会话搜索](/docs/plugins/session-search) |
-| 管好海量会话，不被 worker 结束刷屏 | [会话整理](/docs/plugins/session-lifecycle)、[会话分组](/docs/plugins/session-groups)、[最近会话优先](/docs/plugins/recent-sessions) |
-| 清理失效工作区、切本地分支、看未提交改动、防 Mac 休眠 | [工作区管理](/docs/plugins/workspace-manager)、[分支切换](/docs/plugins/branch-switcher)、[Git 变更](/docs/plugins/git-changes)、[保持唤醒](/docs/plugins/keep-awake) |
-| 看模型生成的流程图、关系图和统计图，切回代码 | [图表预览](/docs/plugins/diagram-preview) |
-| 阅读长对话、跳转引用、点开工具产出、改写发错的话 | [上下文压缩状态](/docs/plugins/compaction-status)、[引用跳转](/docs/plugins/quote-jump)、[工具透镜](/docs/plugins/tool-lens)、[Wait, what?](/docs/plugins/message-actions)、[编辑消息](/docs/plugins/message-edit) |
-| 在 DSH 会话内直接跑 Cursor / Antigravity / Claude Code | [ACP 会话集成](/docs/plugins/acp-workbench) |
-| 收藏常用话术、按实际使用率检索技能、拓展联网搜索与画图 | [常用片段](/docs/plugins/prompt-shortcut)、[技能速查](/docs/plugins/cheat-sheet)、[联网搜索](/docs/plugins/web-access)、[画图](/docs/plugins/image-gen) |
-| 在 DSH 内使用 Pi 工具、`codemode`、工作时间线与 Pi MCP 配置 | [Pi 工具](/docs/plugins/pi-tools)、[工作时间线](/docs/plugins/work-timeline)、[Pi MCP 服务器](/docs/plugins/pi-mcp) |
-| 连接外部工作流与手机提醒 | [Paseo Hub](/docs/plugins/paseo-hub)、[Bark 通知](/docs/plugins/bark-notify) |
+| 在提示词里点名模型，并携带推理强度与快速档 | [# 引用模型](/docs/plugins/model-reference)、[快速模式](/docs/plugins/service-tier) |
+| 新建会话沿用上次模型，或单独指定标题模型 | [记住上次模型](/docs/plugins/remember-model)、[标题模型](/docs/plugins/title-model) |
+| 查看子代理模型，或为 Auto review 定制模型和提示词 | [子代理模型](/docs/plugins/subagent-model)、[自动审查模型](/docs/plugins/auto-review-model) |
+| 预设系统提示词与专属技能，按会话切换角色 | [角色管理](/docs/plugins/roles) |
+| 搜索、整理、分组并管理大量会话 | [会话搜索](/docs/plugins/session-search)、[会话整理](/docs/plugins/session-lifecycle)、[会话分组](/docs/plugins/session-groups)、[最近会话优先](/docs/plugins/recent-sessions) |
+| 管理工作区、切本地分支、看 Git 改动、防止 Mac 休眠 | [工作区管理](/docs/plugins/workspace-manager)、[分支切换](/docs/plugins/branch-switcher)、[Git 变更](/docs/plugins/git-changes)、[保持唤醒](/docs/plugins/keep-awake) |
+| 在对话中预览图表、跳转引用、点开工具产出、解释或改写消息 | [图表预览](/docs/plugins/diagram-preview)、[上下文压缩状态](/docs/plugins/compaction-status)、[引用跳转](/docs/plugins/quote-jump)、[工具透镜](/docs/plugins/tool-lens)、[Wait, what?](/docs/plugins/message-actions)、[编辑消息](/docs/plugins/message-edit) |
+| 在 DSH 会话中运行 Cursor、Antigravity、Claude Code 等 ACP CLI | [ACP 会话集成](/docs/plugins/acp-workbench) |
+| 收藏常用话术、按使用率检索技能、扩展搜索与画图 | [常用片段](/docs/plugins/prompt-shortcut)、[技能速查](/docs/plugins/cheat-sheet)、[联网搜索](/docs/plugins/web-access)、[画图](/docs/plugins/image-gen) |
+| 使用 Pi 编程工具、`codemode`、工作时间线与 Pi MCP 配置 | [Pi 工具](/docs/plugins/pi-tools)、[工作时间线](/docs/plugins/work-timeline)、[Pi MCP 服务器](/docs/plugins/pi-mcp) |
+| 接入 Paseo Hub 或 Bark 手机推送 | [Paseo Hub](/docs/plugins/paseo-hub)、[Bark 通知](/docs/plugins/bark-notify) |
 
-## 运行架构：Host 与 Web
+## Host 与 Web
 
-DSH 插件分为两部分：
+- **Host**：运行在 DSH 后端进程，负责配置写入、storage domain 持久化、凭据读取、工具注册与外部命令/API 调用。
+- **Web**：运行在 `dsh web` 浏览器界面，负责输入框扩展、侧边栏面板、消息渲染与设置弹窗。
 
-- **Host 部分**：运行在 DSH 后端进程，负责配置保存、storage domain 持久化、凭据读取、工具注册与外部进程/API 调用。
-- **Web 部分**：运行在 `dsh web` 浏览器界面，负责输入框扩展、侧边栏面板、消息渲染与弹窗设置。
-
-仅包含浏览器功能的插件仍会带有一个空 Host 入口（供 Loader 加载 bundle），不会向终端模式注入界面交互。每个插件页顶部的信息框均写明了运行位置和额外要求。
-
-<Callout>
-本仓库是个人日用插件集，非 DeepSeek 官方出品，仅跟随最新 DSH 与本仓库 `main` 分支开发，请保持两边同步更新。
-</Callout>
+每个插件页顶部的信息框都标明了运行位置与前置依赖。

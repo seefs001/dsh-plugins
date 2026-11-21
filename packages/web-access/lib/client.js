@@ -1,10 +1,3 @@
-/**
- * dsh-web-access — browser half.
- *
- * Settings on this bundle's Plugins page: per backend, pick a local model from
- * the Host's live catalog (only Responses routes) and the hosted search types
- * it may use. The Host derives endpoint and key from the chosen route.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-web-access',
   factory(require) {
@@ -128,8 +121,7 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'web-access: dictionaries')
         const t = ctx.locale.bind(NS)
 
-        // The built-in web view is keyed to web_search, not presentation.card.
-        // Adapt only its display input. Keep persisted calls and inspect untouched.
+        // external: dsh built-in web tool view is keyed strictly to web_search
         function SearchRow(props) {
           const { block, toolName } = props
           const entries = [...ctx.slots.entries('tool.call.toolview')]
@@ -153,10 +145,10 @@ window.__ModuleLoader__.load({
           const count = settled && !block.isError ? ` · ${sources.length} ${t('searchSources')}` : ''
           const summary = [query, channel].filter(Boolean).join(' · ') + count
           const displayCall = { ...call, name: 'web_search', argsRaw: JSON.stringify({ queries: [query || '…'] }) }
-          // Native web card validation requires truncated, including older results.
+          // external: dsh built-in web_search view requires meta.truncated boolean
           const display = {
             ...block,
-            ...(settled ? { call: displayCall, meta: { ...meta, truncated: meta?.truncated === true } } : displayCall),
+            ...(settled ? { call: displayCall, meta: { ...meta, truncated: false } } : displayCall),
             args: {
               text: key => key === 'description' ? summary : block.args?.text(key),
               complete: key => key === 'description' || (block.args?.complete(key) ?? false),

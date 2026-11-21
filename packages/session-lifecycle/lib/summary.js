@@ -1,23 +1,20 @@
 import { createHash } from 'node:crypto'
 import { isAbsolute } from 'node:path'
 
-// Only owner HTTP requests can read source text or opt a workspace into model calls.
-// Summary text consists of exact source sentences, not free-form model assertions.
 const LIMIT = 12, MAX_CACHE = 100, STABLE = 10_000
 const hash = (...v) => createHash('sha256').update(JSON.stringify(v)).digest('hex')
-const keyOf = (id, seq) => hash('inbox-extract-v1', id, seq)
+const keyOf = (id, seq) => hash('session-lifecycle-summary-v1', id, seq)
 const day = () => new Date().toISOString().slice(0, 10)
 const empty = () => ({ route: null, cwd: '', since: 0, day: day(), spent: 0 })
 const string = (x, n = 256) => typeof x === 'string' && x.length > 0 && x.length <= n
 const number = n => Number.isSafeInteger(n) && n >= 0
 const routeOk = r => r && string(r.provider) && string(r.model)
 const schema = accepts => ({ parse(v) { if (!accepts(v)) throw new Error('Invalid summary storage record'); return v }, safeParse(v) { try { return { success: true, data: this.parse(v) } } catch (error) { return { success: false, error } } } })
-const spec = { name: 'dsh_inbox_summary', version: 1, layout: 'per-record', tables: {
+const spec = { name: 'session_lifecycle_summary', version: 1, layout: 'per-record', tables: {
   control: { valueSchema: schema(v => v && (v.route === null || routeOk(v.route)) && typeof v.cwd === 'string' && number(v.since) && typeof v.day === 'string' && number(v.spent)) },
   results: { valueSchema: schema(v => v && routeOk(v.route) && number(v.time) && Array.isArray(v.quotes) && v.quotes.length <= 2 && v.quotes.every(s => string(s, 700))) },
 } }
 
-// A turn-local registered deliverable, never a model-generated link or a path parsed from prose.
 export function artifactOf(e) {
   if (e.type !== 'tool/result' || e.data.message?.isError) return null
   const meta = e.data.meta?.dshWorkTimeline
@@ -28,7 +25,6 @@ export function artifactOf(e) {
 const sensitive = /-----BEGIN [\w ]*PRIVATE KEY|(?:api[_ -]?key|access[_ -]?token|password|authorization|secret)\s*[:=]|\b(?:sk-|gh[pousr]_|AKIA)[A-Za-z0-9_-]{12,}|https?:\/\/[^\s/]+:[^\s/]+@/i
 function excerpt(text, reason, artifact) {
   if (reason !== 'completed' || artifact || text.length < 180 || sensitive.test(text) || /```/.test(text)) return []
-  // Skip (rather than clip) long sentences and code blocks. Keep original punctuation.
   const lines = [], segmenter = new Intl.Segmenter(undefined, { granularity: 'sentence' }); let used = 0
   const head = text.slice(0, 3200)
   for (const { segment, index } of segmenter.segment(head)) {
@@ -74,7 +70,7 @@ export async function startSummary(ctx) {
   const reset = () => { generation++; lastIssue = null; running?.abort(); for (const v of timers.values()) clearTimeout(v); timers.clear() }
   const source = async (id, seq) => { if (!string(id) || !number(seq)) throw new Error('Invalid turn'); return sourceOf(await ctx.sessionQuery.readSession(id), seq) }
   const catalog = async () => (await ctx.sessionController.modelCatalog()).groups.map(g => ({ id: g.id, models: g.models.map(m => m.id) }))
-  const validateRoute = async r => { if (!routeOk(r) || !(await catalog()).some(g => g.id === r.provider && g.models.includes(r.model))) throw new Error('Model unavailable; no fallback was used'); return { provider: r.provider, model: r.model } }
+  const validateRoute = async r => { if (!routeOk(r) || !(await catalog()).some(g => g.id === r.provider && g.models.includes(r.model))) throw new Error('Model unavailable'); return { provider: r.provider, model: r.model } }
   const perform = async (route, src, gen, id, automatic, signal) => {
     if (stopped || gen !== generation || !src.eligible || (automatic && (!src.current || state.cwd !== src.cwd))) throw new Error('Source or settings changed')
     if (busy) throw new Error('Another summary is in progress')
@@ -82,7 +78,7 @@ export async function startSummary(ctx) {
     const life = AbortSignal.any([ctl.signal, AbortSignal.timeout(90_000), ...(signal ? [signal] : [])])
     try {
       const config = await ctx.llm.resolveCallConfig(await validateRoute(route), life)
-      if (config.provider !== route.provider || config.model !== route.model) throw new Error('Model route changed; no fallback was used')
+      if (config.provider !== route.provider || config.model !== route.model) throw new Error('Model route changed')
       await mutate(async () => { life.throwIfAborted(); const s = status(); if (s.spent >= LIMIT) throw new Error('Daily summary budget reached (UTC)'); await save({ ...state, day: s.day, spent: s.spent + 1 }) })
       life.throwIfAborted(); const blocks = new Map(); let finish
       for await (const chunk of ctx.llm.stream({ ...config, maxTokens: Math.min(config.maxTokens ?? 256, 256), purpose: 'session-lifecycle-summary', messages: [{ role: 'user', content: [{ type: 'text', text: promptFor(src.lines) }] }], signal: life })) {
@@ -105,7 +101,6 @@ export async function startSummary(ctx) {
       return result
     } finally { running = null; runningSession = null; busy = false }
   }
-  // First-live append only. Never enumerate history or resume a possibly charged attempt.
   ctx.on('session/event', (session, e) => {
     if (stopped || !state.route || session.header.origin === 'subagent' || session.header.cwd !== state.cwd || e.seq < session.firstLiveSeq || e.time <= state.since) return
     const id = session.id

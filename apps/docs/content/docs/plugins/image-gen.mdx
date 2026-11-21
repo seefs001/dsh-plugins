@@ -5,29 +5,28 @@ description: 新增 openai_image 和 grok_image，复用已有 Responses provide
 
 <PluginFacts slug="image-gen" />
 
-注册 `openai_image` 与 `grok_image` 工具，复用 `llm-pi-ai` 中已配置好的 `openai-responses` provider 调用上游托管的 `image_generation` 工具，自动把生成图片写入工作目录并保存为 DSH 会话附件。
+注册 `openai_image` 与 `grok_image` 工具，复用 `llm-pi-ai` 中已有的 `openai-responses` provider 调用托管 `image_generation`，把生成的图片写入工作目录并保存为会话附件。
 
 <Callout type="info" title="前置要求">
-profile 中 `llm-pi-ai` 需配置有 `api: openai-responses` 的 provider 及可用密钥。
+profile 中 `llm-pi-ai` 需配置至少一个 `api: openai-responses` 的 provider 及可用密钥。
 </Callout>
 
 ## 安装
 
 <InstallCommand slug="image-gen" />
 
-## 配置与参数
+## 配置
 
 打开 **Plugins → dsh-image-gen**：
 
-- 分别为 **OpenAI** 与 **Grok** 启用并选择对应的 `openai-responses` provider 和模型（无需单独填写图片模型 ID，由上游 Responses 接口决定）。
+- 分别为 **OpenAI** 与 **Grok** 启用并选择对应的 `openai-responses` provider 和模型。
 - 设置 **输出目录**（`outputDir`，默认 `generated-images`，相对路径限制在会话工作目录以内）。
 
-| 工具 | 模型可传参数 |
+## 工具参数
+
+| 工具 | 参数 |
 | --- | --- |
-| `openai_image` | `prompt`、`size`（`auto` / `1024x1024` / `1536x1024` / `1024x1536`）、`quality`（`auto` / `low` / `medium` / `high`）、`background`（`auto` / `opaque` / `transparent`）、`output_format`（`png` / `jpeg` / `webp`） |
+| `openai_image` | `prompt`、`size`（`auto` / `1024x1024` / `1536x1024` / `1024x1536`）、`quality`（`auto` / `low` / `medium` / `high`）、`background`（`auto` / `opaque` / `transparent`）、`output_format`（`png` / `jpeg` / `webp`；透明背景需 `png` 或 `webp`） |
 | `grok_image` | `prompt`、`aspect_ratio`（`1:1`、`16:9`、`9:16`、`4:3`、`3:4`、`3:2`、`2:3`、`2:1`、`1:2`、`21:9`） |
 
-## 输出与边界
-
-- 仅接受实际文件头为 PNG、JPEG、WebP 或 GIF 的图片。
-- 图片会保存在工作目录下的 `outputDir` 并写入 DSH 附件存储以便在界面展示。**只有当当前主对话模型本身声明支持 `image` 输入时，工具才会把图片一并传回模型上下文**；不支持看图的模型仍能拿到文件路径与改写提示词。
+仅接受 PNG、JPEG、WebP 或 GIF 输出。当当前对话模型声明支持 `image` 输入时，工具会把图片块回传给模型；否则只返回文件路径与改写提示词。

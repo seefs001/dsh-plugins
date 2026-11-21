@@ -1,17 +1,8 @@
-/**
- * dsh-model-reference — Host half.
- *
- * Remembers the last reasoning effort picked for each `provider/model` in a
- * top-level session and serves it to the browser, so a `#` chip can carry the
- * effort that model was last used with. Efforts persist in this plugin's own
- * config (`efforts`) through the config editor.
- */
 export const name = 'model-reference'
 export const inject = ['webServer', 'connection']
 
 export const STATE_PATH = '/model-reference/state'
 
-/** Keep only `provider/model` keys with a string effort. */
 export function normalizeEfforts(raw) {
   const out = {}
   if (raw === null || typeof raw !== 'object') return out
@@ -21,12 +12,9 @@ export function normalizeEfforts(raw) {
   return out
 }
 
-/** Keep subagent selections out of user preferences on both rc.1 and rc.2. */
-export function isTopLevelSession(agents, sessionId, subagents) {
-  const agent = agents?.get?.(sessionId)
-  if (agent === undefined) return true
-  if (typeof agents.roots === 'function') return agents.roots().includes(agent)
-  return subagents === undefined || subagents.rootOf(agent) === agent
+export function isTopLevelSession(agents, sessionId) {
+  const agent = agents?.get(sessionId)
+  return agent === undefined || agents.roots().includes(agent)
 }
 
 export function apply(ctx, config) {
@@ -37,8 +25,7 @@ export function apply(ctx, config) {
     const { provider, model, reasoningEffort } = event.data ?? {}
     if (typeof provider !== 'string' || typeof model !== 'string') return
     if (reasoningEffort !== undefined && (typeof reasoningEffort !== 'string' || reasoningEffort === '')) return
-    // Subagents pick their own models; only what the person picks counts.
-    if (!isTopLevelSession(ctx.get('agents'), session.id, ctx.get('subagents'))) return
+    if (!isTopLevelSession(ctx.get('agents'), session.id)) return
     const key = `${provider}/${model}`
     if (efforts[key] === reasoningEffort) return
     efforts = { ...efforts }

@@ -1,50 +1,24 @@
 ---
-title: 依赖与边界
-description: 每个插件的前置 bundle 与外部依赖，以及插件明确不会修改的 DSH 行为。
+title: 依赖与运行
+description: 各插件需要的前置 DSH bundle 与外部工具。
 ---
-
-本仓库插件均围绕最新版 DSH 与 `main` 分支开发，不提供旧版 DSH 的向后兼容保障。使用前请先核对下表中的额外依赖。
 
 ## 依赖总览
 
 <RequirementsTable />
 
-## 常见前置 DSH Bundle
+## 前置 DSH Bundle
 
-| 插件 | 需要的 DSH Bundle | 缺少时表现 |
-| --- | --- | --- |
-| `自动审查模型` | `@deepseek-ai/dsh-experimental-auto-review` | 插件可安装，但无 `auto-review` 请求可改道，输入框不显示审查标签 |
-| `Git 变更`、`分支切换`、`ACP 会话集成`（工作树与改动对比） | `@deepseek-ai/dsh-experimental-forge-bundle` | 不显示分支/变更入口，或无法新建/对比托管工作树 |
-| `角色管理`、`会话分组`、`自动审查模型`、`Wait, what?`、`技能速查`、`ACP 会话集成`、`Paseo Hub`、`Pi 工具`（默认工具） | `@deepseek-ai/dsh-storage-domain` | 默认 profile 已包含；缺失时对应持久化能力不可用 |
-| `Pi MCP 服务器` | `@deepseek-ai/dsh-mcp-manager` | 默认 profile 已包含 |
-| `Paseo Hub` | `@deepseek-ai/dsh-permission-presets` | 默认 profile 已包含；缺失时无法把权限预设映射为 Hub mode |
-
-插件不会自动替你安装或开启上述实验性 bundle。
-
-## 设计边界：插件不会做的事
-
-所有插件均不修改 DSH 核心源码，也不篡改其他插件的私有存储：
-
-| 插件 | 明确边界 |
+| 插件 | 需要的 DSH Bundle |
 | --- | --- |
-| `# 引用模型` | 只插入模型引用标签，不切换当前会话的模型 |
-| `快速模式` | 仅对使用 `openai-responses` 协议的路由生效 |
-| `标题模型` | 只改模型路由，不开启标题生成器，也不改已有标题和固定标题 |
-| `子代理模型` | 只读展示，不更改子代理路由或推理强度 |
-| `自动审查模型` | 只拦截 `purpose: "auto-review"` 请求，不自动开启 Auto review，不影响主对话 |
-| `会话整理` | 不自动替你答复、批准权限，也不拦截原生通知 |
-| `工作区管理` | 只删 DSH 工作区列表记录，绝不删除磁盘目录或会话日志 |
-| `分支切换` | 只在首条消息前切换本地已有分支，不 fetch、不建分支、不 stash、不强切 |
-| `保持唤醒` | 只阻止 macOS 闲置休眠，不影响熄屏、锁屏、盒盖休眠或永久电源设置 |
-| `上下文压缩状态` | 只读展示进度，不触发或加速压缩 |
-| `引用跳转` | 仅定位当前页面已加载出来的历史消息 |
-| `Wait, what? 回复解释` | 不写入主对话，不带工具执行，使用固定解释提示词 |
-| `编辑消息` | 只修改文本内容，不增删附件，也不撤回已经执行过的命令或文件改动 |
-| `ACP 会话集成` | 外部 CLI 使用自身账号与权限，**不受 DSH 工具沙箱约束**；不代理标题/压缩等辅助调用 |
-| `联网搜索` | 就绪时对对应会话隐藏内置 `web_search`，不修改 `web_fetch` |
-| `Pi 工具` | 只作用于选用 `pi` 预设的会话，不更改默认预设或其他会话；复用 DSH 文件系统与沙箱权限 |
-| `Bark 通知` | 旁路发送推送，失败不阻塞会话；`dsh-acp-workbench` 外部 CLI 暂不触发 |
+| `自动审查模型` | `@deepseek-ai/dsh-experimental-auto-review` |
+| `Git 变更`、`分支切换`、`ACP 会话集成`（工作树与改动对比） | `@deepseek-ai/dsh-experimental-forge-bundle` |
+| `角色管理`、`会话整理`、`会话分组`、`自动审查模型`、`Wait, what?`、`技能速查`、`ACP 会话集成`、`Paseo Hub`、`Pi 工具` | `@deepseek-ai/dsh-storage-domain` |
+| `Pi MCP 服务器` | `@deepseek-ai/dsh-mcp-manager` |
+| `Paseo Hub` | `@deepseek-ai/dsh-permission-presets` |
 
-## 验证说明
+## 外部运行注意
 
-仓库的 `pnpm run check` 会运行 `oxlint`、manifest 静态校验（`scripts/validate.mjs`）和已有单元测试（`node --test`）。这仅证明源码语法、包元数据与核心逻辑通过静态/单测检验，**不代表 Web 界面与外部联动已在真实 DSH 环境中实测通过**。涉及 UI 与端到端链路的改动仍需在目标 profile 中实际验证。
+- **ACP 会话集成**：外部 CLI（Cursor、Antigravity、Claude Code 等）使用自身账号与权限运行，不受 DSH 工具沙箱约束。
+- **Pi 工具**：搜索与文件查找调用运行环境中的 `rg` 与 `fd`（可通过 `rgCommand` / `fdCommand` 覆写）。
+- **AI 吉祥物**：首次渲染会向 `selinlee.github.io` 请求静态角色图片，素材适用独立的非商业条款。

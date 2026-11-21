@@ -1,16 +1,28 @@
 # dsh-session-search
 
-点侧栏「新建会话」下方的 **搜索会话**，打开居中的搜索面板。侧栏收起时，入口显示为放大镜。
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）侧栏「新建会话」下方增加 **搜索会话** 入口，打开支持键盘导航的会话搜索面板（侧栏收起时显示为放大镜图标）。
 
-- 不输入关键词时，列表按最近活动时间显示会话。
-- 输入标题、工作区、会话 ID 或聊过的一句话。标题等匹配先出现，正文命中后补上片段。每次最多显示 20 条。
-- 用 `↑` / `↓` 选择，按 `Enter` 打开；也可以直接点结果。按 `Esc` 或点击面板外关闭。
-- 只列出未归档的主会话，不包含空白会话和子代理。面板复用 DSH 的正文搜索，不建立新索引，不保存搜索词，也不替换原生搜索和快捷键。
+| 项目 | 说明 |
+| --- | --- |
+| 运行位置 | Web |
+| 数据保存 | 无独立存储，直接调用 DSH 原生会话与正文搜索服务 |
 
-## 本地安装
+## 安装
 
-从仓库根目录执行：
+```bash
+dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/session-search"
+```
+
+本地开发链接：
 
 ```bash
 dsh plugin --profile web add "link:$PWD/packages/session-search"
 ```
+
+## 用法
+
+- 空搜索时按最近活动时间列出未归档的主会话（最多 20 条，不含空白会话与子代理）。
+- 输入关键词同时匹配标题、工作区、会话 ID 与正文内容，正文命中后补齐片段摘要。
+- 支持 `↑` / `↓` 选择、`Enter` 打开、`Esc` 或点击面板外关闭。
+
+更多说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/session-search)。

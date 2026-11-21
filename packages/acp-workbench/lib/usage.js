@@ -1,4 +1,3 @@
-/** ACP usage_update is window occupancy; session/prompt.usage is cumulative. Neither is per-request billing. */
 const tokenCount = n => Number.isSafeInteger(n) && n >= 0
 
 function contextWindow(update) {

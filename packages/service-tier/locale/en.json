@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Fast mode (service tier)",
-    "description": "Pick Fast or Ultrafast (on supported models) for OpenAI Responses requests right beside the model picker."
+    "description": "Switch OpenAI Responses requests between Fast and Ultrafast service tiers beside the model picker."
   }
 }

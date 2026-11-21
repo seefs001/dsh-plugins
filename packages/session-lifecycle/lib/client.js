@@ -1,21 +1,3 @@
-/**
- * dsh-session-lifecycle — browser half.
- *
- * Sidebar sections inside the native session list (`[data-sidebar-list-area]`):
- * - **Needs you** on top: sessions whose own or subagent's approval, plan
- *   review or question is waiting, opened straight at the asking session.
- * - **Working** fold: sessions running, queued or waiting on subagents. They
- *   leave the native list while the fold is on, and return when they finish,
- *   fail or need you. The open session and pinned sessions stay in place.
- * - **Snoozed** and **Settled** shelves at the bottom, collapsed.
- *
- * The session menu gains Settle, Snooze, Wake and the auto-settle exemption,
- * each with Undo. A "Triage" panel lists every section plus unread turn
- * outcomes, read marks and the optional AI summaries (merged from dsh-inbox).
- *
- * Lifecycle records live on the Host (lib/index.js): this half follows
- * `session-lifecycle/events` (SSE) and sends changes to `session-lifecycle/op`.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-session-lifecycle',
   factory(require) {
@@ -23,7 +5,7 @@ window.__ModuleLoader__.load({
     const ReactDOM = require('react-dom')
     const h = React.createElement
     const NS = 'session-lifecycle'
-    const KEY = 'dsh-inbox-outcome'
+    const KEY = 'session-lifecycle-outcome'
     const attentionRank = { approval: 3, 'plan-review': 2, question: 1 }
     const WORKING_GRACE_MS = 2000
     const SHELF_LIMIT = 20
@@ -47,15 +29,15 @@ window.__ModuleLoader__.load({
         go: 'Open conversation', answer: 'Answer in conversation', scope: 'View approval scope', plan: 'Review plan', file: 'View file', inspect: 'View source',
         back: 'Back to Triage', settings: 'Settings', lifecycle: 'Session shelves',
         autoSettle: 'Auto-settle idle sessions', autoOff: 'Off', days: 'After {n} days', day: 'After 1 day',
-        autoHint: 'A session settles when nothing happened for this long. Pinned, running, queued, snoozed, question-waiting and exempt sessions never settle. Prompting a settled session brings it back.',
-        foldWorking: 'Fold working sessions', foldHint: 'Running sessions leave the list for a collapsed Working section and return when they finish or need you.',
+        autoHint: 'Idle sessions settle automatically. Pinned, active, snoozed, waiting, and exempt sessions stay put; sending a message brings a settled session back.',
+        foldWorking: 'Fold working sessions', foldHint: 'Running sessions move to a collapsed Working section and return when they finish or need you.',
         on: 'On', off: 'Off', saved: 'Saved',
         ai: 'AI summary', basis: 'Source: root assistant reply', route: 'Provider / model', summaryOff: 'Off · status only', disabled: 'Disable automatic summaries', enable: 'Enable for new turns here', trial: 'Try once (may incur a charge)',
-        preview: 'Exact excerpt sent to this model', noSample: 'No eligible update selected. Nothing is sent until you enable it.', noText: 'Status only for this update; nothing to send.',
+        preview: 'Exact excerpt sent to this model', noSample: 'No eligible update selected.', noText: 'Status only for this update; nothing to send.',
         sample: 'Choose a root turn to preview', select: 'Select…', summaries: 'Summaries',
-        policy: 'Only new finished root replies in the chosen directory are sent (runs even if you close this page). No tools, attachments, history backfill, or model fallback. Daily quota includes trials and resets at 00:00 UTC. Free text can contain secrets, so avoid enabling sensitive directories.',
+        policy: 'Sends new finished root replies in the chosen directory (runs in the background). Plain text only; daily quota includes trials and resets at 00:00 UTC. Avoid enabling sensitive directories.',
         budget: 'Calls today', saving: 'Working…', active: 'Enabled for', loadError: 'Unavailable or access denied', nativeFile: 'Registered deliverable', retrySettings: 'Reload settings',
-        directory: 'Working directory (exact match)', modelIssue: 'Could not generate the last summary; showing the session status as usual.', catalogIssue: 'Model list unavailable. You can still disable automatic summaries.',
+        directory: 'Working directory (exact match)', modelIssue: 'Last summary failed; showing session status.', catalogIssue: 'Model list unavailable. You can still disable automatic summaries.',
         missing: 'Older conversations without a summary yet: ', recover: 'Load next batch', recovering: 'Loading history…',
       },
       zh: {
@@ -76,21 +58,19 @@ window.__ModuleLoader__.load({
         go: '打开会话', answer: '到会话回答', scope: '查看审批范围', plan: '审阅完整计划', file: '查看文件', inspect: '查看原文',
         back: '返回待处理', settings: '设置', lifecycle: '会话架子',
         autoSettle: '自动归置闲置会话', autoOff: '关闭', days: '{n} 天后', day: '1 天后',
-        autoHint: '会话在这段时间内没有任何动静就会自动归置。置顶、运行中、排队中、暂缓中、有待答问题以及设为永不归置的会话不会被归置。给已归置的会话发消息，它会自动回到列表。',
+        autoHint: '闲置超时后自动归置。置顶、进行中、暂缓、待处理及永不归置的会话除外；发新消息会自动放回列表。',
         foldWorking: '折叠进行中的会话', foldHint: '运行中的会话移进可折叠的「进行中」区，结束、失败或需要你时回到列表。',
         on: '开', off: '关', saved: '已保存',
         ai: 'AI 摘要', basis: '依据：主会话回复原文', route: '供应商 / 模型', summaryOff: '关闭 · 只看会话状态', disabled: '关闭自动摘要', enable: '为此目录的新轮次启用', trial: '试算一次（可能计费）',
-        preview: '发给所选模型的原文节选', noSample: '还没选可用的更新。未启用前不会调用模型。', noText: '这条只记录了会话状态，没有可发送的正文。',
+        preview: '发给所选模型的原文节选', noSample: '尚未选择可用更新。', noText: '这条只记录了会话状态，没有可发送的正文。',
         sample: '选一条根会话更新看看效果', select: '请选择…', summaries: '摘要',
-        policy: '只发送所选目录里新完成的根会话回复（关掉页面也会照常运行）。不包含工具日志、附件，不回溯旧消息，也不会自动换模型。试算同样计入每日额度，UTC 00:00 重置。正文可能含敏感内容，别对敏感目录开启。',
+        policy: '仅发送所选目录内新完成的根会话纯文本回复（后台运行）。试算计入每日额度，UTC 00:00 重置。请勿对敏感目录开启。',
         budget: '今日已用', saving: '处理中…', active: '当前已启用', loadError: '暂不可用或无权访问', nativeFile: '已登记交付物', retrySettings: '重新读取设置',
-        directory: '工作目录（仅此目录）', modelIssue: '上次没能生成摘要，先只显示会话本身的状态。', catalogIssue: '模型目录暂不可用，仍可关闭自动摘要。',
+        directory: '工作目录（仅此目录）', modelIssue: '上次摘要生成失败，当前仅显示会话状态。', catalogIssue: '模型目录暂不可用，仍可关闭自动摘要。',
         missing: '还没生成结果摘要的旧会话：', recover: '再读一批', recovering: '正在读取…',
       },
     }
 
-    // ------------------------------------------------------------ model
-    // A fork with a parent is still an independent thread. Only a subagent rolls up.
     function owningRoot(row, byId, archived, memo) {
       let current = row
       const path = new Set()
@@ -105,7 +85,6 @@ window.__ModuleLoader__.load({
       return root
     }
 
-    // Keep each call independent. The native live interaction wins over a matching log hint.
     function requestsFor(status, values) {
       const all = [], live = status?.pendingInteraction
       const queued = new Set([...(values.inbox?.['next-step'] ?? []), ...(values.inbox?.['next-turn'] ?? [])]
@@ -127,13 +106,6 @@ window.__ModuleLoader__.load({
     const valuesOf = (list, row) => list.projectionsBySession[row.id]?.values ?? row.projectionValues ?? {}
     const FAILURES = new Set(['error', 'interrupted', 'blocked', 'max-tokens'])
 
-    /**
-     * Sort every top-level session into one section. Precedence: Needs you,
-     * then Snoozed, Settled, Working, Active. A snooze stays hidden only while
-     * no request appears that was not open when it began; a settle ends once
-     * the user prompts again (Host `updatedAt` is the latest prompt time).
-     * `wake` lists snoozed sessions that raised a hand, so the Host record wakes too.
-     */
     function collect({ list, statuses, workspaces, life, now, lastWorking, mainId }) {
       const archived = new Set(workspaces.archivedSessionIds ?? [])
       const pinned = new Set(workspaces.pinnedSessionIds ?? [])
@@ -176,7 +148,6 @@ window.__ModuleLoader__.load({
           const until = request.parkable && records[row.id]?.holds?.[request.callId]
           if (until > now) { group.holds.push({ request, until, target: row.id, childTitle: row === root ? null : row.displayTitle }); board.deadline = Math.min(board.deadline, until); continue }
           const record = group.record
-          // A question already open when the snooze began means "ask me later".
           if (record?.snoozedUntil > now && request.parkable && record.snoozedCalls?.includes(call)) continue
           if (!group.request || attentionRank[request.kind] > attentionRank[group.request.kind] || (request.kind === group.request.kind && row === root && group.target !== root.id)) {
             group.request = request; group.target = row.id; group.childTitle = row === root ? null : row.displayTitle
@@ -232,11 +203,6 @@ window.__ModuleLoader__.load({
       return board
     }
 
-    /**
-     * Session ids the native list hides. Needs you, Snoozed and Settled always
-     * move out; Working moves out while the fold is on. The open session never
-     * leaves Working's place, and pinned sessions keep their pinned row.
-     */
     function hiddenIds(board, foldWorking, returned = true) {
       const ids = []
       for (const g of board.attention) if (!g.pinned) ids.push(g.id)
@@ -245,7 +211,6 @@ window.__ModuleLoader__.load({
       return ids.filter(id => /^[\w.:-]+$/.test(id))
     }
 
-    /** Snooze choices from now: in 1 h, in 3 h, this evening 18:00, tomorrow 09:00, next Monday 09:00. */
     function snoozePresets(now = new Date()) {
       const at = (days, hour) => { const d = new Date(now); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return +d }
       const monday = ((8 - now.getDay()) % 7) || 7
@@ -258,14 +223,13 @@ window.__ModuleLoader__.load({
       ].filter(p => p.until > +now + 60_000)
     }
 
-    // --------------------------------------------------------- transport
     async function postOp(payload) {
       const res = await fetch('session-lifecycle/op', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`)
-      // A fallback HTML page or interrupted response is not a durable acknowledgement.
-      if (!data || typeof data.settings?.foldWorking !== 'boolean' || !Object.hasOwn(data, 'after')) throw new Error('Invalid lifecycle acknowledgement')
-      return data
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.message || `HTTP ${res.status}`)
+      }
+      return res.json()
     }
     async function operation(action, args, signal) {
       const res = await fetch('session-lifecycle/summary', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...args, action }), signal })
@@ -283,7 +247,6 @@ window.__ModuleLoader__.load({
       }
     }
 
-    // -------------------------------------------------------------- icons
     const svg = (size, children, extra = {}) => h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, ...extra }, ...children)
     const IconShelves = ({ size = 16 }) => svg(size, [h('path', { key: 1, d: 'm3 7 9-4 9 4-9 4zM3 12l9 4 9-4M3 17l9 4 9-4' })])
     const IconSettle = ({ size = 16 }) => svg(size, [h('path', { key: 1, d: 'M4 7h16v12H4zM3 4h18v3H3zM10 11h4' })])
@@ -364,7 +327,6 @@ window.__ModuleLoader__.load({
         const lastWorking = new Map()
         let origin = null
 
-        // ------------------------------------------------ Host state stream
         let stream
         const connect = () => {
           stream?.close()
@@ -373,54 +335,14 @@ window.__ModuleLoader__.load({
             try {
               const data = JSON.parse(event.data)
               store.set({ status: 'ready', sessions: data.sessions ?? {}, settings: data.settings ?? store.getSnapshot().settings })
-              migrateInbox()
             } catch { store.set({ status: 'error' }) }
           })
           stream.addEventListener('error', () => store.set({ status: 'error' }))
         }
         ctx.effect(() => { connect(); return () => stream.close() }, `${NS}: follow Host state`)
 
-        // One-time import of the former dsh-inbox browser marks into the Host.
-        let migrated = false
-        function migrateInbox() {
-          if (migrated) return
-          migrated = true
-          let storage
-          try { storage = window.localStorage } catch { return }
-          const marks = [], holds = []
-          try {
-            for (let i = 0; i < storage.length; i++) {
-              const k = storage.key(i)
-              if (k?.startsWith('dsh-inbox:seen:v1:')) {
-                const match = /^(\d+):(.+)$/.exec(k.slice('dsh-inbox:seen:v1:'.length))
-                if (match && Number.isSafeInteger(+match[1])) marks.push({ key: k, sessionId: match[2], seq: +match[1] })
-              } else if (k?.startsWith('dsh-inbox:later:v1:')) {
-                try {
-                  const [sessionId, callId] = JSON.parse(k.slice('dsh-inbox:later:v1:'.length)), until = Number(storage.getItem(k))
-                  if (typeof sessionId === 'string' && typeof callId === 'string' && until > Date.now()) holds.push({ key: k, sessionId, callId, until })
-                } catch { /* Leave unknown records untouched. */ }
-              }
-            }
-          } catch { migrated = false; return }
-          void (async () => {
-            try {
-              for (let i = 0; i < marks.length; i += 200) {
-                const batch = marks.slice(i, i + 200)
-                await postOp({ action: 'seen', marks: batch.map(({ sessionId, seq }) => ({ sessionId, seq })) })
-                for (const { key } of batch) storage.removeItem(key)
-              }
-              for (const { key, sessionId, callId, until } of holds) {
-                await postOp({ action: 'hold', sessionId, callId, until, import: true })
-                if (Number(storage.getItem(key)) === until) storage.removeItem(key)
-              }
-            } catch { migrated = false }
-          })()
-        }
-
-        // ------------------------------------------------------- actions
         const notifyFailure = error => ctx.contextMenus.notify(`${t('opFailed')}: ${error?.message ?? error}`, false)
         const recordOf = id => store.getSnapshot().sessions[id] ?? null
-        // Undo uses the before/after pair actually committed by the Host, not a stale SSE snapshot.
         async function change(sessionId, payload, toast) {
           try {
             const { before, after } = await postOp({ ...payload, sessionId })
@@ -441,7 +363,6 @@ window.__ModuleLoader__.load({
         }
         const hold = (row, until) => postOp({ action: 'hold', sessionId: row.target, callId: row.request.callId, until }).catch(notifyFailure)
 
-        // Shared board for the menu, the sidebar and the page.
         const status = ctx.uiSession.sessionStatus
         let boardCache = null
         const mainIdOf = list => Object.values(list.byId).find(s => (s.retainedBy?.mainView ?? 0) > 0)?.id
@@ -455,7 +376,6 @@ window.__ModuleLoader__.load({
           return board
         }
 
-        // A snoozed session that raised a hand wakes on the Host as well, once.
         const waking = new Set()
         ctx.effect(() => {
           const check = () => {
@@ -471,7 +391,6 @@ window.__ModuleLoader__.load({
           return () => { for (const off of offs) off() }
         }, `${NS}: wake on request`)
 
-        // Read marks: the open, focused, idle session's latest outcome counts as read.
         ctx.effect(() => {
           let source, unbind, sending, visibleId, outcome
           const acknowledge = () => {
@@ -493,7 +412,6 @@ window.__ModuleLoader__.load({
           return () => { unbind?.(); for (const off of offs) off(); window.removeEventListener('focus', sync); window.removeEventListener('blur', sync); document.removeEventListener('visibilitychange', sync) }
         }, `${NS}: read marks`)
 
-        // Verify stale question hints one session at a time; never sweep history.
         const queue = new Set()
         let verifying = false, mounted = true
         ctx.effect(() => () => { mounted = false })
@@ -507,12 +425,11 @@ window.__ModuleLoader__.load({
               if (!mounted) break
               queue.delete(id)
               if (!idle(id)) continue
-              try { await ctx.sessions.refreshProjections(id) } catch { /* Manual retry remains available. */ }
+              try { await ctx.sessions.refreshProjections(id) } catch {}
             }
           } finally { verifying = false }
         }
 
-        // ----------------------------------------------------- session menu
         ctx.effect(() => ctx.contextMenus.register({
           id: NS,
           target: 'session',
@@ -550,7 +467,6 @@ window.__ModuleLoader__.load({
           ctx.slots.inject('contextMenu.icon', () => ctx.slots.register({ name: 'contextMenu.icon', key }, () => h(MenuIcon, { size: 16 })))
         }
 
-        // ------------------------------------------------------------ hooks
         const useLocale = () => React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
         const useLife = () => React.useSyncExternalStore(store.subscribe, store.getSnapshot)
         const useList = () => React.useSyncExternalStore(fn => ctx.sessions.list.subscribe(fn), () => ctx.sessions.list.getSnapshot())
@@ -570,7 +486,6 @@ window.__ModuleLoader__.load({
           return { board, ready, list, workspaces, life }
         }
 
-        // ---------------------------------------------------------- sidebar
         function useListArea() {
           const [found, setFound] = React.useState({ area: null, suspended: true, manual: false })
           React.useEffect(() => {
@@ -579,10 +494,9 @@ window.__ModuleLoader__.load({
               frame = 0
               const area = document.querySelector('[data-sidebar-list-area]')
               const input = document.querySelector('[data-sidebar-workspace-header] input')
-              // The workspace plugin publishes no view-order hook outside its own slot. Read
-              // its persisted v5 preferences, but never write them or change the native list.
+              // external: DSH workspace view order is only exposed via localStorage dsh.workspace.view.v5
               let view
-              try { view = JSON.parse(localStorage.getItem('dsh.workspace.view.v5')) } catch { /* No saved preferences. */ }
+              try { view = JSON.parse(localStorage.getItem('dsh.workspace.view.v5')) } catch {}
               const suspended = !input || Boolean(input.value.trim()) || view?.archivedFilter === 'only'
               const manual = view?.orderBy === 'manual'
               setFound(prev => prev.area === area && prev.suspended === suspended && prev.manual === manual ? prev : { area, suspended, manual })
@@ -596,13 +510,11 @@ window.__ModuleLoader__.load({
           }, [])
           return found
         }
-        /** Keep `el` first (after session-groups folders) or last in the scroller. */
         function usePlacement(area, el, where) {
           React.useLayoutEffect(() => {
             if (!area) return undefined
             const place = () => {
               if (where === 'end') { if (area.lastElementChild !== el) area.appendChild(el); return }
-              // Session-groups folders stay first; these shelves follow them.
               const groups = area.querySelector(':scope > .sgs-host')
               const placed = groups ? el.previousSibling === groups : area.firstChild === el
               if (!placed) area.insertBefore(el, groups ? groups.nextSibling : area.firstChild)
@@ -624,7 +536,7 @@ window.__ModuleLoader__.load({
             subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn) },
             toggle(section) {
               value = { ...value, [section]: !value[section] }
-              try { localStorage.setItem(KEY_FOLDS, JSON.stringify(value)) } catch { /* View preference only. */ }
+              try { localStorage.setItem(KEY_FOLDS, JSON.stringify(value)) } catch {}
               for (const fn of listeners) fn()
             },
           }
@@ -671,7 +583,6 @@ window.__ModuleLoader__.load({
             open && items.slice(0, limit).map(g => h(SidebarMember, { key: g.id, g, section, selectedId })),
             open && items.length > limit && h('button', { type: 'button', className: 'sl-row sl-more', onClick: () => setLimit(n => n + SHELF_LIMIT) }, h('span', { className: 'sl-slot' }), h('span', { className: 'sl-title' }, t('more'))))
         }
-        // A native modal keeps the local-time input, keyboard focus and Escape handling together.
         const picker = createStore()
         const chooseTime = choose => picker.set({ choose })
         function TimePicker() {
@@ -713,7 +624,6 @@ window.__ModuleLoader__.load({
         }
         ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: `${NS}-sidebar`, order: 1010 }, () => h(React.Fragment, null, h(SidebarShelves), h(TimePicker))))
 
-        // -------------------------------------------------------- panel page
         const button = (label, onClick, kind = '', extra = {}) => h('button', { type: 'button', onClick, className: kind, ...extra }, label)
         const option = (value, label) => h('option', { key: value, value }, label)
         const filePart = s => encodeURIComponent(s).replace(/%3A/gi, ':')
@@ -760,8 +670,7 @@ window.__ModuleLoader__.load({
               if (action === 'trial') setResult(v)
               else { setData({ ...data, state: v }); if (action === 'disable') choose(''); say(t('saved')) }
             } catch (e) { if (!active.current.signal.aborted) say(e.message) } finally {
-              // Failed provider attempts can still consume a budget slot.
-              if (action === 'trial' && !active.current.signal.aborted) { try { const next = await operation('settings', {}, active.current.signal); if (!active.current.signal.aborted) setData(next) } catch { /* Keep the original outcome visible. */ } }
+              if (action === 'trial' && !active.current.signal.aborted) { try { const next = await operation('settings', {}, active.current.signal); if (!active.current.signal.aborted) setData(next) } catch {} }
               lock.current = false; if (!active.current.signal.aborted) setBusy(false)
             }
           }
@@ -825,7 +734,8 @@ window.__ModuleLoader__.load({
         function Page(props) {
           useLocale()
           const { board, ready, workspaces, list, life } = useBoard()
-          const owner = props.useRemoteAccess?.('pluginManager/listPlugins') // Owner-only in DSH; the HTTP handler independently admits the principal.
+          // external: DSH has no direct owner-role hook; pluginManager/listPlugins is owner-only
+          const owner = props.useRemoteAccess?.('pluginManager/listPlugins')
           const [view, setView] = React.useState('board'), [notice, say] = React.useState(''), [cache, setCache] = React.useState(new Map())
           const [limits, setLimits] = React.useState(() => origin?.limits ?? { attention: 16, updates: 16, working: 16, snoozed: 16, settled: 16, later: 16 })
           const [open, setOpen] = React.useState(() => origin?.open ?? { working: false, snoozed: false, settled: false, later: false })
@@ -853,7 +763,6 @@ window.__ModuleLoader__.load({
               origin = saved; ctx.uiWorkspace.openSession(row.target)
             } catch (e) { if (alive.current && request === nav.current) { say(e.message); if (file) setNoPreview(key) } }
           }
-          // No idle polling. Refresh cached summaries only while the Host has matching work.
           const versions = JSON.stringify(board.updates.filter(r => !r.outcomeId && !r.outcome.file).slice(0, limits.updates).map(r => ({ id: r.id, seq: r.outcome.seq })))
           React.useEffect(() => {
             if (!owner || !ready || versions === '[]' || view !== 'board') return undefined
@@ -865,12 +774,11 @@ window.__ModuleLoader__.load({
                 const found = new Map(); let pending = false
                 for (let i = 0; i < items.length; i += 64) { const data = await operation('cached', { items: items.slice(i, i + 64) }, ctl.signal); pending ||= data.pending; for (const r of data.items) if (r.result) found.set(JSON.stringify([r.id, r.seq]), r.result) }
                 if (!ctl.signal.aborted) { setCache(found); if (pending) timer = setTimeout(load, 8000) }
-              } catch { /* Optional service: native facts remain available. */ } finally { reading = false }
+              } catch {} finally { reading = false }
             }
             void load(); document.addEventListener('visibilitychange', load)
             return () => { ctl.abort(); clearTimeout(timer); document.removeEventListener('visibilitychange', load) }
           }, [owner, ready, versions, view])
-          // Older sessions without an outcome summary: load small batches on request.
           const incomplete = [...new Set([...board.verify, ...board.missing])]
           const retrievable = incomplete.filter(id => !['ready', 'migration-required'].includes(list.projectionsBySession[id]?.state))
           const candidates = retrievable.filter(id => !checked.current.has(id))
@@ -882,7 +790,7 @@ window.__ModuleLoader__.load({
               for (const id of (candidates.length ? candidates : retrievable).slice(0, 8)) {
                 if (!alive.current) break
                 checked.current.add(id)
-                try { await ctx.sessions.refreshProjections(id) } catch { /* Retry stays explicit. */ }
+                try { await ctx.sessions.refreshProjections(id) } catch {}
               }
             } finally { if (alive.current) setBusy(false) }
           }

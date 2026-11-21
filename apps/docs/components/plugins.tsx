@@ -6,7 +6,6 @@ function Surface({ plugin }: { plugin: PluginInfo }) {
   return <span className="dp-tag" title="运行位置">{plugin.surface}</span>
 }
 
-/** Install command with the native copy button. */
 export function InstallCommand({ slug, local = false }: { slug: string, local?: boolean }) {
   const plugin = getPlugin(slug)
   const command = local
@@ -19,7 +18,6 @@ export function InstallCommand({ slug, local = false }: { slug: string, local?: 
   )
 }
 
-/** Manifest facts shown at the top of each plugin page. */
 export function PluginFacts({ slug }: { slug: string }) {
   const plugin = getPlugin(slug)
   return (
@@ -55,7 +53,6 @@ function Row({ plugin }: { plugin: PluginInfo }) {
   )
 }
 
-/** Grouped plugin list; pass a category to show only that group. */
 export function PluginDirectory({ category, headingLevel = 2 }: { category?: CategoryId, headingLevel?: 2 | 3 }) {
   const shown = category ? categories.filter(item => item.id === category) : categories
   const Heading = headingLevel === 2 ? 'h2' : 'h3'
@@ -74,7 +71,6 @@ export function PluginDirectory({ category, headingLevel = 2 }: { category?: Cat
   )
 }
 
-/** One row per plugin: surface and external requirements. */
 export function RequirementsTable() {
   return (
     <div className="dp-table-wrap not-prose" role="region" aria-label="插件依赖" tabIndex={0}>
@@ -96,7 +92,6 @@ export function RequirementsTable() {
   )
 }
 
-/** All GitHub install commands, grouped like the directory. */
 export function InstallAll() {
   return (
     <>

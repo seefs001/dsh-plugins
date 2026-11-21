@@ -1,4 +1,3 @@
-/** One session-scoped indicator, outside folded Chat work details. */
 window.__ModuleLoader__.load({
   id: 'dsh-compaction-status',
   factory(require) {
@@ -17,7 +16,6 @@ window.__ModuleLoader__.load({
         elapsed: '已等待 {duration}',
       },
     }
-    // Match the native Todo dock's centered width, including its composer insets.
     const CSS = `
 .dsh-compaction-status{
   box-sizing:border-box;
@@ -56,7 +54,6 @@ window.__ModuleLoader__.load({
             h('aside', { className: 'dsh-compaction-status', title: t('hint') },
               h('span', { className: 'dsh-compaction-status__spinner', 'aria-hidden': true }),
               h('span', { className: 'dsh-compaction-status__title', role: 'status', 'aria-live': 'polite' }, t('title')),
-              // Do not announce the clock every second to screen-reader users.
               h('span', { className: 'dsh-compaction-status__elapsed', 'aria-live': 'off' }, t('elapsed', { duration }))))
         }
 

@@ -11,7 +11,6 @@ export async function apply(ctx) {
   }
 
   await ctx.effect(async function* () {
-    // -i leaves display sleep alone; -w releases the assertion even after a Host crash.
     const child = spawn('/usr/bin/caffeinate', ['-i', '-w', String(process.pid)], {
       stdio: 'ignore',
     })
@@ -28,17 +27,14 @@ export async function apply(ctx) {
       }
     })
 
-    // Register cleanup before awaiting startup, including failed or superseded activation.
     yield async () => {
       stopping = true
-      // Keep shutdown alive only while the owned helper is being reaped.
       child.ref()
       if (child.pid && child.exitCode === null && child.signalCode === null) child.kill()
       await closed
     }
 
     await started
-    // The helper must not keep an otherwise finished DSH Host alive.
     child.unref()
     logger.info('keep-awake: preventing macOS idle sleep; display sleep and screen locking are unchanged.')
   }, 'keep-awake: caffeinate')

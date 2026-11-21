@@ -20,8 +20,6 @@ function instructions(blocks, name) {
   }
 }
 
-// Nested calls are not model input. Only attest a returned text block if it actually
-// contains all the instructions of a successful skill call, even after budget/spill.
 export function rememberNestedSkill(skills, name, content) {
   const body = instructions(content, name)
   if (body) skills.set(name, body)
@@ -47,8 +45,6 @@ function directName(args) {
   try { return (typeof args === 'string' ? JSON.parse(args) : args)?.name } catch { return undefined }
 }
 
-// Index immutable evidence, not the current roster. A replacement may retain the
-// message id and outer tags while discarding the middle of its instructions.
 const proofSchema = z.object({ index: z.number(), digest: z.string(), names: z.array(z.string()) })
 const indexDefinition = {
   key: 'pi-tools:skill-evidence', stateVersion: 1,
@@ -85,7 +81,7 @@ export async function apply(ctx) {
   const index = await ctx.sessionProjections.register(indexDefinition)
   const cache = new WeakMap()
   const proposed = new WeakMap()
-  const digests = new WeakMap() // Immutable message blocks survive appends; don't rehash old skill bodies.
+  const digests = new WeakMap()
   ctx.on('agent/pre-step', async ({ agent }, next) => {
     proposed.delete(agent)
     const decision = await next()
@@ -95,9 +91,7 @@ export async function apply(ctx) {
     }
     return decision
   }, { prepend: true })
-  // A change to an unrelated runtime fact may repropose an entire old snapshot.
-  // Keep this section out of that pre-step proposal too. The loop refreshes the
-  // canonical snapshot after pre-step, so no redacted copy is written to history.
+  // external: DSH pre-step can re-propose prior runtime-context snapshots before the post-pre-step refresh
   ctx.on('agent/pre-step', async (_, next) => {
     const decision = await next()
     if (decision.kind !== 'enter') return decision
@@ -120,9 +114,7 @@ export async function apply(ctx) {
       const session = scope?.session
       if (!session) return ''
       const state = index.stateOf(session)
-      // Initial assembly is inspected by prompt-recall middleware. Publish no new
-      // facts there. DSH refreshes this provider after routing/compaction, directly
-      // before admitting messages. The native runtime-context writer deduplicates.
+      // external: DSH calls systemPrompt.context with toolSet during initial assembly before compaction/routing
       if (toolSet) return state.lastText
       const generation = session.surface.contentGeneration
       let hit = cache.get(session)
@@ -145,7 +137,6 @@ export async function apply(ctx) {
       }
       const names = new Set(hit.names)
       for (const [id, name] of proposed.get(scope) ?? []) {
-        // On overflow retry these messages were admitted already; a summary is not the original.
         if (!Object.hasOwn(state.proofs, id)) names.add(name)
       }
       return names.size ? prefix + [...names].toSorted().join(', ') : state.lastText ? 'No full skill instructions are currently retained.' : ''

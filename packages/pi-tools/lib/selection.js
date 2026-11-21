@@ -1,8 +1,6 @@
 import { appendPluginRecord, pluginRecordOf, z } from './harness.js'
 import { openDefaults, writeDefaults } from './defaults.js'
 
-// Session-owned tool selection stored as an ignorable plugin record, so a
-// stock DSH reader keeps the Session even without this plugin.
 export const SELECTION_RECORD = 'plugin:dsh-pi-tools/selection'
 export const OPTIONS_PATH = '/pi-tools/options'
 
@@ -15,8 +13,6 @@ function selectionOf(data) {
   return parsed.success ? { agentPreset: data.agentPreset, tools: parsed.data } : undefined
 }
 
-// A preset change resets the selection, matching the first-turn creation flow.
-// A record only applies to the preset it names.
 export const selectionDefinition = {
   key: 'dsh-pi-tools:selection',
   stateVersion: 1,
@@ -38,7 +34,6 @@ export function appendSelection(session, agentPreset, tools) {
   return appendPluginRecord(session, SELECTION_RECORD, { agentPreset, tools })
 }
 
-// Every live preset generation; the single Web route finds the owning one.
 export const liveLoadouts = new Set()
 
 async function readBody(req) {
@@ -59,11 +54,6 @@ function send(res, status, value) {
 
 const syncAll = () => { for (const loadout of liveLoadouts) loadout.sync() }
 
-// GET ?sessionId= reads the catalog and committed selection of a blank Pi Session.
-// POST { sessionId, tools } commits a selection before the first turn.
-// POST { sessionId, action: 'save-defaults', tools } saves Host defaults for the
-// Session's preset; `tools: null` restores the configured defaults.
-// POST { sessionId, action: 'refresh-mcp' } restarts the preset's MCP servers.
 export function registerOptionsRoute(ctx) {
   openDefaults(ctx, syncAll)
   ctx.inject(['webServer', 'connection', 'sessionController', 'agents'], scope => {

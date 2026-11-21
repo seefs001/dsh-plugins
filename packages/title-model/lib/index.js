@@ -1,4 +1,3 @@
-/** Native title-provider settings, shared by the Plugins page and title_model tool. */
 export const name = 'title-model'
 export const inject = ['configEditor', 'webServer', 'connection']
 
@@ -9,16 +8,14 @@ const PROVIDERS = new Map([
   ['@deepseek-ai/dsh-session-title-all-prompts-llm', 'all-prompts'],
 ])
 const MAX_BODY_BYTES = 16 * 1024
-// Cordis 4.1's FiberState.ACTIVE is a const enum, not a JavaScript export.
+// external: Cordis 4.1 FiberState.ACTIVE is a TS const enum with no JS export
 const ACTIVE = 2
 
-/** Read the resolved route, without leaking unrelated provider configuration. */
 function routeOf(entry) {
   const config = entry.fiber.effectiveConfig
   return { provider: config.provider ?? '', model: config.model ?? '' }
 }
 
-/** The native config editor preserves every field other than the explicit route. */
 export function createController(editor) {
   const entries = () => editor.entries().filter(entry =>
     PROVIDERS.has(entry.options.name) && !entry.options.disabled && entry.fiber?.state === ACTIVE)
@@ -47,7 +44,7 @@ export function createController(editor) {
     await editor.edit(entry, current => {
       const next = { ...current }
       if (provider === '') {
-        // Absence, not empty strings or null, is the native follow-session policy.
+        // external: DSH native title providers require absent keys to follow the session
         delete next.provider
         delete next.model
       } else {
@@ -113,13 +110,13 @@ export function apply(ctx) {
   ctx.inject(['tools'], toolCtx => {
     toolCtx.effect(() => toolCtx.tools.register({
       name: 'title_model',
-      description: 'Read or change the Host-wide model used for session titles. Keeps the title strategy and conversation model unchanged. Saved choices persist after this settings plugin is disabled.',
+      description: 'Read or set the model used by active native session title generators.',
       parameters: {
         type: 'object',
         properties: {
           action: { type: 'string', enum: ['get', 'set'] },
-          generator: { type: 'string', description: 'Generator id from get; optional when exactly one is available.' },
-          provider: { type: 'string', description: 'set: provider route id. Clear both provider and model to follow the session.' },
+          generator: { type: 'string', description: 'Generator id from get; optional when exactly one is active.' },
+          provider: { type: 'string', description: 'set: provider id; empty string with empty model follows the session.' },
           model: { type: 'string', description: 'set: model id, paired with provider.' },
         },
         required: ['action'],

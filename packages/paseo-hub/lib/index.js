@@ -1,17 +1,3 @@
-/**
- * dsh-paseo-hub — Host half.
- *
- * Connects this DSH Host to Paseo Hub as a daemon. Sign-in (CLI device login
- * or an organization API key) issues a one-time enrollment token; enrollment
- * stores a per-relationship secret in DSH credentials and the relationship in
- * the `paseo_hub` storage domain. While enrolled, the plugin keeps the daemon
- * WebSocket open with backoff and answers Hub through `HubBridge`.
- *
- * Per Hub session, Agent setup mounts Hub's MCP server on that Agent's scope,
- * `tools/pre-execute` allows exactly the Hub tools Hub preapproved, and bash
- * commands receive the run's Hub environment (for example a short-lived
- * GH_TOKEN). Nothing reaches other sessions.
- */
 import { hostname } from 'node:os'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { Schema } from './runtime.js'
@@ -49,16 +35,14 @@ const CREDENTIAL_ID = 'daemon'
 
 export const Config = Schema.object({
   modes: Schema.dict(Schema.string()).default({})
-    .description('Hub mode -> DSH permission preset. Empty offers every configured preset under its own name.'),
+    .description('Hub mode -> DSH permission preset. Empty exposes every configured preset under its own name.'),
   defaultMode: Schema.string().default('')
-    .description('Mode for a Hub agent that names none; empty uses the permission presets default.'),
+    .description('Fallback mode when a Hub agent omits agent.mode; empty uses the default permission preset.'),
   agentPreset: Schema.string().default('')
     .description('Agent preset for Hub sessions; empty uses the deployment default.'),
   listWorkspaces: Schema.boolean().default(true)
-    .description('Add each Hub run directory to the sidebar workspace list, so its sessions are visible.'),
+    .description('Add each Hub run directory to the sidebar workspace list.'),
 })
-
-// ---- persistence ----
 
 const validator = parse => ({
   parse,
@@ -89,15 +73,9 @@ export const DOMAIN_SPEC = {
   version: 1,
   layout: 'per-record',
   global: { schema: relationshipSchema, initial: null },
-  // `events` was added after 0.1.0; an older store simply has no events directory.
   tables: { runs: { valueSchema: runSchema }, events: { valueSchema: eventSchema } },
 }
 
-/**
- * Activity journal: connection changes, Hub requests, and run outcomes, newest
- * first. Writes are best effort; a failed write never fails the operation it
- * describes. Kinds are grouped by their prefix (`connection.`, `run.`, `op.`).
- */
 export class Journal {
   constructor(domain, log) {
     this.table = domain.table('events')
@@ -107,7 +85,7 @@ export class Journal {
 
   add({ kind, level = 'info', message, sessionId = null, detail = null }) {
     const at = new Date().toISOString()
-    // Path-safe, time-ordered key: the per-record backend stores one file per key.
+    // external: DSH per-record storageDomain uses keys as filenames
     const id = `${Date.now().toString(36)}-${(this.seq++ % 1296).toString(36).padStart(2, '0')}-${randomBytes(3).toString('hex')}`
     const event = { id, at, kind, level, message: String(message).slice(0, 2000), sessionId, detail }
     void this.table.put(id, event).then(() => this.trim()).catch(error => this.log?.('warn', `journal write failed: ${error?.message ?? error}`))
@@ -126,7 +104,6 @@ export class Journal {
   }
 }
 
-/** Hub runs keyed by Hub's idempotency key, with a session index. */
 class RunStore {
   constructor(domain) {
     this.domain = domain
@@ -165,12 +142,6 @@ class RunStore {
   }
 }
 
-// ---- connection lifecycle ----
-
-/**
- * One relationship: `not_connected` -> `signing_in` -> `connecting` <->
- * `connected` / `reconnecting`; `revoked` when Hub refuses the credential.
- */
 class Connector {
   constructor(ctx, config, domain, store, journal) {
     this.ctx = ctx
@@ -233,15 +204,11 @@ class Connector {
     }
   }
 
-  // -- sign-in --
-
   async signIn({ origin: rawOrigin, apiKey }) {
     if (this.relationship !== null) throw new Error('This Host is already enrolled; disconnect first to switch Hubs')
     if (this.stopped || this.state === 'signing_in' || this.enrolling) throw new Error('Sign-in is unavailable or already in progress')
     const origin = normalizeHubOrigin(rawOrigin)
     this.lastError = null
-    // Claim before the first await. Opening/waiting are cancelable; after enrollment
-    // starts the credential and relationship must settle together before another attempt.
     this.state = 'signing_in'
     if (typeof apiKey === 'string' && apiKey.trim()) {
       this.login = { origin, method: 'api-key' }
@@ -324,8 +291,6 @@ class Connector {
       const secret = randomBytes(32).toString('base64url')
       const daemonId = randomUUID()
       const idempotencyKey = randomUUID()
-      // Store the secret before Hub knows its verifier, so a crash never leaves
-      // an enrolled daemon whose credential this Host cannot present.
       await this.ctx.credentials.modifyRecord(this.credentialKey(), async () => ({ kind: 'grant', payload: { secret, daemonId } }))
       const enrollment = await enrollDaemon(origin, {
         token,
@@ -360,8 +325,6 @@ class Connector {
       this.failSignIn(error)
     }
   }
-
-  // -- socket --
 
   async connect() {
     if (this.stopped) return
@@ -438,7 +401,6 @@ class Connector {
 
   scheduleReconnect(reason) {
     if (this.stopped) return
-    // One entry per outage: the first drop, not every backoff retry.
     if (this.state !== 'reconnecting') this.journal.add({ kind: 'connection.lost', level: 'warn', message: `Hub connection ${reason}; retrying with backoff` })
     this.state = 'reconnecting'
     this.lastError = `Hub connection ${reason}; retrying in ${Math.round(this.retryDelay / 1000)}s`
@@ -485,8 +447,6 @@ class Connector {
   }
 }
 
-// ---- HTTP helpers ----
-
 function sendJson(res, status, payload) {
   res.statusCode = status
   res.setHeader('content-type', 'application/json; charset=utf-8')
@@ -505,16 +465,9 @@ async function readBody(req, limit = MAX_BODY_BYTES) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-// ---- shell environment for Hub runs ----
-
-/**
- * Merge a Hub run's env into bash requests of that run's Session. The shell
- * executor carries `request.env` after its credential scrub, and the managed
- * `dshEnv` snapshot still wins, so no Hub value can displace a DSH_* fact.
- * Returns a restore function.
- */
 function installShellEnv(ctx, store) {
   const shell = ctx.get('shell')
+  // external: unwrap Cordis service proxy to patch shell.resolve on the underlying instance
   const target = shell?.[Symbol.for('cordis.original')] ?? shell
   if (!target || typeof target.resolve !== 'function') return () => {}
   const original = target.resolve
@@ -533,11 +486,8 @@ function installShellEnv(ctx, store) {
   }
 }
 
-// ---- page queries ----
-
 const RUN_STATUSES = ['running', 'finished', 'completed', 'failed', 'canceled', 'idle', 'archived']
 
-/** A run's status for the page: live activity first, then archive, then the last recorded outcome. */
 export function runStatus(run, { running, archived }) {
   if (running) return 'running'
   if (archived || run.archivedAt) return 'archived'
@@ -545,7 +495,6 @@ export function runStatus(run, { running, archived }) {
   return 'idle'
 }
 
-/** Clamp `page` (1-based) and `pageSize` and slice; `page` past the end lands on the last page. */
 export function paginate(items, page, pageSize) {
   const size = Math.min(PAGE_SIZE_MAX, Math.max(1, Number.parseInt(pageSize, 10) || 20))
   const pages = Math.max(1, Math.ceil(items.length / size))
@@ -557,8 +506,6 @@ const matches = (query, ...fields) => {
   const needle = String(query ?? '').trim().toLowerCase()
   return needle === '' || fields.some(field => typeof field === 'string' && field.toLowerCase().includes(needle))
 }
-
-// ---- plugin entry ----
 
 export function apply(ctx, config) {
   let connector
@@ -573,15 +520,6 @@ export function apply(ctx, config) {
     journal = new Journal(domain, (level, msg) => ctx.logger?.[level]?.(`paseo-hub: ${msg}`))
     connector = new Connector(ctx, config, domain, store, journal)
     await connector.start()
-    // Runs recorded before workspace listing existed are still invisible; list their directories once.
-    if (config.listWorkspaces !== false) {
-      const paths = new Set(store.list().filter(run => run.archivedAt === null).map(run => run.cwd))
-      for (const path of paths) {
-        if (closing) break
-        await ctx.workspaceController.create({ path })
-          .catch(error => ctx.logger?.warn?.(`paseo-hub: could not add ${path} to the workspace list: ${error?.message ?? error}`))
-      }
-    }
     return domain
   })
   ready.catch(error => ctx.logger?.error?.(`paseo-hub: storage unavailable: ${error?.message ?? error}`))
@@ -594,7 +532,6 @@ export function apply(ctx, config) {
     await ready.then(domain => domain.close())
   }, 'paseo-hub: connector')
 
-  // Mount Hub's MCP server on a Hub session's own Agent scope, for fresh and resumed Agents.
   const mount = async (agent) => {
     const run = store?.bySession(agent.id)
     if (closing || run?.hub == null || fibers.has(agent)) return
@@ -613,8 +550,6 @@ export function apply(ctx, config) {
     await ready.catch(() => {})
     await mount(agent)
   })
-  // A plugin reload (update, profile change) unmounts Hub tools from live
-  // Agents; agent/created will not fire for them again, so remount here.
   void ready.then(() => Promise.all((ctx.agents.list?.() ?? []).map(mount))).catch(() => {})
 
   ctx.on('agent/status', ({ agent }) => {
@@ -628,7 +563,6 @@ export function apply(ctx, config) {
     void recordOutcome(sessionId, event)
   })
 
-  /** Keep each run's outcome on its record, so the page can filter and count without opening sessions. */
   async function recordOutcome(sessionId, event) {
     try {
       if (event.type === 'turn/start') {
@@ -681,8 +615,6 @@ export function apply(ctx, config) {
     }
   }
 
-  // Hub preapproves its own tools because nobody is at the keyboard for them.
-  // Allow exactly those names, in exactly those sessions; everything else keeps DSH policy.
   ctx.on('tools/pre-execute', async (exec, next) => {
     const run = exec.agent === undefined ? undefined : store?.bySession(exec.agent.id)
     if (run !== undefined && run.preapproved?.some(tool => exec.name === `mcp__${HUB_SERVER}__${tool}`)) return { kind: 'allow' }
@@ -729,8 +661,6 @@ export function apply(ctx, config) {
     },
   }), `paseo-hub: GET ${STATE_PATH}`)
 
-  // The UI and tools call exactly the same organization operations. Credential
-  // changes are only admitted on this owner route, never on either tool.
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact', path: API_PATH,
     handler: async (req, res) => {
@@ -832,10 +762,6 @@ export function apply(ctx, config) {
     },
   }), `paseo-hub: POST ${OP_PATH}`)
 
-  /**
-   * Page actions on one Hub run. They act on the DSH session and tell Hub
-   * through the same agent update a Hub-initiated change sends.
-   */
   async function runOp(sessionId, action) {
     const run = typeof sessionId === 'string' ? store.bySession(sessionId) : undefined
     if (run === undefined) throw new Error('Unknown Hub run')
@@ -856,7 +782,6 @@ export function apply(ctx, config) {
         journal.add({ kind: 'op.restore', message: 'Run restored from the page', sessionId })
         break
       case 'forget':
-        // Hub still addresses a live run by its session id; only archived runs leave the list.
         if (!archived && run.archivedAt === null) throw new Error('Archive the run before removing it from the list')
         await store.remove(run.key)
         journal.add({ kind: 'op.forget', message: `Run removed from the list (the DSH session stays): ${run.title ?? sessionId}`, sessionId })
@@ -877,7 +802,6 @@ function runStats(runs) {
 
 async function mountHubMcp(agent, run) {
   const { McpClient } = await import('./runtime.js')
-  // DSH names these tools mcp__hub__<tool>, the exact name Hub watches for.
   return agent.ctx.plugin(McpClient, McpClient.Config({
     transport: 'streamable-http',
     serverName: HUB_SERVER,

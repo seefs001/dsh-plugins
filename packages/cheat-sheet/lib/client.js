@@ -1,4 +1,3 @@
-/** Session-scoped cheat sheet for user-invocable skills, with shared pins and load counts. */
 window.__ModuleLoader__.load({
   id: 'dsh-cheat-sheet',
   factory(require) {
@@ -11,31 +10,31 @@ window.__ModuleLoader__.load({
     const DICTS = {
       en: {
         title: 'Skill cheat sheet',
-        intro: 'Shows manual-only skills by default (toggle below to include Agent-invocable ones). Pinned skills come first, then sorted by usage.',
-        usage: 'Click Insert to put /name at the start of your message without sending. Existing text is kept.',
-        keyHint: '↑ ↓ choose a skill · Enter in search inserts the selected command · Esc closes',
-        search: 'Search names, Chinese summaries and use cases',
+        intro: 'Shows manual-only skills by default. Pinned skills stay on top, followed by usage count.',
+        usage: 'Insert places /name at the start of the composer without sending.',
+        keyHint: '↑ ↓ select · Enter inserts · Esc closes',
+        search: 'Search name, summary, or use case',
         count: '{shown} of {total} skills',
         loading: 'Loading skills…',
         loadFailed: 'Could not load skills: {message}',
         refresh: 'Refresh',
         retry: 'Retry',
         empty: 'No user-invocable skills in this session.',
-        noMatches: 'No matching skills. Try another search.',
-        noDescription: 'This skill has no description.',
+        noMatches: 'No matching skills.',
+        noDescription: 'No description.',
         about: 'What it does',
         when: 'When to use',
         userOnly: 'Manual only',
-        userOnlyHint: 'The agent cannot load this skill on its own. Invoke it explicitly with /name.',
-        showAutomatic: 'Include skills the Agent can also invoke',
-        filterHint: 'Off by default so the list stays focused on manual-only skills. Hidden skills can still be invoked manually.',
-        hiddenAutomatic: '{count} Agent-invocable skills hidden',
-        emptyManual: 'No manual-only skills in this session. Turn on the toggle below to view the rest.',
+        userOnlyHint: 'Invoke explicitly with /name.',
+        showAutomatic: 'Include Agent-invocable skills',
+        filterHint: 'Hidden skills can still be invoked manually with /name.',
+        hiddenAutomatic: '{count} Agent-invocable hidden',
+        emptyManual: 'No manual-only skills in this session.',
         showOther: 'Show other skills',
-        summaryMissing: 'Author description · Chinese summary not yet available',
-        summariesUnavailable: 'Chinese summaries are unavailable. Check ~/.agents/skills/short-descriptions.zh.json and refresh (reload the Host plugin if you just updated it). Pins and counts still work.',
+        summaryMissing: 'Author description · no Chinese summary',
+        summariesUnavailable: 'Chinese summaries unavailable. Check ~/.agents/skills/short-descriptions.zh.json and refresh.',
         write: 'Insert /{name}',
-        writeFailed: 'Could not insert the command. The input may be submitting or its content may have changed. Try again in a moment.',
+        writeFailed: 'Could not insert command. Try again.',
         close: 'Close',
         sort: 'Sort',
         sortUsage: 'Most used',
@@ -43,58 +42,58 @@ window.__ModuleLoader__.load({
         groupPinned: 'Pinned',
         groupOther: 'Other skills',
         groupAll: 'All skills',
-        pin: 'Pin to top',
-        pinLabel: 'Pin /{name} to top',
-        pinOnHint: 'Pinned across sessions. Click again to unpin.',
-        pinOffHint: 'Keep this skill pinned at the top across sessions.',
+        pin: 'Pin',
+        pinLabel: 'Pin /{name}',
+        pinOnHint: 'Pinned across sessions. Click to unpin.',
+        pinOffHint: 'Pin to top across sessions.',
         pinSaving: 'Saving…',
         pinDone: 'Pinned /{name}.',
         unpinDone: 'Unpinned /{name}.',
-        pinFailed: 'Could not confirm the pin change for /{name}: {message} Refresh to check.',
-        pinUnavailable: 'Pinning is unavailable until usage data loads.',
+        pinFailed: 'Pin change failed for /{name}: {message}',
+        pinUnavailable: 'Waiting for usage data.',
         loads: '{count} loads',
         loadsOne: '1 load',
-        loadsHint: 'Counted from actual manual /name and Agent loads since tracking began (searching and inserting do not count).',
-        loadsDetail: 'Loaded {count} times since tracking began (manual and Agent loads combined).',
-        loadsDetailOne: 'Loaded once since tracking began (manual and Agent loads combined).',
-        countsNote: 'Counts track actual loads since tracking began (manual and Agent combined). Pins and counts are shared across sessions.',
+        loadsHint: 'Actual /name and Agent skill loads (excludes browsing and inserting).',
+        loadsDetail: 'Loaded {count} times.',
+        loadsDetailOne: 'Loaded once.',
+        countsNote: 'Counts and pins are shared across sessions on this Host.',
         usageLoading: 'Loading pins and usage counts…',
-        usageFailed: 'Pins and usage counts are unavailable: {message} Skills are listed by name and pinning is disabled.',
+        usageFailed: 'Pins and usage counts unavailable: {message}',
         usageRetry: 'Retry',
         httpError: 'Request failed (HTTP {status}).',
-        badState: 'The server returned unexpected data.',
+        badState: 'Unexpected server response.',
         networkError: 'Network error: {message}',
         details: 'Skill details',
-        selectHint: 'Select a skill to see what it does.',
-        countUnknown: 'Load count unavailable',
+        selectHint: 'Select a skill to view details.',
+        countUnknown: 'Count unavailable',
       },
       zh: {
         title: '技能速查',
-        intro: '默认只看需要手动触发的技能，可按需开启开关一起看。置顶排在最前，其余按使用次数排序。',
-        usage: '点“写入”会把 /技能名 插到输入框开头，保留你已写的内容，不会自动发送。',
-        keyHint: '↑ ↓ 选择技能 · 在搜索框按 Enter 写入所选命令 · Esc 关闭',
-        search: '搜索名称、中文短说明和适用场景',
+        intro: '默认只看手动触发技能，置顶在前，其余按使用次数排序。',
+        usage: '点“写入”会把 /技能名 插到输入框开头，保留已有内容且不发送。',
+        keyHint: '↑ ↓ 选择 · Enter 写入 · Esc 关闭',
+        search: '搜索名称、中文说明或适用场景',
         count: '{shown} / {total} 个技能',
         loading: '正在读取技能…',
         loadFailed: '读取技能失败：{message}',
         refresh: '刷新',
         retry: '重试',
-        empty: '当前会话没有可主动调用的技能。',
-        noMatches: '没有匹配的技能，换个关键词试试。',
-        noDescription: '这个技能没有提供用途说明。',
+        empty: '当前会话没有可调用的技能。',
+        noMatches: '没有匹配的技能。',
+        noDescription: '暂无说明。',
         about: '用途',
         when: '适用场景',
-        userOnly: '仅限手动调用',
-        userOnlyHint: 'Agent 不能自行加载这个技能，需要你用 /技能名 手动调用。',
+        userOnly: '仅手动',
+        userOnlyHint: '需要用 /技能名 手动触发。',
         showAutomatic: '包含 Agent 可自动调用的技能',
-        filterHint: '默认只看必须手动调用的技能，隐藏的那些也一样可以手动 /调用；置顶项会受这个开关影响。',
+        filterHint: '隐藏的技能同样支持手动 /调用。',
         hiddenAutomatic: '已隐藏 {count} 个 Agent 可调用技能',
-        emptyManual: '当前会话没有仅限手动调用的技能。打开下方开关就能看到其他可手动调用的技能。',
+        emptyManual: '当前会话没有仅限手动调用的技能。',
         showOther: '显示其他技能',
-        summaryMissing: '作者原文 · 中文短说明待补充',
-        summariesUnavailable: '中文短说明暂时读不到，请检查 ~/.agents/skills/short-descriptions.zh.json 后点刷新（刚更新插件的话请先重载 Host）。置顶和次数仍正常可用。',
+        summaryMissing: '作者原文 · 暂无中文短说明',
+        summariesUnavailable: '未读取到中文短说明，请检查 ~/.agents/skills/short-descriptions.zh.json 后刷新。',
         write: '写入 /{name}',
-        writeFailed: '写入失败，输入框可能正在提交或内容有变化，请稍后再试。',
+        writeFailed: '写入失败，请稍后重试。',
         close: '关闭',
         sort: '排序',
         sortUsage: '最常用',
@@ -104,28 +103,28 @@ window.__ModuleLoader__.load({
         groupAll: '全部技能',
         pin: '置顶',
         pinLabel: '置顶 /{name}',
-        pinOnHint: '已置顶，所有会话通用。再次点击取消置顶。',
-        pinOffHint: '把这个技能固定在列表顶部，所有会话通用。',
-        pinSaving: '正在保存…',
+        pinOnHint: '已置顶，点击取消。',
+        pinOffHint: '固定到顶部（跨会话共享）。',
+        pinSaving: '保存中…',
         pinDone: '已置顶 /{name}。',
         unpinDone: '已取消置顶 /{name}。',
-        pinFailed: '没确认好 /{name} 的置顶状态：{message} 刷新一下核对看看。',
-        pinUnavailable: '等使用数据加载完才能置顶。',
-        loads: '加载 {count} 次',
-        loadsOne: '加载 1 次',
-        loadsHint: '记录启用统计后的实际加载次数（含手动 /技能名 和 Agent 调用，搜索和写入不计入）。',
-        loadsDetail: '启用统计以来加载了 {count} 次（含手动和 Agent 调用）。',
-        loadsDetailOne: '启用统计以来加载了 1 次（含手动和 Agent 调用）。',
-        countsNote: '次数统计启用以来的实际加载（含手动和 Agent 调用），置顶和次数在各会话间共享。',
-        usageLoading: '正在读取置顶和使用次数…',
-        usageFailed: '置顶和使用次数暂不可用：{message} 技能先按名称排列，暂时无法置顶。',
+        pinFailed: '置顶 /{name} 失败：{message}',
+        pinUnavailable: '使用数据尚未就绪。',
+        loads: '{count} 次',
+        loadsOne: '1 次',
+        loadsHint: '统计实际 /技能名 与 Agent 调用次数（不含搜索和写入）。',
+        loadsDetail: '已加载 {count} 次。',
+        loadsDetailOne: '已加载 1 次。',
+        countsNote: '置顶与加载次数在本机所有会话间共享。',
+        usageLoading: '正在读取置顶和次数…',
+        usageFailed: '置顶和次数暂不可用：{message}',
         usageRetry: '重试',
         httpError: '请求失败（HTTP {status}）。',
-        badState: '服务端返回的数据格式不太对。',
+        badState: '服务端返回格式异常。',
         networkError: '网络错误：{message}',
         details: '技能详情',
-        selectHint: '选一个技能看具体说明。',
-        countUnknown: '加载次数暂不可用',
+        selectHint: '选择一项查看说明。',
+        countUnknown: '次数暂不可用',
       },
     }
 
@@ -220,19 +219,15 @@ window.__ModuleLoader__.load({
       h('path', { key: 's', d: 'M10 11.5V17' }),
     ])
 
-    // Accept only the agreed state shape; anything else is reported, never guessed.
     function normalizeState(body) {
-      const pinned = body?.pinned
-      const counts = body?.counts
-      if (!Array.isArray(pinned) || pinned.some(name => typeof name !== 'string')) return null
-      if (!counts || typeof counts !== 'object' || Array.isArray(counts)) return null
-      const entries = Object.entries(counts)
-      if (entries.some(([, value]) => !Number.isSafeInteger(value) || value < 0)) return null
-      const descriptions = body.descriptions
-      const descriptionsAvailable = body.descriptionsAvailable === true
-        && descriptions !== null && typeof descriptions === 'object' && !Array.isArray(descriptions)
-        && Object.values(descriptions).every(value => typeof value === 'string' && value.trim())
-      return { pinned: [...new Set(pinned)], counts: Object.fromEntries(entries), descriptions: descriptionsAvailable ? descriptions : {}, descriptionsAvailable }
+      if (!Array.isArray(body?.pinned) || !body?.counts || typeof body.counts !== 'object' || Array.isArray(body.counts)) return null
+      const descriptionsAvailable = body.descriptionsAvailable === true && body.descriptions !== null && typeof body.descriptions === 'object'
+      return {
+        pinned: [...new Set(body.pinned)],
+        counts: body.counts,
+        descriptions: descriptionsAvailable ? body.descriptions : {},
+        descriptionsAvailable,
+      }
     }
 
     async function requestState(t, path, init, signal) {
@@ -256,20 +251,6 @@ window.__ModuleLoader__.load({
 
     const byName = (a, b) => a.name.localeCompare(b.name)
 
-    /** @typedef {{name: string, description: string, whenToUse?: string, modelInvocable: boolean}} SkillInfo */
-    /** @typedef {{pinned: string[], counts: Record<string, number>, descriptions: Record<string, string>}} SharedData */
-    /** @typedef {SkillInfo & {summary: string | null, loads: number | null, pinned: boolean}} SkillRow */
-    /** @typedef {{query: string, sort: 'usage' | 'name', showAutomatic: boolean}} ViewOptions */
-    /** @typedef {{rows: SkillRow[], groups: {key: 'groupPinned' | 'groupOther' | 'groupAll', rows: SkillRow[]}[], effectiveSort: 'usage' | 'name', hiddenAutomatic: number, emptyKey: 'empty' | 'emptyManual' | 'noMatches' | null}} SkillView */
-
-    /**
-     * Owns all read-side joins and display policies, without I/O or input mutation.
-     * A null shared snapshot means unknown loads, not zero; dictionaries stay private.
-     * @param {SkillInfo[]} skills
-     * @param {SharedData | null} shared
-     * @param {ViewOptions} options
-     * @returns {SkillView}
-     */
     function buildSkillView(skills, shared, { query, sort, showAutomatic }) {
       const effectiveSort = shared === null ? 'name' : sort
       const counts = shared?.counts ?? {}
@@ -291,7 +272,6 @@ window.__ModuleLoader__.load({
         || byName(a, b))
       const pinnedRows = rows.filter(row => row.pinned)
       const otherRows = rows.filter(row => !row.pinned)
-      /** @type {SkillView['groups']} */
       const groups = []
       if (pinnedRows.length > 0) groups.push({ key: 'groupPinned', rows: pinnedRows })
       if (otherRows.length > 0) groups.push({ key: pinnedRows.length > 0 ? 'groupOther' : 'groupAll', rows: otherRows })
@@ -305,7 +285,6 @@ window.__ModuleLoader__.load({
       const dialog = React.useRef(null)
       const search = React.useRef(null)
       const ops = React.useRef(new Set())
-      // Locale lookups may change identity between renders; fetch effects must not re-run for that.
       const tRef = React.useRef(t)
       tRef.current = t
       const backdropPress = React.useRef(false)
@@ -321,7 +300,6 @@ window.__ModuleLoader__.load({
       const [saving, setSaving] = React.useState(null)
       const [feedback, setFeedback] = React.useState(null)
 
-      // Layout effect: close() runs before the portal node leaves the DOM, so the browser restores focus.
       React.useLayoutEffect(() => {
         const node = dialog.current
         const opener = document.activeElement
@@ -335,7 +313,6 @@ window.__ModuleLoader__.load({
         }
       }, [])
 
-      // Skills: fetched on each opening and explicit refresh; no cross-session cache.
       React.useEffect(() => {
         const abort = new AbortController()
         setCatalog({ phase: 'loading', skills: [] })
@@ -349,7 +326,6 @@ window.__ModuleLoader__.load({
         return () => abort.abort()
       }, [sessionId, listSkills, revision])
 
-      // Shared pins and counts: fetched on opening, refresh and retry only.
       React.useEffect(() => {
         const abort = new AbortController()
         requestState(tRef.current, STATE_PATH, { method: 'GET' }, abort.signal).then(data => {
@@ -382,8 +358,6 @@ window.__ModuleLoader__.load({
       const write = name => {
         try {
           const { draftRev } = inputActions.captureInsertion()
-          // A zero-length prefix span keeps existing text, selection content and chips.
-          // Never rebuild the draft with setDraft or submit it on the user's behalf.
           if (!inputActions.insertText(`/${name} `, { start: 0, end: 0, draftRev })) {
             setFeedback({ key: 'writeFailed', error: true })
             return
@@ -395,7 +369,6 @@ window.__ModuleLoader__.load({
         onDismiss()
       }
 
-      // No optimistic update: the list changes only when the Host confirms the new state.
       const togglePin = async skill => {
         if (!usageReady || saving) return
         const { name } = skill
@@ -419,7 +392,6 @@ window.__ModuleLoader__.load({
         }
       }
 
-      // A pinned row moves to another group and remounts; keep keyboard focus on its pin button.
       const lastPin = React.useRef(null)
       React.useLayoutEffect(() => {
         const node = dialog.current
@@ -441,7 +413,6 @@ window.__ModuleLoader__.load({
         target.scrollIntoView({ block: 'nearest' })
       }
       const onSearchKey = event => {
-        // Enter or Escape that confirms an IME candidate must not insert or clear.
         if (event.nativeEvent.isComposing || event.keyCode === 229) return
         if (event.key === 'ArrowDown') {
           event.preventDefault()
@@ -450,7 +421,6 @@ window.__ModuleLoader__.load({
           event.preventDefault()
           write(current.name)
         } else if (event.key === 'Escape' && query) {
-          // First Escape clears the search; the next one closes the dialog.
           event.preventDefault()
           setQuery('')
         }

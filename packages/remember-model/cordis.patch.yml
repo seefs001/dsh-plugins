@@ -1,4 +1,3 @@
-# Bundle patch layer: a Host-only plugin with no configuration.
 - insert:
     - id: remember-model
       name: dsh-remember-model

@@ -7,8 +7,6 @@ import { rememberNestedSkill, nestedSkillProofs } from './skill-context.js'
 import { withCodemodeSyntaxGuidance } from './codemode-syntax.js'
 import { aliasToolCall } from './claude-aliases.js'
 
-// A read/write barrier for a script's calls. Read-only calls may overlap, while
-// mutations and unknown classifiers run alone. Started calls drain on abort.
 class NestedCalls {
   constructor(executor, parent) {
     this.executor = executor
@@ -77,7 +75,6 @@ class NestedCalls {
       const dispatched = prepared.kind === 'dispatch' ? await this.pipeline.dispatch(prepared.exec) : prepared
       await previousCommit
       const result = await this.pipeline.complete(prepared.exec, dispatched)
-      // Shape only the log copy; disk spill must not hold up the script's return value.
       if (trace) this.logs.push(this.executor.logDispatch(this.parent, trace, result).catch(error => {
         this.executor.logger.warn('Cannot record Pi subcall %s: %s', trace.name, error)
       }))
@@ -145,7 +142,7 @@ export class PiExecutor {
     const visible = definitions.filter(tool => !tool.name.startsWith(INTERNAL_PREFIX)
       && (this.loadout.ownNames.has(tool.name) || this.loadout.bridges.has(tool.name) || this.loadout.agentScoped(tool.name)))
     const scriptTools = new Map(callable.map(tool => [tool.name, tool]))
-    const prepared = this.config.codemode ? createCodemodeToolDefinition({ models: false, codemodeBackend: this.config.codemodeBackend }).prepareLoadout({
+    const prepared = this.config.codemode ? createCodemodeToolDefinition({ models: false }).prepareLoadout({
       callable,
       declared: visible.map(tool => scriptTools.get(tool.name) ?? tool),
       getExposure: name => this.loadout.exposure(name),
@@ -166,7 +163,6 @@ export class PiExecutor {
 
   execute(input) {
     const { agent, toolSet } = input
-    // A registered tool with the Claude Code name, such as an MCP passthrough, keeps priority.
     const available = (name, target) => !this.tools.executable(name, agent, toolSet)
       && this.loadout.enabled(target, agent) && this.tools.executable(target, agent, toolSet) !== undefined
     const calls = input.calls.map(block => aliasToolCall(block, available))
@@ -182,8 +178,6 @@ export class PiExecutor {
     if (!result.isError) return this.loadout.bridges.has(exec.name) ? result.value : result.value.structuredContent
     const authored = this.structuredErrors.get(exec.token)
     this.structuredErrors.delete(exec.token)
-    // A rejected/cancelled or policy-rewritten result must not recover hidden
-    // bytes through this Pi-only error-value bridge.
     if (!authored || exec.signal.aborted || result.error?.info || authored.message !== result.error?.message
       || JSON.stringify(authored.content) !== JSON.stringify(result.content)) return undefined
     return authored.value
@@ -221,8 +215,7 @@ export class PiExecutor {
     const nested = new NestedCalls(this, current)
     let writes
     const definition = createCodemodeToolDefinition({
-      runnerPool: this.config.codemodeBackend === 'quickjs' ? undefined : (this.runnerPool ??= borrowRunnerPool()),
-      codemodeBackend: this.config.codemodeBackend,
+      runnerPool: (this.runnerPool ??= borrowRunnerPool()),
       getToolNamespace: name => this.loadout.namespace(name, exec.agent),
       getToolGuidelines: () => this.loadout.guidelines,
       models: false,
@@ -255,8 +248,7 @@ export class PiExecutor {
     const definition = createToolSearchToolDefinition({ tools: {
       getAllTools: () => callable,
       getActiveTools: () => active,
-      // The original implementation requests activation here. Durable activation
-      // happens only when its successful result is committed by the outer batch.
+      // external: Pi tool_search calls setActiveTools eagerly; DSH commits activation on the outer tool/result
       setActiveTools: () => {},
     } })
     const result = await invoke(definition, args, exec)

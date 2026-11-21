@@ -1,8 +1,3 @@
-/**
- * Built-in roles seeded into a new `roles` storage domain. Users can edit or
- * delete them; `restore_builtins` adds back the missing ones and `reset`
- * restores one to the text below.
- */
 export const BUILTIN_ROLES = [
   {
     builtin: 'code-reviewer',

@@ -1,11 +1,3 @@
-/**
- * dsh-image-gen — browser half.
- *
- * - Settings on this bundle's Plugins page: per backend, pick a local model
- *   from the Host's live catalog (only Responses routes); plus the output directory.
- * - Conversation rows for `openai_image` / `grok_image`: reuse the built-in
- *   `read_image` row so the generated images show in its gallery.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-image-gen',
   factory(require) {
@@ -95,8 +87,7 @@ window.__ModuleLoader__.load({
       return data
     }
 
-    // Child-slot declarations have one owner, even when an entry is shadowed.
-    // Keep a private seat and follow the original seat's live contributions.
+    // external: dsh child-slot declarations have a single owner, so mirror tool.call.images into a private slot
     function mirrorSlot(ctx, source, target) {
       ctx.slots.inject(target, () => {
         let disposers = []
@@ -139,9 +130,7 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'image-gen: dictionaries')
         const t = ctx.locale.bind(NS)
 
-        // The built-in read_image row draws durable images through the
-        // tool.call.images gallery. Adapt only its display input: the result's
-        // presentation meta carries each saved path and attachment reference.
+        // external: dsh built-in read_image view is keyed strictly to read_image and reads images from content + tool.call.images
         function ImageRow(props) {
           const { block, toolName } = props
           const base = [...ctx.slots.entries('tool.call.toolview')]

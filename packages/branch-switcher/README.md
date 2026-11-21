@@ -1,12 +1,12 @@
 # dsh-branch-switcher
 
-在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）新会话发送第一条消息前，直接在页面顶部的分支胶囊里切换到已有的本地 Git 分支；同时保留原生的「新建工作树」勾选与创建流程。
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）新会话发送首条消息前，点击页面顶部的分支标签切换已有本地 Git 分支，同时保留原生的「新建工作树」选项。
 
 | 项目 | 说明 |
 | --- | --- |
 | 运行位置 | Host + Web |
 | 前置依赖 | `Change requests & worktrees`（`@deepseek-ai/dsh-experimental-forge-bundle`） |
-| 数据保存 | 无独立配置或存储 |
+| 数据保存 | 无 |
 
 ## 安装
 
@@ -22,12 +22,12 @@ dsh plugin --profile web add "link:$PWD/packages/branch-switcher"
 
 ## 用法
 
-- **页面切换**：在尚未发送首条消息的新会话页面顶部，点击当前分支标签打开本地分支列表（按最近提交时间排序，支持搜索），选中后即可切换（`git switch --no-guess`）。如果勾选了 **新建工作树**，则继续走原生的新建工作树流程。
-- **斜杠命令与工具**：同时注册 `/branch-switcher` 命令与 `branch_switcher` 工具（支持 `list` 与 `switch`），仅在会话尚未产生首轮对话、空闲且非只读策略时允许切换。
+- **页面切换**：在未发送首条消息的新会话顶部，点击分支标签展开本地分支列表（按最近提交时间排序，支持搜索），选中后执行 `git switch --no-guess`。勾选 **新建工作树** 时继续走原生工作树创建流程。
+- **命令与工具**：同时注册 `/branch-switcher` 命令与 `branch_switcher` 工具（`list` / `switch`），仅在会话未发首条消息、空闲且非只读策略时可执行切换。
 
-## 边界说明
+## 注意事项
 
-- **切换的是当前实际工作目录的分支**：所有共用同一目录的会话和终端都会看到分支变化。
-- 只切换本地已有分支，不执行 `fetch`、不创建新分支、不 `stash`、不强制切换（存在冲突的未提交改动时 Git 会拒绝切换）。
+- 切换的是当前工作目录的真实分支，共用该目录的其他会话和终端会同步变更。
+- 仅切换已有本地分支；未提交改动存在冲突或处于只读模式时拒绝切换。
 
-更多使用说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/branch-switcher)。
+更多说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/branch-switcher)。

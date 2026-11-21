@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "ACP 会话集成",
-    "description": "把 Cursor、Antigravity、Claude Code 等本机 ACP 工具直接接入 DSH 会话，也可委派可续聊的原生子任务，保留输入框、时间线和审批流程。注意：外部 CLI 不受 DSH 沙箱限制。"
+    "title": "ACP 工作台",
+    "description": "在 DSH 会话和子代理中接入 Cursor、Antigravity、Claude Code 等本机 ACP CLI。外部 CLI 运行在 DSH 沙箱之外。"
   }
 }

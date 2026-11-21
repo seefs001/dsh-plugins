@@ -1,5 +1,3 @@
-// These small, fixed helpers run in DSH's subprocess world, not in the Web client's or
-// the plugin Host's network namespace. They never interpret a project command, URL or hostname.
 const allocate = `const s = require('node:net').createServer(c => c.destroy());
 s.on('error', e => { console.error(e.code); process.exitCode = 1 });
 s.listen(0, '127.0.0.1', () => { const port = s.address().port; s.close(() => console.log(port)) })`
@@ -35,7 +33,6 @@ export async function allocateServicePort(agent, cwd, life) {
   return port
 }
 
-/** Only called with a port from this retained script run. A TCP accept is not an HTTP or process-identity check. */
 export async function sampleServicePort(agent, run, life) {
   if (!validServicePort(run.servicePort)) throw new Error('This run has no assigned loopback port')
   const state = await helper(agent, run.cwd, [sample, String(run.servicePort)], life)

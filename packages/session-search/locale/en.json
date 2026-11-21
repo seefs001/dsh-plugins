@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Session search",
-    "description": "Open a search palette from the sidebar. Browse recent sessions or find a conversation by title, workspace or message text."
+    "description": "Search recent and past sessions by title, workspace, or message content from a keyboard palette."
   }
 }

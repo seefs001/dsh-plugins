@@ -1,4 +1,3 @@
-/** Read model for the activity inbox. Never open a CLI, replay events or change attention on read. */
 export function activityOf(session, runtime) {
   const run = session.native?.runs?.at(-1)
   const pending = runtime && !runtime.closing && !runtime.canceling
@@ -13,6 +12,6 @@ export function activityOf(session, runtime) {
   return {
     group, pending: pending.length, request: pending[0]?.public.kind ?? null,
     runState: run?.state ?? null, issue: session.lastError || run?.error || session.turnError || null,
-    stopId: liveRun ? run.id : !session.native ? runtime?.turnId ?? null : null,
+    stopId: liveRun ? run.id : null,
   }
 }

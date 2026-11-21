@@ -1,4 +1,3 @@
-// dsh-pi-tools private stdio worker. Only Pi's closed-over bridge can emit events.
 package main
 
 import (
@@ -43,7 +42,7 @@ func optional(s *string) js.Value {
 }
 
 func execute(ctx context.Context, prelude *js.Script, data startData, results <-chan frame, emit func([]any)) ([]any, error) {
-	// Pi's prelude freezes its own builtins, including override-friendly descriptors.
+	// external: Pi's prelude freezes builtins with override-friendly descriptors, requiring MutableIntrinsics
 	rt := js.NewRuntime(js.Options{MutableIntrinsics: true, MemoryLimit: data.MemoryLimitBytes})
 	stop := context.AfterFunc(ctx, func() { rt.Interrupt(context.Canceled) })
 	defer stop()
@@ -93,7 +92,7 @@ func execute(ctx context.Context, prelude *js.Script, data startData, results <-
 		var syntax *js.SyntaxError
 		if errors.As(err, &syntax) {
 			message := syntax.Message
-			// Preserve Pi’s existing recovery diagnostic for multiline quoted arguments.
+			// external: Pi's syntax recovery matches QuickJS's "unexpected end of string" error message
 			if message == "Unterminated string constant" {
 				message = "unexpected end of string"
 			}

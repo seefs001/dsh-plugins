@@ -1,15 +1,3 @@
-/**
- * dsh-session-groups — Host half.
- *
- * Owns user-defined session groups: name, member sessions, and the pinned
- * members that lead each group. State is one validated document in the
- * `session_groups` storage domain (`~/.dsh/storages` with the json backend),
- * so every browser and the agent see the same groups.
- *
- * Every mutation goes through `applyOp`. The browser calls it over
- * `POST /session-groups/op`, follows changes on `GET /session-groups/events`
- * (SSE), and the agent calls it through the `session_groups` tool.
- */
 export const name = 'session-groups'
 export const inject = ['storageDomain', 'webServer', 'connection']
 
@@ -24,7 +12,6 @@ const MAX_NAME = 80
 const MAX_GROUPS = 200
 const HEARTBEAT_MS = 25_000
 
-/** A rejected operation; the message is shown to the user or the agent. */
 export class OpError extends Error {
   constructor(message) {
     super(message)
@@ -34,11 +21,6 @@ export class OpError extends Error {
 
 const isId = v => typeof v === 'string' && v.length > 0 && v.length <= 200
 
-/**
- * Normalize a stored or proposed state: drop malformed entries, keep each
- * session in at most one group (first wins), and keep `pinned` a subset of
- * `sessionIds`.
- */
 export function normalizeState(raw) {
   if (raw === null || typeof raw !== 'object' || !Array.isArray(raw.groups)) {
     throw new TypeError('session groups state must be an object with a groups array')
@@ -61,7 +43,6 @@ export function normalizeState(raw) {
   return { version: 1, groups }
 }
 
-/** Zod-shaped validator the storage domain calls at its durable boundary. */
 export const STATE_SCHEMA = {
   parse: normalizeState,
   safeParse(value) {
@@ -99,11 +80,6 @@ const withoutSession = (groups, sessionId) => groups.map(g => g.sessionIds.inclu
   ? { ...g, sessionIds: g.sessionIds.filter(id => id !== sessionId), pinned: g.pinned.filter(id => id !== sessionId) }
   : g)
 
-/**
- * Apply one operation to a state.
- * @returns `{ state, result }`; `state` is the input reference when nothing changes.
- * @throws OpError for invalid input.
- */
 export function applyOp(state, op) {
   const action = op?.action
   switch (action) {
@@ -159,7 +135,6 @@ export function applyOp(state, op) {
       if (!group) throw new OpError(`session "${sessionId}" is not in any group`)
       const isPinned = group.pinned.includes(sessionId)
       if (isPinned === op.pinned) return { state, result: {} }
-      // A newly pinned session goes to the top of its group.
       const pinned = op.pinned ? [sessionId, ...group.pinned] : group.pinned.filter(id => id !== sessionId)
       return { state: { ...state, groups: state.groups.map(g => g === group ? { ...g, pinned } : g) }, result: {} }
     }
@@ -187,7 +162,7 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-/** Open the domain, retrying while a previous generation of this plugin is still closing it. */
+// external: DSH reload can overlap storageDomain close and open
 async function openDomain(ctx) {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -202,7 +177,7 @@ async function openDomain(ctx) {
 const TOOL_DESCRIPTION = [
   'Manage the user\'s custom session groups shown in the "Session groups" panel of the Web UI.',
   'A session belongs to at most one group; adding it to another group moves it. Pinned sessions lead their group.',
-  'Actions: list; create {name, sessionId?}; rename {groupId, name}; delete {groupId} (sessions are not deleted);',
+  'Actions: list; create {name, sessionId?}; rename {groupId, name}; delete {groupId} (sessions are kept);',
   'move_group {groupId, beforeGroupId?} (omit beforeGroupId to move last); add {groupId, sessionId}; remove {sessionId};',
   'pin {sessionId, pinned}. Every action returns the complete resulting groups.',
 ].join(' ')
@@ -225,7 +200,6 @@ export function apply(ctx) {
     for (const res of streams) res.write(frame)
   }
 
-  // Mutations run one at a time so concurrent callers never lose a write.
   const run = op => {
     const task = tail.then(async () => {
       if (closed) throw new OpError('session groups are unloading')
@@ -314,7 +288,6 @@ export function apply(ctx) {
     streams.clear()
   }, 'session-groups: close event streams')
 
-  // Agent tool: the same operations, available only where the tool registry exists.
   ctx.inject(['tools'], toolCtx => {
     toolCtx.effect(() => toolCtx.tools.register({
       name: TOOL_NAME,

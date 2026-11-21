@@ -1,56 +1,40 @@
 ---
 title: 配置与数据
-description: 插件配置写在哪里，Host、profile、credentials、会话日志与浏览器各保存什么。
+description: 各插件的配置、storage domain、凭据、会话日志与浏览器本地存储位置。
 ---
 
-大多数插件直接在 Web 界面完成配置，通过 DSH 的 `configEditor` 写回 profile 的 `cordis.patch.yml`，重启与升级后自动保留，通常不需要手改 YAML。
+带设置界面的插件会通过 DSH `configEditor` 将配置写入当前 profile 的 `cordis.patch.yml`，通常无需手改 YAML。
 
-## 各插件数据存放位置总览
+## 数据存放位置
 
 | 插件 | 保存内容 | 存储位置 |
 | --- | --- | --- |
 | `# 引用模型` | 每个 `provider/model` 最近使用的推理强度 | `cordis.patch.yml`（`efforts`） |
 | `快速模式` | 开启 `priority` / `ultrafast` 的 `provider/model` | `cordis.patch.yml`（`tiers`） |
 | `记住上次模型` | 新会话默认模型与推理强度 | DSH 原生 `agent-default-model` 配置 |
-| `标题模型` | 标题生成器使用的模型路由 | 对应原生标题生成器条目配置（卸载不还原） |
+| `标题模型` | 标题生成器模型路由 | 对应原生标题生成器条目配置 |
 | `自动审查模型` | 审查模型、推理强度、提示词模式与正文 | `cordis.patch.yml` |
-| `自动审查模型` | 每会话最多 200 条审查记录（上限 300 会话） | Host `auto_review_log` storage domain |
-| `角色管理` | 角色库（上限 100）与会话角色绑定（上限 2000） | Host `roles` storage domain |
-| `会话整理` | 已读序号、暂缓时间、归置状态和自动归置偏好 | Host `session_lifecycle` storage domain |
-| `会话整理` | 可选提取式摘要配置、每日限额与最新 100 条缓存 | Host `dsh_inbox_summary` storage domain |
+| `自动审查模型` | 审查记录（每会话最多 200 条，上限 300 会话） | Host `auto_review_log` storage domain |
+| `角色管理` | 角色库（上限 100）与会话绑定（上限 2000） | Host `roles` storage domain |
+| `会话整理` | 已读序号、暂缓时间、归置状态与自动归置偏好 | Host `session_lifecycle` storage domain |
+| `会话整理` | 可选摘要配置、每日限额与最新 100 条缓存 | Host `session_lifecycle_summary` storage domain |
 | `会话分组` | 分组、成员、顺序与组内置顶 | Host `session_groups` storage domain |
 | `Wait, what? 回复解释` | 专用解释模型与推理强度 | `cordis.patch.yml` |
-| `Wait, what? 回复解释` | 最近 200 份解释正文 | Host `message_actions` storage domain |
-| `ACP 会话集成` | 提供方、会话绑定、运行摘要、分块原始事件、共享与脚本记录 | Host `acp_workbench` storage domain |
-| `常用片段` | 纯文本片段库（`dsh-prompt-shortcut:library:v1`） | 浏览器 `localStorage` |
-| `技能速查` | 置顶技能列表与实时使用次数 | Host `cheat_sheet` storage domain |
+| `Wait, what? 回复解释` | 最近 200 份解释缓存 | Host `message_actions` storage domain |
+| `ACP 会话集成` | 提供方、会话绑定、运行摘要、事件分块、共享与脚本记录 | Host `acp_workbench` storage domain |
+| `常用片段` | 文本片段库（`dsh-prompt-shortcut:library:v1`） | 浏览器 `localStorage` |
+| `技能速查` | 置顶技能与使用次数 | Host `cheat_sheet` storage domain |
 | `联网搜索` | 搜索工具开关、模型、子工具与超时 | `cordis.patch.yml` |
-| `画图` | 画图后端开关、模型与 `outputDir`；生成的图片文件 | `cordis.patch.yml` + 工作目录文件 + DSH 附件 |
-| `Pi 工具` | 每会话已选工具；按预设保存的默认工具差异 | 会话日志（`plugin:dsh-pi-tools/selection`）+ Host `pi_tools_defaults` |
-| `工作时间线` | 当前工作计划、修订记录与产物链接 | 会话日志 `work_update` 结果（`meta.dshWorkTimeline`） |
-| `Paseo Hub` | daemon 关系、本机运行（上限 300）与活动日志（上限 1000） | Host `paseo_hub` storage domain |
+| `画图` | 画图后端开关、模型与 `outputDir`；图片输出 | `cordis.patch.yml` + 工作目录文件 + DSH 附件 |
+| `Pi 工具` | 每会话工具选择；预设级默认工具差异 | 会话日志（`plugin:dsh-pi-tools/selection`）+ Host `pi_tools_defaults` |
+| `工作时间线` | 当前计划、修订历史与产物链接 | 会话日志 `work_update` 结果（`meta.dshWorkTimeline`） |
+| `Paseo Hub` | daemon 信息、本机运行（上限 300）与活动日志（上限 1000） | Host `paseo_hub` storage domain |
 | `Paseo Hub` | daemon 凭据与组织 API Key | DSH credentials（`paseo-hub/daemon`、`paseo-hub/api`） |
 | `Bark 通知` | 通知开关、服务器地址、延迟与样式；Device Key | `cordis.patch.yml` + DSH credentials（`bark-notify/device`） |
 | `AI 吉祥物` | 位置、尺寸、收起状态与动画偏好 | 浏览器 `localStorage`（`dsh-ai-mascot:preferences`） |
 
-其余纯展示或无状态插件（`子代理模型`、`最近会话优先`、`工作区管理`、`分支切换`、`Git 变更`、`保持唤醒`、`上下文压缩状态`、`引用跳转`、`工具透镜`、`编辑消息`、`Pi MCP 服务器`）不保存独立配置或状态文件。
+## 凭据与同步
 
-## Storage Domain 说明
-
-使用默认 JSON 后端时，storage domain 数据保存在 `~/.dsh/storages/`（具体路径取决于 Host 的 storage domain 配置）。部分数据量较大的域（如 `auto_review_log`、`acp_workbench`、`message_actions`、`dsh_inbox_summary`）采用 `per-record` 布局，按记录分文件写入。
-
-卸载插件**不会**自动清理这些存储文件。
-
-## 凭据与隐私
-
-- **不把密钥写入 YAML 或文档**：
-  - `联网搜索`与 `画图` 直接复用 `llm-pi-ai` provider 的 `baseURL`、`headers` 和 `apiKeyEnv`（优先从 DSH credentials 解析，其次环境变量）；
-  - `Pi MCP 服务器` 会把 `~/.pi/agent/mcp.json` 里的 `${VAR}` 转为 `${credential:VAR}`；
-  - `Bark 通知` 的 Device Key 保存在 `bark-notify/device`（或读取 `DSH_BARK_KEY`）；
-  - `Paseo Hub` 的 daemon 令牌与组织 API Key 保存在 DSH credentials，接口与工具均无法读回明文。
-- **对外发送内容**：`联网搜索`、`画图`、`Wait, what?`、`自动审查模型` 与可选的 `会话整理` 提取式摘要会把对应提示词或文本发往你选择的模型服务；`Bark 通知` 可通过关闭「正文包含问题或审批摘要」隐藏敏感细节；`AI 吉祥物` 首次渲染仅向 `selinlee.github.io` 发起无对话内容的静态图片请求。
-
-## 跨浏览器同步差异
-
-- **跨浏览器共享**：`会话整理`、`会话分组`、`角色管理`、`技能速查`、`Wait, what?` 缓存、`ACP 会话集成`、`Paseo Hub` 与 `记住上次模型` 由 Host 持久化，多标签页/多浏览器看到同一份数据。
-- **仅限当前浏览器**：`会话整理` 的分区展开偏好、`常用片段` 以及 `AI 吉祥物` 偏好保存在当前浏览器的 `localStorage` 中，不同浏览器或设备互不共享。
+- **凭据**：`联网搜索`与 `画图` 复用 `llm-pi-ai` provider 配置；`Pi MCP 服务器`将 `${VAR}` 转为 `${credential:VAR}`；`Bark 通知`与 `Paseo Hub` 的密钥保存在 DSH credentials，不写入配置文件。
+- **同步范围**：写入 Host storage domain 与 `cordis.patch.yml` 的数据在所有浏览器间共享；`会话整理` 的分区折叠状态、`常用片段` 与 `AI 吉祥物` 偏好保存在当前浏览器的 `localStorage` 中。
+- **存储路径**：默认 JSON 后端下，storage domain 文件位于 `~/.dsh/storages/`。

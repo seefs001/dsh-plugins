@@ -1,11 +1,3 @@
-/**
- * Pure translation between DSH catalogs and Hub's provider vocabulary.
- *
- * Hub sees one provider, `dsh`. A Hub model id is `<dsh provider>/<dsh model>`
- * (split at the first slash, as Hub splits `provider/model`), thinking options
- * are the model's reasoning efforts, and modes are DSH permission presets.
- */
-
 export const HUB_PROVIDER = 'dsh'
 export const HUB_PROVIDER_LABEL = 'DeepSeek Harness'
 
@@ -13,7 +5,6 @@ export function hubModelId(provider, model) {
   return `${provider}/${model}`
 }
 
-/** `deepseek/deepseek-v4` -> `{ provider: 'deepseek', model: 'deepseek-v4' }`; model ids may contain slashes. */
 export function splitHubModelId(id) {
   const value = String(id ?? '')
   const at = value.indexOf('/')
@@ -21,7 +12,6 @@ export function splitHubModelId(id) {
   return { provider: value.slice(0, at), model: value.slice(at + 1) }
 }
 
-/** Hub mode id -> DSH preset name. Configured `modes` win; otherwise every selectable preset maps to itself. */
 export function resolveModes(config, permissionCatalog) {
   const presets = (permissionCatalog?.options ?? []).filter(option => option.value !== 'custom')
   const known = new Map(presets.map(option => [option.value, option]))
@@ -37,7 +27,6 @@ export function resolveModes(config, permissionCatalog) {
   return { entries, defaultModeId }
 }
 
-/** Build the single `dsh` provider snapshot entry Hub stores and offers in its trigger editor. */
 export function providerSnapshotEntry({ catalog, modes, now }) {
   const models = []
   for (const group of catalog?.groups ?? []) {
@@ -84,7 +73,6 @@ export function providerSnapshotEntry({ catalog, modes, now }) {
   }
 }
 
-/** The daemon's own verdict on a Hub agent configuration; issue paths use the daemon's field names. */
 export function validateAgent({ provider, model, modeId, thinkingOptionId, providerOptions }, { catalog, modes }) {
   const issues = []
   if (provider !== HUB_PROVIDER) {

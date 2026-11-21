@@ -1,13 +1,3 @@
-/**
- * dsh-bark-notify — Host half.
- *
- * Prepends non-blocking listeners to DSH's `user-questions/request` and
- * `approval/request` waterfalls so pending questions, plan reviews, and
- * approval prompts also send a Bark push notification.
- *
- * The Bark device key lives in DSH credentials (`bark-notify/device`) or the
- * `DSH_BARK_KEY` credential reference / env var, never in `cordis.patch.yml`.
- */
 import { basename } from 'node:path'
 
 export const name = 'bark-notify'

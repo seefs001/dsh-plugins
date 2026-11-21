@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Branch switcher",
-    "description": "Switch to an existing local Git branch right from the New Session branch chip before sending your first message, while keeping the native worktree option. Affects other sessions sharing that directory. Requires Change requests & worktrees."
+    "description": "Switch existing local Git branches from the New Session branch chip before the first message. Requires Change requests & worktrees."
   }
 }

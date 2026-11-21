@@ -1,4 +1,3 @@
-/** Add a read-only child model label; leave the built-in model seat untouched. */
 window.__ModuleLoader__.load({
   id: 'dsh-subagent-model',
   factory(require) {
@@ -8,14 +7,14 @@ window.__ModuleLoader__.load({
     const DICTS = {
       en: {
         label: 'Subagent model',
-        readOnly: 'Read-only: the model is controlled by the parent agent.',
+        readOnly: 'Read-only: controlled by the parent agent.',
         unrecorded: 'Model not recorded yet',
         providerDefault: 'Provider default',
       },
       zh: {
         label: '子代理模型',
-        readOnly: '只读：由主代理决定使用的模型。',
-        unrecorded: '还没记录到模型',
+        readOnly: '只读：由主代理决定。',
+        unrecorded: '尚未记录模型',
         providerDefault: '提供方默认',
       },
     }
@@ -53,8 +52,7 @@ window.__ModuleLoader__.load({
             getSnapshot: () => directory.getSnapshot(),
           }), [directory])
           const catalog = React.useSyncExternalStore(source.subscribe, source.getSnapshot)
-          // Never use directory.current: before a child has a request header,
-          // that directory may substitute the main agent's catalog default.
+          // external: DSH directory.current falls back to the parent default before a subagent's first request
           const selection = projection?.next ?? projection?.lastUsed
           const group = selection && catalog.groups.find(item => item.id === selection.provider)
           const model = group?.models.find(item => item.id === selection.model)

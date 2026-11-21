@@ -1,4 +1,3 @@
-/** Enhance the existing Hero worktree seat; no DOM patching or application rebuild. */
 window.__ModuleLoader__.load({
   id: 'dsh-branch-switcher',
   factory(require) {
@@ -10,7 +9,7 @@ window.__ModuleLoader__.load({
     const EN = {
       switch: 'Switch branch', search: 'Search local branches', loading: 'Loading branches…', switching: 'Switching branch…',
       current: 'Current', detached: 'Detached HEAD', empty: 'No matching local branches.', retry: 'Retry', close: 'Close',
-      hint: 'Switches the branch in this working directory (other sessions sharing it will see the change). Uncommitted changes stay unless Git blocks the switch.',
+      hint: 'Switches the branch in this working directory (other sessions sharing it also change). Git blocks switches with conflicting uncommitted changes.',
       local: 'Existing local branches only.',
       worktree: 'New worktree', worktreeHint: 'Create an isolated checkout when the first message is sent.',
       readonly: 'Branch switching is unavailable in read-only mode.',
@@ -19,11 +18,11 @@ window.__ModuleLoader__.load({
     const ZH = {
       switch: '切换分支', search: '搜索本地分支', loading: '正在加载分支…', switching: '正在切换分支…',
       current: '当前', detached: '游离 HEAD', empty: '没有匹配的本地分支。', retry: '重试', close: '关闭',
-      hint: '会切换当前目录的分支，共用同一目录的其他会话也会跟着变。未提交改动会保留，有冲突时 Git 会拦下。',
-      local: '只切换本地已有分支，不会拉取、新建或强切。',
+      hint: '会切换当前目录的分支，共用同一目录的其他会话也会同步变更。未提交改动有冲突时 Git 会阻止切换。',
+      local: '仅切换已有本地分支。',
       worktree: '新建工作树', worktreeHint: '发送首条消息时创建独立工作目录。',
       readonly: '只读模式下不能切换分支。',
-      refreshFailed: '分支已切好，但面板没刷新过来：', changed: '已切换到 {branch}', choose: '切换到 {branch}',
+      refreshFailed: '分支已切换，但面板刷新失败：', changed: '已切换到 {branch}', choose: '切换到 {branch}',
     }
     const CSS = `
 .dbs-root{display:inline-flex;flex:none;align-items:center;gap:2px;min-width:0}
@@ -118,7 +117,6 @@ window.__ModuleLoader__.load({
             setPending(true); setError(null)
             try {
               const result = await request(props.sessionId, { action: 'switch', branch: candidate, root: listed.root, current: listed.current })
-              // Re-read the native panel, so both this seat and the later worktree base use Git's answer.
               if (mounted.current) { setListed(null); setCandidate(null) }
               try {
                 const refreshed = await ctx.remote.forgePanel.refresh(props.sessionId)
@@ -143,7 +141,6 @@ window.__ModuleLoader__.load({
               : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length
             event.preventDefault(); buttons[next].focus()
           }
-          // Keep the shipped base selector, withdrawal and creation behavior once requested.
           if (panel?.worktree.request || panel?.worktree.creation) return h(props.original, props)
           if (!panel?.worktree.editable || panel.worktree.blocker === 'not-git' || state?.state !== 'ready') return null
           const worktreeBlocked = panel.worktree.blocker !== null

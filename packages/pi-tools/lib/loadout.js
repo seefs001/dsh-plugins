@@ -9,7 +9,6 @@ export const INTERNAL_PREFIX = 'pi_internal_'
 export const RESOURCE_TOOLS = new Set(['list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource'])
 const PI_NAMES = new Set(['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls', 'codemode', 'tool_search'])
 
-// Public and script bindings share implementations and the original policy name.
 export class PiLoadout {
   constructor(ctx, config, state, definitions, selection) {
     this.ctx = ctx
@@ -65,9 +64,6 @@ export class PiLoadout {
         if (isSelectionEvent(event)) this.sync()
       }, { global: true })
     }
-    // Host defaults can change at any time. Freeze them into a Session that
-    // has no explicit selection once it runs, so later edits affect only new
-    // conversations. The step's tool set was resolved from the same defaults.
     ctx.on('agent/pre-step', async ({ agent }, next) => {
       const decision = await next()
       const current = agent.session ? this.selection.stateOf(agent.session) : undefined
@@ -94,32 +90,19 @@ export class PiLoadout {
     return agent?.session ? this.state.stateOf(agent.session) : emptyState()
   }
 
-  /**
-   * An MCP tool another plugin mounted on one Agent's own scope, such as
-   * Paseo Hub's per-run server. It is not global, so sync() never bridges or
-   * masks it; it reaches only that Agent and passes through as a direct tool.
-   */
   agentScoped(name) {
     return !this.bridges.has(name) && !this.ownNames.has(name) && !name.startsWith(INTERNAL_PREFIX)
       && !RESOURCE_TOOLS.has(name) && this.isMcp(name) && this.accepts(name)
   }
 
   enabled(name, agent) {
-    // The mounting plugin decided this Agent gets the tool; a saved Pi
-    // selection never listed it and must not hide it.
     if (this.agentScoped(name)) return true
     const state = agent?.session ? this.selection.stateOf(agent.session) : undefined
     const selected = state?.tools ?? null
-    if (selected !== null) {
-      if (!Array.isArray(selected) || !selected.every(tool => typeof tool === 'string')) {
-        throw new Error('Invalid saved Pi tool selection')
-      }
-      return selected.includes(name)
-    }
+    if (selected !== null) return selected.includes(name)
     return this.defaultEnabled(name, state?.agentPreset)
   }
 
-  /** A Host-saved default for the preset replaces the configured defaults. */
   defaultEnabled(name, agentPreset) {
     const saved = savedDefaultsOf(agentPreset)
     if (saved?.include.includes(name)) return true
@@ -127,7 +110,6 @@ export class PiLoadout {
     return this.configuredDefault(name)
   }
 
-  /** Express a full selection as changes to the configured defaults. */
   defaultChanges(tools) {
     const selected = new Set(this.parseSelection({ tools }).tools)
     const configured = new Set(this.catalog().configuredDefaults)
@@ -137,11 +119,6 @@ export class PiLoadout {
     }
   }
 
-  /**
-   * Restart the selected MCP servers so they list their tools again, then wait
-   * a bounded time for each to settle. New registrations reach the catalog
-   * through tools/change.
-   */
   async refreshMcp(manager, timeoutMs = 20_000) {
     if (!manager || this.config.mcpExposure === 'hidden') return []
     const names = manager.list().filter(view => view.configured && this.serverEnabled(view.name)
@@ -211,7 +188,6 @@ export class PiLoadout {
 
   serverOf(name) {
     if (this.allServers) {
-      // Public names are `mcp__<server>__<tool>` with non-name characters replaced by `_`.
       const end = name.startsWith('mcp__') ? name.indexOf('__', 5) : -1
       return end > 5 ? name.slice(5, end) : undefined
     }
@@ -237,8 +213,6 @@ export class PiLoadout {
         if (!this.contains(agent)) this.releaseAgent(agent)
       }
       const globals = this.ctx.tools.definitions()
-      // Reserve scoped names even before their provider arrives. A global
-      // shadow at this scope would collide with the native plugin's registration.
       const available = new Map(globals.filter(tool => this.accepts(tool.name) && !this.scopedNames.has(tool.name)
         && (this.globalNames.has(tool.name) || this.ctx.tools.executable(tool.name) === tool))
         .map(tool => [tool.name, { original: tool, passthrough: this.globalNames.has(tool.name) }]))
@@ -256,8 +230,6 @@ export class PiLoadout {
       for (const [name, { original, sourceScope, passthrough }] of available) {
         if (this.bridges.has(name)) continue
         if (passthrough) {
-          // Keep native registrations and their step-time conditions. A disabled
-          // scoped tool gets a false shadow, never an unconditional script alias.
           const record = { original, direct: original, sourceScope, passthrough,
             dispose: () => this.releaseScopedBindings(name) }
           this.bridges.set(name, record)
@@ -289,9 +261,7 @@ export class PiLoadout {
         for (const agent of this.ctx.get('agents')?.list() ?? []) this.bindAgent(agent)
         for (const agent of this.agentBindings.keys()) this.syncAgentMask(agent)
       }
-      // An Agent inherits this preset's registrations, so name restrictions
-      // would hide its shadows too. Keep conditional shadows and mask only
-      // unbridged globals; false conditions never fall through to a global.
+      // external: DSH agent scopes inherit preset registrations; restrict() would also mask local shadows
       const deny = globals.filter(tool => !this.ownNames.has(tool.name) && !this.bridges.has(tool.name))
         .map(tool => tool.name).toSorted()
       const key = JSON.stringify(deny)
@@ -327,11 +297,10 @@ export class PiLoadout {
       bindings.delete(name)
       previous?.()
     } else if (!previous) {
-      // register() emits tools/change synchronously; reserve the slot first so
-      // a re-entrant sync does not register the same shadow twice.
-      let dispose
-      bindings.set(name, () => dispose?.())
-      dispose = agent.ctx.tools.register(record.direct, { when: () => false })
+      // external: DSH tools.register emits tools/change synchronously, so reserve the slot first
+      const slot = { dispose: null }
+      bindings.set(name, () => slot.dispose?.())
+      slot.dispose = agent.ctx.tools.register(record.direct, { when: () => false })
     }
   }
 
@@ -391,7 +360,6 @@ export class PiLoadout {
       const prefix = `### MCP server: ${server}\n\n`
       const instructions = text.startsWith(prefix) ? text.slice(prefix.length) : text
       const description = instructions.split('\n').find(line => line.trim())?.replace(/^#+\s*/, '').trim()
-      // Wildcard serverOf() returns the tool-name form, where "-" becomes "_".
       const key = this.allServers ? server.replace(/[^A-Za-z0-9_]/g, '_') : server
       snapshot.set(key, { description: description || `MCP server ${server}`, instructions })
     }

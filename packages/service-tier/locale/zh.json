@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "快速模式（service tier）",
-    "description": "在模型选择器旁切换 OpenAI Responses 的快速档（支持的模型还可选超快档）。"
+    "description": "在模型选择器旁切换 OpenAI Responses 的快速或超快档位。"
   }
 }

@@ -1,4 +1,3 @@
-/** Session search palette. The native catalog owns metadata; only the Host searches messages. */
 window.__ModuleLoader__.load({
   id: 'dsh-session-search',
   factory(require) {

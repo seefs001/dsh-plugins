@@ -1,19 +1,10 @@
-/**
- * dsh-recent-sessions — browser-only plugin.
- *
- * Re-sorts the session rows of the built-in `@` reference source by last
- * activity, newest first. Rows keep their sections; only the order of each
- * contiguous block of session rows changes, and ties keep the original order.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-recent-sessions',
   factory() {
-    // Name of the built-in `@` source registered by dsh-client-ui-reference.
     const REFERENCE_SOURCE = 'reference'
     const RETRY_MS = 500
     const MAX_RETRIES = 60
 
-    /** Decode the session id carried in a session row's `dsh-session:<base64url JSON>` mention. */
     function sessionIdOf(row) {
       if (row?.icon !== 'session' || typeof row.value !== 'string') return undefined
       try {
@@ -29,7 +20,6 @@ window.__ModuleLoader__.load({
 
     const timeOf = v => typeof v === 'number' ? v : typeof v === 'string' ? Date.parse(v) || 0 : 0
 
-    /** Stable newest-first sort of each contiguous same-section block of session rows. */
     function sortRows(rows, byId) {
       const out = rows.slice()
       let i = 0
@@ -48,7 +38,7 @@ window.__ModuleLoader__.load({
     return {
       inject: ['inputTriggers', 'sessions'],
       apply(ctx) {
-        // The reference source registers asynchronously, so wrap it once it appears.
+        // external: DSH reference trigger registers asynchronously on inputTriggers.live.sources
         let patched = null
         const tryPatch = () => {
           if (patched) return true
@@ -78,7 +68,6 @@ window.__ModuleLoader__.load({
           }
         }, 'recent-sessions: @ session order')
       },
-      // Pure helpers, exposed for tests.
       _internal: { sessionIdOf, sortRows },
     }
   },

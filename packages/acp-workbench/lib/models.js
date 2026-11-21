@@ -1,10 +1,8 @@
-/** CLI discovery facts stay separate from the user's selected model IDs. */
 const choices = option => (option?.options ?? []).flatMap(group => group.options ?? [group])
 const positive = value => Number.isFinite(value) && value > 0
 const named = value => ({ id: value.value, name: value.name ?? value.value,
   ...(typeof value.description === 'string' ? { description: value.description } : {}) })
 
-/** The native bridge accepts text and images; other CLI modalities are not implemented. */
 export function inputModalities(capabilities) {
   return capabilities ? ['text', ...(capabilities.promptCapabilities?.image ? ['image'] : [])] : undefined
 }
@@ -18,11 +16,7 @@ function reasoningOption(options) {
     ...(efforts.some(item => item.id === option.currentValue) ? { defaultEffort: option.currentValue } : {}) }
 }
 
-/**
- * Cursor's variant catalog includes explicit reasoning_effort parameter values. Match families
- * only within that advertised catalog; never manufacture an ID or enable parameterized mode.
- * Other parameters remain part of the family, so changing effort cannot also enable Max/fast.
- */
+// external: Cursor encodes reasoning_effort inside bracketed model IDs alongside other variant params
 function variant(id) {
   const match = /^(.+)\[([^[\]]+)\]$/.exec(id)
   if (!match) return null
@@ -58,7 +52,6 @@ function variantReasoning(models) {
   })
 }
 
-/** Standard ACP descriptions and model-specific options, without guessed capacities or costs. */
 export function advertisedModels(result, capabilities) {
   const listed = result?.models?.availableModels
   const modelOption = (result?.configOptions ?? []).find(item => item.category === 'model' && item.type !== 'boolean')
@@ -81,21 +74,18 @@ export function advertisedModels(result, capabilities) {
   return variantReasoning(models)
 }
 
-/** Resolve a selected model against discovery facts without adding candidates to the picker. */
 export function modelDetails(provider, id) {
   const known = provider.advertised?.models?.find(model => model.id === id)
   const selected = provider.models?.find(model => model.id === id)
   return { ...known, ...selected, id }
 }
 
-/** Only the public DSH reasoning contract leaves the adapter; wire mappings stay plugin-owned. */
 export function reasoningInfo(model) {
   const reasoning = model.reasoning
   return reasoning ? { efforts: reasoning.efforts,
     ...(reasoning.defaultEffort === undefined ? {} : { defaultEffort: reasoning.defaultEffort }) } : undefined
 }
 
-/** One advertised variant or one live thought-level config option, never a guessed wire value. */
 export function reasoningSelection(model, effort) {
   if (effort === undefined) return { modelId: model.id }
   const reasoning = model.reasoning

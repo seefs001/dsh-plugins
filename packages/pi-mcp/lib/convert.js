@@ -7,8 +7,6 @@ const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 const expandHome = value => value.startsWith('~/') ? join(homedir(), value.slice(2)) : value
 
-// Pi reads `${VAR}` from its environment. DSH resolves `${credential:VAR}` from
-// stored credentials, then the launch environment, so secrets stay out of config.
 function toTemplate(value, field) {
   if (typeof value !== 'string') throw new Error(`${field} must be a string`)
   if (value.startsWith('!')) throw new Error(`${field}: "!command" values are not supported`)
@@ -24,10 +22,6 @@ function mapValues(object, field) {
   return Object.fromEntries(Object.entries(object).map(([key, value]) => [key, toTemplate(value, `${field}.${key}`)]))
 }
 
-/**
- * Convert one Pi `mcpServers` entry to a dsh-mcp-manager registration.
- * @returns `undefined` for a disabled entry; throws for an entry DSH cannot run.
- */
 export function convertServer(name, raw) {
   if (!SERVER_NAME.test(name)) throw new Error('server name must match [A-Za-z0-9_-]{1,32}')
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('entry must be an object')
@@ -62,10 +56,6 @@ export function convertServer(name, raw) {
   throw new Error('entry needs "command" (stdio) or "url" (streamable HTTP)')
 }
 
-/**
- * Convert a parsed Pi `mcp.json` document.
- * @returns registrations by server name and per-server skip reasons.
- */
 export function convertConfig(document) {
   if (document === null || typeof document !== 'object' || Array.isArray(document)) {
     throw new Error('mcp.json must contain a configuration object')
@@ -75,7 +65,6 @@ export function convertConfig(document) {
   if (typeof servers !== 'object' || servers === null || Array.isArray(servers)) throw new Error('"mcpServers" must be an object')
   const entries = new Map()
   const skipped = []
-  // Pi treats names that differ only in "-" and "_" as one server; keep the first.
   const seen = new Set()
   for (const [name, raw] of Object.entries(servers)) {
     const key = name.replaceAll('-', '_')

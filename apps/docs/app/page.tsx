@@ -8,10 +8,10 @@ import { getPlugin, plugins } from '@/lib/plugins'
 import { repository } from '@/lib/site'
 
 const paths = [
-  { href: '/docs/quick-start', icon: Download, title: '安装', text: '从 GitHub 或本地仓库安装单个插件，确认它已生效。' },
-  { href: '/docs/configuration', icon: Settings2, title: '配置与数据', text: '设置写在哪里，Host、profile 和浏览器各保存什么。' },
-  { href: '/docs/compatibility', icon: ShieldAlert, title: '依赖与边界', text: '每个插件需要先启用的 bundle，以及它不会改变的行为。' },
-  { href: '/docs/development', icon: Wrench, title: '开发与发布', text: '链接源码、运行检查、维护文档和发布包。' },
+  { href: '/docs/quick-start', icon: Download, title: '安装', text: '从 GitHub 或本地目录安装单个插件。' },
+  { href: '/docs/configuration', icon: Settings2, title: '配置与数据', text: '各插件的配置项、存储域、凭据和浏览器数据位置。' },
+  { href: '/docs/compatibility', icon: ShieldAlert, title: '依赖与运行', text: '每个插件需要的前置 bundle 与外部工具。' },
+  { href: '/docs/development', icon: Wrench, title: '开发与检查', text: '本地链接调试、静态检查、测试与文档站构建。' },
 ]
 
 export default function HomePage() {
@@ -21,18 +21,17 @@ export default function HomePage() {
       <div className="dp-home mx-auto w-full max-w-6xl px-4 sm:px-6">
         <section className="dp-hero" aria-labelledby="home-title">
           <div className="dp-hero-text">
-            <p className="dp-eyebrow">seefs 的 DeepSeek Harness 插件</p>
+            <p className="dp-eyebrow">DeepSeek Harness 插件集</p>
             <h1 id="home-title">dsh-plugins</h1>
             <p className="dp-lead">
-              seefs 自用并持续维护的 {plugins.length} 个 DSH 插件，覆盖模型选择、会话整理、对话阅读和工具扩展。
-              每个插件是一个 bundle，可以单独安装、启用和移除。
+              {plugins.length} 个独立的 DeepSeek Harness 插件，覆盖模型选择、会话管理、对话阅读和工具扩展，按需单独安装。
             </p>
             <div className="dp-actions">
-              <Link href="/docs/quick-start" className="dp-button dp-button-primary">安装插件 <ArrowRight aria-hidden className="size-4" /></Link>
+              <Link href="/docs/quick-start" className="dp-button dp-button-primary">开始安装 <ArrowRight aria-hidden className="size-4" /></Link>
               <Link href="/docs/plugins" className="dp-button">浏览插件</Link>
             </div>
             <p className="dp-meta">
-              跟随最新 DSH 和 <code>main</code> 分支更新 · 代码使用 MIT 许可
+              开源协议：MIT
             </p>
           </div>
           <div className="dp-hero-code">
@@ -41,7 +40,7 @@ export default function HomePage() {
   "${example.github}"`}</code></Pre>
             </CodeBlock>
             <p className="dp-hero-note">
-              把 <code>web</code> 换成你的 profile。也可以在 Web 界面的 Plugins 页粘贴 <code>github:</code> 地址。
+              把 <code>web</code> 换成你的 profile，或在 Web 界面的 Plugins 页面粘贴 <code>github:</code> 地址。
             </p>
           </div>
         </section>
@@ -65,7 +64,7 @@ export default function HomePage() {
         </section>
 
         <footer className="dp-footer">
-          <p>seefs 自用的插件集，与 DeepSeek 官方无隶属关系。AI 小伙伴引用的角色素材另有非商业条款。</p>
+          <p>代码采用 MIT 协议；AI 吉祥物引用的外部角色素材适用独立的非商业条款。</p>
           <div>
             <a href={`${repository}/blob/main/LICENSE`}>MIT License</a>
             <a href={repository}>GitHub</a>

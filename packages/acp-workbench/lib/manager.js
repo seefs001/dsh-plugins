@@ -6,7 +6,6 @@ import { isAbsolute, join } from 'node:path'
 import { AcpConnection, RpcError } from './transport.js'
 import { WorkbenchStore } from './store.js'
 import { advertisedModels, inputModalities } from './models.js'
-
 import { contextWindow } from './usage.js'
 import { rememberNotice } from './notices.js'
 import { formFields, formResponse } from './forms.js'
@@ -16,9 +15,6 @@ import { anchorCompaction, cliParentOf } from './trace.js'
 export { advertisedModels }
 
 const ACTIVE = new Set(['starting', 'idle', 'running', 'waiting', 'canceling'])
-const USER_ONLY = new Set(['provider-save', 'provider-remove', 'diagnose', 'models', 'discover', 'import', 'respond', 'configure'])
-/** Model tools may inspect a DSH-bound conversation; its lifecycle belongs to the conversation controls. */
-const AGENT_NATIVE_READ = new Set(['get', 'events'])
 const now = () => new Date().toISOString()
 const str = (value, name, max = 1000) => {
   if (typeof value !== 'string' || !value.trim() || value.length > max) throw new Error(`${name} must be non-empty text (max ${max})`)
@@ -28,23 +24,19 @@ const cli = name => existsSync(join(homedir(), '.local/bin', name)) ? join(homed
 const DEFAULT_PROVIDERS = [
   { id: 'cursor', label: 'Cursor', command: cli('cursor-agent'), args: ['acp'], models: [] },
   { id: 'antigravity', label: 'Antigravity', command: cli('agy'), args: ['acp'], models: [] },
-  // Claude Code speaks ACP through @agentclientprotocol/claude-agent-acp, which serves stdio without arguments.
+  // external: @agentclientprotocol/claude-agent-acp serves ACP on stdio without CLI arguments
   { id: 'claude-code', label: 'Claude Code', command: cli('claude-agent-acp'), args: [], models: [] },
 ]
-// Before defaults were tracked individually, the first start seeded exactly these.
-const ORIGINAL_DEFAULTS = ['cursor', 'antigravity']
 const MAX_MODELS = 200
 
 export function summary(session, runtime) {
-  const { id, providerId, title, cwd, state, remoteId, createdAt, updatedAt, archived, eventSeq, lastError, stopReason, ownerSessionId } = session
-  return { id, providerId, title, cwd, state, remoteId, createdAt, updatedAt, archived, eventSeq, lastError, stopReason, ownerSessionId,
+  const { id, providerId, title, cwd, state, remoteId, createdAt, updatedAt, archived, eventSeq, lastError, stopReason } = session
+  return { id, providerId, title, cwd, state, remoteId, createdAt, updatedAt, archived, eventSeq, lastError, stopReason,
     activity: activityOf(session, runtime),
-    // Stable across streamed chunks; refresh project results only on a new run/outcome/reply or acknowledgement.
     reviewRevision: session.native ? [session.native.runs.at(-1)?.id, session.native.runs.at(-1)?.state, session.native.runs.at(-1)?.messageId, session.native.reviewVersion].join(':') : null,
     native: session.native ? { sessionId: session.native.sessionId, rootSessionId: session.native.rootSessionId, parentSessionId: session.native.parentSessionId, route: session.native.route, retired: !!session.native.retired } : null }
 }
 
-/** The sole business Interface for browser actions and scoped model tools. */
 const CLIENT_INFO = { name: 'dsh-acp-workbench', version: '0.2.0' }
 
 export class Workbench {
@@ -53,7 +45,6 @@ export class Workbench {
     this.changed = changed
     this.modelsChanged = modelsChanged
     this.log = log
-    /** Optional policy: returns the option id to select for a permission request, or null to ask the user. */
     this.autoApprove = autoApprove
     this.runtimes = new Map()
     this.listeners = new Map()
@@ -66,18 +57,13 @@ export class Workbench {
   }
 
   async initialize() {
-    // Seed each default provider once. A default the user removed stays removed, and a
-    // default added in a later version still reaches existing installations.
     const global = this.store.domain.global.get()
-    const seeded = new Set(global.seeded ?? (global.initialized ? ORIGINAL_DEFAULTS : []))
-    let seed = !global.initialized
-    for (const provider of DEFAULT_PROVIDERS) {
-      if (seeded.has(provider.id)) continue
-      if (!this.store.providers.has(provider.id)) await this.store.saveProvider(provider)
-      seeded.add(provider.id)
-      seed = true
+    if (!global.initialized) {
+      for (const provider of DEFAULT_PROVIDERS) {
+        if (!this.store.providers.has(provider.id)) await this.store.saveProvider(provider)
+      }
+      await this.store.domain.global.set({ ...global, initialized: true })
     }
-    if (seed) await this.store.domain.global.set({ ...global, initialized: true, seeded: [...seeded] })
     for (const session of this.store.sessions.values()) {
       if (ACTIVE.has(session.state)) {
         const idle = session.state === 'idle'
@@ -96,17 +82,16 @@ export class Workbench {
     return provider
   }
 
-  session(id, caller) {
+  session(id) {
     const session = this.store.sessions.get(id)
     if (!session) throw new Error('Unknown workbench session')
-    if (caller.kind !== 'user' && session.ownerSessionId !== caller.sessionId) throw new Error('This external session belongs to another DSH session; open it in ACP Workbench as the user')
     return session
   }
 
-  snapshot(caller) {
+  snapshot() {
     return {
       providers: [...this.store.providers.values()],
-      sessions: [...this.store.sessions.values()].filter(s => caller.kind === 'user' || s.ownerSessionId === caller.sessionId).map(s => summary(s, this.runtimes.get(s.id))).toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+      sessions: [...this.store.sessions.values()].map(s => summary(s, this.runtimes.get(s.id))).toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
       storageError: this.store.failure?.message ?? null,
     }
   }
@@ -118,8 +103,7 @@ export class Workbench {
     return { ...summary(session, runtime), interactions }
   }
 
-  // session/new may advertise before its reply identifies the remote. Only that remote's
-  // latest list from this live process is actionable; the journal remains historical.
+  // external: ACP session/new may emit available_commands_update before returning its sessionId
   commandReport(session) {
     const rt = this.runtimes.get(session.id)
     return rt && !rt.closing && session.remoteId ? rt.commandReports?.get(session.remoteId) : null
@@ -128,7 +112,7 @@ export class Workbench {
   detail(session) {
     const report = this.commandReport(session)
     return { ...this.overview(session), capabilities: session.capabilities ?? {}, authMethods: session.authMethods ?? [], modes: session.modes ?? null,
-      models: session.models ?? null, configOptions: session.configOptions ?? [], commands: report?.commands ?? [], commandStamp: report?.stamp ?? null, usage: session.lastContext?.window ?? session.usage ?? null,
+      models: session.models ?? null, configOptions: session.configOptions ?? [], commands: report?.commands ?? [], commandStamp: report?.stamp ?? null, usage: session.lastContext?.window ?? null,
       storageError: this.store.failure?.message ?? null }
   }
 
@@ -164,12 +148,11 @@ export class Workbench {
     return cwd
   }
 
-  async operate(op, caller) {
+  async operate(op) {
     if (!op || typeof op !== 'object' || Array.isArray(op)) throw new Error('Expected an operation object')
     if (this.closed) throw new Error('ACP Workbench is unloading')
-    if (USER_ONLY.has(op.action) && caller.kind !== 'user') throw new Error('This operation requires the human user in ACP Workbench')
     switch (op.action) {
-      case 'list': return this.snapshot(caller)
+      case 'list': return this.snapshot()
       case 'provider-save': return this.saveProvider(op.provider)
       case 'provider-remove': {
         const provider = this.provider(op.providerId)
@@ -181,27 +164,14 @@ export class Workbench {
       case 'diagnose': return this.probe(op.providerId, op.cwd, 'diagnose')
       case 'models': return this.probe(op.providerId, op.cwd, 'models')
       case 'discover': return this.probe(op.providerId, op.cwd, 'discover', op.cursor)
-      case 'create': return this.create(op, caller)
-      case 'import': return this.create({ ...op, remoteId: str(op.remoteId, 'remoteId', 1000), connect: false }, caller)
       default: break
     }
-    const session = this.session(op.sessionId, caller)
-    // Archiving or disconnecting a binding from a model tool would break the conversation's ACP route.
-    if (caller.kind !== 'user' && session.native && !AGENT_NATIVE_READ.has(op.action)) {
-      throw new Error('This ACP conversation is bound to DSH. It is read-only for tools; the user manages it from the conversation controls.')
-    }
+    const session = this.session(op.sessionId)
     switch (op.action) {
       case 'get': return this.detail(session)
       case 'events':
         if (!Number.isSafeInteger(op.after ?? 0) || (op.after ?? 0) < 0 || !Number.isSafeInteger(op.limit ?? 80) || (op.limit ?? 80) < 1) throw new Error('after must be a non-negative integer and limit a positive integer')
         return this.store.events(session, op.after ?? 0, op.limit ?? 80)
-      case 'connect': await this.connect(session); return this.detail(session)
-      case 'prompt':
-        if (session.native) throw new Error('This ACP conversation is bound to DSH. Send messages using its normal composer.')
-        return this.prompt(session, op.text)
-      case 'cancel':
-        if (op.stopId !== undefined && op.stopId !== this.runtimes.get(session.id)?.turnId) throw new Error('This turn has already ended')
-        await this.cancel(session); return this.detail(session)
       case 'disconnect':
         if (op.unlessRunning && activityOf(session, this.runtimes.get(session.id)).stopId) throw new Error('A turn is now active; stop it explicitly before disconnecting')
         await this.disconnect(session); return this.detail(session)
@@ -237,7 +207,6 @@ export class Workbench {
       seen.add(modelId)
       return { id: modelId, name: model.name?.trim() ? str(model.name, 'model name', 200) : modelId }
     })
-    // Models the CLI advertised are discovery facts, not user settings; keep them across edits.
     const previous = this.store.providers.get(id)
     const provider = { id, label: str(raw.label, 'label', 100), command, args: raw.args, models: cleanModels,
       ...(previous?.advertised ? { advertised: previous.advertised } : {}) }
@@ -246,7 +215,6 @@ export class Workbench {
     return provider
   }
 
-  /** Cache candidates for ACP Settings; discovery never changes the user-selected model list. */
   async noteAdvertised(providerId, models, capabilities) {
     const provider = this.store.providers.get(providerId)
     if (!provider) return
@@ -261,14 +229,14 @@ export class Workbench {
     this.modelsChanged?.(providerId)
   }
 
-  async create(op, caller, native) {
+  async create(op, native) {
     this.store.assertWritable()
     const provider = this.provider(op.providerId)
     const cwd = await this.directory(op.cwd)
     if (this.closed) throw new Error('ACP Workbench is unloading')
     const session = { id: randomUUID(), providerId: provider.id, title: op.title ? str(op.title, 'title', 160) : `${provider.label} · ${cwd.split('/').at(-1) || cwd}`,
-      cwd, state: 'disconnected', remoteId: op.remoteId ?? null, ownerSessionId: caller.kind === 'user' ? null : caller.sessionId,
-      createdAt: now(), updatedAt: now(), archived: false, eventSeq: 0, lastError: null, stopReason: null, ...(native ? { native } : {}) }
+      cwd, state: 'disconnected', remoteId: op.remoteId ?? null,
+      createdAt: now(), updatedAt: now(), archived: false, eventSeq: 0, lastError: null, stopReason: null, native }
     await this.store.saveSession(session)
     this.record(session, 'lifecycle', { state: 'disconnected', reason: op.remoteId ? 'imported' : 'created' })
     await this.store.flush()
@@ -313,7 +281,6 @@ export class Workbench {
       const effective = await checkTarget()
       const row = page.sessions?.find(s => s.sessionId === choice.remoteId && (s.cwd === cwd || s.cwd === effective))
       if (!row) throw new Error('The source is no longer in this checkout’s CLI history. Refresh the list.')
-      // Fork exactly once. Do not issue session/new, prompts or client operations on this process.
       let result
       try { result = await connection.request('session/fork', { sessionId: row.sessionId, cwd, mcpServers: [] }, 60_000) }
       catch (error) { throw new Error(`Fork not confirmed. Refresh CLI history before trying again: ${error.message}`, { cause: error }) }
@@ -327,8 +294,7 @@ export class Workbench {
     return this.withProbe(providerId, rawCwd, async ({ connection, info, provider, cwd }) => {
       if (mode === 'diagnose') return { command: [provider.command, ...provider.args], ...info }
       if (mode === 'models') {
-        // ACP only reports models for a session. The user asked for this explicitly; the
-        // empty session is never prompted.
+        // external: ACP only advertises models inside a session/new response
         const result = await connection.request('session/new', { cwd, mcpServers: [] }, 60_000)
         const models = advertisedModels(result, info.agentCapabilities)
         await this.noteAdvertised(provider.id, models, info.agentCapabilities)
@@ -346,8 +312,9 @@ export class Workbench {
     if (session.native?.retired) throw new Error('This external context was retired; its history is read-only')
     if (session.archived) throw new Error('Restore this session before connecting')
     if (this.runtimes.has(session.id)) throw new Error('Session is already connected or starting')
-    if (session.remoteId && [...this.store.sessions.values()].some(other => other.id !== session.id && other.providerId === session.providerId && other.remoteId === session.remoteId &&
-      (this.runtimes.has(other.id) || (!session.native && other.native && !other.native.retired)))) throw new Error('This CLI session is already in use by another record. Open its original DSH conversation.')
+    if (session.remoteId && [...this.store.sessions.values()].some(other => other.id !== session.id && other.providerId === session.providerId && other.remoteId === session.remoteId && this.runtimes.has(other.id))) {
+      throw new Error('This CLI session is already in use by another record. Open its original DSH conversation.')
+    }
     const provider = structuredClone(this.provider(session.providerId))
     const runtime = { generation: randomUUID(), connection: null, interactions: new Map(), closing: false, replaying: !!session.remoteId, turnId: null }
     runtime.spawnReady = new Promise(resolve => { runtime.releaseSpawn = resolve })
@@ -372,10 +339,8 @@ export class Workbench {
       runtime.connection = connection
       runtime.releaseSpawn()
       if (!this.isCurrent(session, runtime)) { await connection.stop(); throw new Error('Connection was canceled during startup') }
-      // The picker selects opaque CLI variant IDs, not separate model parameters.
       const info = await connection.request('initialize', {
         protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false, plan: {}, elicitation: { form: {} }, session: { compaction: {}, notices: {} },
-          // Display-only notifications. No terminal/create, write, filesystem or execution capability.
           _meta: { terminal_output: true, terminal_output_delta: true } }, clientInfo: CLIENT_INFO,
       })
       if (info.protocolVersion !== 1) throw new Error(`Unsupported ACP version ${info.protocolVersion}`)
@@ -385,8 +350,6 @@ export class Workbench {
       const canResume = !!session.capabilities.sessionCapabilities?.resume
       const canLoad = !!session.capabilities.loadSession
       if (session.remoteId && !canLoad && !canResume) throw new Error('This provider cannot load or resume the previous session; create a new one explicitly')
-      // DSH already has its own transcript. Avoid replaying the whole external history on every reconnect.
-      // An import still asks for history on its first connection when the CLI can supply it.
       const captureImport = session.native?.imported && !session.native.replayRange
       const localHistory = session.native && !captureImport && (session.historyLoaded || session.native.runs.some(run => run.state === 'completed'))
       const method = !session.remoteId ? 'session/new' : canResume && (localHistory || !canLoad) ? 'session/resume' : 'session/load'
@@ -399,7 +362,6 @@ export class Workbench {
       }
       if (!this.isCurrent(session, runtime)) throw new Error('Connection was canceled during startup')
       session.historyLoaded = true
-      // Preserve just a range, not another copy of the old transcript. Later reconnects do not extend it.
       if (captureImport) session.native.replayRange = { from, to: session.eventSeq }
       if (!session.remoteId) {
         session.remoteId = str(result.sessionId, 'ACP sessionId', 1000)
@@ -427,8 +389,6 @@ export class Workbench {
     const event = this.record(session, 'notification', { method, params, replay: runtime.replaying, turnId: runtime.turnId, ...(owner !== undefined && { compactionOwner: owner }),
       ...(params.update?.sessionUpdate === 'notice' && session.state === 'starting' && { noticePhase: 'connect' }) })
     if (method === '$/cancel_request') {
-      // Only an unanswered request is withdrawable. Once the human response is being
-      // journaled, do not manufacture a second, contradictory withdrawal receipt.
       const match = [...runtime.interactions].find(([, p]) => !p.responding && p.public.kind === 'form' && p.wireId != null && p.wireId === params.requestId)
       if (match) {
         const [id, pending] = match
@@ -441,8 +401,6 @@ export class Workbench {
     }
     const update = method === 'session/update' ? params.update : null
     if (!update) return
-    // An approval may carry only an ID. Pin the original launch, not a later update, a similarly named
-    // call or a previous prompt. Keep positions only; the stored event owns the arguments and content.
     const starts = runtime.callStarts, callId = update.toolCallId
     if (starts && !runtime.replaying && typeof callId === 'string' && callId) {
       const parent = cliParentOf(update)
@@ -450,7 +408,7 @@ export class Workbench {
       else if (update.sessionUpdate === 'tool_call_update' && parent && starts.has(callId) && starts.get(callId)?.parent !== parent) starts.set(callId, null)
     }
     switch (update.sessionUpdate) {
-      case 'notice': if (session.native && !runtime.turnId) rememberNotice(runtime, event); break
+      case 'notice': if (!runtime.turnId) rememberNotice(runtime, event); break
       case 'config_option_update':
         session.configOptions = update.configOptions ?? []
         await this.noteAdvertised(session.providerId, advertisedModels({ models: session.models, configOptions: session.configOptions }, session.capabilities))
@@ -500,7 +458,6 @@ export class Workbench {
     try { if (kind === 'permission') automatic = this.autoApprove?.(session, params) ?? null } catch (error) { this.log?.(`ACP auto-approval: ${error.message}`) }
     const option = automatic === null ? null : params.options?.find(item => item.optionId === automatic)
     if (option?.kind === 'allow_once') {
-      // Recorded and flushed before the agent hears the answer, exactly like a human response.
       const result = { outcome: { outcome: 'selected', optionId: option.optionId } }
       this.record(session, 'interaction', interaction)
       this.record(session, 'interaction-result', { id, result, automatic: 'full-access', optionKind: option.kind ?? null, optionName: option.name ?? null })
@@ -548,12 +505,9 @@ export class Workbench {
       this.record(session, 'interaction-result', { id: pending.public.id, result: kind === 'form' ? { action: result.action } : result, ...(chosen ? { optionName: chosen.name ?? chosen.optionId, optionKind: chosen.kind } : {}) })
       await this.store.flush()
     } catch (error) {
-      // An unrecorded decision cannot be delivered. Close this generation and expire
-      // the waiting RPC rather than leaving an unanswerable card or retrying a grant.
       await this.failed(session, runtime, error)
       throw error
     }
-    // A cancel/disconnect may have happened while the answer was persisted.
     if (!this.isCurrent(session, runtime) || runtime.canceling || !runtime.interactions.has(op.interactionId)) throw new Error('Interaction expired while saving the response')
     runtime.interactions.delete(op.interactionId)
     pending.resolve(result)
@@ -606,8 +560,6 @@ export class Workbench {
       return result
     }, async error => {
       if (this.agentRejected(session, runtime, error) && runtime.turnId === turnId) {
-        // The agent answered with an error (authentication, quota, invalid input). The process and
-        // its remote session are still healthy, so keep them for the next prompt instead of reloading.
         clearTimeout(runtime.cancelTimer)
         this.expire(session, runtime, 'turn-error')
         runtime.turnId = null
@@ -624,16 +576,10 @@ export class Workbench {
     return { accepted: true, sessionId: session.id, turnId }
   }
 
-  /** An error reply from a live connection, as opposed to a transport or process failure. */
   agentRejected(session, runtime, error) {
     return error instanceof RpcError && this.isCurrent(session, runtime) && !runtime.connection?.closed
   }
 
-  /**
-   * Apply one mode, model or option change to an idle connection.
-   * @param options.chosen - the value comes from the user's model picker, which may list models
-   *   the CLI never advertised; the CLI decides whether it accepts them.
-   */
   async configure(session, op, { chosen = false } = {}) {
     const runtime = this.requireIdle(session)
     let method, params
@@ -654,7 +600,6 @@ export class Workbench {
       method = 'session/set_model'
       params = { modelId: op.modelId }
     }
-    // Exclude prompts and another config mutation until the external result settles.
     session.state = 'starting'
     this.changed(session.id)
     try {
@@ -665,7 +610,6 @@ export class Workbench {
         session.configOptions = result.configOptions
         await this.noteAdvertised(session.providerId, advertisedModels({ ...result, models: result.models ?? session.models }, session.capabilities))
       } else if (op.configId !== undefined) {
-        // Without an echoed option list, record the accepted value so it is not re-applied every turn.
         const option = session.configOptions.find(o => o.id === op.configId)
         if (option) option.currentValue = op.value
       }
@@ -675,7 +619,6 @@ export class Workbench {
       return this.detail(session)
     } catch (error) {
       if (this.agentRejected(session, runtime, error)) {
-        // A refused setting leaves the previous configuration in place; the connection stays usable.
         this.record(session, 'configuration-error', { method, params, message: error.message, code: error.code })
         try { await this.transition(session, 'idle') } catch (failure) { await this.failed(session, runtime, failure) }
         throw error
@@ -694,7 +637,6 @@ export class Workbench {
     runtime.canceling = true
     this.expire(session, runtime, 'user-cancel')
     try { await this.transition(session, 'canceling') } catch (error) { await this.disconnect(session, 'cancel-persistence-failed'); throw error }
-    // A rejected interaction can finish the prompt while cancellation is persisting.
     if (!this.isCurrent(session, runtime) || !runtime.canceling || runtime.turnId !== turnId) return
     runtime.cancelTimer = setTimeout(() => {
       if (runtime.turnId === turnId && runtime.canceling) void this.disconnect(session, 'cancel-timeout').catch(error => this.log?.(error.message))
@@ -748,7 +690,6 @@ export class Workbench {
   }
 
   async close() {
-    // disconnect checks generation independently; stop admission before awaiting cleanup.
     this.closed = true
     const results = await Promise.allSettled([
       ...[...this.runtimes.keys()].map(id => this.disconnect(this.store.sessions.get(id), 'plugin-unload')),

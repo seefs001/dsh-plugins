@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Diagram preview",
-    "description": "Preview Mermaid, Graphviz/DOT, ECharts (JSON) and SVG code blocks locally in chat. Resize a diagram, open it to zoom in, or select Code to see the original; invalid diagrams keep their source."
+    "description": "Preview Mermaid, Graphviz/DOT, ECharts (JSON), and SVG fences in chat, with zoom and a Code toggle."
   }
 }

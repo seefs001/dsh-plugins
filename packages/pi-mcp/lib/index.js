@@ -9,7 +9,6 @@ export const inject = ['mcpManager']
 
 const RELOAD_DELAY_MS = 300
 
-// Pi's user-level file; PI_CODING_AGENT_DIR moves it like Pi itself does.
 export function piConfigPath(env = process.env) {
   return join(env.PI_CODING_AGENT_DIR || join(homedir(), '.pi', 'agent'), 'mcp.json')
 }
@@ -37,7 +36,7 @@ export async function apply(ctx) {
     }
     let config
     try { config = JSON.parse(text) } catch (error) {
-      // JSON.parse errors can quote literal header and environment values.
+      // external: JSON.parse error messages quote raw input, which can leak secret headers or env values
       throw new Error('invalid JSON', { cause: error })
     }
     const { entries, skipped } = convertConfig(config)
@@ -50,7 +49,6 @@ export async function apply(ctx) {
     try {
       entries = await read()
     } catch (error) {
-      // A half-written or invalid file keeps the current servers.
       logger.warn(`pi-mcp: cannot read ${file}; keeping current servers: ${error.message}`)
       return
     }
@@ -79,7 +77,7 @@ export async function apply(ctx) {
   }
 
   ctx.effect(() => {
-    // Watch the directory so atomic rename-based saves are seen.
+    // external: fs.watch on a single file misses atomic rename saves
     let watcher
     try {
       watcher = watch(dirname(file), (_event, changed) => {

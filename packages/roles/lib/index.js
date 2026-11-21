@@ -1,18 +1,3 @@
-/**
- * dsh-roles — Host half.
- *
- * Owns the role library and each session's active role, both in the `roles`
- * storage domain. A role is a detailed prompt plus its own skills:
- *
- * - The prompt enters the system prompt through one global section that reads
- *   the assembling agent's session, so a role switch applies at the next step.
- * - The skills are served by a skill provider registered on each agent's own
- *   scope, so only sessions using that role see them in the `skill` catalog.
- *
- * Every mutation goes through `applyOp`. The browser calls it over
- * `POST /roles/op` and follows changes on `GET /roles/events` (SSE); the agent
- * calls it through the `roles` tool.
- */
 import { BUILTIN_ROLES } from './builtin.js'
 
 export const name = 'roles'
@@ -35,7 +20,6 @@ const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const ROLE_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/
 const SKILL_RANK = 250
 
-/** A rejected operation; the message is shown to the user or the agent. */
 export class OpError extends Error {
   constructor(message) {
     super(message)
@@ -46,7 +30,6 @@ export class OpError extends Error {
 const str = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 const isSessionId = v => typeof v === 'string' && v.length > 0 && v.length <= 200
 
-/** Normalize one stored skill; `undefined` when unusable. */
 function normalizeSkill(raw) {
   if (raw === null || typeof raw !== 'object') return undefined
   const skillName = str(raw.name, 64)
@@ -57,7 +40,6 @@ function normalizeSkill(raw) {
   return { name: skillName, description, ...(whenToUse ? { whenToUse } : {}), content }
 }
 
-/** Normalize one stored role; `undefined` when unusable. */
 function normalizeRole(raw) {
   if (raw === null || typeof raw !== 'object' || typeof raw.id !== 'string' || !ROLE_ID.test(raw.id)) return undefined
   const seen = new Set()
@@ -80,7 +62,6 @@ function normalizeRole(raw) {
   }
 }
 
-/** Normalize a stored or proposed library: drop malformed and duplicate roles. */
 export function normalizeLibrary(raw) {
   if (raw === null || typeof raw !== 'object' || !Array.isArray(raw.roles)) {
     throw new TypeError('roles state must be an object with a roles array')
@@ -94,7 +75,6 @@ export function normalizeLibrary(raw) {
   return { version: 1, roles }
 }
 
-/** One session's active role. */
 export function normalizeSelection(raw) {
   if (raw === null || typeof raw !== 'object' || typeof raw.roleId !== 'string' || !ROLE_ID.test(raw.roleId)) {
     throw new TypeError('session role must be { roleId, at }')
@@ -120,7 +100,6 @@ export const DOMAIN_SPEC = {
 
 const newRoleId = () => `r_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
 
-/** Validate a role draft from the UI or the agent; throws OpError with a readable message. */
 export function parseDraft(draft, base = {}) {
   if (draft === null || typeof draft !== 'object') throw new OpError('role must be an object')
   const merged = { ...base, ...draft }
@@ -160,18 +139,11 @@ function requireRole(library, roleId) {
   return role
 }
 
-/**
- * Apply one library operation.
- * @returns `{ library, result, select? }`; `library` is the input reference when unchanged,
- *   `select` is `{ sessionId, roleId | null }` for a selection change.
- * @throws OpError for invalid input.
- */
 export function applyOp(library, op, now = Date.now()) {
   switch (op?.action) {
     case 'list':
       return { library, result: {} }
     case 'preview':
-      // Validate a draft and render what the model would see, without storing it.
       return { library, result: { prompt: renderRolePrompt(parseDraft(op.role)) } }
     case 'get':
       return { library, result: { role: requireRole(library, op.roleId) } }
@@ -232,7 +204,6 @@ export function applyOp(library, op, now = Date.now()) {
   }
 }
 
-/** The system-prompt text for one active role. */
 export function renderRolePrompt(role) {
   if (!role) return ''
   const title = `${role.icon ? `${role.icon} ` : ''}${role.name}`
@@ -270,7 +241,7 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-/** Open the domain, retrying while a previous generation of this plugin is still closing it. */
+// external: DSH plugin reload can start a new instance before the previous one closes storageDomain
 async function openDomain(ctx) {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -283,18 +254,14 @@ async function openDomain(ctx) {
 }
 
 const TOOL_DESCRIPTION = [
-  'Manage the user\'s roles. A role is a detailed prompt plus its own skills; the active role of a session is added to that session\'s system prompt and its skills join the skill catalog.',
-  'Actions: list (summaries plus the current session\'s role); get {roleId} (full prompt and skills); create {role}; update {roleId, role} (fields given replace the stored ones);',
-  'duplicate {roleId}; delete {roleId}; move {roleId, beforeRoleId?}; select {roleId} switches the current session to a role, roleId null clears it;',
-  'reset {roleId} restores a built-in role; restore_builtins adds back deleted built-in roles.',
-  'role = {name, icon?, description?, prompt, skills?: [{name (kebab-case), description, whenToUse?, content (markdown)}], localSkills?: [existing skill names]}.',
-  'catalog {cwd?} lists locally discovered model-invocable skills (no content); cwd selects project skills. localSkills references existing skills by name, preserves their files, and does not restrict other skills. preview {role} renders a draft without saving.',
+  'Manage user roles (prompt + inline skills + local skill references) and switch the current session\'s role.',
+  'Actions: list; get {roleId}; catalog {cwd?}; preview {role}; create {role}; update {roleId, role}; duplicate {roleId}; delete {roleId}; move {roleId, beforeRoleId?}; select {roleId} (null clears); reset {roleId}; restore_builtins.',
+  'role = {name, icon?, description?, prompt, skills?: [{name, description, whenToUse?, content}], localSkills?: [string]}.',
   'Only switch or edit roles when the user asks.',
 ].join(' ')
 
 const contentKey = r => JSON.stringify([r.name, r.icon, r.description, r.prompt, r.skills, r.localSkills ?? []])
 const BUILTIN_KEYS = new Map(BUILTIN_ROLES.map(b => [b.builtin, contentKey(builtinRole(b))]))
-/** Whether a built-in role differs from the text it ships with. */
 const isModifiedBuiltin = role => BUILTIN_KEYS.has(role.builtin) && BUILTIN_KEYS.get(role.builtin) !== contentKey(role)
 
 const summaryOf = r => ({ id: r.id, name: r.name, icon: r.icon, description: r.description, skills: r.skills.map(s => s.name), localSkills: r.localSkills, ...(r.builtin ? { builtin: true } : {}) })
@@ -302,7 +269,6 @@ const summaryOf = r => ({ id: r.id, name: r.name, icon: r.icon, description: r.d
 export function apply(ctx) {
   let closed = false
   let tail = Promise.resolve()
-  /** Synchronous snapshot for prompt assembly; empty until the domain opens. */
   let library = { version: 1, roles: [] }
   let sessions = new Map()
   const ready = openDomain(ctx).then(domain => {
@@ -318,7 +284,6 @@ export function apply(ctx) {
     await domain?.close()
   }, 'roles: storage domain')
 
-  // Providers installed before the domain opened saw an empty library.
   ready.then(() => refreshSkills(), () => {})
 
   const roleOfSession = sessionId => {
@@ -326,8 +291,7 @@ export function apply(ctx) {
     return roleId === undefined ? undefined : library.roles.find(r => r.id === roleId)
   }
 
-  // ── Skill providers: one per live agent, on that agent's own scope. ──────
-  const providers = new Map() // agent -> { fiber, control, key }
+  const providers = new Map()
   const skillKey = sessionId => {
     const role = roleOfSession(sessionId)
     return role?.skills.length ? JSON.stringify([role.id, role.name, role.skills]) : ''
@@ -399,20 +363,17 @@ export function apply(ctx) {
     scope.effect(() => () => { for (const agent of providers.keys()) uninstall(agent) }, 'roles: skill providers')
   })
 
-  // ── Prompt: one global section that reads the assembling agent's session. ─
   ctx.systemPrompt.section({
     name: 'roles:active-role',
-    // Right after the deployment persona prefix (order 0), before first-party guidance.
+    // external: DSH deployment persona section uses order 0
     order: 5,
     interpolate: false,
-    // The agent loop passes the assembling agent as both `agent` and `scope`.
     text: ({ agent, scope }) => {
       const sessionId = (agent ?? scope)?.session?.id
       return typeof sessionId === 'string' ? renderRolePrompt(roleOfSession(sessionId)) : ''
     },
   })
 
-  // ── State, broadcast, and serialized mutations. ───────────────────────────
   const streams = new Set()
   const snapshot = () => ({
     roles: library.roles,
@@ -427,7 +388,6 @@ export function apply(ctx) {
   }
 
   const run = async (op, callerSessionId, fromTool = false) => {
-    // Read-only draft/catalog operations do not wait behind storage mutations.
     if (op?.action === 'preview') return applyOp(library, op).result
     if (op?.action === 'catalog') {
       const registry = ctx.get('skills')
@@ -459,10 +419,12 @@ export function apply(ctx) {
           changed = true
         }
       }
-      // Forget selections whose role is gone, and the oldest beyond the cap.
-      const stale = [...table.entries()].filter(([, s]) => !library.roles.some(r => r.id === s.roleId)).map(([id]) => id)
-      if (table.size - stale.length > MAX_SESSIONS) {
-        stale.push(...[...table.entries()].toSorted((a, b) => a[1].at - b[1].at).slice(0, table.size - stale.length - MAX_SESSIONS).map(([id]) => id))
+      const roleIds = new Set(library.roles.map(r => r.id))
+      const entries = [...table.entries()]
+      const stale = entries.filter(([, s]) => !roleIds.has(s.roleId)).map(([id]) => id)
+      const live = entries.filter(([, s]) => roleIds.has(s.roleId))
+      if (live.length > MAX_SESSIONS) {
+        stale.push(...live.toSorted((a, b) => a[1].at - b[1].at).slice(0, live.length - MAX_SESSIONS).map(([id]) => id))
       }
       if (stale.length > 0) { await table.deleteMany(stale); changed = true }
       if (changed) {
@@ -550,7 +512,6 @@ export function apply(ctx) {
     streams.clear()
   }, 'roles: close event streams')
 
-  // ── Agent tool: the same operations, scoped to the calling session. ──────
   ctx.inject(['tools'], toolCtx => {
     const skillSchema = {
       type: 'object',
@@ -570,8 +531,8 @@ export function apply(ctx) {
         type: 'object',
         properties: {
           action: { type: 'string', enum: ACTIONS, description: 'Operation to perform.' },
-          cwd: { type: 'string', description: 'catalog: project directory to include workspace skills; omit for user and bundled skills.' },
-          roleId: { type: ['string', 'null'], description: 'Target role id (from list); null with select clears the role.' },
+          cwd: { type: 'string', description: 'catalog: project directory to include workspace skills.' },
+          roleId: { type: ['string', 'null'], description: 'Target role id; null with select clears the role.' },
           beforeRoleId: { type: 'string', description: 'move: place before this role; omit to move last.' },
           role: {
             type: 'object',
@@ -580,9 +541,9 @@ export function apply(ctx) {
               name: { type: 'string' },
               icon: { type: 'string', description: 'An emoji.' },
               description: { type: 'string' },
-              prompt: { type: 'string', description: 'Detailed role prompt in Markdown.' },
+              prompt: { type: 'string', description: 'Role prompt in Markdown.' },
               skills: { type: 'array', items: skillSchema },
-              localSkills: { type: 'array', items: { type: 'string' }, description: 'References to existing local skills by name. Loaded through the native skill tool; no file content is copied.' },
+              localSkills: { type: 'array', items: { type: 'string' }, description: 'Local skill names loaded via the native skill tool.' },
             },
             additionalProperties: false,
           },
@@ -599,7 +560,6 @@ export function apply(ctx) {
         const { sessionId: _ignored, ...op } = args ?? {}
         const value = await run(op, callerSessionId, true)
         if (op.action === 'list') return value
-        // Keep tool results small: the full library only for list/get.
         const { roles: _roles, sessions: _sessions, ...rest } = value
         return rest
       },

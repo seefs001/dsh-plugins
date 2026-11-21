@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Paseo Hub",
-    "description": "把这台 DSH Host 接入 Paseo Hub：在侧栏输入 Hub 地址并完成登录授权后，来自 GitHub、Slack、Discord、Linear 和 Telegram 的触发就会作为 DSH 会话在本地跑起来，并按需挂载 reply / finish 工具。"
+    "description": "将本机 DSH Host 接入 Paseo Hub 运行自动化触发会话，或通过组织 API 管理触发器与手动运行。"
   }
 }

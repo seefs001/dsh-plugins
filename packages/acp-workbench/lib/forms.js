@@ -23,7 +23,6 @@ function options(schema, titled) {
   return choices
 }
 
-/** Session-scoped form elicitation. Refuse schemas we cannot faithfully display or validate. */
 export function formFields(params) {
   const s = params.requestedSchema
   if (params.mode !== 'form' || !text(params.message) || !allows(s, ['type', 'title', 'description', 'properties', 'required', '$schema', 'additionalProperties']) || (s.type != null && s.type !== 'object') || !object(s.properties) || (s.title != null && !text(s.title)) || (s.description != null && !text(s.description)) || (s.additionalProperties != null && typeof s.additionalProperties !== 'boolean')) unsupported()
@@ -43,7 +42,6 @@ export function formFields(params) {
   })
 }
 
-/** No coercion, implicit defaults or partial answers to required questions. */
 export function formResponse(fields, op) {
   if (op.cancel === true) return { action: 'cancel' }
   if (op.formAction === 'decline') return { action: 'decline' }

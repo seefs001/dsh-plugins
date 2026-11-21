@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "画图",
-    "description": "新增 openai_image 和 grok_image 画图工具。在这里为它们挑选要使用的本地 Responses 模型。"
+    "description": "新增 openai_image 和 grok_image，复用本地 Responses provider。"
   }
 }

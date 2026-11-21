@@ -1,10 +1,3 @@
-/**
- * dsh-model-reference — browser half.
- *
- * Type `#` in the composer to open a model picker. Picking inserts a chip
- * (`provider/model?effort=…&fast=1`) that serializes for the model as
- * `#model(provider=…, model=…, reasoning_effort=…, service_tier=priority)`.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-model-reference',
   factory(require) {
@@ -13,9 +6,6 @@ window.__ModuleLoader__.load({
     const NS = 'model-reference'
     const SOURCE = 'model-reference'
 
-    // ---- `#` model reference ------------------------------------------------
-
-    // Read `#query` from the DOM text node under a collapsed caret inside the composer card.
     function detectHash(card) {
       const sel = window.getSelection()
       if (!card || !sel || sel.rangeCount === 0 || !sel.isCollapsed) return null
@@ -35,25 +25,24 @@ window.__ModuleLoader__.load({
       return out
     }
 
-    // Keep fast=1 for existing priority chips; tier=ultrafast carries the new tier.
     function parseRef(ref) {
       const q = ref.indexOf('?')
       const route = q < 0 ? ref : ref.slice(0, q)
       const params = new URLSearchParams(q < 0 ? '' : ref.slice(q + 1))
       const i = route.indexOf('/')
-      const tier = params.get('tier') === 'ultrafast' ? 'ultrafast' : undefined
-      return { provider: route.slice(0, i), model: route.slice(i + 1), effort: params.get('effort') ?? undefined, tier, fast: tier !== undefined || params.get('fast') === '1' }
+      const rawTier = params.get('tier')
+      const tier = rawTier === 'priority' || rawTier === 'ultrafast' ? rawTier : undefined
+      return { provider: route.slice(0, i), model: route.slice(i + 1), effort: params.get('effort') ?? undefined, tier, fast: tier !== undefined }
     }
-    // What the model reads for one chip.
+
     function serialize(ref) {
       const r = parseRef(ref)
       const parts = [`provider=${r.provider}`, `model=${r.model}`]
       if (r.effort) parts.push(`reasoning_effort=${r.effort}`)
-      if (r.fast) parts.push(`service_tier=${r.tier ?? 'priority'}`)
+      if (r.tier) parts.push(`service_tier=${r.tier}`)
       return `#model(${parts.join(', ')})`
     }
 
-    // Sent messages carry the serialized text; find it again so the bubble shows a chip.
     const SENT = /#model\(provider=([^,\s()]+), model=([^,\s()]+)(?:, reasoning_effort=([^,\s()]+))?(?:, service_tier=(priority|ultrafast))?\)/gu
     const sentRule = {
       id: 'model',
@@ -68,15 +57,12 @@ window.__ModuleLoader__.load({
       },
     }
 
-    // Same label the composer chip shows; falls back to IDs when the directory is not loaded.
     function chipLabel(data, groups) {
       const model = groups?.find(g => g.id === data.provider)?.models.find(m => m.id === data.model)
       const effortName = data.effort === undefined ? undefined : model?.reasoning?.efforts.find(e => e.id === data.effort)?.name ?? data.effort
       return `#${model?.name ?? data.model}${effortName ? ` · ${effortName}` : ''}${data.fast ? ' ⚡' : ''}`
     }
 
-    // Remembered per-model efforts (this plugin's Host) and, when dsh-service-tier
-    // is installed, its fast models. A missing route simply leaves defaults.
     const prefs = {
       state: { efforts: {}, tiers: {}, fastProviders: [] },
       listeners: new Set(),
@@ -109,15 +95,13 @@ window.__ModuleLoader__.load({
       const fast = tier === 'priority' || tier === 'ultrafast'
       const params = new URLSearchParams()
       if (effort !== undefined) params.set('effort', effort)
-      if (tier === 'priority') params.set('fast', '1')
-      if (tier === 'ultrafast') params.set('tier', tier)
+      if (fast) params.set('tier', tier)
       const qs = params.toString()
       return { ...item, effort, effortName, fast, ref: qs ? `${key}?${qs}` : key }
     }
 
     function restoreEffort(selection, state, efforts) {
       const current = state.current
-      // A same-model selection is an explicit effort change, including Default.
       if (current?.provider === selection.provider && current.model === selection.model) return selection
       const model = state.groups.find(g => g.id === selection.provider)?.models.find(m => m.id === selection.model)
       const reasoning = model?.reasoning
@@ -127,8 +111,7 @@ window.__ModuleLoader__.load({
       return { ...selection, reasoningEffort: effort }
     }
 
-    // Both the composer picker and /model call this shared controller. DSH does
-    // not expose a selection transform; keep the adapter scoped to this plugin.
+    // external: DSH has no model-selection transform hook, so patch ModelDirectory.prototype.select
     function installEffortMemory(ModelDirectory) {
       const original = ModelDirectory.prototype.select
       async function select(selection) {
@@ -143,7 +126,6 @@ window.__ModuleLoader__.load({
       }
     }
 
-    // Same glyph as dsh-service-tier's toggle, filled.
     const Bolt = () => h('svg', { viewBox: '0 0 16 16', width: 12, height: 12, 'aria-hidden': true },
       h('path', { d: 'M9.2 1.5 3.5 9h4l-.8 5.5L12.5 7h-4z', fill: 'currentColor', stroke: 'currentColor', strokeWidth: 1.3, strokeLinejoin: 'round' }))
 
@@ -170,7 +152,7 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, 'zh', { title: '引用模型', aria: '模型' }), 'model-reference: zh')
         const t = ctx.locale.bind(NS)
 
-        // Serializer owner for `#` chips. It never offers @ candidates.
+        // external: DSH attaches reference codecs through inputTriggers.registerSource('@')
         ctx.effect(() => ctx.inputTriggers.registerSource({
           trigger: '@', name: SOURCE, showGroupTitle: false, order: 1000,
           candidates: async () => [],
@@ -178,7 +160,6 @@ window.__ModuleLoader__.load({
           codec: { clipboardText: ref => { const r = parseRef(ref); return `#${r.provider}/${r.model}` }, serialize: ref => Promise.resolve(serialize(ref)) },
         }), 'model-reference: codec source')
 
-        // Sent user text: render `#model(...)` as the same chip; hover shows the full text.
         const { ReferenceChip } = require('@deepseek-ai/dsh-client-ui-primitives')
         ctx.uiConversation.userText.register(sentRule)
         function SentModelReference({ node, raw, directory }) {
@@ -315,7 +296,6 @@ window.__ModuleLoader__.load({
           },
         }, HashMenu))
       },
-      // Helpers exposed for offline checks.
       _internal: { parseRef, serialize, sentRule, chipLabel, match, decorate, restoreEffort, installEffortMemory },
     }
   },

@@ -15,11 +15,7 @@ const ACTIVE_RUN = new Set(['preparing', 'running', 'waiting', 'canceling'])
 const timestamp = () => new Date().toISOString()
 const isRoute = value => typeof value === 'string' && value.startsWith(ACP_ROUTE_PREFIX)
 const checkpointOf = message => message.source?.replayState?.response?.acp
-/**
- * Whether a DSH session runs under the full-access permission preset: no sandbox and no
- * approval prompts. Auto review, custom knob mixes and a missing preset service all fail
- * closed so the human still answers.
- */
+
 export function fullAccess(ctx, session) {
   const presets = ctx.get?.('permissionPresets')
   if (!presets || !session) return false
@@ -33,7 +29,6 @@ export function fullAccess(ctx, session) {
 const pointer = (content, note = 'See raw execution events for the original content.') =>
   `\n[ACP ${content.type}${content.mimeType ? ` ${content.mimeType}` : ''}${content.uri || content.resource?.uri ? `: ${content.uri ?? content.resource.uri}` : ''}. ${note}]\n`
 
-/** Count tool calls and edited files as a turn streams, so a collapsed trace can summarize itself. */
 function tally(run, update, tools) {
   if (update?.sessionUpdate !== 'tool_call' && update?.sessionUpdate !== 'tool_call_update') return
   if (update.toolCallId) tools.add(update.toolCallId)
@@ -56,9 +51,6 @@ function messageText(message) {
   return content ? `${message.role}:\n${content}` : ''
 }
 
-/** A real ACP turn behind an explicitly labelled native DSH streaming route.
- * It never produces tool-call chunks: the external CLI already owns execution.
- */
 export class NativeAcp {
   constructor(ctx, manager) {
     this.ctx = ctx
@@ -66,11 +58,10 @@ export class NativeAcp {
     this.children = new Map()
     this.active = new Map()
     this.maintenance = new Set()
-    this.claims = new Set() // Pending adoption by provider + remote ID, including while storage is flushing.
+    this.claims = new Set()
     this.registration = null
     this.disposers = []
     this.closing = false
-    // Folded traces by `${binding}:${run}`, least recently read first.
     this.traces = new Map()
   }
 
@@ -92,7 +83,7 @@ export class NativeAcp {
 
   async initialize() {
     this.syncProviders()
-    // Explicit directory changes keep their normal semantics. Intercept only implicit validation for an ACP route.
+    // external: DSH workingDirectory falls back to header.cwd when a worktree path is missing
     this.disposers.push(this.ctx.on('working-directory/access', async ({ agent, path, signal }, next) => {
       if (path === null && isRoute(agent.model.current()?.provider)) await this.guardDirectory(agent, this.cwd(agent), signal)
       return next()
@@ -107,8 +98,6 @@ export class NativeAcp {
         if (session.native.route !== event.data.message.source.provider) continue
         const run = session.native.runs.findLast(item => item.turn === event.data.turn && item.step === event.data.step)
         if (!run || run.messageId === event.data.message.id) continue
-        // Interrupted streams may never emit finish/replayState. The native
-        // message identity survives forks and still locates their original trace.
         run.messageId = event.data.message.id
         run.replyExcerpt = replyExcerpt(event.data.message)
         void this.manager.store.saveSession(session)
@@ -116,8 +105,6 @@ export class NativeAcp {
           .finally(() => this.manager.changed(session.id))
       }
     }))
-    // DSH's non-forcing archive asks all activity providers inside its registry mutation.
-    // An ACP connection can be starting or awaiting input even if a catalog snapshot looks idle.
     this.disposers.push(this.ctx.on('workspace/session-activity', async ({ sessionId }, next) => {
       const rest = await next()
       const active = this.active.has(sessionId) || this.sessions(sessionId, false).some(s => {
@@ -146,7 +133,6 @@ export class NativeAcp {
           run.finishedAt = timestamp()
           changed = true
         }
-        // Without an end, a trace would also show every later turn of this binding.
         if (run.to === undefined && !ACTIVE_RUN.has(run.state)) {
           run.to = runs[index + 1]?.from !== undefined ? runs[index + 1].from - 1 : session.eventSeq ?? 0
           changed = true
@@ -184,7 +170,6 @@ export class NativeAcp {
   imageRequestTarget(_provider, _model, image) {
     return { width: image.width, height: image.height, maxBytes: this.ctx.attachments.imageLimits.maxImageBytes }
   }
-  /** Only models explicitly selected in ACP Workbench appear alongside the CLI default. */
   async listModels(provider) {
     const source = this.provider(provider)
     const { label, models = [] } = source
@@ -204,8 +189,8 @@ export class NativeAcp {
         ...(reasoning ? { reasoning } : {}) }
     }
     return [
-      entry(DEFAULT_MODEL, 'CLI default', `Keep the model ${label} is currently using. ${label} runs its own tools and permissions, not the DSH tool sandbox.`),
-      ...models.map(model => entry(model.id, model.name ?? model.id, `${label} applies the selected model and reasoning effort before the turn. Its own tools and permissions apply, not the DSH tool sandbox.`)),
+      entry(DEFAULT_MODEL, 'CLI default', `Keep ${label}’s current model. Runs with ${label}’s own tools and credentials outside the DSH sandbox.`),
+      ...models.map(model => entry(model.id, model.name ?? model.id, `Switches ${label} to this model before sending. Runs outside the DSH sandbox.`)),
     ]
   }
   async resolveModel(provider, model) {
@@ -224,12 +209,8 @@ export class NativeAcp {
       (s.native.sessionId === sessionId || (includeChildren && s.native.rootSessionId === sessionId)))
   }
 
-  /**
-   * Permission policy for the manager: under full access, allow a CLI permission request once.
-   * A one-time grant keeps the CLI from remembering it after full access is switched off.
-   */
   autoApprove(session, params) {
-    const owner = session.native?.sessionId ?? session.ownerSessionId
+    const owner = session.native?.sessionId
     const agent = owner ? this.ctx.agents.get(owner) : null
     if (!agent || !fullAccess(this.ctx, agent.session)) return null
     const options = params?.options ?? []
@@ -241,26 +222,22 @@ export class NativeAcp {
     const binding = sessions.findLast(s => s.native.sessionId === sessionId && s.native.route === selected?.provider && !s.native.retired)
     const report = binding?.lastContext
     return {
-      // Never put a sibling's or an old engine's occupancy next to this composer's model.
       contextReport: !binding?.archived && report && report.remoteId === binding.remoteId ? { externalId: binding.id, at: report.at, window: report.window } : null,
       commandStamp: binding?.state === 'idle' && !binding.archived ? this.manager.commandReport(binding)?.stamp ?? null : null,
       noticeFeed: connectionNotices(binding, binding && this.manager.runtimes.get(binding.id)),
-      // A navigation hint only. Opening it checks live project membership and effective directories again.
       checkoutGroup: this.manager.store.sharedGroups.get(sessionId) ?? null,
       providers: [...this.manager.store.providers.values()].map(p => ({ id: p.id, label: p.label, route: this.route(p.id) })),
       sessions: sessions.map(s => ({ ...this.manager.overview(s), native: { ...s.native, runs: s.native.runs.slice(-128) } })),
       selected,
-      // Only advertised one-time grants qualify. Persistent choices remain interactive.
       fullAccess: fullAccess(this.ctx, agent?.session),
       status: agent?.status ?? 'idle',
     }
   }
 
-  /** Locate one run by its binding and run id, its native message, or its DSH turn and step. */
   findRun(op) {
     const indexed = !op.externalId && typeof op.messageId === 'string'
       ? [...this.manager.store.sessions.values()].find(session => session.native?.runs.some(run => run.messageId === op.messageId)) : null
-    const candidates = op.externalId ? [this.manager.session(op.externalId, { kind: 'user' })] : indexed ? [indexed] : this.sessions(op.dshSessionId, false)
+    const candidates = op.externalId ? [this.manager.session(op.externalId)] : indexed ? [indexed] : this.sessions(op.dshSessionId, false)
     for (const session of candidates.toReversed()) {
       const run = session.native?.runs.findLast(r => op.runId ? r.id === op.runId : indexed ? r.messageId === op.messageId : r.turn === op.turn && r.step === op.step)
       if (run) return { session, run }
@@ -268,10 +245,6 @@ export class NativeAcp {
     return null
   }
 
-  /**
-   * The rows a conversation shows for one run, folded on the Host so the browser never pages
-   * through streamed message chunks. Folding resumes from the cached position as a run grows.
-   */
   trace(op) {
     const found = this.findRun(op)
     if (!found) return null
@@ -305,13 +278,10 @@ export class NativeAcp {
   }
 
   async reset(externalId) {
-    const session = this.manager.session(externalId, { kind: 'user' })
-    if (!session.native) throw new Error('Not a native ACP binding')
+    const session = this.manager.session(externalId)
     const agent = this.ctx.agents.get(session.native.sessionId)
     if (session.native.retired) throw new Error('This external context has already been retired')
     if ((agent && agent.status !== 'idle') || this.active.has(session.native.sessionId)) throw new Error('Stop the native DSH operation before starting a new external conversation')
-    // Reserve the old identity before yielding. A message accepted while shutdown drains
-    // must use a new binding, never the remote session the human just retired.
     this.manager.store.assertWritable()
     session.native.retired = true
     await this.manager.store.saveSession(session)
@@ -359,16 +329,10 @@ export class NativeAcp {
     const provider = this.provider(route)
     const key = JSON.stringify([provider.id, id])
     const records = [...this.manager.store.sessions.values()].filter(s => s.providerId === provider.id && s.remoteId === id && !s.native?.retired)
-    if (this.claims.has(key) || records.some(s => s.native || s.cwd !== cwd || s.ownerSessionId || s.archived || this.manager.runtimes.has(s.id))) throw new Error('This CLI session belongs to another record. Use the original conversation or disconnect and restore the standalone record first.')
+    if (this.claims.has(key) || records.length) throw new Error('This CLI session already belongs to a DSH conversation. Open the original conversation instead.')
     this.claims.add(key)
     try {
-      const record = records[0]
-      if (!record) return await this.binding(agent, route, { remoteId: id, title: choice.title })
-      record.native = { ...this.bindingIdentity(agent, route), imported: true }
-      record.ownerSessionId = agent.id
-      await this.manager.store.saveSession(record)
-      this.manager.changed(record.id)
-      return record
+      return await this.binding(agent, route, { remoteId: id, title: choice.title })
     } finally { this.claims.delete(key) }
   }
 
@@ -391,16 +355,14 @@ export class NativeAcp {
     try {
       await checkTarget()
       if ([...this.manager.store.sessions.values()].some(s => s.providerId === provider.id && s.remoteId === fork.id)) throw new Error('The returned ID already belongs to a record')
-      // Pin the new remote ID before any connection attempt. A retry must not fork again.
       const identity = { ...this.bindingIdentity(agent, route), imported: true, forkedFrom: { remoteId: source, title: typeof fork.title === 'string' ? fork.title.slice(0, 160) : null } }
-      await this.manager.create({ providerId: provider.id, cwd, remoteId: fork.id, connect: false }, { kind: 'agent', sessionId: agent.id }, identity)
+      await this.manager.create({ providerId: provider.id, cwd, remoteId: fork.id, connect: false }, identity)
       this.manager.changed()
     } catch (error) { throw new Error('CLI returned fork ' + fork.id + '. Check CLI history before retrying: ' + error.message, { cause: error }) }
   }
 
   configure(op) {
-    const session = this.manager.session(op.sessionId, { kind: 'user' })
-    if (!session.native) throw new Error('Not a native ACP binding')
+    const session = this.manager.session(op.sessionId)
     return this.maintainConnection(session.native.sessionId, { configuration: op })
   }
 
@@ -408,7 +370,7 @@ export class NativeAcp {
     const agent = await this.openAgent(sessionId)
     if (this.closing || !agent || agent.status !== 'idle') throw new Error('The DSH session must be open and idle')
     const bindingId = configuration?.sessionId ?? externalId
-    const bound = bindingId ? this.manager.session(bindingId, { kind: 'user' }) : null
+    const bound = bindingId ? this.manager.session(bindingId) : null
     if (bound?.native?.retired) throw new Error('This external context was retired; its history is read-only')
     if (bound && bound.native?.sessionId !== sessionId) throw new Error('This record belongs to another DSH conversation')
     const route = fork?.route ?? adoption?.route ?? bound?.native.route ?? agent.model.current()?.provider
@@ -431,7 +393,7 @@ export class NativeAcp {
           await this.manager.runtimes.get(session.id)?.shutdown
           signal.throwIfAborted()
           if (configuration) {
-            const configured = await this.manager.operate(configuration, { kind: 'user' })
+            const configured = await this.manager.operate(configuration)
             signal.throwIfAborted()
             return configured
           }
@@ -460,8 +422,6 @@ export class NativeAcp {
     const report = this.manager.commandReport(session)
     if (!stamp || stamp !== report?.stamp) throw new Error('The CLI command list changed; select the command again')
     if (!session || session.archived || session.state !== 'idle' || !report?.commands.some(command => command.name === name)) throw new Error('Connect the selected engine and choose one of its advertised commands')
-    // The human chose an external command. Bypass DSH slash-command parsing,
-    // but submit ordinary identified input through the native Agent inbox.
     agent.followup({ id: randomUUID(), role: 'user', source: { kind: 'user' },
       content: [{ type: 'text', text: `/${name}${args ? ` ${args}` : ''}` }] })
     return this.snapshot(sessionId)
@@ -474,13 +434,8 @@ export class NativeAcp {
 
   async binding(agent, route, imported) {
     const existing = this.sessions(agent.id, false).find(s => s.native.route === route && !s.native.retired)
-    const parentSessionId = agent.session.header.origin === 'subagent' ? agent.session.header.parentSession : undefined
     if (existing) {
       await this.checkDirectory(agent, existing)
-      if (parentSessionId && !existing.native.parentSessionId) {
-        existing.native.parentSessionId = parentSessionId
-        await this.manager.store.saveSession(existing)
-      }
       return existing
     }
     const provider = this.provider(route)
@@ -490,17 +445,11 @@ export class NativeAcp {
     const identity = this.bindingIdentity(agent, route)
     if (imported) identity.imported = true
     const title = imported?.title?.trim().slice(0, 160) || `${provider.label} · ${identity.name}`
-    const session = await this.manager.create({ providerId: provider.id, cwd, connect: false, title, remoteId: imported?.remoteId }, { kind: 'agent', sessionId: agent.id }, identity)
+    const session = await this.manager.create({ providerId: provider.id, cwd, connect: false, title, remoteId: imported?.remoteId }, identity)
     this.manager.changed(session.id)
     return this.manager.store.sessions.get(session.id)
   }
 
-  /**
-   * Switch the external conversation to the model chosen in the DSH model picker. `default`
-   * keeps whatever the CLI is using. A CLI that reports models through a `model` config option
-   * is switched through that option; otherwise through `session/set_model`. A reasoning
-   * choice maps to an advertised full variant ID or the model's live thought-level option.
-   */
   async applyModel(session, model, effort) {
     if (!model || model === DEFAULT_MODEL) {
       if (effort !== undefined) throw new Error('Choose an explicit ACP model to set reasoning effort. No prompt was sent.')
@@ -536,7 +485,6 @@ export class NativeAcp {
     const current = users.filter(message => admitted.has(message.id))
     if (!current.length) throw new Error('ACP execution needs a new user message; input was not resent automatically')
     const currentIds = new Set(current.map(message => message.id))
-    // Explicit adoption continues a pre-existing CLI thread, not a merge of two transcripts.
     const adopting = session.native.imported && !last
     const history = adopting ? '' : selected.filter(message => !currentIds.has(message.id)).map(messageText).filter(Boolean).join('\n\n')
     const prompt = []
@@ -560,7 +508,6 @@ export class NativeAcp {
     return { prompt, text: text || '[Attached input]', lastMessageId: messages.at(-1)?.id, handoff: fresh && !adopting }
   }
 
-  /** Read the accepted step, even when this adapter mounted after its pre-step hook. */
   positionOf(agent) {
     const session = agent.session
     const boundary = this.ctx.agents.turnBoundaryOf(session)
@@ -606,7 +553,6 @@ export class NativeAcp {
       session.native.runs.push(run)
       await this.manager.store.saveSession(session)
       this.manager.changed(session.id)
-      // A native stream marker makes the trace row visible before the first token.
       yield { type: 'block-start', index, blockType: kind }
       const cancel = () => { void this.manager.cancel(session).catch(error => this.manager.log?.(error.message)) }
       signal.addEventListener('abort', cancel, { once: true })
@@ -615,12 +561,10 @@ export class NativeAcp {
       signal.throwIfAborted()
       if (!this.manager.runtimes.has(session.id)) await this.manager.connect(session)
       signal.throwIfAborted()
-      // Nothing has been sent yet; a refused model fails this turn and keeps the connection.
       await this.applyModel(session, model, options.reasoningEffort)
       signal.throwIfAborted()
       const input = await this.input(session, options.messages, signal, position.messageIds)
       signal.throwIfAborted()
-      // Advance before sending: uncertain delivery is never automatically repeated.
       session.native.lastMessageId = input.lastMessageId
       run.handoff = input.handoff
       run.state = 'running'
@@ -653,8 +597,6 @@ export class NativeAcp {
         const update = event.data.params?.update
         if (!update || event.data.method !== 'session/update') continue
         if (update.sessionUpdate !== 'agent_message_chunk' && update.sessionUpdate !== 'agent_thought_chunk') continue
-        // Sidechain output belongs in the originating CLI task, never in this agent's
-        // reply, reasoning, DSH attachments or persisted final-reply excerpt.
         if (cliParentOf(update)) continue
         const content = update.content
         const nextKind = update.sessionUpdate === 'agent_thought_chunk' ? 'reasoning' : 'text'
@@ -664,7 +606,6 @@ export class NativeAcp {
           try {
             attachment = await this.ctx.attachments.saveImage({ data: Buffer.from(content.data, 'base64'), mediaType: content.mimeType })
           } catch (error) {
-            // An unsupported or malformed image must not discard the rest of the turn.
             text = pointer(content, `It could not be saved as a DSH attachment (${error.message ?? error}); see raw execution events.`)
           }
         } else if (content?.type) {
@@ -700,9 +641,7 @@ export class NativeAcp {
       await this.manager.store.flush()
       this.manager.changed(session.id)
       yield { type: 'block-end', index, block: { type: kind, text: value } }
-      // ACP prompt.usage is cumulative over the CLI session. DSH usage belongs to one
-      // model request: forwarding this would charge earlier turns (or imported history) again.
-      // The exact reported counters remain visible in this run's trace.
+      // external: ACP session/prompt.usage is session-cumulative, whereas DSH finish usage is per-request
       const acp = { version: 1, sessionId: session.id, ownerSessionId: agent.id, turnId, from: run.from, to: run.to }
       finished = true
       const reason = result.stopReason === 'cancelled'
@@ -729,7 +668,6 @@ export class NativeAcp {
           await this.manager.runtimes.get(session.id)?.completion
         } catch (error) { this.manager.log?.(`ACP native cleanup: ${error.message}`) }
       }
-      // Iterator return on a native stop can bypass catch; persist that outcome too.
       try {
         if (!finished && run && session && ['preparing', 'running'].includes(run.state)) {
           run.state = 'interrupted'

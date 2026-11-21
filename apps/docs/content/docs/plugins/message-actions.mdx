@@ -1,11 +1,11 @@
 ---
 title: Wait, what? 回复解释
-description: 在回复旁点 Wait, what?，用独立模型把话重新讲明白，不写进主对话。
+description: 在回复旁点 Wait, what?，用独立模型在弹窗里把话讲明白，不写进主对话。
 ---
 
 <PluginFacts slug="message-actions" />
 
-在每条已完成的助手回复旁增加 **Wait, what?** 按钮。遇到跳步、术语密集或没交代前提的回答时，点一下按钮就会发起一次隔离的模型调用，用通俗技术语言把背景和逻辑连接讲清楚，结果展示在弹窗里。
+在每条已完成助手回复旁增加 **Wait, what?** 按钮，发起一次隔离的模型调用，在弹窗里用通俗技术语言补齐前提和逻辑连接，不影响主对话与上下文。
 
 ## 安装
 
@@ -13,15 +13,10 @@ description: 在回复旁点 Wait, what?，用独立模型把话重新讲明白�
 
 需要 `@deepseek-ai/dsh-storage-domain`（默认 profile 已包含）。
 
-## 使用与配置
+## 用法与配置
 
-- **在聊天中解释**：在任意已完成的助手文本回复操作栏点 **Wait, what?**，弹窗通过流式输出展示解释，同时可查看本次发送的提示词与模型，或强制重新生成。
-- **单独指定解释模型**：打开 **Plugins → dsh-message-actions**，可配置专用模型与推理强度，或留空跟随原回复所使用的模型。
-- **Agent 工具**：插件同时注册 `message_actions` 工具（`get_settings`、`save_settings`、`inspect`、`generate`）。
+- **弹窗解释**：在任意已完成文本回复的操作栏点击 **Wait, what?**，流式查看解释，支持复制、展开原回复或重新生成。
+- **专用模型**：在弹窗内或 **Plugins → dsh-message-actions** 指定独立解释模型与推理强度；留空则沿用原回复的模型。
+- **Agent 工具**：注册 `message_actions` 工具（`get_settings`、`save_settings`、`inspect`、`generate`）。
 
-## 数据与边界
-
-- 使用固定的简化技术英语解释提示词（按原回复语种作答），不支持自定义或编辑模板。
-- 生成时不带任何工具也不读取项目文件，仅把所选回复与其前一条用户消息发送给目标模型。
-- 解释结果明文缓存在 Host 的 `message_actions` storage domain 中，最多保留最近 **200** 条。
-- 不会向主对话追加消息，也不会修改原回复或占用后续上下文。
+解释调用使用内置提示词并按原回复语种输出，不附带工具或项目文件读取权限。结果缓存在 Host 的 `message_actions` storage domain 中，最多保留最近 **200** 条。

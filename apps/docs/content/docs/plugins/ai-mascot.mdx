@@ -1,23 +1,23 @@
 ---
 title: AI 吉祥物
-description: 右下角可拖拽的 GPT / Claude Q 版小伙伴，跟随当前所查看对话的真实活动。
+description: 右下角可拖拽的 GPT / Claude Q 版小伙伴，跟随当前所查看对话的活动状态。
 ---
 
 <PluginFacts slug="ai-mascot" />
 
-在 Web 界面右下角显示一只可爱的 GPT / Claude Q 版小伙伴，实时跟着你正在查看的对话切换状态动作（思考、写回复、读文件、搜索、写代码、跑命令、协作、等待确认与完成庆祝）。
+在 Web 界面右下角显示一只可拖拽的 GPT / Claude Q 版小伙伴，实时跟随当前对话切换思考、写回复、读文件、搜索、写代码、跑命令、协作、等待确认与完成动作。
 
 <Callout type="warn" title="素材授权说明">
-插件代码和包图标采用 MIT 协议，**角色形象与参考图不属于 MIT 授权范围**。原设计来自 [ZipZipPipe](https://www.pixiv.net/users/18604994)（[原作合集](https://www.pixiv.net/artworks/148186519)，禁止商业使用），参考图托管于 [AI Moe Atlas](https://selinlee.github.io/ai-moe-atlas/zh/chibi/)。如需商业使用或二次分发，请先取得原作者授权或自行替换图片地址。
+插件源码与包图标采用 MIT 协议，**角色形象与参考图不属于 MIT 授权范围**。原设计来自 [ZipZipPipe](https://www.pixiv.net/users/18604994)（[原作合集](https://www.pixiv.net/artworks/148186519)，禁止商业使用），参考图托管于 [AI Moe Atlas](https://selinlee.github.io/ai-moe-atlas/zh/chibi/)。如需商业使用或二次分发，请先取得原作者授权或自行替换 `lib/client.js` 中的图片地址。
 </Callout>
 
 ## 安装
 
 <InstallCommand slug="ai-mascot" />
 
-## 行为与特性
+## 行为与交互
 
-- **按模型 ID 匹配**：当前会话的模型 ID 匹配 `claude` 时显示 Claude，匹配 `gpt`、`chatgpt`、`codex` 或 `o1`/`o3`/`o4` 时显示 GPT；其他模型或全局管理面板自动隐藏。
-- **只看当前会话**：仅响应画面正在展示的对话（并发工具时显示最近发起的调用，包括子调用），忽略后台其他会话；正常回复结束会庆祝 2.4 秒，手动停止或报错不庆祝。
-- **交互与偏好**：支持拖拽移动、键盘方向键微调（配合 `Shift` 大步移动）、收起为 40px 圆按钮、切换「小 / 标准」尺寸与关闭动作动画，并遵守系统 `prefers-reduced-motion`。位置和偏好保存在浏览器 `localStorage`（`dsh-ai-mascot:preferences`）。
-- **外部请求**：首次显示时浏览器直接从 `selinlee.github.io` 加载角色参考图（无对话内容、无 referrer），并在浏览器内存中自动去除外围白底，不打包也不上传图片。
+- **按模型 ID 显示**：模型 ID 匹配 `claude` 时显示 Claude，匹配 `gpt`、`chatgpt`、`codex` 或 `o1`/`o3`/`o4` 时显示 GPT，其他模型或管理面板自动隐藏。
+- **跟随当前会话**：仅响应画面当前展示的对话，正常完成回复后庆祝 2.4 秒。
+- **位置与偏好**：支持拖拽或键盘方向键调整位置（配合 `Shift` 大步移动）、收起为 40px 按钮、切换「小 / 标准」尺寸和关闭动画，并遵守 `prefers-reduced-motion`。偏好保存在浏览器 `localStorage`（`dsh-ai-mascot:preferences`）。
+- **外部图片**：首次显示时从 `selinlee.github.io` 加载角色参考图（无对话内容、无 referrer），并在浏览器内存中去除外围白底。

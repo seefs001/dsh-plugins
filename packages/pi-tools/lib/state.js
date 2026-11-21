@@ -3,8 +3,6 @@ import { z } from './harness.js'
 export const STATE_META = 'dshPiTools'
 export const emptyState = () => ({ store: {}, loaded: [] })
 
-// Both mutations are carried by existing successful tool/result events. No new
-// Session event type, eager side write, or shared per-preset mutable state.
 export function applyState(state, event) {
   if (event.type !== 'tool/result' || event.data.message.isError) return state
   const update = event.data.meta?.[STATE_META]

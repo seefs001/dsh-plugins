@@ -1,4 +1,3 @@
-/** Browser-only companion. Artwork is remotely referenced, not MIT-licensed package content. */
 window.__ModuleLoader__.load({
   id: 'dsh-ai-mascot',
   factory(require) {
@@ -79,7 +78,6 @@ window.__ModuleLoader__.load({
       return last?.kind === 'assistant' && !last.interrupted && last.blocks.some(block => block.kind === 'text' && block.text.trim())
     }
 
-    /** One current observer owns publication; old observer cleanup cannot clear a new session. */
     function createBridge() {
       let owner
       let facts
@@ -201,7 +199,6 @@ window.__ModuleLoader__.load({
 @media(max-width:600px){.dsh-mascot{--mascot-right:12px;bottom:12px;--mascot-scale:.7;width:116px}.dsh-mascot[data-size=small]{--mascot-scale:.6;width:106px}.dsh-mascot-bubble{font-size:11px;max-width:120px;padding:6px 9px}}
 `
 
-    /** Remove only edge-connected near-white pixels, preserving white clothing and hair. */
     function cutout(image) {
       const canvas = document.createElement('canvas')
       canvas.width = 425
@@ -269,7 +266,6 @@ window.__ModuleLoader__.load({
           return () => style.remove()
         }, 'ai-mascot: styles')
 
-        /** Headless session seat borrows the displayed binding, never retains another Session. */
         function Observer({ sessionId, useSession, useChat, useSessionStatus, directory }) {
           const token = React.useMemo(() => ({}), [sessionId])
           const running = useSession(session => session.running)
@@ -301,7 +297,7 @@ window.__ModuleLoader__.load({
           const suppressClick = React.useRef(false)
           const change = patch => setPreferences(previous => {
             const next = { ...previous, ...patch }
-            try { localStorage.setItem(PREF_KEY, JSON.stringify(next)) } catch { /* Preferences still work for this tab. */ }
+            try { localStorage.setItem(PREF_KEY, JSON.stringify(next)) } catch {}
             return next
           })
           React.useLayoutEffect(() => {

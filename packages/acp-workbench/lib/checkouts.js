@@ -5,14 +5,12 @@ import { checkoutMarker } from './shared.js'
 const within = (root, cwd) => { const rest = relative(root, cwd); return rest === '' || !(rest === '..' || rest.startsWith('..' + sep) || isAbsolute(rest)) }
 const revision = (...values) => createHash('sha256').update(JSON.stringify(values)).digest('hex')
 
-// A directory can survive an interrupted cleanup without being a checkout. Never remove or repair such an entry in place.
 async function location(fs, path, signal) {
   const type = (await fs.lstat(path, undefined, signal))?.type ?? 'missing'
   if (type !== 'directory') return type
   return (await fs.lstat(join(path, '.git'), undefined, signal))?.type === 'file' ? type : 'incomplete'
 }
 
-/** The core ensure() otherwise switches a missing cwd back to header.cwd before the first prompt, even without an ACP binding. */
 export async function guardManagedCheckout(ctx, agent, cwd, signal, link) {
   const projections = ctx.get('sessionProjections'), fs = ctx.get('fs')
   if (link && (!link.ready || !cwd || !within(link.path, cwd) || !fs || await checkoutMarker(fs, link.path, signal) !== link.marker ||
@@ -29,7 +27,6 @@ export async function guardManagedCheckout(ctx, agent, cwd, signal, link) {
   }
 }
 
-/** DSH's creation projection proves ownership; the archive registry, cleanup attempt and actual path answer different questions. */
 export class ProjectCheckouts {
   constructor(ctx, native) {
     this.ctx = ctx; this.native = native; this.jobs = new Map(); this.life = new AbortController()
@@ -50,7 +47,6 @@ export class ProjectCheckouts {
     return workspace
   }
 
-  /** Inspect any registered session, including cold/archived ones, without loading an Agent or waiting for cleanup. */
   async info(op, signal = this.life.signal) {
     this.workspace(op)
     const id = op.dshSessionId, ctx = this.ctx
@@ -72,7 +68,6 @@ export class ProjectCheckouts {
       readOnly, restoring: this.jobs.has(id), busy: !!ctx.agents.get(id) && ctx.agents.get(id).status !== 'idle' }
   }
 
-  /** Known participants of this launch group, not every process touching the path. Check live-preferred cwd and workspace/archival membership. */
   async details(op) {
     const value = await this.info(op), registry = this.ctx.get('workspaceRegistry'), project = this.workspace(op)
     const active = new Set(project.sessionIds.filter(id => !registry.archivedSessionIds.includes(id)))
@@ -115,7 +110,6 @@ export class ProjectCheckouts {
         const current = this.eligible(op, await this.info(op, work))
         work.throwIfAborted()
         const { path, branch, baseCommit, repositoryRoot } = current
-        // Never accept a browser-supplied path, revision or branch for the Git operation.
         const restored = await this.ctx.get('worktrees').restore(agent, { path, branch, baseCommit, repositoryRoot }, work)
         return { ...restored, cwd: this.native.cwd(agent) }
       })

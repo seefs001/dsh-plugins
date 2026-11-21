@@ -1,20 +1,8 @@
-# Bundle patch layer: the row loads lib/index.js as the Host half (Hub
-# enrollment, the daemon WebSocket, session mapping, per-run Hub MCP tools)
-# and the `dsh.client` declaration loads lib/client.js as the browser half
-# (the Paseo Hub sidebar page). Sign in from that page; nothing connects
-# until you do.
 - insert:
     - id: paseo-hub
       name: dsh-paseo-hub
       config:
-        # Hub mode -> DSH permission preset. Empty uses every configured preset
-        # under its own name. Hub sends the mode a trigger names; the run uses
-        # this preset and never widens it.
         modes: {}
-        # Preset for a Hub agent that names no mode.
         defaultMode: ''
-        # Agent preset for Hub sessions; empty uses the deployment default.
         agentPreset: ''
-        # Add each Hub run directory to the sidebar workspace list, so Hub
-        # sessions show up there. Existing workspaces are reused.
         listWorkspaces: true

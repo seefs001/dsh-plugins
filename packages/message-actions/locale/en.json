@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Wait, what? Reply explanations",
-    "description": "Adds a Wait, what? button beside reply feedback to explain a reply in a dialog using an isolated model call, without changing the conversation or its context. Supports a dedicated model and Host cache."
+    "description": "Adds a Wait, what? button beside completed replies to explain them in a dialog using an isolated model call."
   }
 }

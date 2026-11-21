@@ -1,10 +1,8 @@
-/** Read-only Host directory checks; registry mutations use the native Workspace API. */
 import { stat } from 'node:fs/promises'
 
 export const name = 'workspace-manager'
 export const inject = ['workspaceRegistry', 'webServer', 'connection']
 
-/** Check only a registered path. Permission and I/O failures are not missing directories. */
 async function inspect(workspace) {
   const row = { workspaceId: workspace.id, path: workspace.path }
   try {
@@ -17,7 +15,6 @@ async function inspect(workspace) {
   }
 }
 
-/** Register an authenticated, read-only scan of saved workspace paths. */
 export function apply(ctx) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',

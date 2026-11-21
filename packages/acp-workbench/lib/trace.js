@@ -1,18 +1,9 @@
-/**
- * Fold one run's raw ACP events into the rows a conversation shows beside the reply:
- * tool calls merged by id, plans, chronological CLI log segments, interaction outcomes and errors.
- * Main-agent message and thought chunks are excluded because DSH renders its own reply, and
- * `session/load` history replays are excluded because they belong to earlier turns.
- * Folding is incremental: `through` is the last sequence applied.
- */
 import { noticeReceipt } from './notices.js'
 import { contextWindow, sessionTotals, recordWindow } from './usage.js'
 
 const MAX_LOG_CHARS = 64 * 1024
 const MAX_PROGRESS = 16 * 1024
 
-// The installed Claude ACP adapter stamps the Agent/Task call's ID on reports carried by the parent session.
-// Neither a tool title nor a general-purpose parent/session ID establishes this relationship.
 export function cliParentOf(update) {
   const id = update?._meta?.claudeCode?.parentToolUseId
   return typeof id === 'string' && id.trim() ? id : undefined
@@ -33,8 +24,6 @@ function taskProgress(trace, update, seq, parent) {
 }
 const defined = value => Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null))
 
-// A later status-only frame does not turn a launch preview into a completion patch.
-// Keep a pointer to the raw field, not a second copy of its patch text. Drop it if replaced.
 function updatePatchFrame(row, update) {
   if (Array.isArray(update.content) && (row.patchFrame || ['edit','move','delete'].includes(update.kind ?? row.tool.kind) || update.content.some(b => b?.type === 'diff'))) {
     const stage = update.sessionUpdate === 'tool_call' ? 'launch' : update.status === 'completed' ? 'completed' : update.status === 'failed' ? 'failed' : 'update'
@@ -43,12 +32,10 @@ function updatePatchFrame(row, update) {
   } else if (row.patchFrame?.rawKey && update[row.patchFrame.rawKey] != null) row.patchFrame = { stage: row.patchFrame.stage }
 }
 
-// Display terminals are reports, not the ACP terminal/create capability. Bind solely to the
-// terminal reference announced by this call. Codex sends chunks as terminal_output;
-// Claude uses the same key to REPLACE its streamed foreground transcript.
+// external: Codex appends terminal_output chunks while Claude Code replaces the full transcript under the same key
 function foldTerminal(row, u) {
   const id = u.toolCallId, m = u._meta, info = m?.terminal_info
-  if (u.sessionUpdate === 'tool_call' && row.tool.toolCallId) row.terminal = null // ambiguous repeated launch
+  if (u.sessionUpdate === 'tool_call' && row.tool.toolCallId) row.terminal = null
   if (typeof id !== 'string' || !id || !m || row.terminal === null) return
   if (!row.terminal && info?.terminal_id === id && Array.isArray(u.content) && u.content.some(b => b?.type === 'terminal' && b.terminalId === id)) {
     const input = u.rawInput, mode = ['Bash','PowerShell'].includes(m.claudeCode?.toolName) ? 'replace'
@@ -70,14 +57,12 @@ function foldTerminal(row, u) {
     if (Number.isInteger(exit.exit_code)) term.exitCode = exit.exit_code
     if (typeof exit.signal === 'string' && exit.signal.trim()) term.signal = exit.signal
   }
-  // Raw events retain the packet; don't send the same unbounded data again in the folded _meta.
   if (packet?.terminal_id === id) {
     const meta = { ...m }; delete meta.terminal_output; delete meta.terminal_output_delta
     return { ...u, _meta: meta }
   }
 }
 
-// Named ACP plans are complete replacements; unsupported frames must not erase a known plan.
 function namedPlan(update) {
   const p = update?.sessionUpdate === 'plan_update' ? update.plan : null
   const id = update?.sessionUpdate === 'plan_removed' ? update.planId : p?.planId
@@ -88,7 +73,6 @@ function namedPlan(update) {
   return null
 }
 
-// ID-addressed ACP compaction, not an executable tool or a DSH context mutation.
 function compactionFacts(value) {
   if (!value || typeof value !== 'object') return null
   const facts = {}
@@ -105,7 +89,7 @@ function summaryPart(b, seq, index) {
   const part = { type: b.type, seq, index }
   for (const key of ['mimeType', 'uri', 'name', 'description']) if (typeof r[key] === 'string') part[key] = r[key]
   if (b.type === 'resource' && typeof r.text === 'string') part.text = r.text
-  return part // no base64, remote fetch, file read or executable markup in a trace row
+  return part
 }
 
 function foldCompaction(rows, entities, scope, event, update) {
@@ -123,7 +107,7 @@ function foldCompaction(rows, entities, scope, event, update) {
     const last = row.parts.at(-1)
     if (part.type === 'text' && last?.type === 'text') last.text += part.text
     else row.parts.push(part)
-    return // chunk metadata is local to the content, not a patch to the entity
+    return
   }
   row.status = update.status
   if (update.summary === null) row.parts = []
@@ -137,7 +121,6 @@ function foldCompaction(rows, entities, scope, event, update) {
   }
 }
 
-/** Keep only the first native owner and ranges of later patches, never a second summary or media copy. */
 export function anchorCompaction(session, runtime, params, seq) {
   const u = params.update, id = u?.compactionId
   if (!session.native || runtime.replaying || !session.remoteId || params.sessionId !== session.remoteId || typeof id !== 'string' || !id.trim()) return undefined
@@ -154,10 +137,9 @@ export function anchorCompaction(session, runtime, params, seq) {
     const run = session.native.runs.find(r => r.id === anchor.owner)
     if (run) { run.compactionRevision = seq; session.native.compactionRevision = seq }
   }
-  return anchor.owner // null: the entity opened outside a DSH run
+  return anchor.owner
 }
 
-/** An idle or later-prompt patch refreshes just its original card, not the old run's other events. */
 export function applyLateCompactions(trace, store, session, run) {
   const through = trace.lateThrough ?? 0
   if (!(run.compactionRevision > through)) return
@@ -191,8 +173,6 @@ export function foldEvents(trace, events, remoteId, runId) {
     if (data.replay) { trace.section = event.seq; continue }
     const update = data.method === 'session/update' ? data.params?.update : null
     const kind = update?.sessionUpdate, parent = cliParentOf(update), plan = namedPlan(update)
-    // Preserve stream boundaries for display without sending reply/thought text a second time.
-    // A plan update can also close a stretch even when it updates an existing row in place.
     if (kind === 'agent_message_chunk' || kind === 'agent_thought_chunk' || kind === 'user_message_chunk' || plan || kind === 'plan' ||
       data.method?.replace(/^_/, '') === 'cursor/update_todos' || event.type === 'user-message') trace.section = event.seq
     if ((kind === 'tool_call' || kind === 'tool_call_update') && update.toolCallId) {
@@ -202,7 +182,6 @@ export function foldEvents(trace, events, remoteId, runId) {
         trace.tools.set(update.toolCallId, row)
         trace.rows.push(row)
       }
-      // ToolCallUpdate fields replace earlier values; absent or null fields keep them.
       updatePatchFrame(row, update)
       if ((update.kind ?? row.tool.kind) === 'fetch' && Array.isArray(update.content)) {
         row.webFrame = update.sessionUpdate === 'tool_call' ? 'launch' : update.status === 'failed' ? 'failure' : update.status === 'completed' || update.rawOutput != null ? 'result' : 'update'
@@ -225,7 +204,6 @@ export function foldEvents(trace, events, remoteId, runId) {
         row = { kind: 'plan', seq: event.seq, cliParent: parent }
         trace.plans.set(key, row); trace.rows.push(row)
       } else if (plan.type !== 'removed') {
-        // The ID belongs to the session, not a tool call. A reset may omit the parent stamp.
         if (row.plan.type === 'removed') row.cliParent = parent
         else if (row.cliParent !== parent) row.cliParent = null
       }

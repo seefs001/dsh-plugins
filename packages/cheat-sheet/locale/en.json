@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Skill cheat sheet",
-    "description": "Search skills with short Chinese summaries, pin favorites, and insert /name at the start of the composer without sending. Shows manual-only skills by default, ordered by usage."
+    "description": "Search session skills, pin favorites, sort by usage, and insert /name at the start of the composer."
   }
 }

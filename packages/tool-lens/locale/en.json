@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Tool lens",
-    "description": "Adds quick actions to tool-call rows in chat, such as opening a skill’s SKILL.md, full output, result files, or subagent conversations in the right sidebar."
+    "description": "Adds quick actions to chat tool-call rows to open SKILL.md, full outputs, search files, links, and subagent chats."
   }
 }

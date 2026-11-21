@@ -1,4 +1,3 @@
-/** Host persistence, actual-load counters, and shared UI/tool pin operations. */
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -15,7 +14,6 @@ async function readDescriptions() {
     }
     return { descriptions, descriptionsAvailable: true }
   } catch {
-    // Optional display data must not disable pins or make a committed pin look failed.
     return { descriptions: {}, descriptionsAvailable: false }
   }
 }
@@ -44,8 +42,6 @@ async function readOp(req) {
 
 export async function apply(ctx) {
   const domain = await ctx.storageDomain.open(DOMAIN_SPEC)
-  // Reading the old state and committing the next must share one queue:
-  // concurrent browser pins and tool observations must not overwrite each other.
   let tail = Promise.resolve()
   const write = change => {
     const result = tail.then(async () => {
@@ -62,7 +58,6 @@ export async function apply(ctx) {
     await domain.close()
   }, 'cheat-sheet: storage')
 
-  // One operation implementation for both HTTP and agent tool callers.
   const operate = async op => {
     if (op?.action === 'state') {
       await tail
@@ -77,8 +72,6 @@ export async function apply(ctx) {
       ctx.logger.warn(`cheat-sheet: could not save skill usage: ${error.message}`)
     })
   }
-  // Constant-time live observations only. No session scans, replay, text matching,
-  // catalog reads, or copy clicks count as invocations.
   ctx.on('session/event', (_session, event) => { observe(explicitSkill(event)) })
   ctx.on('tools/result', (exec, result) => { observe(loadedSkill(exec, result)) })
 
@@ -109,13 +102,13 @@ export async function apply(ctx) {
 
   ctx.tools.register({
     name: 'cheat_sheet',
-    description: 'Read the Skill cheat sheet pins and observed skill-load counts, or pin/unpin a skill by name. Pins and counts are shared by this Host across sessions. Counts include successful explicit /name loads and successful native skill tool calls observed since this plugin was enabled; past sessions are not scanned. Pinning never invokes a skill. Counts cannot be edited.',
+    description: 'Read Skill cheat sheet pins and usage counts, or pin/unpin a skill by name. Shared across sessions on this Host. Counts are read-only and track live /name and native skill tool loads.',
     parameters: {
       type: 'object', additionalProperties: false,
       properties: {
-        action: { type: 'string', enum: ['state', 'pin'], description: 'state reads preferences and counts; pin sets the pinned state.' },
-        name: { type: 'string', description: 'Skill name without the leading slash. Required for pin.' },
-        pinned: { type: 'boolean', description: 'true to pin, false to unpin. Required for pin.' },
+        action: { type: 'string', enum: ['state', 'pin'], description: 'state reads pins and counts; pin toggles a skill.' },
+        name: { type: 'string', description: 'Skill name without leading slash (required for pin).' },
+        pinned: { type: 'boolean', description: 'true to pin, false to unpin (required for pin).' },
       },
       required: ['action'],
     },

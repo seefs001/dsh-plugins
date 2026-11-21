@@ -1,7 +1,3 @@
-/**
- * Evaluate a browser `lib/client.js` bundle in a sandbox and return the
- * plugin object its factory produces. Only the factory runs; `apply` does not.
- */
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 

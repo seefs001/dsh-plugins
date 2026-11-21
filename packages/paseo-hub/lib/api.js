@@ -1,4 +1,3 @@
-/** Organization API operations shared by the page and agent tools. */
 import { normalizeHubOrigin } from './hub.js'
 
 const CREDENTIAL_KEY = 'paseo-hub/api'
@@ -57,8 +56,6 @@ export class HubApi {
     return { configured: saved !== null, origin: saved?.origin ?? null, toolWrites: saved?.toolWrites === true }
   }
 
-  // Authority-granting operations stay user-only: no tool can set a key, change
-  // its origin, or enable its own write access. Enrollment uses a different key.
   async configure(args) {
     const origin = normalizeHubOrigin(args.origin)
     const previous = await this.credential()
@@ -91,10 +88,9 @@ export class HubApi {
       })
       payload = await response.json()
     } catch (error) {
-      if (signal?.aborted) throw new Error('Hub API request canceled; a submitted write may still have taken effect. Check Hub before retrying.', { cause: error })
-      throw new ApiError(`Hub API did not return JSON (${action}); check connectivity and Hub before retrying a write. ${String(error?.message ?? error).replaceAll(saved.apiKey, '[credential removed]')}`, 502)
+      if (signal?.aborted) throw new Error('Hub API request canceled; check Hub before retrying a write.', { cause: error })
+      throw new ApiError(`Hub API did not return JSON (${action}). ${String(error?.message ?? error).replaceAll(saved.apiKey, '[credential removed]')}`, 502)
     }
-    // Never reflect the saved bearer, even if an upstream error echoes it.
     payload = redact(payload, saved.apiKey)
     if (!response.ok) throw new ApiError(payload?.detail ?? payload?.title ?? `Hub HTTP ${response.status}`, response.status, {
       code: payload?.code, requestId: payload?.requestId, issues: payload?.issues, requiredScope: scope,
@@ -108,7 +104,7 @@ export class HubApi {
     if (action === 'status') return this.status()
     const saved = await this.credential()
     if (!saved) throw new Error('Configure an organization API key in Paseo Hub → Hub API first')
-    if (source === 'agent' && WRITE_ACTIONS.has(action) && !saved.toolWrites) throw new ApiError('Agent writes are disabled. Enable them yourself in Paseo Hub → Hub API; the tool cannot grant itself access.', 403)
+    if (source === 'agent' && WRITE_ACTIONS.has(action) && !saved.toolWrites) throw new ApiError('Agent writes are disabled; enable them in Paseo Hub → Hub API.', 403)
     if (action === 'check') {
       const results = await Promise.all(['projects', 'triggers', 'resources'].map(async op => {
         try {
@@ -116,7 +112,7 @@ export class HubApi {
           return { action: op, ok: true, counts: Object.fromEntries(Object.entries(result).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.length])) }
         } catch (error) { return { action: op, ok: false, ...apiFailure(error) } }
       }))
-      return { origin: saved.origin, results, note: 'Read checks only. Install and dispatch scopes are checked by Hub when you use them.' }
+      return { origin: saved.origin, results, note: 'Read checks only; write scopes are verified by Hub on use.' }
     }
     let body
     if (action.endsWith('-trigger') && action !== 'get-trigger') {
@@ -155,7 +151,6 @@ export class HubApi {
         return { origin: saved.origin, trigger }
       }
       if (WRITE_ACTIONS.has(action) || action.startsWith('validate-')) {
-        // No YAML, input, key, or provider payload in the local activity log.
         this.journal.add({ kind: `api.${action}`, message: `${source}: ${action} ${result.name ?? result.configuredTriggerName ?? result.projectSlug ?? ''}`, detail: action === 'dispatch' ? { triggerRunId: result.triggerRunId, deliveryKey: body.deliveryKey } : null })
       }
       return { origin: saved.origin, ...result }
@@ -166,21 +161,20 @@ export class HubApi {
   }
 }
 
-/** Tool definitions deliberately cannot configure credentials or loosen policy. */
 export function registerApiTools(ctx, api, ready) {
   const properties = {
     action: { type: 'string' },
-    query: { type: 'string', description: 'List search, case insensitive.' },
+    query: { type: 'string', description: 'Case-insensitive list filter.' },
     page: { type: 'integer', minimum: 1 }, pageSize: { type: 'integer', minimum: 1, maximum: 100 },
-    name: { type: 'string', description: 'get-trigger: trigger name or ID from triggers.' },
-    yaml: { type: 'string', description: 'Complete self-contained trigger YAML to validate or install.' },
-    projectSlug: { type: 'string', description: 'Project slug, required for legacy configurations and manual dispatch.' },
-    files: { type: 'array', description: 'Legacy configuration bundle: .paseo/hub.yml, workflows and referenced partials.', items: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'], additionalProperties: false } },
+    name: { type: 'string', description: 'get-trigger: trigger name or ID.' },
+    yaml: { type: 'string', description: 'Complete trigger YAML to validate or install.' },
+    projectSlug: { type: 'string', description: 'Project slug for legacy configurations or manual dispatch.' },
+    files: { type: 'array', description: 'Legacy configuration bundle (.paseo/hub.yml, workflows, partials).', items: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'], additionalProperties: false } },
     trigger: { type: 'string', description: 'Configured manual.run trigger name.' },
-    actor: { type: 'string', description: 'Must be allowed by the trigger from_users filter.' },
-    deliveryKey: { type: 'string', description: 'Unique stable ID per intended dispatch. Reuse on an intentional retry; do not retry ambiguous writes blindly.' },
-    expectedVersionId: { type: 'string', description: 'Optional active configuration revision guard for dispatch.' },
-    input: { description: 'Dispatch input. Prefer textual key=value headers plus the prompt; legacy triggers may accept a JSON object.' },
+    actor: { type: 'string', description: 'Actor matching the trigger from_users filter.' },
+    deliveryKey: { type: 'string', description: 'Unique stable key per intended dispatch; reuse on retry.' },
+    expectedVersionId: { type: 'string', description: 'Optional active configuration revision guard.' },
+    input: { description: 'Dispatch input (prompt text, or JSON for legacy triggers).' },
   }
   for (const write of [false, true]) {
     const actions = API_ACTIONS.filter(a => WRITE_ACTIONS.has(a) === write)
@@ -188,8 +182,8 @@ export function registerApiTools(ctx, api, ready) {
     ctx.effect(() => ctx.tools.register({
       name: write ? 'paseo_hub_write' : 'paseo_hub',
       description: write
-        ? 'Install/update an organization trigger or legacy configuration, or dispatch a manual run in Paseo Hub. Uses the saved organization key; requires user-enabled agent writes and Hub scopes. Installation activates the revision. Dispatch starts real work. Validate authored configuration before installing. Check Hub before retrying uncertain writes.'
-        : 'Query Paseo Hub using the saved organization API key: credential status, read-access checks, paged projects/triggers, full trigger YAML, configuration/setup resources, or validation without installation. Lists omit YAML; get-trigger retrieves one document. No dashboard administration or credential access.',
+        ? 'Install a Paseo Hub trigger or legacy configuration, or dispatch a manual run. Requires agent writes enabled in Paseo Hub → Hub API. Validate before installing; check Hub before retrying ambiguous writes.'
+        : 'Read-only Paseo Hub organization API queries and validation (status, check, projects, triggers, get-trigger, resources, setup-resources, validate-trigger, validate-configuration).',
       parameters: { type: 'object', properties: { ...Object.fromEntries(keys.map(k => [k, properties[k]])), action: { type: 'string', enum: actions } }, required: ['action'], additionalProperties: false },
       output: { schema: { type: 'object' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
       timeoutMs: 45_000,

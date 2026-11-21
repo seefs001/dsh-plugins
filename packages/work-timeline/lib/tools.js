@@ -54,11 +54,9 @@ export async function apply(ctx) {
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       if (!exec.agent) throw new Error('work_read requires an owning Agent session')
-      if (args === null || typeof args !== 'object' || Array.isArray(args)
-        || Object.keys(args).some(key => key !== 'history') || (args.history !== undefined && typeof args.history !== 'boolean')) throw new Error('Expected { history?: boolean }')
       const state = projection.stateOf(exec.agent.session)
       return { current: state.current, inherited: state.inherited,
-        ...(args.history ? { history: state.history.slice(-20), earlierRevisions: Math.max(0, (state.current?.revision ?? 0) - Math.min(20, state.history.length)) } : {}) }
+        ...(args?.history ? { history: state.history.slice(-20), earlierRevisions: Math.max(0, (state.current?.revision ?? 0) - Math.min(20, state.history.length)) } : {}) }
     },
   })
   ctx.tools.register({

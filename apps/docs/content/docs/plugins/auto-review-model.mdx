@@ -5,45 +5,38 @@ description: 为实验性 Auto review 单独指定审查模型与提示词，并
 
 <PluginFacts slug="auto-review-model" />
 
-`dsh-auto-review-model` 把 Auto review 发出的审查请求（`purpose: "auto-review"`）改道到你指定的模型与推理强度，并支持在内置审查规则后追加条款或整段替换，同时为每个会话记录可实时查看的审查日志。
+将 Auto review 审查请求（`purpose: "auto-review"`）路由到指定模型与推理强度，支持追加或替换内置审查提示词，并在会话内提供实时审查日志。
 
-<Callout type="warn" title="前置要求">
-需要已启用实验性 Auto review bundle（`@deepseek-ai/dsh-experimental-auto-review`）及 `@deepseek-ai/dsh-storage-domain`。本插件不会自行开启 Auto review。
+<Callout type="warn" title="前置条件">
+需要已启用 `@deepseek-ai/dsh-experimental-auto-review` 与 `@deepseek-ai/dsh-storage-domain`。
 </Callout>
 
 ## 安装
 
 <InstallCommand slug="auto-review-model" />
 
-## 配置模型与审查提示词
+## 模型与审查提示词
 
 打开 **Plugins → dsh-auto-review-model**：
 
-1. **审查模型**：选择专用审查模型与推理强度，或选择 **跟随会话**（保持内置默认行为）。若保存的 provider 临时不可用，Host 会回退到当前会话模型并记警告，不会阻塞会话。
-2. **审查提示词**：支持三种模式：
-   - **内置（`default`）**：使用 Auto review 自带策略。
-   - **追加规则（`append`）**：把你的补充条款接在内置规则后方，保留原有风险分级与输出规范。
-   - **替换（`replace`）**：整段替换内置策略，界面支持点击 **载入内置提示词** 作为起草基准。
+- **审查模型与推理强度**：选择专用模型，或保持 **跟随会话**。若所选 provider 不可用，自动回退到当前会话模型并记录警告。
+- **审查提示词**：
+  - **内置（`default`）**：使用 Auto review 原生策略。
+  - **追加规则（`append`）**：接在内置规则末尾，保留原有风险分级和 JSON 格式要求。
+  - **替换（`replace`）**：整段替换内置策略，可点击 **载入内置提示词** 作为基准。
 
-<Callout type="warn" title="替换模式必须保持严格的 JSON 输出">
-Auto review 要求模型只输出 `{"risk":"low|medium","decision":"allow"}` 或 `{"risk":"medium|high","decision":"deny","reason":"..."}`。替换提示词或选用过小模型导致输出格式不合法时，工具调用会按审查失败被直接拦截。
+<Callout type="warn" title="替换模式需保持严格 JSON 输出">
+Auto review 要求模型只输出 `{"risk":"low|medium","decision":"allow"}` 或 `{"risk":"medium|high","decision":"deny","reason":"..."}`。格式不合法会导致审查失败并拦截工具调用。
 </Callout>
 
-## 查看会话审查日志
+## 会话审查日志
 
-启用后，输入框左侧会显示两个快捷标签：
+Auto 模式下，输入框左侧显示审查标签与本会话计数。点击打开实时日志面板（SSE 推送），支持：
 
-- **审查模型标签**：显示当前生效的审查模型（与提示词模式），点击跳转设置。
-- **审查计数标签**：显示本会话允许/拒绝/失败统计，点击打开实时日志弹窗（通过 SSE 自动刷新）。
+- 展开每次调用的完整工具参数与判定理由；
+- 点击跳转到对话中对应的工具调用（含 `run_code` PTC 父调用）；
+- 快捷打开审查设置页或点击 **Clear** 清空本会话记录。
 
-在日志弹窗中，你可以展开每次调用的完整工具参数与模型判断理由，支持点击直接跳回对话里的对应工具调用（含 `run_code` PTC 父调用），或点击 **Clear** 清空当前会话的记录。
+## 存储
 
-## 数据与隐私
-
-- 配置保存在 profile 的 `cordis.patch.yml`。
-- 审查日志保存在 Host 的 `auto_review_log` storage domain（`per-record` 布局，每会话一份文件）：
-  - 每个会话最多保留最近 **200** 条记录；
-  - 最多保留最近 **300** 个会话的记录；
-  - 工具参数截断到 4000 字符，理由截断到 2000 字符。
-- 参数可能包含工具输入中的敏感内容，日志仅存于本机 Host，可随时在弹窗内清除。
-- 主对话模型及其他非 `auto-review` 请求完全不受影响。
+设置保存在 profile 的 `cordis.patch.yml`；日志存在本机 Host 的 `auto_review_log` storage domain，每会话最多保留最近 200 条、全局最多保留 300 个会话，工具参数截断至 4000 字符，理由截断至 2000 字符。

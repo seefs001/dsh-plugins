@@ -1,8 +1,3 @@
-/**
- * Hub HTTP and WebSocket transport. This is the subset of the Paseo daemon's
- * relationship protocol that Hub serves: CLI device login, one-time daemon
- * enrollment, the authenticated daemon WebSocket, and revocation.
- */
 import { createHash } from 'node:crypto'
 import { WebSocket } from './runtime.js'
 
@@ -18,7 +13,6 @@ export class HubHttpError extends Error {
   }
 }
 
-/** Canonical `https://host[:port]` origin, rejecting paths, credentials, and non-HTTP schemes. */
 export function normalizeHubOrigin(value) {
   let url
   try { url = new URL(String(value ?? '').trim()) } catch { throw new Error('Enter a Hub address such as https://hub.example.com') }
@@ -49,7 +43,7 @@ async function request(origin, path, { method = 'POST', bearer, body, signal } =
     })
     const text = await response.text()
     let payload = null
-    if (text) { try { payload = JSON.parse(text) } catch { /* A non-JSON Hub error still has an HTTP status. */ } }
+    if (text) { try { payload = JSON.parse(text) } catch {} }
     return { status: response.status, ok: response.ok, payload }
   } catch (error) {
     if (controller.signal.aborted) throw new Error(`Hub did not answer ${path} in time`, { cause: error })
@@ -59,7 +53,6 @@ async function request(origin, path, { method = 'POST', bearer, body, signal } =
   }
 }
 
-/** Start the CLI device login: the user approves `verificationUriComplete` in a browser. */
 export async function startDeviceLogin(origin, signal) {
   const { status, payload } = await request(origin, '/api/v1/cli-authorizations', { body: {}, signal })
   if (status === 429) throw new HubHttpError('Hub is rate limiting sign-ins; try again in a few seconds', status)
@@ -70,7 +63,6 @@ export async function startDeviceLogin(origin, signal) {
   return payload
 }
 
-/** One poll: `pending`, `slow_down`, `authorized` (with credential), `denied`, `expired`, or `disclosed`. */
 export async function pollDeviceLogin(origin, deviceCode, signal) {
   const { status, payload } = await request(origin, '/api/v1/cli-authorizations/poll', { body: { deviceCode }, signal })
   if (status !== 200 || typeof payload?.status !== 'string') {
@@ -80,7 +72,6 @@ export async function pollDeviceLogin(origin, deviceCode, signal) {
   return payload
 }
 
-/** Exchange an organization credential for a short-lived, single-use enrollment token. */
 export async function issueEnrollmentToken(origin, credential) {
   const { status, payload } = await request(origin, '/api/v1/daemons/enrollment-tokens', { bearer: credential })
   if (status === 401) throw new HubHttpError('Hub rejected the sign-in credential; sign in again', status)
@@ -89,7 +80,6 @@ export async function issueEnrollmentToken(origin, credential) {
   return payload.token
 }
 
-/** Enroll this Host; returns `{ daemonId, slug, permissions, webSocketUrl }`. Idempotent per daemonId. */
 export async function enrollDaemon(origin, input) {
   const { status, payload } = await request(origin, '/api/daemons/enroll', {
     bearer: input.token,
@@ -114,17 +104,11 @@ export async function enrollDaemon(origin, input) {
   return payload
 }
 
-/** Revoke this daemon on Hub. 401/403/404 mean it is already gone. */
 export async function revokeDaemon(origin, daemonId, secret) {
   const { status } = await request(origin, `/api/daemons/${encodeURIComponent(daemonId)}`, { method: 'DELETE', bearer: secret })
   if (status >= 400 && ![401, 403, 404].includes(status)) throw new HubHttpError(`Hub revocation failed (HTTP ${status})`, status)
 }
 
-/**
- * Open the daemon socket. Calls exactly one of `rejected(status)` (credential
- * refused: the relationship is over), `closed(code, reason)`, or `failed(error)`
- * after `connected(socket)`, or instead of it.
- */
 export function openDaemonSocket({ webSocketUrl, daemonId, secret }, events) {
   const socket = new WebSocket(webSocketUrl, {
     handshakeTimeout: REQUEST_TIMEOUT_MS,

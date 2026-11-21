@@ -1,13 +1,3 @@
-/**
- * The daemon side of one Hub relationship: answers Hub's session-protocol
- * requests with DSH sessions and streams their lifecycle back.
- *
- * Identity: a Hub agent is a DSH session. Hub's `agentId` and `workspaceId`
- * are both the DSH session id, so archive, restore, and file reads address the
- * same Session. Hub executions are mapped to sessions through the durable
- * `runs` table keyed by Hub's idempotency key, so a retried create after a
- * lost acknowledgement reuses the session instead of starting a second one.
- */
 import { randomUUID } from 'node:crypto'
 import { open, realpath, stat } from 'node:fs/promises'
 import { basename, extname, isAbsolute, relative, resolve, sep } from 'node:path'
@@ -34,7 +24,6 @@ class RpcError extends Error {}
 
 const textOf = content => (content ?? []).filter(block => block.type === 'text').map(block => block.text).join('')
 
-/** One Hub agent snapshot: the fields Hub reads plus the wire shape Paseo clients expect. */
 export function agentSnapshot(ctx, sessionId, run) {
   const agent = ctx.agents.get(sessionId)
   const session = agent?.session ?? ctx.get?.('sessions')?.get?.(sessionId)
@@ -64,17 +53,6 @@ export function agentSnapshot(ctx, sessionId, run) {
 }
 
 export class HubBridge {
-  /**
-   * @param {object} ctx - plugin context with sessionController, agents, workspace services, and tools.
-   * @param {object} options
-   * @param {(frame: object) => void} options.send - writes one `{ type: 'session', message }` frame.
-   * @param {object} options.store - durable run records (see index.js `RunStore`).
-   * @param {object} options.config - plugin config (modes, defaultMode, agentPreset).
-   * @param {string[]} options.permissions - permissions this relationship enrolled with.
-   * @param {string} options.daemonId
-   * @param {(level: string, msg: string) => void} options.log
-   * @param {{ add(entry: object): void }} [options.journal] - activity journal for the page.
-   */
   constructor(ctx, options) {
     this.ctx = ctx
     this.send = options.send
@@ -84,10 +62,8 @@ export class HubBridge {
     this.daemonId = options.daemonId
     this.log = options.log
     this.journal = options.journal ?? { add() {} }
-    /** Agent ids Hub subscribed to through `agent.timeline.set_subscription.request`. */
     this.watched = new Set()
     this.observingDirectory = false
-    /** Session id -> sorted pending call names, used to emit tool_call completion once. */
     this.callNames = new Map()
     this.pendingCreates = new Map()
     this.closed = false
@@ -97,8 +73,6 @@ export class HubBridge {
     this.closed = true
     this.watched.clear()
   }
-
-  // ---- outbound helpers ----
 
   emit(message) {
     if (this.closed) return
@@ -117,7 +91,6 @@ export class HubBridge {
     return this.watched.has(sessionId) || (this.observingDirectory && this.store.bySession(sessionId) !== undefined)
   }
 
-  /** Session protocol greeting, sent once Hub says `hello`. */
   serverInfo() {
     this.emit({
       type: 'status',
@@ -131,8 +104,6 @@ export class HubBridge {
       },
     })
   }
-
-  // ---- inbound dispatch ----
 
   async receive(frame) {
     if (frame?.type === 'hello') return this.serverInfo()
@@ -173,8 +144,6 @@ export class HubBridge {
     }
   }
 
-  // ---- catalog ----
-
   async catalogs() {
     const [catalog, permissions] = await Promise.all([
       this.ctx.sessionController.modelCatalog(),
@@ -206,8 +175,6 @@ export class HubBridge {
       payload: { requestId: message.requestId, valid: error === null && issues.length === 0, issues, error },
     })
   }
-
-  // ---- agents ----
 
   fetchAgent(agentId) {
     const run = this.store.bySession(agentId)
@@ -307,8 +274,6 @@ export class HubBridge {
       lastError: null,
       finishedAt: null,
     }
-    // Persist before the Session exists: agent/created reads the record to mount
-    // Hub's MCP server and preapprovals during Agent setup.
     await this.store.put(record)
     try {
       const created = await this.ctx.sessionController.create({
@@ -342,11 +307,6 @@ export class HubBridge {
     }
   }
 
-  /**
-   * Make the run's directory a sidebar Workspace, so Hub sessions show up in
-   * the session list. The registry reuses an existing record for the same
-   * path; a failure only costs visibility, never the run.
-   */
   async listWorkspace(cwd) {
     if (this.config.listWorkspaces === false) return
     try {
@@ -369,8 +329,7 @@ export class HubBridge {
     const worktrees = this.ctx.get?.('worktrees')
     if (worktrees === undefined) throw new RpcError('Hub asked for a worktree, but this DSH profile has no worktree service (enable Change requests & worktrees)')
     if (target.mode !== 'branch-off') throw new RpcError(`Worktree mode '${target.mode}' is not supported on DeepSeek Harness; use branch-off`)
-    // The worktree service resolves the repository from an Agent's directory, so a
-    // short-lived helper Session in the source directory requests the checkout.
+    // external: DSH worktrees.create requires a live Agent to resolve the repo, so open and archive a temporary session
     const helper = await this.ctx.sessionController.create({ cwd })
     const agent = this.ctx.agents.get(helper.sessionId)
     try {
@@ -481,8 +440,6 @@ export class HubBridge {
     }
   }
 
-  // ---- DSH -> Hub event stream ----
-
   publishUpdate(sessionId) {
     if (!this.isRelevant(sessionId)) return
     this.emit({ type: 'agent_update', payload: { kind: 'upsert', agent: agentSnapshot(this.ctx, sessionId, this.store.bySession(sessionId)) } })
@@ -493,12 +450,10 @@ export class HubBridge {
     this.emit({ type: 'agent_stream', payload: { agentId: sessionId, event: { provider: HUB_PROVIDER, ...event }, timestamp: new Date().toISOString() } })
   }
 
-  /** `agent/status` for a Hub session. */
   onStatus(sessionId) {
     this.publishUpdate(sessionId)
   }
 
-  /** One durable DSH session event for a Hub session. */
   onSessionEvent(sessionId, event) {
     switch (event.type) {
       case 'turn/start':
@@ -554,7 +509,6 @@ function toolItem(callId, name, status, args, error = null) {
   }
 }
 
-/** Hub env names and values Paseo would pass to a provider; DSH_* and NUL-bearing entries are refused. */
 function sanitizeEnv(env) {
   const result = {}
   for (const [key, value] of Object.entries(env ?? {})) {

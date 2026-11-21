@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "# Model reference",
-    "description": "Type # in the composer to insert a model chip carrying that model’s last reasoning effort and fast mode, handy for assigning a specific model to a subagent."
+    "description": "Type # in the composer to insert a model chip with its last reasoning effort and fast mode."
   }
 }

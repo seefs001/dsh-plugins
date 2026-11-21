@@ -1,11 +1,11 @@
 ---
 title: 快速模式（service tier）
-description: 为 OpenAI Responses 请求切换快速（priority）与超快（ultrafast）档位。
+description: 为 OpenAI Responses 请求切换快速（priority）或超快（ultrafast）档位。
 ---
 
 <PluginFacts slug="service-tier" />
 
-当当前会话选用使用 OpenAI Responses 协议的模型时，输入框右侧模型选择器旁会出现 `⚡` 按钮，允许按 `provider/model` 切换服务档位。
+当当前模型走 OpenAI Responses 协议时，输入框右侧模型选择器旁会出现 `⚡` 按钮，按 `provider/model` 切换服务档位。
 
 ## 安装
 
@@ -13,25 +13,20 @@ description: 为 OpenAI Responses 请求切换快速（priority）与超快（ul
 
 ## 显示条件与档位
 
-插件从配置编辑器读取 `llm-pi-ai` 的 provider 列表，仅当模型路由满足以下任一条件时才显示 `⚡` 按钮：
-
-- provider 显式配置了 `api: openai-responses`；
-- provider 使用 pi-ai 内置目录中默认走 `openai-responses` 的路由（例如未覆写 `api` 的 `openai`）。
-
-### 可选档位
+仅在 provider 显式配置 `api: openai-responses` 或属于 pi-ai 内置目录中默认走 Responses 协议的路由时显示 `⚡` 按钮：
 
 | 模型范围 | 图标状态 | 可选档位 |
 | --- | --- | --- |
-| 支持 Ultrafast 的模型（`gpt-6.2-sol`、`gpt-6.2-astra`、`gpt-6.1-sol`、`gpt-6-astra`） | 空心闪电 / 单实心闪电 / 双实心闪电 | **默认速度**（不覆写）、**快速**（`priority`）、**超快**（`ultrafast`） |
-| 其他 Responses 模型 | 空心闪电 / 单实心闪电 | 点击直接切换 **默认速度** 与 **快速**（`priority`） |
+| 支持 Ultrafast 的模型（`gpt-6.2-sol`、`gpt-6.2-astra`、`gpt-6.1-sol`、`gpt-6-astra`） | 空心 / 单实心 / 双实心闪电 | **默认速度**、**快速**（`priority`）、**超快**（`ultrafast`） |
+| 其他 Responses 模型 | 空心 / 单实心闪电 | 点击切换 **默认速度** 与 **快速**（`priority`） |
 
-<Callout type="warn" title="服务档位与计费">
-开启 `priority` 或 `ultrafast` 会通过请求体里的 `service_tier` 字段传给上游模型服务，可能产生对应档位费用。选择 **默认速度** 会删除该模型的覆盖配置。
+<Callout type="warn" title="档位与计费">
+`priority` 和 `ultrafast` 会通过请求体的 `service_tier` 字段传给上游服务，可能产生对应档位费用；切回 **默认速度** 会移除覆盖项。
 </Callout>
 
 ## 配置与联动
 
-- 选择会实时通过 `POST /service-tier/set` 写入 profile 的 `cordis.patch.yml`（`tiers` 字段）：
+档位实时写入 profile 的 `cordis.patch.yml`（`tiers` 字段），并在发送 Responses 请求时通过 pi-ai 的 `onPayload` 注入 `service_tier`：
 
 ```yaml
 - id: service-tier
@@ -40,5 +35,4 @@ description: 为 OpenAI Responses 请求切换快速（priority）与超快（ul
       responses/gpt-6.1-sol: priority
 ```
 
-- 同时安装 [# 引用模型](/docs/plugins/model-reference) 时，`#` 模型标签也会显示并携带对应的 `⚡` 状态。
-- 若使用新版 DSH（无 `llm-pi-ai/model-defaults` waterfall），插件通过包装 pi-ai 请求入口的 `onPayload` 注入 `service_tier`。
+同时安装 [# 引用模型](/docs/plugins/model-reference) 时，`#` 标签会同步显示并携带对应的 `⚡` 状态。

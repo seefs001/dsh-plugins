@@ -1,10 +1,3 @@
-/**
- * dsh-quote-jump — browser-only plugin.
- *
- * Replaces the built-in quote pill in user messages with a quote block. Clicking
- * the block finds the quoted text earlier in the same conversation, scrolls it
- * into view and highlights it for a moment.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-quote-jump',
   factory(require) {
@@ -14,7 +7,7 @@ window.__ModuleLoader__.load({
     const HIGHLIGHT = 'dsh-quote-jump'
     const HIGHLIGHT_MS = 2400
     const PREFIX = 48
-    // Mirrors what the Chat leaves out when it copies a selection, so quoted text lines up with the DOM.
+    // external: mirrors dsh chat selection exclusions so quoted text aligns with rendered DOM
     const SKIP = '[data-quote-jump],script,style,textarea,[contenteditable="true"],[data-composer-seat],.katex-mathml,[data-text-interaction-exclude],.sr-only,[aria-hidden="true"]:not(.katex-html),button:not(code button)'
 
     const CSS_TEXT = `
@@ -36,14 +29,12 @@ window.__ModuleLoader__.load({
 
     const isSpace = c => c === 32 || c === 160 || (c >= 9 && c <= 13) || c === 0x2028 || c === 0x2029 || c === 0x3000 || c === 0xFEFF || (c >= 0x2000 && c <= 0x200B)
 
-    /** Text with every whitespace code unit removed, so DOM layout differences do not matter. */
     function compact(text) {
       let out = ''
       for (let i = 0; i < text.length; i++) if (!isSpace(text.charCodeAt(i))) out += text[i]
       return out
     }
 
-    /** Compact text of `root` with a map back to (text node, offset), skipping the quoting bubble. */
     function indexText(root, exclude) {
       const doc = root.ownerDocument
       const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
@@ -70,7 +61,6 @@ window.__ModuleLoader__.load({
       return { flat, nodes, nodeOf, offsetOf }
     }
 
-    /** Pick the nearest match wholly before the quoting row, never a later reply. */
     function pickMatch(index, needle, anchor) {
       let chosen = -1
       for (let at = index.flat.indexOf(needle); at >= 0; at = index.flat.indexOf(needle, at + 1)) {
@@ -102,7 +92,6 @@ window.__ModuleLoader__.load({
       return { range, root }
     }
 
-    /** Open folded ancestors: `hidden="until-found"` rows listen for beforematch, details open directly. */
     function reveal(node, root) {
       let changed = false
       for (let p = node.parentElement; p !== null && p !== root; p = p.parentElement) {
@@ -114,13 +103,11 @@ window.__ModuleLoader__.load({
 
     const BLOCKS = 'p,li,pre,td,th,blockquote,h1,h2,h3,h4,h5,h6,dd,dt,figcaption,[data-message-bubble]'
 
-    /** The visible block that holds the match, for scrolling and the outline flash. */
     function blockOf(range) {
       const el = range.startContainer.parentElement
       return el?.closest(BLOCKS) ?? el
     }
 
-    /** Whether the range sits inside the visible part of the conversation scroller. */
     function inView(range, scroller) {
       const rect = range.getBoundingClientRect()
       if (rect.width === 0 && rect.height === 0) return false
@@ -128,7 +115,7 @@ window.__ModuleLoader__.load({
       return rect.bottom > box.top + 8 && rect.top < box.bottom - 8
     }
 
-    /** Scroll instantly: a smooth scroll lasts long enough for the Chat's tail-follow to undo it. */
+    // external: dsh chat tail-follow overrides smooth scroll, so scroll instantly
     function scrollToRange(range, block) {
       const scroller = block.closest('[data-conversation-scroll]')
       const rect = range.getBoundingClientRect()
@@ -162,7 +149,7 @@ window.__ModuleLoader__.load({
       const block = blockOf(range)
       if (block === null || !block.isConnected) return false
       const scroller = scrollToRange(range, block)
-      // Re-land once if the Chat's own scroll logic moved the view back.
+      // external: re-land once if dsh chat tail-follow resets scrollTop
       reland = setTimeout(() => { if (range.startContainer.isConnected && !inView(range, scroller)) scrollToRange(range, block) }, 150)
       if (globalThis.Highlight && globalThis.CSS?.highlights) CSS.highlights.set(HIGHLIGHT, new Highlight(range))
       flashed = block
@@ -173,13 +160,11 @@ window.__ModuleLoader__.load({
       return true
     }
 
-    /** @returns whether the quoted text was found. */
     function jumpTo(el, quote) {
       clearHighlight()
       const found = findRange(el, quote)
       if (found === null) return false
       if (reveal(found.range.startContainer, found.root)) {
-        // Let the owner render the unfolded row before measuring.
         revealFrame = requestAnimationFrame(() => {
           revealFrame = requestAnimationFrame(() => {
             if (!el.isConnected) return
@@ -220,7 +205,6 @@ window.__ModuleLoader__.load({
           }, [missing])
           const text = node.data.text
 
-          // Single-line and preview contexts keep a compact inline excerpt.
           if (!interactive) return h('span', { className: 'dqj-inline', 'data-quote-jump': '' }, `❝ ${oneLine(text)} `)
 
           const activate = event => {
@@ -249,7 +233,6 @@ window.__ModuleLoader__.load({
           missing ? h('span', { className: 'dqj-hint', role: 'status' }, t('notFound')) : null)
         }
 
-        // The built-in renderer registers this key at priority 100; the lowest priority renders.
         ctx.slots.inject('conversation.user.text.node', () => ctx.slots.register({
           name: 'conversation.user.text.node',
           key: 'quote',

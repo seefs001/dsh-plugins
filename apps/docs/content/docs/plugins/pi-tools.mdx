@@ -1,66 +1,63 @@
 ---
 title: Pi 工具
-description: 独立的 pi 预设：Pi 原版编程工具、MoeJS codemode，以及按会话勾选的 DSH 与 MCP 工具。
+description: 独立的 pi 预设：Pi 编程工具、MoeJS codemode，以及按会话勾选的 DSH 与 MCP 工具。
 ---
 
 <PluginFacts slug="pi-tools" />
 
-为 DSH 新增一个独立的 **`pi`** Agent 预设：把 Pi 原版的编程工具、系统提示词与 MoeJS `codemode` 沙箱接入 DSH 原生的会话、权限、沙箱、模型路由和 MCP 连接中，同时完全保留默认预设和其他会话不变。
+为 DSH 新增独立的 **`pi`** Agent 预设，把 Pi 编程工具、系统提示词和 MoeJS `codemode` 沙箱接入 DSH 的会话、权限、沙箱、模型路由与 MCP 体系中，不影响默认预设和其他会话。
 
-<Callout type="info" title="环境要求与联动">
-运行环境中需提供 `rg` 与 `fd`（也可通过配置 `rgCommand` / `fdCommand` 指定路径）。本包可独立安装。需要计划时间线和产物面板时，另行安装并启用[工作时间线](/docs/plugins/work-timeline)；Pi 会自动接入，不用修改预设。
+<Callout type="info" title="环境要求与扩展">
+运行环境中需提供 `rg` 与 `fd`（也可通过 `rgCommand` / `fdCommand` 指定路径）。需要计划时间线和产物面板时，另行启用[工作时间线](/docs/plugins/work-timeline)，`pi` 预设会自动接入。
 </Callout>
 
 ## 安装
 
 <InstallCommand slug="pi-tools" />
 
-安装后在「新建会话」页面选择 **`pi`** 预设即可使用。
+安装后在「新建会话」选择 **`pi`** 预设即可使用。
 
-## 预设包含哪些工具
+## 预设包含的工具
 
-<Tabs items={['Pi 原版工具', '挂载的 DSH 能力', '会话工具选择器与 MCP']}>
-<Tab value="Pi 原版工具">
+<Tabs items={['Pi 编程工具', '挂载的 DSH 能力', '会话工具选择器与 MCP']}>
+<Tab value="Pi 编程工具">
 
-- **文件与命令行**：`read`、`bash`、`edit`、`write`、`ls`、`find`、`grep`，保持 Pi 原版名称、描述与参数格式，底层全部受 DSH 的 `ctx.fs`、`ctx.subprocess` 和 `ctx.sandbox` 约束（如写入符号链接目标时会按 DSH 规则替换）。
-- **`find` 路径匹配（Pi 1.6）**：`src/*.ts` 只搜指定目录下的 `src`，`./src/*.ts` 等价；要匹配任意层级的 `src`，用 `**/src/*.ts`。不含 `/` 的 `*.ts` 仍匹配所有层级。
-- **`codemode`**：MoeJS 沙箱，每次脚本独享一个 runtime（仅接受 `{ code: string }`），脚本内可使用 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool` 与 `describeNamespace`。脚本无 Node、文件系统或直连网络 API，所有动作均经过当前步受控 DSH 工具管线。
-- **回传预算**：默认整批文本保留约 8,000 个字符。超出时保留首尾，完整文本写入返回路径，可用 `read` 分段查看，无需重跑。图片仍正常返回；要调整单次预算，在脚本首行设置 `// @options: {"max_output_tokens": 4000}`。
-- **Skill 正文提醒**：Pi 在请求前提示哪些 Skill 的完整指令仍可见。目录、失败调用和未返回正文的 `codemode` 调用不算；重复加载不重复发布名单，正文被裁剪或压缩移除后更新提醒。
-- **编辑差异**：成功的 Pi `edit` 会记录实际修改。直接调用时点「编辑差异」查看增删行；在 `codemode` 中，先展开「脚本」，再点对应文件的「编辑差异」。回看历史无需重跑编辑。
-- **实时轨迹**：`codemode` 的子步骤默认折叠。点击「脚本」可随时展开或收起；展开后可实时查看每个工具调用的参数和结果，折叠时仍能看到执行进度和失败步数。
-- **`tool_search`**：Pi 的 BM25 工具检索，命中后从下一轮模型请求起变为直接可调用工具。
-- **语法采样与恢复**：通过 `lib/pi-ai-hook.js` 在兼容路由上恢复 `constrainedSampling`（其他路由沿用 JSON `{ code }`），并在无嵌套调用的孤立 `SyntaxError` / `ReferenceError` 中附带 `String.raw` 等修正指引。
+- **文件与命令行**：`read`、`bash`、`edit`、`write`、`ls`、`find`、`grep`，保持 Pi 的工具名、描述与参数格式，底层受 DSH 的 `ctx.fs`、`ctx.subprocess` 和 `ctx.sandbox` 约束。`find` 中含 `/` 的模式（如 `src/*.ts`、`./src/*.ts`）锚定在搜索根目录，匹配任意层级使用 `**/src/*.ts`；不含 `/` 的模式（如 `*.ts`）匹配所有层级。
+- **`codemode`**：常驻 Go 子进程运行 MoeJS 沙箱，每次脚本独享一个 runtime，支持 `Promise.allSettled`、`store` / `load`、`ALL_TOOLS`、`searchTools`、`describeTool` 与 `describeNamespace`。脚本无 Node、文件系统或直连网络 API，所有外调均经由当前步的 DSH 工具管线。
+- **回传预算**：默认整批文本保留约 8,000 字符；超出时保留首尾并将完整文本写入返回路径，可用 `read` 分段查看。图片照常返回；可在脚本首行设置 `// @options: {"max_output_tokens": 4000}` 调整单次预算。
+- **编辑差异与实时轨迹**：成功的 `edit` 在直接调用和 `codemode` 子步骤中均可通过「编辑差异」查看增删行；`codemode` 子步骤默认折叠，折叠时仍显示执行进度和失败步数。
+- **`tool_search`**：BM25 工具检索，命中后从下一轮请求起成为直接可调用工具。
+- **Skill 正文提醒**：请求前追踪哪些 Skill 的完整指令仍留在上下文中，正文被裁剪或压缩移除后自动更新名单。
+- **请求适配**：在兼容路由上恢复 `constrainedSampling`；孤立的 `SyntaxError` / `ReferenceError` 会附带 `String.raw` 等转义指引；`anthropic-messages` 中继将纯工具结果误报为 `assistant message prefill`（HTTP 400）时自动重试一次该请求，不重跑工具。
 
 </Tab>
 <Tab value="挂载的 DSH 能力">
 
-`cordis.patch.yml` 在 `pi` 预设内部独立挂载以下 DSH 原生能力：
+`cordis.patch.yml` 在 `pi` 预设内独立挂载以下 DSH 原生能力：
 
 | 类别 | 工具与功能 |
 | --- | --- |
-| 工作与计划 | 可选的 `work_read`、`work_update`（需启用工作时间线）；独立 `planMode`（`exit_plan_mode`） |
+| 工作与计划 | 独立 `planMode`（`exit_plan_mode`）；启用工作时间线后自动挂载 `work_read`、`work_update` |
 | 子代理与提问 | `subagent`、`subagent_fork`、`list_subagent_models`、`send_message`、`list_agents`、`wait_agent`、`ask_user_question` |
-| 技能、目标与任务 | `skill`（含 `/` 补全）、`workflow`（DSH PTC）、`job_*`、`schedule_*`、`create_goal` / `get_goal` / `update_goal`、`/goal` |
-| 联网、展示与扩展 | `web_fetch`、`web_search`、可选启用 `present`、`office_*`、`plugin_manager`、`plugin_market`、`cordis_inspect_*` |
+| 技能、目标与任务 | `skill`、`workflow`（DSH PTC）、`job_*`、`schedule_*`、`create_goal` / `get_goal` / `update_goal`、`/goal` |
+| 联网、展示与扩展 | `web_fetch`、`web_search`，以及按需勾选的 `present`、`office_*`、`plugin_manager`、`plugin_market`、`cordis_inspect_*`、`session_lifecycle` |
 | 全局工具透传 | `grok_search`、`openai_search`、`openai_image`、`grok_image`、`subagent_agy`、`subagent_cursor` |
-| 上下文管理 | 工具结果裁剪（超过 8,192 字符保留首尾）与文本压缩（可设 `DSH_PI_SUMMARY_PROVIDER` / `DSH_PI_SUMMARY_MODEL` 环境变量指定摘要模型） |
+| 上下文管理 | `tool-result-pruner` 与 `compaction-basic`（可通过 `DSH_PI_SUMMARY_PROVIDER` / `DSH_PI_SUMMARY_MODEL` 指定摘要模型） |
 
 </Tab>
 <Tab value="会话工具选择器与 MCP">
 
-在尚未开始第一轮的空白 `pi` 会话中点击 **Tools** 打开选择器（首轮开始后锁定）：
+在空白 `pi` 会话中点击 **Tools** 打开选择器（首轮开始后锁定）：
 
-- **简洁视图 / 逐工具视图**：按 Pi、DSH 分类与 MCP 服务分组筛选勾选，支持 **仅看已选** 与 **恢复默认**。
-- **设为默认**：将当前勾选与默认规则的差异保存到 Host 的 `pi_tools_defaults` storage domain，对之后新建的 `pi` 会话生效（不影响后续新加入的 MCP 工具按默认规则自动出现）。
-- **刷新 MCP**：重启已桥接的 DSH MCP 服务器（最多等待 20 秒）并重新加载新工具列表。配合 [Pi MCP 服务器](/docs/plugins/pi-mcp) 使用时，修改 `~/.pi/agent/mcp.json` 后可在此直接刷新。
+- **精简视图 / 逐个设置**：按 Pi、DSH 分类与 MCP 服务分组勾选，支持 **只看已保留** 与 **恢复默认**。
+- **设为默认**：将当前勾选与默认规则的差异存入 Host 的 `pi_tools_defaults` storage domain，对之后新建的 `pi` 会话生效。
+- **刷新 MCP**：重启已桥接的 DSH MCP 服务器（最多等待 20 秒）并刷新工具目录。配合 [Pi MCP 服务器](/docs/plugins/pi-mcp) 使用时，修改 `~/.pi/agent/mcp.json` 后可在此直接刷新。
 
 </Tab>
 </Tabs>
 
-## 边界说明
+## 配置与边界
 
-- `codemodeBackend` 默认为 `moejs`；选择 `quickjs` 可恢复 Pi 原版引擎。不会在运行失败后换引擎重试。
-- 默认配置 `mcpServers: ['*']`、`mcpExposure: codemode`、`maxParallel: 10`，将全局 DSH MCP 工具默认收入 `codemode` / `tool_search` 延迟发现目录。
-- `codemode`、`tool_search`、`work_update` 等工具均遵守 DSH 原生权限、沙箱与当前步条件（例如 Office 工具需先加载对应技能，`planMode` 下不允许越权执行写操作）。
-- 选中工具后记录写入会话日志的 `plugin:dsh-pi-tools/selection`，更新包后需新开 `pi` 会话才会应用新版预设配置。
+- 默认配置 `mcpServers: ['*']`、`mcpExposure: codemode`、`maxParallel: 10`，将全局 DSH MCP 工具收入 `codemode` / `tool_search` 延迟发现目录。
+- 所有工具（包括 `codemode` 内嵌套调用）均遵守 DSH 原生权限、沙箱与当前步条件（如 `planMode` 限制）。
+- 会话工具选择写入会话日志的 `plugin:dsh-pi-tools/selection`；更新插件后新建 `pi` 会话即可应用新配置。

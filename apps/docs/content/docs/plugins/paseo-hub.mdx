@@ -1,14 +1,14 @@
 ---
 title: Paseo Hub
-description: 把 DSH Host 作为 daemon 接入 Paseo Hub，在本地跑 Hub 触发的会话，或通过组织 API 管理触发器。
+description: 将 DSH Host 作为 daemon 接入 Paseo Hub 在本地运行触发会话，或通过组织 API 管理触发器。
 ---
 
 <PluginFacts slug="paseo-hub" />
 
-将当前 DSH Host 注册为 [Paseo Hub](https://github.com/getpaseo/hub) 的 daemon。接入后，Hub 上来自 GitHub、Slack、Discord、Linear、Telegram、定时或手动派发的任务会在本机跑成原生 DSH 会话；同时插件提供组织 API 控制台与只读/可控写入的 Agent 工具。
+将当前 DSH Host 注册为 [Paseo Hub](https://github.com/getpaseo/hub) 的 daemon。接入后，Hub 来自 GitHub、Slack、Discord、Linear、Telegram、定时或手动触发的任务会在本机跑成原生 DSH 会话；同时内置组织 API 控制台与 Agent 工具。
 
 <Callout type="info" title="前置要求">
-需要认识 `dsh` provider 的 Paseo Hub（在 Hub 的 `UNATTENDED_PROVIDERS` 加入 `"dsh"`），以及 `@deepseek-ai/dsh-permission-presets` 和 `@deepseek-ai/dsh-storage-domain`（默认 profile 已包含）。
+需要已启用 `dsh` provider 的 Paseo Hub（在 `UNATTENDED_PROVIDERS` 中加入 `"dsh"`），以及 `@deepseek-ai/dsh-permission-presets` 和 `@deepseek-ai/dsh-storage-domain`（默认 profile 已包含）。
 </Callout>
 
 ## 安装
@@ -17,16 +17,16 @@ description: 把 DSH Host 作为 daemon 接入 Paseo Hub，在本地跑 Hub 触�
 
 ## 接入与触发器写法
 
-1. 在左侧栏打开 **Paseo Hub**，填入 Hub 地址（仅 origin，如 `https://hub.example.com`），点击 **登录** 并在浏览器确认授权码（无浏览器时可粘贴带 `daemons:enroll` 权限的一次性组织 API Key 注册）。
-2. 在 Hub 触发器 YAML 中把 `provider` 设为 `dsh`，并指定对应的 DSH 权限预设作为 `mode`：
+1. 在左侧栏打开 **Paseo Hub**，填写 Hub origin（如 `https://hub.example.com`），点击**登录**并在浏览器批准授权码；无浏览器时可用含 `daemons:enroll` 权限的组织 API Key 一次性注册。
+2. 在 Hub 触发器 YAML 中将 `provider` 设为 `dsh`，并指定对应的 DSH 权限预设作为 `mode`：
 
 ```yaml
 run:
   target: { daemon: my-mac, cwd: /Users/me/project }
   agent:
     provider: dsh
-    model: messages/claude-opus-5-5   # 可选：<DSH provider id>/<模型 id>
-    thinkingOptionId: high            # 可选：推理等级
+    model: messages/claude-opus-5-5   # 可选：<DSH provider>/<模型>
+    thinkingOptionId: high            # 可选：推理强度
     mode: workspace-write             # 必填：映射 DSH 权限预设
   prompt: 修复失败的测试并开 PR。
 ```
@@ -35,14 +35,14 @@ run:
 
 | 标签页 | 功能 |
 | --- | --- |
-| **概览** | 运行统计（点击可按状态跳转筛选）、daemon 连接信息、一键重连/断开，以及最近 5 条运行与活动 |
-| **运行** | 全部由本机承载的 Hub 运行（支持搜索、状态过滤与分页），可展开查看 mode/预设/模型/worktree/报错，或停止/归档/恢复 |
-| **活动** | 记录登录、断连、运行与组织 API 操作日志（超过 1100 条自动裁剪至最近 1000 条） |
-| **Hub API** | 单独保存组织 API Key，支持触发器搜索、YAML 查看编辑与先校验再安装、防重放 `deliveryKey` 手动触发与旧版配置 bundle |
-| **设置** | 查看可映射到 Hub 的 mode 列表、可直接复制的触发器模板以及当前插件配置 |
+| **概览** | 运行统计（点击可按状态跳转）、daemon 连接状态、重连/断开，以及最近 5 条运行与活动 |
+| **运行** | 本机承载的全部 Hub 运行（搜索、状态筛选、分页），展开可查看预设/模型/worktree/报错，支持停止、归档与恢复 |
+| **活动** | 记录连接、运行与组织 API 操作日志（保留最近 1000 条） |
+| **Hub API** | 独立保存组织 API Key，支持触发器搜索、YAML 校验与安装、带 `deliveryKey` 的手动触发以及旧版配置 bundle |
+| **设置** | 查看映射到 Hub 的 mode 列表、可复制的触发器模板与当前插件配置 |
 
-## Agent 工具与安全边界
+## Agent 工具与边界
 
-- **工具**：`paseo_hub` 提供只读查询与校验（`status`、`check`、`projects`、`triggers`、`get-trigger`、`resources`、`setup-resources`、`validate-trigger`、`validate-configuration`）；`paseo_hub_write` 提供写入操作（`install-trigger`、`install-configuration`、`dispatch`），**写入默认关闭**，需 owner 在页面显式勾选开启。
-- **会话隔离**：Hub 的 `reply`、`finish_execution` MCP 工具及环境变量（`PASEO_*`、`GH_TOKEN`）仅注入 Hub 触发的会话，不影响你的日常会话。注意所用预设必须支持会话级 MCP 工具（例如 `standard` 或 `pi`）。
-- **worktree 与凭据**：仅支持 `branch-off` worktree（需启用实验性 worktree 服务）；一台 Host 同一时间只接入一个 Hub。daemon 凭据与 API Key 分别保存在 DSH credentials 的 `paseo-hub/daemon` 与 `paseo-hub/api`，严格锁定已保存 origin 发起请求。
+- **工具**：`paseo_hub` 负责只读查询与校验（`status`、`check`、`projects`、`triggers`、`get-trigger`、`resources`、`setup-resources`、`validate-trigger`、`validate-configuration`）；`paseo_hub_write` 负责写入（`install-trigger`、`install-configuration`、`dispatch`），默认关闭，需在 **Hub API** 页显式开启。
+- **会话隔离**：Hub 的 `reply`、`finish_execution` MCP 工具及环境变量（`PASEO_*`、`GH_TOKEN`）仅挂载到 Hub 触发的会话，不影响日常会话；所用预设需支持会话级 MCP 工具（如 `standard` 或 `pi`）。
+- **worktree 与凭据**：worktree 支持 `branch-off` 模式（需启用 worktree 服务）；一台 Host 同一时间接入一个 Hub。daemon 与组织 API 密钥分别保存在 DSH credentials 的 `paseo-hub/daemon` 与 `paseo-hub/api`，请求锁定已保存 origin。

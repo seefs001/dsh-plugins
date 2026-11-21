@@ -1,6 +1,4 @@
-// Some Messages relays intermittently classify a user turn containing only tool
-// results as assistant prefill. Retry the rejected HTTP request, not the agent
-// step: tools (including ones with side effects) must not run a second time.
+// external: some anthropic-messages relays reject tool-result-only user turns as assistant prefill
 const ERROR = 'This model does not support assistant message prefill. The conversation must end with a user message.'
 
 function toolResultReplay(body, modelId) {
@@ -20,8 +18,6 @@ function toolResultReplay(body, modelId) {
       block.content = [{ type: 'text', text: block.content }]
     }
   }
-  // Relays that overlook a tool-result-only turn need a visible user-side tail.
-  // Delimit the results without inventing a user instruction or approval.
   result.content.push({ type: 'text', text: '[End of tool results.]' })
   return JSON.stringify(payload)
 }

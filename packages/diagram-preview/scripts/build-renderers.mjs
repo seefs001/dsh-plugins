@@ -1,5 +1,3 @@
-// Wrap each upstream browser distribution as a DSH lazy chunk. Only the
-// isolated render frame executes the returned source.
 import { copyFile, mkdir, readFile, utimes, writeFile } from 'node:fs/promises'
 
 const root = new URL('../', import.meta.url)
@@ -12,13 +10,13 @@ const libraries = {
 for (const [engine, path] of Object.entries(libraries)) {
   const chunk = `client.${engine}.js`
   const vendor = await readFile(file(`node_modules/${path}`), 'utf8')
-  await writeFile(file(`lib/${chunk}`), `// Generated from ${path} by scripts/build-renderers.mjs.\nwindow.__ModuleLoader__.load({ id: 'dsh-diagram-preview', chunk: '${chunk}', factory: () => ${JSON.stringify(vendor)} })\n`)
+  await writeFile(file(`lib/${chunk}`), `window.__ModuleLoader__.load({ id: 'dsh-diagram-preview', chunk: '${chunk}', factory: () => ${JSON.stringify(vendor)} })\n`)
 }
 await mkdir(file('lib/licenses'), { recursive: true })
 for (const [source, target] of [
   ['mermaid/LICENSE', 'Mermaid'], ['echarts/LICENSE', 'ECharts'],
   ['echarts/NOTICE', 'ECharts-NOTICE'], ['echarts/licenses/LICENSE-d3', 'ECharts-d3'],
 ]) await copyFile(file(`node_modules/${source}`), file(`lib/licenses/${target}.txt`))
-// DSH revisions its sibling chunks using the entry file's timestamp.
+// external: dsh revisions sibling chunks using lib/client.js mtime
 const now = new Date()
 await utimes(file('lib/client.js'), now, now)

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "分支切换",
-    "description": "新会话发第一条消息前，点“新建工作树”旁边的分支名就能切换到已有本地分支（保留原生工作树选项）。注意：切换会影响共用同一目录的其他会话，需要启用 Change requests & worktrees。"
+    "description": "新会话发送首条消息前，直接在页面顶部分支标签切换已有本地分支（需启用 Change requests & worktrees）。"
   }
 }

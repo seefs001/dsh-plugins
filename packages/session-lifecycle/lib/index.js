@@ -1,27 +1,9 @@
-/**
- * dsh-session-lifecycle — Host half.
- *
- * Owns the lifecycle of top-level sessions beyond the native pin/archive:
- * settle (a quiet "done" shelf, set by hand or after N idle days), snooze
- * (hidden until a time, waking early when the session needs you), per-session
- * read marks for turn outcomes, and the auto-settle preference.
- *
- * State is one validated document in the `session_lifecycle` storage domain,
- * so every browser and the agent see the same shelves. The browser calls
- * `POST /session-lifecycle/op`, follows `GET /session-lifecycle/events` (SSE),
- * and the agent uses the `session_lifecycle` tool. A one-minute sweep wakes
- * expired snoozes, wakes snoozes on a fresh failure or question, clears
- * settles the user has resumed, and applies auto-settle.
- *
- * The turn-outcome projection keeps the key `dsh-inbox-outcome` so outcomes
- * already cached for the former dsh-inbox plugin stay valid.
- */
 import { artifactOf, startSummary } from './summary.js'
 
 export const name = 'session-lifecycle'
 export const inject = ['sessionProjections', 'storageDomain', 'webServer', 'connection', 'sessionController', 'workspaceRegistry', 'typertGateway']
 
-export const KEY = 'dsh-inbox-outcome'
+export const KEY = 'session-lifecycle-outcome'
 export const STATE_PATH = '/session-lifecycle/state'
 export const OP_PATH = '/session-lifecycle/op'
 export const EVENTS_PATH = '/session-lifecycle/events'
@@ -36,7 +18,6 @@ const MAX_BODY_BYTES = 256 * 1024
 const MAX_SNOOZE_MS = 366 * DAY_MS
 const HEARTBEAT_MS = 25_000
 
-// ------------------------------------------------------- turn outcome projection
 const reasons = new Set(['completed', 'blocked', 'error', 'max-tokens', 'interrupted', 'stopped'])
 const uint = value => Number.isSafeInteger(value) && value >= 0
 const isRecord = v => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -51,14 +32,13 @@ function schema(accept, label) {
 const isOutcome = v => v === null || (isRecord(v) && Object.keys(v).every(k => ['seq', 'time', 'reason', 'file'].includes(k))
   && (!Object.hasOwn(v, 'file') || v.file === true) && uint(v.seq) && uint(v.time) && v.time <= 8.64e15 && reasons.has(v.reason))
 
-/** Latest turn outcome only: `{ seq, time, reason, file? }`, never chat text or tool arguments. */
 export const definition = {
   key: KEY,
-  stateVersion: 2,
+  stateVersion: 1,
   stateSchema: schema(v => isRecord(v) && typeof v.file === 'boolean' && uint(v.floor) && isOutcome(v.outcome), 'turn outcome checkpoint'),
   init: (_header, inheritedEventCount = 0) => ({ floor: inheritedEventCount, file: false, outcome: null }),
   apply(state, event) {
-    if (event.seq < state.floor) return state // A fork is a new task, not a copy of its parent's completed work.
+    if (event.seq < state.floor) return state
     if (event.type === 'turn/start') return { ...state, file: false, outcome: null }
     if (event.type === 'tool/result' && artifactOf(event)) return { ...state, file: true }
     if (event.type !== 'turn/end') return state
@@ -69,8 +49,6 @@ export const definition = {
   wire: { summary: true, viewSchema: schema(isOutcome, 'turn outcome'), view: state => state.outcome },
 }
 
-// ------------------------------------------------------------- lifecycle state
-/** A rejected operation; the message is shown to the user or the agent. */
 export class OpError extends Error {
   constructor(message) {
     super(message)
@@ -82,16 +60,6 @@ const isId = v => typeof v === 'string' && v.length > 0 && v.length <= 200 && !O
 const time = v => Number.isSafeInteger(v) && v > 0 && v <= 8.64e15
 const callIds = v => Array.isArray(v) ? [...new Set(v.filter(isId))] : []
 
-/**
- * One session record. Every field is optional; an empty record is dropped.
- * - `settledAt` + `settledBy`: on the settled shelf until the user prompts again.
- * - `keptAt`: the user un-settled it; auto-settle measures idleness from here.
- * - `snoozedUntil` / `snoozedAt` / `snoozedCalls`: hidden until the time; the
- *   questions already open at snooze time do not wake it early.
- * - `wokeAt` / `wokeBy`: the last wake, for the "woke" badge and idleness.
- * - `autoSettle: 'never'`: exempt from automatic settlement.
- * - `seen`: highest turn-outcome seq the user has read.
- */
 function normalizeRecord(raw) {
   if (!isRecord(raw)) return null
   const r = {}
@@ -154,7 +122,6 @@ const withRecord = (state, id, update) => {
   return { ...state, sessions }
 }
 
-// Read receipts are independent of placement; Undo must never roll one back.
 function samePlacement(a, b) {
   const placement = r => { const p = normalizeRecord(r) ?? {}; delete p.seen; delete p.holds; return JSON.stringify(p) }
   return placement(a) === placement(b)
@@ -162,7 +129,6 @@ function samePlacement(a, b) {
 const clearSnooze = r => { delete r.snoozedUntil; delete r.snoozedAt; delete r.snoozedCalls; return r }
 const clearSettle = r => { delete r.settledAt; delete r.settledBy; return r }
 
-/** Parse `until` (epoch ms or ISO string) or `minutes` into a future wake time. */
 function wakeTime(op, now) {
   let until
   if (op.minutes !== undefined) {
@@ -176,11 +142,6 @@ function wakeTime(op, now) {
   return until
 }
 
-/**
- * Apply one operation.
- * @returns `{ state, result }`; `state` is the input reference when nothing changes.
- * @throws OpError for invalid input.
- */
 export function applyOp(state, op, now = Date.now()) {
   switch (op?.action) {
     case 'list':
@@ -214,7 +175,6 @@ export function applyOp(state, op, now = Date.now()) {
     case 'hold': {
       const id = requireSession(op.sessionId), call = requireSession(op.callId)
       const until = op.until === 0 ? 0 : wakeTime(op, now)
-      if (op.import && state.sessions[id]?.holds?.[call]) return { state, result: {} }
       return { state: withRecord(state, id, r => {
         const holds = { ...r.holds }
         if (until) holds[call] = until
@@ -234,7 +194,6 @@ export function applyOp(state, op, now = Date.now()) {
       return { state: sessions === state.sessions ? state : { ...state, sessions }, result: {} }
     }
     case 'restore': {
-      // Undo: put back the exact record captured before the undone action.
       const id = requireSession(op.sessionId)
       const current = state.sessions[id] ?? null
       if (!Object.hasOwn(op, 'expected') || !samePlacement(current, op.expected)) throw new OpError('Session changed; Undo is no longer available')
@@ -255,29 +214,14 @@ export function applyOp(state, op, now = Date.now()) {
   }
 }
 
-// --------------------------------------------------------------------- sweep
 const FAILURES = new Set(['error', 'blocked', 'interrupted', 'max-tokens'])
 
-/** Open question call ids from the native `userQuestions` projection summary. */
 export function openQuestionCalls(values) {
   const answered = new Set([...(values?.inbox?.['next-turn'] ?? []), ...(values?.inbox?.['next-step'] ?? [])]
     .filter(m => m?.source?.kind === 'user-question-reply').map(m => m.source.callId))
   return (values?.userQuestions?.active ?? []).map(q => q?.callId).filter(id => isId(id) && !answered.has(id))
 }
 
-/**
- * One sweep over the Host session list. Pure: it reads summaries and returns
- * the next state. Rules, in order, for each top-level session with a record or
- * an auto-settle candidate:
- * 1. A snooze whose time passed wakes (`timer`). A snooze wakes early when a
- *    turn failed after it began or a question opened that was not open then.
- * 2. A settle ends once the user prompts again (`updatedAt` after `settledAt`).
- * 3. Auto-settle: off for subagents, blank, pinned, archived, running,
- *    queued, question-waiting, snoozed, already settled, and `never` sessions;
- *    otherwise settles when the latest of prompt, turn end, un-settle and wake
- *    is older than the configured days.
- * Unlisted sessions keep their records: an incomplete catalog is not a deletion.
- */
 export function sweep(state, summaries, { now = Date.now(), pinned = [], archived = [], pending = [] } = {}) {
   const days = state.settings.autoSettleAfterDays
   const pins = new Set(pinned), gone = new Set(archived)
@@ -313,8 +257,6 @@ export function sweep(state, summaries, { now = Date.now(), pinned = [], archive
   return changed ? { ...state, sessions } : state
 }
 
-// Only delegated children roll up. A fork is an independent root, and an
-// archived child, missing ancestor or cycle cannot claim another session.
 function lifecycleFacts(rows, archived, now = Date.now(), pending = []) {
   const decisions = new Set(pending.filter(p => p.event === 'approval/request').map(p => String(p.agentId)))
   const liveQuestions = new Set(pending.filter(p => p.event === 'user-questions/request').map(p => String(p.agentId)))
@@ -332,7 +274,6 @@ function lifecycleFacts(rows, archived, now = Date.now(), pending = []) {
     if (out && FAILURES.has(out.reason)) f.failure = Math.max(f.failure, out.time)
     const calls = openQuestionCalls(values)
     f.questions.push(...calls.map(call => JSON.stringify([row.sessionId, call])))
-    // Gateway approvals are live interactions, not necessarily persisted question intents.
     f.decision ||= decisions.has(row.sessionId) || (liveQuestions.has(row.sessionId) && !calls.length)
     f.decision ||= qs.some(q => calls.includes(q.callId) && q.questions?.some(item => ['approval', 'plan-review'].includes(item.intent?.kind)))
     f.queued ||= Boolean(values.inbox?.['next-turn']?.length)
@@ -344,7 +285,6 @@ function lifecycleFacts(rows, archived, now = Date.now(), pending = []) {
   return facts
 }
 
-// ----------------------------------------------------------------- transport
 function sendJson(res, status, payload, headers = {}) {
   res.statusCode = status
   res.setHeader('content-type', 'application/json; charset=utf-8')
@@ -364,7 +304,7 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-/** Open the domain, retrying while a previous generation of this plugin is still closing it. */
+// external: DSH reload can overlap storageDomain close and open
 async function openDomain(ctx) {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -401,7 +341,6 @@ export async function apply(ctx) {
   }
   const current = domain => normalizeState(domain.global.get())
 
-  // Mutations and sweeps run one at a time so no write is lost.
   const mutate = transform => {
     const task = tail.then(async () => {
       if (closed) throw new OpError('session lifecycle is unloading')
@@ -440,7 +379,6 @@ export async function apply(ctx) {
     if (next !== state) {
       for (const [sessionId, record] of Object.entries(next.sessions)) {
         if (record.settledBy !== 'auto' || state.sessions[sessionId]?.settledAt === record.settledAt) continue
-        // A background job or scheduled continuation is not necessarily a running turn.
         const activities = await ctx.waterfall('workspace/session-activity', { sessionId }, () => Promise.resolve([]))
         if (!activities.length) continue
         if (state.sessions[sessionId]) next.sessions[sessionId] = state.sessions[sessionId]
@@ -485,7 +423,7 @@ export async function apply(ctx) {
       const raw = await readBody(req)
       if (raw === null) return sendJson(res, 413, { message: `body exceeds ${MAX_BODY_BYTES} bytes` })
       let op = null
-      try { op = JSON.parse(raw) } catch { /* Rejected by applyOp. */ }
+      try { op = JSON.parse(raw) } catch {}
       try {
         const { state, ...result } = await run(op)
         sendJson(res, 200, { ...result, settings: state.settings })
@@ -525,7 +463,6 @@ export async function apply(ctx) {
     streams.clear()
   }, 'session-lifecycle: close event streams')
 
-  // Agent tool: the same operations, available only where the tool registry exists.
   ctx.inject(['tools'], toolCtx => {
     toolCtx.effect(() => toolCtx.tools.register({
       name: TOOL_NAME,

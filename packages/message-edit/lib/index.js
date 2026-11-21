@@ -23,7 +23,6 @@ function checkText(value) {
   return value
 }
 
-/** Replace the text blocks with one edited block at the first text position; images and files keep their place. */
 export function editedContent(content, text) {
   const out = []
   let placed = false
@@ -38,11 +37,6 @@ export function editedContent(content, text) {
 const sameMessage = (event, rpcId) => event.type === 'user/message'
   && event.data.source?.kind === 'user' && event.data.source.rpcId === rpcId
 
-/**
- * Locate one human message by its prompt rpcId and follow this plugin's
- * in-place rewrites (`user/message` replacements starting at the current
- * node and keeping the same source) to the node the model currently sees.
- */
 export function locate(events, rpcId) {
   const index = events.findIndex(e => sameMessage(e, rpcId) && e.surfaceOp === 'append')
   if (index < 0) throw new Error('The message no longer exists in this session')
@@ -65,7 +59,6 @@ export function locate(events, rpcId) {
   return { index, original, current, inContext, edits }
 }
 
-/** Latest completed-turn prefix before the target's turn, matching the Host's default fork rule. */
 export function forkBoundary(events, index) {
   let start = -1
   for (let i = index - 1; i >= 0; i--) if (events[i].type === 'turn/end') { start = i; break }
@@ -104,21 +97,20 @@ export class MessageEdit {
     }
   }
 
-  /** Every human message rewritten in place, keyed by rpcId, for the Chat badge. */
   async list({ sessionId }) {
     const events = await this.events(sessionId)
     const edited = Object.create(null)
-    const live = new Map() // current surface seq -> original human rpcId
+    const surfaceToRpcId = new Map()
     for (const e of events) {
       if (e.surfaceOp === 'append' && e.type === 'user/message' && e.data.source?.kind === 'user') {
-        live.set(e.seq, e.data.source.rpcId)
+        surfaceToRpcId.set(e.seq, e.data.source.rpcId)
       } else if (isReplace(e)) {
         for (const seq of e.sourceEventSeqs ?? []) {
-          const rpcId = live.get(seq)
+          const rpcId = surfaceToRpcId.get(seq)
           if (rpcId === undefined) continue
-          live.delete(seq)
+          surfaceToRpcId.delete(seq)
           if (seq === e.surfaceOp.startSeq && sameMessage(e, rpcId)) {
-            live.set(e.seq, rpcId)
+            surfaceToRpcId.set(e.seq, rpcId)
             edited[rpcId] = { text: textOf(e.data.content), inContext: true, time: e.time }
           } else if (edited[rpcId]) edited[rpcId].inContext = false
         }
@@ -127,7 +119,6 @@ export class MessageEdit {
     return { edited }
   }
 
-  /** Replace this message, clearing the later model-visible context by default. */
   async rewrite({ sessionId, rpcId, text, clearLater = true }) {
     checkText(text)
     if (typeof clearLater !== 'boolean') throw new Error('clearLater must be a boolean')
@@ -160,13 +151,12 @@ export class MessageEdit {
     return result
   }
 
-  /** Clear later history: the Client forked `sessionId` before the message; send the edited copy there. */
   async send({ sessionId, sourceSessionId, rpcId, text }) {
     checkText(text)
     const found = locate(await this.events(sourceSessionId), rpcId)
     const agent = await this.agent(sessionId)
     const original = found.original.data
-    // A message queued during the previous turn can be copied into the fork as pending input.
+    // external: dsh session fork copies queued inbox items from the parent turn
     for (const item of [...(agent.inbox?.nextTurn ?? []), ...(agent.inbox?.nextStep ?? [])]) {
       if (item.id === original.id || item.source?.rpcId === rpcId) agent.inbox.remove(item.id)
     }

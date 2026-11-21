@@ -3,8 +3,7 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-// Load from the running Harness only, never from another installed generation:
-// the MCP client must register tools into this process's tool registry.
+// external: resolve DSH runtime packages from the running install so MCP client shares this process's registry
 const anchor = process.env.DSH_INSTALL_DIR
   ? join(process.env.DSH_INSTALL_DIR, 'package.json')
   : process.argv[1]
@@ -16,8 +15,7 @@ const [mcpClient, schemastery] = await Promise.all([
   load('@deepseek-ai/dsh-mcp-client'),
   load('@deepseek-ai/schemastery'),
 ])
-// `ws` reports the upgrade status, which tells a revoked credential (401/403)
-// from a network failure. It ships with the MCP client's dependency tree.
+// external: Node's built-in WebSocket hides HTTP upgrade status; reuse ws from dsh-mcp-client to detect 401/403 revocation
 const mcpRequire = createRequire(require.resolve('@deepseek-ai/dsh-mcp-client'))
 const wsModule = await import(pathToFileURL(mcpRequire.resolve('ws')).href)
 

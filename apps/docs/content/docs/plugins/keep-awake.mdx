@@ -1,21 +1,21 @@
 ---
 title: 保持唤醒
-description: DSH Host 运行期间阻止 Mac 闲置休眠，屏幕仍照常熄灭和锁屏。
+description: DSH Host 运行期间阻止 macOS 闲置休眠，保持屏幕熄灭与锁屏行为不变。
 ---
 
 <PluginFacts slug="keep-awake" />
 
-运行长时间 Agent 任务或定时调度时，防止 macOS 因为键盘鼠标无操作而进入闲置休眠，同时保留显示器自动熄灭和系统锁屏。
+运行长时间 Agent 任务或定时任务时，阻止 macOS 因无操作进入闲置休眠，显示器仍照常熄灭和锁屏。
 
 ## 安装
 
 <InstallCommand slug="keep-awake" />
 
-仅在 macOS Host 上生效（无需管理员权限、配置项或外部依赖）。
+仅在 macOS Host 上生效，无需额外配置。
 
-## 工作方式与边界
+## 工作方式
 
 - Host 启动时派生 `/usr/bin/caffeinate -i -w <host_pid>`：
-  - `-i` 参数仅阻止系统闲置休眠，**不会**阻止显示器休眠、手动睡眠、盒盖睡眠或关机；
-  - `-w <pid>` 绑定 Host 进程生命周期，停用插件或 Host 退出/崩溃后，系统自动释放电源断言，不改变任何永久电源设置。
-- 在 Linux 或 Windows 上安装时，插件只记一条提示日志并保持空转，不会报错。
+  - `-i` 仅阻止系统闲置休眠，不影响显示器休眠、手动睡眠、盒盖睡眠或关机；
+  - `-w <pid>` 绑定 Host 进程 PID，停用插件或 Host 退出后自动释放电源断言。
+- 在 Linux 或 Windows 上运行时仅记录警告日志并空转。

@@ -1,11 +1,11 @@
 ---
 title: Bark 通知
-description: 智能体向你提问、提交计划审阅或请求权限审批时，顺便通过 Bark 发送手机推送。
+description: 智能体提问、提交计划审阅或请求权限审批时发送 Bark 推送。
 ---
 
 <PluginFacts slug="bark-notify" />
 
-当 DSH 智能体暂停等待你处理时，异步向手机发送一条 [Bark](https://bark.day.app/) 推送，避免切走窗口或离开电脑时漏掉提问和审批。
+当 DSH 智能体暂停等待你处理时，异步向手机发送一条 [Bark](https://bark.day.app/) 推送。
 
 ## 安装
 
@@ -13,23 +13,17 @@ description: 智能体向你提问、提交计划审阅或请求权限审批时�
 
 ## 触发范围
 
-插件以非阻塞前置监听挂载到两个原生入口，发推送后立即放行 `next()`，不修改原生界面和超时计时：
+- `user-questions/request`：`ask_user_question`、`exit_plan_mode` 计划审阅及界面授权卡片。
+- `approval/request`：工具权限审批。
 
-- **`user-questions/request`**：`ask_user_question`（含阻塞、定时 `timed` 与 `run_code` PTC 子调用）、`exit_plan_mode` 计划审阅及界面授权卡片。
-- **`approval/request`**：工具权限审批（会话策略为 `never` 时原生会在分发前拦截，不会误推）。
-
-> `dsh-acp-workbench` 中的外部 ACP CLI 使用独立交互状态机，不触发本插件。
+> `dsh-acp-workbench` 中的外部 ACP CLI 使用独立交互通道，不触发本插件。
 
 ## 配置
 
 打开 **Plugins → dsh-bark-notify**：
 
-1. 在 **从 Bark URL 快速填入** 粘贴你的完整链接（如 `https://your-bark-host/YOUR_KEY/{{title}}/{{content}}?sound=alarm`）并点击 **解析填入**，或手动填写服务器地址与 Device Key（无 Web 界面时可通过环境变量或凭据引用 `DSH_BARK_KEY` 提供）。
-2. 点击 **保存** 后，点击 **发送测试通知** 确认送达。
-3. 可按需调整：**请求方式**（`GET` / `POST` JSON）、**触发场景**开关、**延迟推送（毫秒）**（`0`–`600000`，延迟内已处理或取消则自动撤回推送）、**声音与分组**、**正文包含问题或审批摘要**（关闭后仅发会话名与请求类型）以及 **点击通知跳转链接**。
+1. 在 **从 Bark URL 快速填入** 粘贴完整链接（如 `https://your-bark-host/YOUR_KEY/{{title}}/{{content}}?sound=alarm`）点击 **解析填入**，或手动填写服务器地址与 Device Key（无 Web 界面时可通过 `DSH_BARK_KEY` 凭据或环境变量提供）。
+2. 保存后点击 **发送测试通知** 确认送达。
+3. 按需调整请求方式（`GET` / `POST` JSON）、触发场景开关、延迟推送（`0`–`600000` 毫秒，超时前已在界面处理则自动取消）、铃声与分组、正文摘要开关及点击跳转链接。
 
-## 数据与隐私
-
-- 普通设置保存在 profile 的 `cordis.patch.yml`。
-- Device Key 仅保存在本机 Host 凭据（`bark-notify/device`），接口仅返回脱敏预览，日志和报错自动抹去密钥。
-- 本地路由（`/bark-notify/state`、`set`、`test`）仅对 `owner` 开放；推送失败只记警告日志，不影响会话运行。
+普通配置写入 profile 的 `cordis.patch.yml`；Device Key 仅存于本机 Host 凭据 `bark-notify/device`。

@@ -3,8 +3,7 @@ import { Minimatch } from 'minimatch'
 import { createInterface } from 'node:readline'
 import { DEFAULT_MAX_BYTES, GREP_MAX_LINE_LENGTH, formatSize, relativizeFindResultPath, truncateHead, truncateLine } from './pi.js'
 
-// Pi's grep has no injectable spawn operation. Keep its public definition
-// and formatting helpers; perform the search through DSH rather than child_process.
+// external: Pi grep has no injectable spawn operation, so run rg through DSH subprocess
 export async function runLines(ctx, command, args, cwd, signal, policy, onLine) {
   let argv = [await ctx.subprocess.resolveExecutable(command, undefined, signal), ...args]
   if (policy.mode !== 'danger-full-access') argv = (await ctx.sandbox.confine(argv, policy, signal)).argv
@@ -56,7 +55,7 @@ export async function findPaths(ops, pattern, root, limit) {
   const pathGlob = glob.includes('/')
   const anchored = pathGlob && !isAbsolute(glob)
   const ignoreCase = glob === glob.toLowerCase()
-  // Like Pi, avoid fd's version-dependent --full-path glob handling on Windows.
+  // external: fd --full-path glob matching is version-dependent on Windows
   const matcher = windows && pathGlob
     ? new Minimatch(glob.replace(/\/\*\*$/, '/**/*'), { dot: true, noext: true, nocase: ignoreCase })
     : undefined
@@ -66,7 +65,7 @@ export async function findPaths(ops, pattern, root, limit) {
     args.push('--glob', '--max-results', String(limit))
     if (pathGlob) args.push('--full-path')
     if (anchored) {
-      // fd matches absolute paths. Escape the literal root and keep smart case based on the user's glob.
+      // external: fd --full-path matches absolute paths, so anchor relative globs to the escaped root
       const prefix = root.replace(/\/+$/, '').replace(/[\\*?[\]{}]/g, '\\$&')
       glob = prefix + '/' + glob
       if (ignoreCase) args.push('--ignore-case')
@@ -85,7 +84,7 @@ export async function findPaths(ops, pattern, root, limit) {
   return paths
 }
 
-// ripgrep encodes non-UTF-8 paths and lines as base64 rather than `text`.
+// external: ripgrep JSON encodes non-UTF-8 paths and lines in base64 bytes instead of text
 function rgText(field) {
   return field?.text ?? (field?.bytes ? Buffer.from(field.bytes, 'base64').toString('utf8') : '')
 }
@@ -100,7 +99,7 @@ export async function runGrep(args, ops) {
   if (args.literal) argv.push('--fixed-strings')
   if (args.glob) argv.push('--glob', args.glob.replace(/^(!?)(?:\.\/)+/, '$1'))
   if (context) argv.push('--context', String(context))
-  // rg roots path-containing globs at its cwd, not at its positional argument.
+  // external: ripgrep anchors path-containing --glob patterns at cwd rather than the search path argument
   argv.push('--', args.pattern, directory ? '.' : root)
   const output = []
   let count = 0
@@ -136,7 +135,6 @@ export async function runGrep(args, ops) {
     if (withinLimit) {
       if (match && ++count === limit) trailingEnd = number + context
     } else {
-      // An extra match proves truncation; finish the last match's context first.
       matchLimitReached ||= match
       if (matchLimitReached && !(trailing && number < trailingEnd)) return false
     }

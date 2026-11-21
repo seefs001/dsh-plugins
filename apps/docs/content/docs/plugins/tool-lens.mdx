@@ -5,23 +5,20 @@ description: 在工具调用行直接打开技能文件、完整输出、搜索�
 
 <PluginFacts slug="tool-lens" />
 
-为聊天流里的常见工具调用行增加直达右侧边栏的快捷按钮，不用先展开整段原始参数或手动去文件树里翻找。
+为聊天流中的常见工具调用行增加直达右侧栏的快捷按钮，不用先展开原始参数或在文件树中翻找。
 
 ## 安装
 
 <InstallCommand slug="tool-lens" />
 
-## 支持的工具行快捷操作
+## 支持的工具行
 
 | 工具 | 增强效果 |
 | --- | --- |
-| `skill` | 替换内置行，点击技能名直接在右侧文件侧栏打开对应的 `SKILL.md`（点击空白处展开参数与说明） |
-| `grep` / `glob` | 行尾显示命中文件或文件数量按钮，点击直接打开对应文件并定位到首个命中行号 |
-| `web_search` / `web_fetch` | 行尾显示网页来源链接，默认在右侧 Browser 面板打开（按住 `Cmd`/`Ctrl` 在浏览器新标签打开） |
-| `subagent` / `send_message` / `interrupt_agent` | 一键在右侧面板打开或聚焦对应子代理会话 |
-| `bash`、`job_output`、`terminal_read`、`workflow`、`lsp`、`cordis_inspect_*`、`session_*` | 输出被写入 spill 文件时，行尾浮动 **完整输出** 按钮，点击直接在右侧预览完整日志 |
+| `skill` | 点击技能名在右侧文件侧栏打开 `SKILL.md`，点击行展开技能正文 |
+| `grep` / `glob` | 行尾显示命中文件或文件列表，点击打开并定位到首个命中行 |
+| `web_search` / `web_fetch` | 行尾显示网页来源链接，默认在右侧 Browser 面板打开（`Cmd`/`Ctrl` 点击在新标签页打开） |
+| `subagent` / `send_message` / `interrupt_agent` | 一键在右侧面板打开对应子代理会话（不含 `external` 外部子代理） |
+| `bash`、`job_output`、`terminal_read`、`workflow`、`lsp`、`cordis_inspect_*`、`session_*` | 输出写入 spill 文件时，行尾显示 **完整输出** 按钮，点击在右侧预览完整内容 |
 
-## 边界说明
-
-- 在 `tool.call.toolview` 槽位包装或替换默认视图，停用后立即还原原生行样式。
-- 仅读取已有工具结果与会话元数据，不会重新执行工具。对于外部模式（`external`）子代理不提供原生子代理面板打开按钮。
+纯前端视图增强，不修改会话记录也不重跑工具，停用即恢复内置视图。

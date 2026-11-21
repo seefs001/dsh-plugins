@@ -1,9 +1,4 @@
-// Models trained on Claude Code often call its tool names (Bash, Read, Edit...)
-// with its argument shapes even when only Pi's tools are declared. The
-// declarations stay unchanged; such calls are rewritten to the equivalent Pi
-// call before dispatch. Results pair with the model's call by callId, so the
-// model's own message keeps the name it chose.
-
+// external: models trained on Claude Code emit its tool names and argument shapes
 const path = args => args.file_path ?? args.path ?? args.notebook_path
 
 function compact(value) {
@@ -23,7 +18,7 @@ function number(value) {
 export const CLAUDE_CODE_ALIASES = {
   Bash: {
     target: 'bash',
-    // Claude Code's timeout is in milliseconds; Pi's is in seconds.
+    // external: Claude Code Bash timeout is in milliseconds whereas Pi bash uses seconds
     map: args => compact({ command: args.command, timeout: number(args.timeout) === undefined ? undefined : Math.max(1, Math.ceil(number(args.timeout) / 1000)) }),
   },
   Read: {
@@ -34,8 +29,6 @@ export const CLAUDE_CODE_ALIASES = {
     target: 'write',
     map: args => compact({ path: path(args), content: args.content }),
   },
-  // Pi requires each oldText to match once, so a replace_all over several
-  // matches fails instead of silently replacing only one of them.
   Edit: {
     target: 'edit',
     map: args => compact({ path: path(args), edits: Array.isArray(args.edits) ? args.edits.map(editOf) : [editOf(args)] }),
@@ -68,12 +61,6 @@ export const CLAUDE_CODE_ALIASES = {
   },
 }
 
-/**
- * Rewrite one model tool-call block when it names a Claude Code tool.
- * @param block `{ id, name, arguments }` with arguments as a JSON string
- * @param available whether a Pi tool name may run for this call
- * @returns the rewritten block, or the original one
- */
 export function aliasToolCall(block, available) {
   const alias = Object.hasOwn(CLAUDE_CODE_ALIASES, block.name) ? CLAUDE_CODE_ALIASES[block.name] : undefined
   if (!alias || !available(block.name, alias.target)) return block
@@ -81,7 +68,6 @@ export function aliasToolCall(block, available) {
   try {
     args = block.arguments ? JSON.parse(block.arguments) : {}
   } catch {
-    // Invalid JSON keeps its text so validation reports it under the Pi tool.
     return { ...block, name: alias.target }
   }
   if (!args || typeof args !== 'object' || Array.isArray(args)) return { ...block, name: alias.target }

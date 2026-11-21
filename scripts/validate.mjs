@@ -1,24 +1,26 @@
 #!/usr/bin/env node
-/**
- * Static checks for every package under packages/: manifest fields, exports
- * that resolve to real files, bundle patch row names, locale metadata parity,
- * and client bundle ids matching the package name.
- */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const PACKAGES = join(ROOT, 'packages')
+const DOCS_PLUGINS = join(ROOT, 'apps', 'docs', 'content', 'docs', 'plugins')
 const LOCALES = ['en', 'zh']
 const REQUIRED = ['name', 'version', 'description', 'keywords', 'license', 'repository', 'type', 'exports', 'files', 'engines', 'dsh']
+const EXPECTED_DSH_ENGINE = '>=0.2.2-rc.4 <0.3.0'
+const FORBIDDEN_PACKAGE_DOCS = ['DESIGN.md', 'ARCHITECTURE.md', 'PASEO-PARITY.md']
+const LEGACY_TEXT = /\b(?:dsh[-_]inbox|llm-pi-ai\/model-defaults)\b/
 
 const errors = []
-const fail = (pkg, msg) => errors.push(`${pkg}: ${msg}`)
+const fail = (scope, msg) => errors.push(`${scope}: ${msg}`)
+
+const slugs = []
 
 for (const dir of readdirSync(PACKAGES).toSorted()) {
   const base = join(PACKAGES, dir)
   const manifestPath = join(base, 'package.json')
   if (!existsSync(manifestPath)) continue
+  slugs.push(dir)
   const pkg = JSON.parse(readFileSync(manifestPath, 'utf8'))
   const id = `packages/${dir}`
 
@@ -28,25 +30,37 @@ for (const dir of readdirSync(PACKAGES).toSorted()) {
   if (!pkg.keywords?.includes('dsh-plugin')) fail(id, 'keywords must include "dsh-plugin"')
   if (pkg.repository?.directory !== id) fail(id, `repository.directory should be "${id}"`)
   if (pkg.type !== 'module') fail(id, 'type must be "module"')
-  if (!pkg.engines?.dsh) fail(id, 'engines.dsh is required')
-  if (!existsSync(join(base, 'README.md'))) fail(id, 'README.md is missing')
+  if (pkg.engines?.dsh !== EXPECTED_DSH_ENGINE) fail(id, `engines.dsh should be "${EXPECTED_DSH_ENGINE}"`)
 
-  // Every non-pattern export must point at an existing file.
+  for (const forbidden of FORBIDDEN_PACKAGE_DOCS) {
+    if (existsSync(join(base, forbidden))) fail(id, `remove internal design doc "${forbidden}"`)
+  }
+  for (const entry of pkg.files ?? []) {
+    if (!existsSync(join(base, entry))) fail(id, `files entry "${entry}" does not exist`)
+  }
+
+  const readmePath = join(base, 'README.md')
+  if (!existsSync(readmePath)) fail(id, 'README.md is missing')
+  else {
+    const legacy = LEGACY_TEXT.exec(readFileSync(readmePath, 'utf8'))
+    if (legacy) fail(`${id}/README.md`, `remove legacy reference "${legacy[0]}"`)
+  }
+
   for (const [key, target] of Object.entries(pkg.exports ?? {})) {
     if (typeof target !== 'string' || target.includes('*')) continue
     if (!existsSync(join(base, target))) fail(id, `export "${key}" -> ${target} does not exist`)
   }
 
-  // Bundle patch: one insert row named after the package.
   const patchRel = pkg.dsh?.bundle?.patch
   if (!patchRel || !existsSync(join(base, patchRel))) fail(id, 'dsh.bundle.patch is missing')
   else {
     const patch = readFileSync(join(base, patchRel), 'utf8')
     const names = [...patch.matchAll(/^\s+name:\s*['"]?([^'"\s#]+)/gm)].map(m => m[1])
     if (!names.includes(pkg.name)) fail(id, `${patchRel} inserts ${JSON.stringify(names)}, expected "${pkg.name}"`)
+    const legacy = LEGACY_TEXT.exec(patch)
+    if (legacy) fail(`${id}/${patchRel}`, `remove legacy reference "${legacy[0]}"`)
   }
 
-  // Browser half: declared, exported, and registered under the package name.
   if (pkg.dsh?.client) {
     if (pkg.dsh.client.platform !== 'web') fail(id, 'dsh.client.platform must be "web"')
     const clientRel = pkg.exports?.['./client']
@@ -58,13 +72,15 @@ for (const dir of readdirSync(PACKAGES).toSorted()) {
     }
   } else if (pkg.exports?.['./client']) fail(id, '"./client" is exported but dsh.client is not declared')
 
-  // Locales: every language present, with the same meta keys.
   const metas = {}
   for (const lang of LOCALES) {
     const file = join(base, 'locale', `${lang}.json`)
     if (!existsSync(file)) { fail(id, `locale/${lang}.json is missing`); continue }
     try {
-      const meta = JSON.parse(readFileSync(file, 'utf8')).meta
+      const raw = readFileSync(file, 'utf8')
+      const legacy = LEGACY_TEXT.exec(raw)
+      if (legacy) fail(`${id}/locale/${lang}.json`, `remove legacy reference "${legacy[0]}"`)
+      const meta = JSON.parse(raw).meta
       if (!meta?.title || !meta?.description) fail(id, `locale/${lang}.json needs meta.title and meta.description`)
       metas[lang] = Object.keys(meta ?? {}).toSorted().join(',')
     } catch (error) { fail(id, `locale/${lang}.json: ${error.message}`) }
@@ -74,8 +90,49 @@ for (const dir of readdirSync(PACKAGES).toSorted()) {
   if (!existsSync(join(base, pkg.icon ?? 'icon.svg'))) fail(id, 'icon is missing')
 }
 
+const slugSet = new Set(slugs)
+
+const catalogSrc = readFileSync(join(ROOT, 'apps', 'docs', 'lib', 'plugins.ts'), 'utf8')
+const catalogSlugs = [...catalogSrc.matchAll(/slug:\s*'([^']+)'/g)].map(m => m[1])
+const catalogSet = new Set(catalogSlugs)
+for (const slug of slugs) if (!catalogSet.has(slug)) fail('apps/docs/lib/plugins.ts', `missing entry for "${slug}"`)
+for (const slug of catalogSlugs) if (!slugSet.has(slug)) fail('apps/docs/lib/plugins.ts', `unknown entry "${slug}"`)
+
+const metaPages = JSON.parse(readFileSync(join(DOCS_PLUGINS, 'meta.json'), 'utf8')).pages
+  .filter(entry => typeof entry === 'string' && !entry.startsWith('---') && entry !== 'index')
+const metaSet = new Set(metaPages)
+for (const slug of slugs) if (!metaSet.has(slug)) fail('apps/docs/content/docs/plugins/meta.json', `missing "${slug}"`)
+for (const slug of metaPages) if (!slugSet.has(slug)) fail('apps/docs/content/docs/plugins/meta.json', `unknown "${slug}"`)
+
+for (const file of readdirSync(DOCS_PLUGINS).toSorted()) {
+  if (!file.endsWith('.mdx') || file === 'index.mdx') continue
+  const slug = file.slice(0, -'.mdx'.length)
+  if (!slugSet.has(slug)) fail(`apps/docs/content/docs/plugins/${file}`, 'orphan plugin doc')
+}
+
+for (const slug of slugs) {
+  const mdxPath = join(DOCS_PLUGINS, `${slug}.mdx`)
+  if (!existsSync(mdxPath)) { fail(`apps/docs/content/docs/plugins/${slug}.mdx`, 'missing doc page'); continue }
+  const mdx = readFileSync(mdxPath, 'utf8')
+  if (!mdx.includes(`<PluginFacts slug="${slug}" />`)) fail(`apps/docs/content/docs/plugins/${slug}.mdx`, 'missing <PluginFacts>')
+  if (!mdx.includes(`<InstallCommand slug="${slug}" />`)) fail(`apps/docs/content/docs/plugins/${slug}.mdx`, 'missing <InstallCommand>')
+  const legacy = LEGACY_TEXT.exec(mdx)
+  if (legacy) fail(`apps/docs/content/docs/plugins/${slug}.mdx`, `remove legacy reference "${legacy[0]}"`)
+}
+
+for (const file of ['README.md', 'README.zh.md', 'apps/docs/content/docs/configuration.mdx', 'apps/docs/content/docs/compatibility.mdx']) {
+  const content = readFileSync(join(ROOT, file), 'utf8')
+  const legacy = LEGACY_TEXT.exec(content)
+  if (legacy) fail(file, `remove legacy reference "${legacy[0]}"`)
+  if (file === 'README.md' || file === 'README.zh.md') {
+    for (const slug of slugs) {
+      if (!content.includes(`(packages/${slug})`)) fail(file, `missing catalog link for packages/${slug}`)
+    }
+  }
+}
+
 if (errors.length > 0) {
   for (const e of errors) console.error(`✖ ${e}`)
   process.exit(1)
 }
-console.log('✔ all packages valid')
+console.log(`✔ all ${slugs.length} packages and docs valid`)

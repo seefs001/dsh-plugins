@@ -1,6 +1,5 @@
 const TERMINAL = new Set(['completed', 'interrupted', 'failed'])
 
-/** Persist only a short excerpt of the final visible DSH reply. Never copy reasoning, attachments or raw CLI frames. */
 export function replyExcerpt(message) {
   let excerpt = ''
   for (const block of message.content ?? []) {
@@ -11,7 +10,6 @@ export function replyExcerpt(message) {
   return excerpt.length > 800 ? excerpt.slice(0, 799) + '…' : excerpt
 }
 
-/** A project includes its registered roots' continuable children, not every CLI sharing the same cwd. */
 export class ProjectReview {
   constructor(ctx, manager) { this.ctx = ctx; this.manager = manager }
 
@@ -32,7 +30,7 @@ export class ProjectReview {
       if (!includes(s)) continue
       for (const r of s.native.runs) {
         if (!TERMINAL.has(r.state)) continue
-        if (r.reviewedAt === null) pending++
+        if (!r.reviewedAt) pending++
         else if (filter === 'pending') continue
         const at = r.finishedAt ?? r.startedAt
         const key = `${at}/${r.id}`
@@ -45,12 +43,12 @@ export class ProjectReview {
       id: r.id, recordId: s.id, providerId: s.providerId, title: s.title, cwd: s.cwd, sessionId: s.native.sessionId,
       rootSessionId: s.native.rootSessionId, parentSessionId: s.native.parentSessionId, retired: !!s.native.retired,
       turn: r.turn, step: r.step, at, state: r.state, stopReason: r.stopReason, tools: r.tools, fileCount: r.files?.length ?? 0,
-      files: r.files?.slice(0, 5) ?? [], reply: r.replyExcerpt, error: r.error, reviewed: r.reviewedAt === undefined ? 'legacy' : r.reviewedAt === null ? 'pending' : 'seen',
+      files: r.files?.slice(0, 5) ?? [], reply: r.replyExcerpt, error: r.error, reviewed: r.reviewedAt ? 'seen' : 'pending',
     })) }
   }
 
   async acknowledge({ workspaceId, recordId, runId }) {
-    const s = this.manager.session(recordId, { kind: 'user' })
+    const s = this.manager.session(recordId)
     if (!this.scope(workspaceId)(s)) throw new Error('This result does not belong to the selected project')
     const r = s.native.runs.find(item => item.id === runId)
     if (!r || !TERMINAL.has(r.state)) throw new Error('Select a finished run to mark as reviewed')
@@ -61,7 +59,7 @@ export class ProjectReview {
       s.native.reviewVersion = (s.native.reviewVersion ?? 0) + 1
       try { await this.manager.store.saveSession(s) } catch (error) { r.reviewedAt = previous; this.manager.changed(s.id); throw error }
       this.manager.changed(s.id)
-    } else await this.manager.store.tail // another window can observe a mark whose write is still queued
+    } else await this.manager.store.tail
     this.manager.store.assertWritable()
     return { runId, reviewedAt: r.reviewedAt }
   }

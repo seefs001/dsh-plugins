@@ -1,6 +1,3 @@
-// Build-time adapter for the pinned Pi executor. Keep its tool/result handling
-// verbatim; change only VM construction. Never patch node_modules or evaluate
-// model source in Node. Installed archives need neither Go nor install scripts.
 import { spawnSync } from 'node:child_process'
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -8,8 +5,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const root = new URL('../', import.meta.url)
 const platforms = ['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64', 'win32-arm64', 'win32-x64']
 const binaryName = target => target.startsWith('win32-') ? 'moejs.exe' : 'moejs'
-// A Git subdirectory install consumes the same prebuilt files as a tarball.
-// A package manager invoking prepack on the user's machine must not need Go.
 if (process.argv.includes('--check')) {
   const files = ['lib/generated/moe-execute.js', 'bin/NOTICE', ...platforms.map(p => `bin/${p}/${binaryName(p)}`)]
   for (const file of files) {

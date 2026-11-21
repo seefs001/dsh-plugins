@@ -1,22 +1,8 @@
-/**
- * dsh-remember-model — Host-only plugin.
- *
- * Remembers the last model picked in a top-level session: every recorded
- * `model/selection` event becomes the default selection for new agents.
- *
- * The Host already saves the default, but browsers cache the model catalog
- * (which carries that default) per Host generation and only reload it on a
- * few remote events. Without a reload, a new session's selector keeps showing
- * the old default. After each save this plugin emits `llm/models-updated`,
- * which every connected browser answers by reloading the catalog.
- */
 export const name = 'remember-model'
 export const inject = ['agentDefaultModel']
 
-/** Let the Host's own save of the same selection settle before refreshing browsers. */
 export const REFRESH_DELAY_MS = 400
 
-/** Build a selection from a `model/selection` payload, or `undefined` when it is malformed. */
 export function selectionOf(data) {
   if (typeof data?.provider !== 'string' || typeof data?.model !== 'string') return undefined
   return {
@@ -31,12 +17,9 @@ export function sameSelection(a, b) {
     && (a?.reasoningEffort ?? undefined) === (b?.reasoningEffort ?? undefined)
 }
 
-/** Keep subagent selections out of user defaults on both rc.1 and rc.2. */
-export function isTopLevelSession(agents, sessionId, subagents) {
-  const agent = agents?.get?.(sessionId)
-  if (agent === undefined) return true
-  if (typeof agents.roots === 'function') return agents.roots().includes(agent)
-  return subagents === undefined || subagents.rootOf(agent) === agent
+export function isTopLevelSession(agents, sessionId) {
+  const agent = agents?.get(sessionId)
+  return agent === undefined || agents.roots().includes(agent)
 }
 
 export function apply(ctx) {
@@ -48,11 +31,8 @@ export function apply(ctx) {
     if (event?.type !== 'model/selection') return
     const next = selectionOf(event.data)
     if (next === undefined) return
-    // Subagent sessions select their own models; only top-level sessions count.
-    if (!isTopLevelSession(ctx.get('agents'), session.id, ctx.get('subagents'))) return
+    if (!isTopLevelSession(ctx.get('agents'), session.id)) return
 
-    // A pending save can still change the default after this event. Queue the
-    // new selection even if it matches the currently committed value.
     const save = saves === 0 && sameSelection(ctx.agentDefaultModel.currentSelection(), next)
       ? Promise.resolve()
       : ctx.agentDefaultModel.saveSelection(next)
@@ -61,6 +41,7 @@ export function apply(ctx) {
       .then(() => {
         if (closed) return
         if (pending !== null) clearTimeout(pending)
+        // external: DSH browsers cache the default model until llm/models-updated triggers a reload
         pending = setTimeout(() => {
           pending = null
           try { ctx.emit('llm/models-updated', next.provider) } catch {}

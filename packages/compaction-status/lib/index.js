@@ -1,9 +1,7 @@
-/** Host-owned progress, folded from the existing compaction lifecycle. */
 export const name = 'compaction-status'
 export const inject = ['sessionProjections']
 export const PROJECTION_KEY = 'dsh-compaction-status'
 
-/** Dependency-free validator for the registry's persisted and wire boundaries. */
 export const STATE_SCHEMA = {
   parse(value) {
     if (value === null) return null
@@ -26,7 +24,7 @@ export function foldCompaction(state, event) {
   }
   if (state === null) return state
   if (event.type === 'compaction/end' && event.data.compactionId === state.id) return null
-  // Recovery/fork seeds close inherited work; automatic compaction belongs to its turn.
+  // external: dsh session/end-seed closes inherited compaction on recovery or fork
   if (event.type === 'session/end-seed') return null
   if (event.type === 'turn/end' && state.turn !== null && event.data.turn === state.turn) return null
   return state

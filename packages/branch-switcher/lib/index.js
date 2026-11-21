@@ -1,4 +1,3 @@
-/** Switch existing local branches before a Session's first turn, through its execution world. */
 export const name = 'branch-switcher'
 export const inject = ['commands', 'tools', 'subprocess', 'sandbox', 'sandboxPolicy', 'workingDirectory']
 
@@ -14,7 +13,6 @@ const GIT_ENV = {
   GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0', GIT_NO_LAZY_FETCH: '1', LC_ALL: 'C',
 }
 
-/** One domain operation shared by the user command and the agent tool. */
 export class BranchSwitcher {
   constructor(signal) { this.signal = signal }
 
@@ -24,8 +22,7 @@ export class BranchSwitcher {
     const operation = new AbortController()
     const signal = AbortSignal.any([this.signal, operation.signal, ...(callerSignal ? [callerSignal] : [])])
     const ctx = agent.ctx
-    // The Agent context selects the execution world, but does not inject this consumer's services.
-    // Resolve them like DSH's terminal controller instead of reading properties on agent.ctx.
+    // external: DSH agent.ctx does not pre-inject consumer services; resolve via ctx.get
     const workingDirectory = ctx.get('workingDirectory')
     const sandboxPolicy = ctx.get('sandboxPolicy')
     const subprocess = ctx.get('subprocess')
@@ -78,7 +75,6 @@ export class BranchSwitcher {
     if (typeof args.root !== 'string' || args.root !== root || !Object.hasOwn(args, 'current')) {
       throw new Error('Refresh the branch list before switching')
     }
-    // Maintenance claims idle synchronously. A first message sent meanwhile waits for Git to settle.
     return agent.runMaintenance(async maintenanceSignal => {
       const abort = () => { operation.abort(maintenanceSignal.reason) }
       maintenanceSignal.addEventListener('abort', abort, { once: true })
@@ -131,7 +127,7 @@ export function apply(ctx) {
   }), 'branch-switcher: user command')
   ctx.effect(() => ctx.tools.register({
     name: 'branch_switcher',
-    description: 'List local Git branches (action: list), or switch an existing local branch in a blank idle Session (action: switch, branch, root and current from list). Only before the first message; a running Session cannot switch. This changes the shared checkout, not a per-Session branch. No branch creation, fetch, stash, reset, or force. Git refuses overwritten changes. UI and tool share the same operation.',
+    description: 'List local Git branches (action: list) or switch an existing local branch before the first message (action: switch with branch, root, and current from list). Changes the shared working directory; does not create, fetch, stash, reset, or force-switch.',
     parameters: { type: 'object', properties: {
       action: { type: 'string', enum: ['list', 'switch'] }, branch: { type: 'string' },
       root: { type: 'string' }, current: { oneOf: [{ type: 'string' }, { type: 'null' }] },

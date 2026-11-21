@@ -10,7 +10,6 @@ export class RpcError extends Error {
   }
 }
 
-/** NDJSON JSON-RPC over the exact managed process supplied by DSH. */
 export class AcpConnection {
   constructor(child, { onNotification, onRequest, onExit, onStderr }) {
     this.child = child
@@ -36,7 +35,6 @@ export class AcpConnection {
       try { onStderr?.(this.stderrDecoder.write(data)) } catch (error) { this.fail(error) }
     })
     child.stderr.on('error', error => this.fail(error))
-    // Observe both process failure and protocol closure; done remains awaitable by stop().
     this.done = child.done.then(outcome => {
       const how = outcome.signal ? `signal ${outcome.signal}` : `code ${outcome.exitCode ?? 'unknown'}`
       this.fail(new Error(`Agent process exited (${how})`))
@@ -67,8 +65,6 @@ export class AcpConnection {
       if (this.closed) return
     }
     this.buffer = this.buffer.slice(start)
-    // Only the unterminated frame is bounded; complete lines were already consumed.
-    // UTF-8 needs at least one byte per UTF-16 unit and at most three, so byteLength runs only near the limit.
     const units = this.buffer.length
     if (units > MAX_FRAME_BYTES || (units * 3 > MAX_FRAME_BYTES && Buffer.byteLength(this.buffer) > MAX_FRAME_BYTES)) {
       this.fail(new Error('ACP frame exceeds 16 MiB'))
@@ -78,7 +74,6 @@ export class AcpConnection {
   receive(message) {
     if (typeof message.method === 'string') {
       if (message.id !== undefined && message.id !== null) {
-        // Requests can wait for humans; they must not block streaming notifications.
         void Promise.resolve().then(() => this.handlers.onRequest(message.method, message.params ?? {}, message.id)).then(
           result => this.reply(message.id, { result: result ?? {} }),
           error => this.reply(message.id, { error: { code: error.code ?? -32603, message: error.message ?? 'Request failed' } }),
@@ -93,7 +88,6 @@ export class AcpConnection {
     if (!pending) return
     this.pending.delete(message.id)
     clearTimeout(pending.timer)
-    // Every prior notification has been handed to the manager before settlement.
     void this.notificationTail.then(() => {
       if (message.error) pending.reject(new RpcError(message.error.message ?? 'ACP request failed', message.error.code))
       else pending.resolve(message.result ?? {})
@@ -152,9 +146,6 @@ export class AcpConnection {
       const exited = await this.child.waitForExit(AbortSignal.timeout(1_000)).catch(() => false)
       if (!exited) this.child.terminate()
       await this.child.waitForExit()
-      // Process and handler failures already closed the connection through fail().
-      // Stopping only awaits quiescence; replaying them here would turn every later
-      // disconnect into a cleanup failure.
       await this.done.catch(() => {})
       await this.notificationTail.catch(() => {})
     })()

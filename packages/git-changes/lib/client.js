@@ -1,15 +1,3 @@
-/**
- * dsh-git-changes — browser-only plugin.
- *
- * Adds one entry below the composer, beside the shipped activity and usage
- * pills: the checked-out branch, the added and deleted lines and the number of
- * changed files. Clicking it opens the forge panel's Local changes tab in the
- * right Sidebar.
- *
- * The numbers come from the forge panel's own Remote stream
- * (`forgePanel.follow`), so the plugin runs no Git and stays inactive in
- * profiles without `@deepseek-ai/dsh-experimental-forge-bundle`.
- */
 window.__ModuleLoader__.load({
   id: 'dsh-git-changes',
   factory(require) {
@@ -20,11 +8,7 @@ window.__ModuleLoader__.load({
     const DEBOUNCE_MS = 400
     const TAB_SLOT = 'sidebar.right.pane.tab'
     const CHANGES_ID = '@deepseek-ai/dsh-experimental-client-ui-forge/changes'
-    // Lower renders first; the forge body registers at the default 0.
     const TAB_PRIORITY = -10
-    const WRAP_RETRY_MS = 100
-    const WRAP_TRIES = 100
-    // The forge panel's changes view: `dsh-resource://forge-changes/<session>/local`.
     const localAddress = sessionId => `dsh-resource://forge-changes/${encodeURIComponent(sessionId)}/local`
 
     const CSS_TEXT = `
@@ -71,7 +55,6 @@ window.__ModuleLoader__.load({
       },
     }
 
-    /** Sum the added and deleted lines of a file list. */
     function totals(files, omitted = 0) {
       if (files === null || files === undefined) return null
       let additions = 0
@@ -80,11 +63,6 @@ window.__ModuleLoader__.load({
       return { additions, deletions, files: files.length, omitted }
     }
 
-    /**
-     * What a change to the uncommitted totals must also change in the panel
-     * frame: the checked-out commit (a commit empties them) and the Branch
-     * summary (it covers the working tree).
-     */
     function trigger(panel) {
       if (panel === null || panel.checkout?.state !== 'ready') return null
       const { checkout } = panel.checkout
@@ -92,10 +70,6 @@ window.__ModuleLoader__.load({
       return `${checkout.root}\n${checkout.branch}\n${checkout.commit}\n${local}`
     }
 
-    /**
-     * Follow one Session's forge panel state while mounted; reopen after a
-     * connection reset.
-     */
     function createFollower(ctx) {
       return function usePanel(sessionId) {
         const [state, setState] = React.useState(null)
@@ -128,7 +102,6 @@ window.__ModuleLoader__.load({
       }
     }
 
-    /** Read the Uncommitted scope again whenever the trigger moves, debounced. */
     function createUncommitted(ctx) {
       return function useUncommitted(sessionId, key) {
         const [summary, setResult] = React.useState(null)
@@ -139,7 +112,7 @@ window.__ModuleLoader__.load({
             try {
               const result = await ctx.remote.forgePanel.localDiff(sessionId, { kind: 'uncommitted' }, controller.signal)
               if (controller.signal.aborted) return
-              const value = result && typeof result === 'object' && 'ok' in result ? (result.ok ? result.value : null) : result
+              const value = result?.ok ? result.value : null
               setResult({ key, sum: totals(value?.files, value?.omitted) })
             } catch (error) {
               if (!controller.signal.aborted) {
@@ -217,10 +190,7 @@ window.__ModuleLoader__.load({
           locale: NS,
         }, props => h(GitChangesPill, { ...props, key: props.sessionId })))
 
-        // The forge changes tab seeds every new tab with the Branch scope and
-        // offers no setting for it. Wrap its body: render the forge component
-        // unchanged and, once per new Local changes tab, choose Uncommitted.
-        if (typeof ctx.slots.entries !== 'function') return
+        // external: DSH forge changes tab defaults to Branch scope with no setting
         const seeded = new Set()
         const baseEntry = self => {
           let best
@@ -247,25 +217,17 @@ window.__ModuleLoader__.load({
           const base = baseEntry(UncommittedFirst)
           return base === undefined ? null : h(base.component, props)
         }
-        // The forge body may register into the same declaration after this
-        // callback runs, so wait for it briefly instead of giving up.
         ctx.slots.inject(TAB_SLOT, () => {
-          let dispose = () => {}
-          let timer
-          let tries = 0
-          let stopped = false
-          const attempt = () => {
-            if (stopped) return
-            const base = baseEntry(UncommittedFirst)
-            if (base === undefined) {
-              if (++tries < WRAP_TRIES) timer = setTimeout(attempt, WRAP_RETRY_MS)
-              else console.warn('[dsh-git-changes] forge changes tab not found; it keeps its Branch default')
-              return
-            }
-            // A stored entry keeps only key/id/order/label/priority under
-            // `options`; its store, inject face and locale sit on the entry.
-            // Reusing the minted store handle gives the wrapped body the same
-            // `useStore`/`actions` props forge's own registration supplies.
+          let dispose
+          let base
+          const sync = () => {
+            const next = baseEntry(UncommittedFirst)
+            if (next === base) return
+            dispose?.()
+            dispose = undefined
+            base = next
+            if (!base) return
+            // external: DSH slot entries store locale, inject, and store on the entry rather than options
             const options = { name: TAB_SLOT, key: CHANGES_ID, priority: TAB_PRIORITY }
             if (base.locale !== undefined) options.locale = base.locale
             if (base.inject !== undefined) options.inject = base.inject
@@ -276,8 +238,9 @@ window.__ModuleLoader__.load({
               console.warn('[dsh-git-changes] cannot default the changes tab to Uncommitted:', error)
             }
           }
-          attempt()
-          return () => { stopped = true; clearTimeout(timer); dispose() }
+          const unsubscribe = ctx.slots.subscribe(TAB_SLOT, sync)
+          sync()
+          return () => { unsubscribe(); dispose?.() }
         })
       },
       _internal: { totals, localAddress },

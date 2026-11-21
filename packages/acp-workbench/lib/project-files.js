@@ -3,7 +3,6 @@ import { isAbsolute, resolve } from 'node:path'
 const visibleName = name => typeof name === 'string' && !!name && !name.startsWith('.') && !/[/\\\p{Cc}]/u.test(name)
 const visiblePath = path => typeof path === 'string' && !isAbsolute(path) && !/^[A-Za-z]:/u.test(path) && path.split('/').every(visibleName)
 
-/** The native file RPCs use header.cwd. For project rows pin the search to the effective checkout instead. */
 export class ProjectFiles {
   constructor(ctx) { this.ctx = ctx; this.life = new AbortController() }
   enabled() { return ['workspaceRegistry', 'workingDirectory', 'workspaceFiles', 'sessionQuery'].every(key => !!this.ctx.get(key)) }

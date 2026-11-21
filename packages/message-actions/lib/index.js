@@ -5,7 +5,6 @@ export const inject = ['storageDomain', 'sessionQuery', 'llm', 'webServer', 'con
 export const OP_PATH = '/message-actions/op'
 const MAX_RESULTS = 200
 
-// Adapted from the user's wait-what skill. The call stays isolated from the Agent.
 export const WAIT_WHAT_PROMPT = [
   "Wait, I don't understand where you've got to here. Re-pitch that: give me a little bit of context, talk in ASD-STE100 Simplified Technical English, and use the ubiquitous language from `GLOSSARY.md` (follow `GLOSSARY-MAP.md` to the right one if the repo has more than one).",
   '',
@@ -43,7 +42,6 @@ export const DOMAIN_SPEC = {
 
 const blocksText = content => (content ?? []).filter(b => b.type === 'text').map(b => b.text).join('\n\n')
 
-/** Read the exact durable assistant message, never a DOM copy or live token buffer. */
 export function sourceOf(events, messageId) {
   let user = ''
   let config = {}
@@ -74,7 +72,6 @@ const settingsOf = config => ({
 })
 const keyOf = (sessionId, messageId, source) => hash([1, sessionId, messageId, source.message, source.user, source.route, WAIT_WHAT_PROMPT])
 
-/** Shared Host operation seam for the HTTP UI and message_actions tool. */
 export class MessageActions {
   constructor(ctx, domain, config) {
     this.settings = settingsOf(config)
@@ -199,8 +196,7 @@ export function apply(ctx, config) {
   ready.catch(error => ctx.logger.warn(`message-actions storage: ${error.message}`))
   const tasks = new Set()
   const run = (op, sessionId, signal, onText) => {
-    // Saving reconciles this very plugin. Never make disposal await its own save.
-    // This operation uses no domain data and is governed by the caller's signal.
+    // external: cordis configEditor.edit reconciles this plugin; awaiting save in disposal deadlocks
     if (op?.action === 'save_settings') return ready.then(service => service.run(op, sessionId, signal, onText))
     const combined = signal ? AbortSignal.any([signal, lifetime.signal]) : lifetime.signal
     const task = ready.then(service => service.run(op, sessionId, combined, onText))

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Quote jump",
-    "description": "Turns quotes in your messages into clickable blocks that jump back to the original message and highlight it."
+    "description": "Renders quotes in user messages as clickable blocks that scroll to and highlight the source."
   }
 }
