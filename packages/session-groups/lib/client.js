@@ -3,21 +3,40 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const ReactDOM = require('react-dom')
-    const { Button, Modal } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const {
+      Button, Checkbox, Input, Modal, StateDot, Tag,
+      IconChevronDownOutlineRegular, IconChevronUpOutlineRegular,
+      IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderCloseRegular, IconFolderOpenRegular,
+      IconPinFillRegular, IconPinOutlineRegular, IconPlusOutlineRegular, IconSearchOutlineRegular,
+      IconTrashOutlineRegular, IconWarningTriangleOutlineRegular,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'session-groups'
     const PANEL_ID = 'session-groups'
+    const UNGROUPED_KEY = '__ungrouped__'
 
     const EN = {
       panel: 'Session groups',
+      intro: 'Organize sidebar conversations into synced groups and pin important threads at the top.',
       newGroup: 'New group',
       defaultName: 'New group',
-      empty: 'No groups yet. Right-click a session in the sidebar and choose Add to group, or',
-      emptyGroup: 'No sessions yet.',
-      addSession: 'Add session',
-      searchPlaceholder: 'Search sessions',
-      noMatches: 'No sessions match "{q}"',
-      noCandidates: 'Every session is already in this group',
+      groupsHeading: 'Groups',
+      ungrouped: 'Ungrouped sessions',
+      ungroupedIntro: 'Conversations not assigned to any group yet. Select several to file them at once, or drag any row onto a group on the left.',
+      empty: 'No groups yet.',
+      emptyHint: 'Create a group here, or right-click any session in the sidebar and choose Add to group.',
+      emptyGroup: 'No sessions in this group yet.',
+      emptyGroupHint: 'Add sessions with the button above, or drag any session onto this group.',
+      emptyUngrouped: 'Every conversation is already organized into a group.',
+      addSession: 'Add sessions',
+      closePicker: 'Done adding',
+      searchPlaceholder: 'Search sessions to add…',
+      filterGroupSessions: 'Filter sessions in this group…',
+      filterUngrouped: 'Search ungrouped sessions…',
+      noMatches: 'No sessions match “{q}”',
+      noFilterMatches: 'No sessions match the current filter.',
+      resetFilters: 'Reset filters',
+      noCandidates: 'Every session is already in this group.',
       moreResults: 'Showing the first {n}. Keep typing to narrow down.',
       inGroup: 'In {name}',
       clear: 'Clear search',
@@ -28,36 +47,65 @@ window.__ModuleLoader__.load({
       rename: 'Rename',
       delete: 'Delete group',
       cancel: 'Cancel',
-      deleteConfirm: 'Delete group "{name}"? Sessions are kept.',
+      deleteConfirm: 'Delete group “{name}”? Conversations are kept.',
       moveUp: 'Move up',
       moveDown: 'Move down',
       pin: 'Pin in group',
       unpin: 'Unpin in group',
+      pinnedBadge: '{n} pinned',
+      runningBadge: '{n} running',
       remove: 'Remove from group',
       addTo: 'Add to group',
       moveTo: 'Move to group',
+      moveToPick: 'Move to…',
+      addToPick: 'Add to group…',
       menuNewGroup: 'New group…',
       unknownSession: 'Unavailable session',
       loadFailed: 'Session groups are not syncing.',
       loading: 'Loading session groups…',
+      synced: 'Synced',
+      syncing: 'Syncing…',
+      offline: 'Not syncing',
       opFailed: 'Could not update session groups',
       retry: 'Retry',
       collapse: 'Collapse',
       expand: 'Expand',
       sessions: '{n} sessions',
+      sessionOne: '1 session',
       dropNew: 'Drop here to create a new group',
       dropInto: 'Drag sessions here',
+      filterAll: 'All',
+      filterPinned: 'Pinned',
+      filterRunning: 'Running',
+      selectShown: 'Select shown',
+      clearSelection: 'Clear',
+      selectedCount: '{n} selected',
+      addSelectedTo: 'Add to group',
+      createWithSelected: 'New group with selected',
+      selectSession: 'Select {title}',
     }
     const ZH = {
       panel: '会话分组',
+      intro: '把侧边栏会话整理到跨端同步的自定义分组中，并可在组内置顶重要对话。',
       newGroup: '新建分组',
       defaultName: '新分组',
-      empty: '还没有分组。在侧边栏会话上右键选“加入分组”，或者',
-      emptyGroup: '还没有会话。',
+      groupsHeading: '分组',
+      ungrouped: '未分组会话',
+      ungroupedIntro: '尚未归入任何分组的会话。可多选批量归类，或直接拖拽到左侧任意分组。',
+      empty: '还没有分组。',
+      emptyHint: '点击右上角新建分组，或在侧边栏会话上右键选择“加入分组”。',
+      emptyGroup: '这个分组还没有会话。',
+      emptyGroupHint: '点击上方“添加会话”，或直接把会话拖到此分组。',
+      emptyUngrouped: '所有会话都已归类到分组中。',
       addSession: '添加会话',
-      searchPlaceholder: '搜索会话',
+      closePicker: '完成添加',
+      searchPlaceholder: '搜索要添加的会话…',
+      filterGroupSessions: '筛选组内会话…',
+      filterUngrouped: '搜索未分组会话…',
       noMatches: '没有匹配“{q}”的会话',
-      noCandidates: '所有会话都已在这个分组里',
+      noFilterMatches: '没有符合当前筛选条件的会话。',
+      resetFilters: '重置筛选',
+      noCandidates: '所有会话都已在这个分组里。',
       moreResults: '只显示前 {n} 条，继续输入可缩小范围',
       inGroup: '在“{name}”中',
       clear: '清除搜索',
@@ -73,20 +121,37 @@ window.__ModuleLoader__.load({
       moveDown: '下移',
       pin: '组内置顶',
       unpin: '取消组内置顶',
+      pinnedBadge: '{n} 置顶',
+      runningBadge: '{n} 运行中',
       remove: '移出分组',
       addTo: '加入分组',
       moveTo: '移到分组',
+      moveToPick: '移到…',
+      addToPick: '加入分组…',
       menuNewGroup: '新建分组…',
       unknownSession: '不可用的会话',
       loadFailed: '会话分组未同步。',
       loading: '正在加载会话分组…',
+      synced: '已同步',
+      syncing: '同步中…',
+      offline: '未同步',
       opFailed: '更新会话分组失败',
       retry: '重试',
       collapse: '收起',
       expand: '展开',
       sessions: '{n} 个会话',
+      sessionOne: '1 个会话',
       dropNew: '拖到这里新建分组',
       dropInto: '把会话拖到这里',
+      filterAll: '全部',
+      filterPinned: '已置顶',
+      filterRunning: '运行中',
+      selectShown: '全选当前',
+      clearSelection: '取消选择',
+      selectedCount: '已选 {n} 个会话',
+      addSelectedTo: '加入所选分组',
+      createWithSelected: '新建分组并加入',
+      selectSession: '选择 {title}',
     }
 
     const COLLAPSED_KEY = 'dsh-session-groups.collapsed'
@@ -99,7 +164,7 @@ window.__ModuleLoader__.load({
 
     function createStore() {
       let state = { groups: [], status: 'loading' }
-      let view = { collapsed: readCollapsed(), editing: null, pendingDelete: null }
+      let view = { collapsed: readCollapsed(), editing: null, pendingDelete: null, selected: null }
       const listeners = new Set()
       const emit = () => listeners.forEach(fn => fn())
       return {
@@ -160,101 +225,97 @@ window.__ModuleLoader__.load({
       h('path', { key: 'a', d: 'M2 4.5h4l1.2 1.3H14v6.7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z' }),
       h('path', { key: 'b', d: 'M2 4.5v-1a1 1 0 0 1 1-1h2.6l1.2 1.3' }),
     ])
-    const IconFolderClosed = ({ size = 16 }) => svg(size,
-      h('path', { d: 'M2 4.2a1 1 0 0 1 1-1h3l1.3 1.4H13a1 1 0 0 1 1 1v6.2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z' }))
-    const IconFolderOpen = ({ size = 16 }) => svg(size, [
-      h('path', { key: 'a', d: 'M2 11.8V4.2a1 1 0 0 1 1-1h3l1.3 1.4H12a1 1 0 0 1 1 1V7' }),
-      h('path', { key: 'b', d: 'M2 11.8 3.6 7.7a1 1 0 0 1 .9-.7h9.1a.6.6 0 0 1 .6.8l-1.4 4a1 1 0 0 1-.9.7H3a1 1 0 0 1-1-.7z' }),
-    ])
-    const IconPin = ({ size = 14, filled }) => svg(size, [
-      h('path', { key: 'a', d: 'M6 2.5h4l-.6 3.6 2.1 2.2v1H4.5v-1l2.1-2.2z', fill: filled ? 'currentColor' : 'none' }),
-      h('path', { key: 'b', d: 'M8 9.3V13.5' }),
-    ])
-    const IconSearch = ({ size = 16 }) => svg(size, [
-      h('circle', { key: 'a', cx: 7, cy: 7, r: 4.25 }),
-      h('path', { key: 'b', d: 'M10.2 10.2 13.5 13.5' }),
-    ])
-    const IconPlus = ({ size = 14 }) => svg(size, h('path', { d: 'M8 3v10M3 8h10' }))
     const IconChevron = ({ size = 12, open }) => svg(size, h('path', { d: 'M6 4l4 4-4 4' }),
       { style: { transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' } })
-    const IconX = ({ size = 14 }) => svg(size, h('path', { d: 'M4 4l8 8M12 4l-8 8' }))
-    const IconEdit = ({ size = 14 }) => svg(size, h('path', { d: 'M3 13h2.5L12.5 6 10 3.5 3 10.5z' }))
-    const IconUp = ({ size = 14 }) => svg(size, h('path', { d: 'M4 10l4-4 4 4' }))
-    const IconDown = ({ size = 14 }) => svg(size, h('path', { d: 'M4 6l4 4 4-4' }))
-    const IconTrash = ({ size = 14 }) => svg(size, h('path', { d: 'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5' }))
 
     const CSS = `
-.sg-page{--sg-hover:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));--sg-tertiary:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));--sg-caption:var(--dsw-alias-label-caption,var(--sg-tertiary));--sg-border:var(--dsw-alias-border-l4,var(--dsw-alias-border-l2));--sg-ease:var(--ds-ease-in-out,ease);--sg-r-xs:var(--dsw-radius-xs,4px);--sg-r-sm:var(--dsw-radius-sm,6px);--sg-r-md:var(--dsw-radius-md,8px);--sg-r-lg:var(--dsw-radius-lg,12px);--sg-focus:var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));height:100%;overflow:auto;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}
-.sg-page button:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--sg-focus);outline-offset:-2px}
-.sg-inner{max-width:960px;margin:0 auto;padding:28px clamp(24px,4vw,48px) 64px}
+.sg-page{container-type:inline-size;height:100%;overflow-y:auto;overscroll-behavior:contain;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.sg-page *,.sg-page *::before,.sg-page *::after{box-sizing:border-box}
+.sg-page :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+.sg-inner{display:flex;flex-direction:column;gap:20px;width:min(100%,1080px);margin:0 auto;padding:28px clamp(20px,3.5vw,44px) 56px}
 [data-platform=darwin] .sg-inner{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
-@media (max-width:767px){.sg-inner{padding:24px 20px 48px}[data-platform=darwin] .sg-inner{padding-top:calc(24px + var(--dsh-frame-top-clearance,0px))}}
-.sg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
-.sg-title{margin:0;font-size:20px;line-height:28px;font-weight:500}
-.sg-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 10px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:18px;cursor:pointer;transition:background-color .15s var(--sg-ease)}
-.sg-btn.sg-primary{padding:0 14px 0 12px;border:0;border-radius:999px;corner-shape:round;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground,var(--dsw-alias-bg-base))}
+@media (max-width:767px){.sg-inner{padding:20px 16px 48px}[data-platform=darwin] .sg-inner{padding-top:calc(20px + var(--dsh-frame-top-clearance,0px))}}
+.sg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.sg-head-copy{display:flex;flex-direction:column;gap:4px;flex:1 1 280px;min-width:0}
+.sg-title{margin:0;font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+.sg-note{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
+.sg-head-actions{display:flex;align-items:center;gap:10px;flex:none}
+.sg-live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}
+.sg-banner{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.sg-banner[data-tone=error]{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 28%,var(--dsw-alias-border-l2))}
+.sg-banner>svg{flex:none}
+.sg-banner-text{flex:1;min-width:0}
+.sg-hub{display:grid;grid-template-columns:minmax(220px,260px) minmax(0,1fr);gap:20px;align-items:start}
+@container (max-width:740px){.sg-hub{grid-template-columns:minmax(0,1fr)}}
+.sg-rail{display:flex;flex-direction:column;gap:6px;min-width:0;position:sticky;top:16px}
+@container (max-width:740px){.sg-rail{position:static}}
+.sg-rail-label{display:flex;align-items:center;justify-content:space-between;padding:0 8px 2px;font-size:11px;line-height:16px;font-weight:500;color:var(--dsw-alias-label-tertiary);letter-spacing:.02em;text-transform:uppercase}
+.sg-rail-sep{height:.5px;margin:6px 4px;background:var(--dsw-alias-border-l1)}
+.sg-rail-item{display:flex;flex-direction:column;gap:4px;width:100%;padding:9px 11px;border:.5px solid transparent;border-radius:var(--dsw-radius-md,12px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0;transition:background-color .15s,border-color .15s,box-shadow .15s}
+@media (hover:hover){.sg-rail-item:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.sg-rail-item[aria-current=true]{background:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-border-l2)}
+.sg-rail-item.sg-dropping{background:var(--dsw-alias-interactive-bg-hover);box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
+.sg-rail-top{display:flex;align-items:center;gap:7px;min-width:0}
+.sg-rail-icon{display:inline-flex;flex:none;color:var(--dsw-alias-label-tertiary)}
+.sg-rail-item[aria-current=true] .sg-rail-icon{color:var(--dsw-alias-label-primary)}
+.sg-rail-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-size:13px;line-height:18px}
+.sg-rail-count{flex:none;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.sg-rail-meta{display:flex;align-items:center;gap:6px;padding-left:22px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.sg-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.sg-hero{display:flex;flex-direction:column;gap:10px;padding:16px 18px;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);min-width:0}
+.sg-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sg-hero-title{display:flex;flex-direction:column;gap:4px;flex:1 1 220px;min-width:0}
+.sg-hero-title h2{margin:0;font-size:16px;line-height:22px;font-weight:600;overflow-wrap:anywhere}
+.sg-hero-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:none}
+.sg-pills{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sg-rename{width:100%;max-width:360px;height:30px;padding:0 8px;border:.5px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:15px;font-weight:600;outline:none}
+.sg-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sg-bar-search{flex:1 1 220px;min-width:0}
+.sg-chips{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sg-chip{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
+@media (hover:hover){.sg-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.sg-chip[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-2));border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font-weight:500}
+.sg-chip-n{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.sg-batch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border-radius:var(--dsw-radius-md,10px);background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 8%,var(--dsw-alias-bg-layer-1));border:.5px solid color-mix(in srgb,var(--dsw-alias-state-business-primary) 26%,var(--dsw-alias-border-l2));font-size:12px}
+.sg-batch-count{flex:1 1 auto;font-weight:500}
+.sg-select{height:28px;max-width:190px;min-width:0;padding:0 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}
+.sg-list{display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);overflow:hidden;min-width:0}
+.sg-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:.5px solid var(--dsw-alias-border-l1);cursor:pointer;min-width:0;transition:background-color .12s}
+.sg-row:first-child{border-top:0}
+.sg-row[draggable=true]{cursor:grab}
+@media (hover:hover){.sg-row:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.sg-row[data-selected=true]{background:var(--dsw-alias-bg-layer-1)}
+.sg-lead{display:inline-flex;align-items:center;justify-content:center;width:16px;flex:none;color:var(--dsw-alias-label-tertiary)}
+.sg-lead[data-pinned=true]{color:var(--dsw-alias-label-primary)}
+.sg-row-body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sg-row-top{display:flex;align-items:center;gap:6px;min-width:0}
+.sg-rtitle{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px;line-height:20px;font-weight:500}
+.sg-rtitle.sg-missing{color:var(--dsw-alias-label-tertiary);font-weight:400}
+.sg-row-sub{display:flex;align-items:center;gap:6px;min-width:0;font-size:11.5px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.sg-row-end{display:flex;align-items:center;gap:4px;flex:none}
+.sg-ractions{display:flex;align-items:center;gap:4px;flex:none}
+.sg-danger-text{color:var(--dsw-alias-state-error-primary)}
 .sg-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
-.sg-page .sg-btn.sg-primary:focus-visible{outline-offset:2px}
-.sg-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--sg-tertiary);cursor:pointer;flex:none;transition:background-color .15s var(--sg-ease),color .15s var(--sg-ease)}
-.sg-icon:disabled{opacity:.35;cursor:default}
-.sg-icon[aria-pressed=true]{background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
-.sg-emptystate{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:96px;padding:0 24px;text-align:center;color:var(--sg-tertiary);font-size:13px;line-height:20px}
-.sg-emptystate>svg{color:var(--sg-caption);margin-bottom:4px}
-.sg-link{padding:0;border:0;background:none;color:var(--dsw-alias-link,var(--dsw-alias-state-business-primary));font:inherit;cursor:pointer}
-.sg-error{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 8px 8px 14px;margin-bottom:16px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-md);color:var(--dsw-alias-state-error-primary);font-size:13px;line-height:18px}
-.sg-group{padding:4px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-lg)}
-.sg-group+.sg-group{margin-top:12px}
-.sg-ghead{display:flex;align-items:center;gap:4px;height:36px;padding:0 4px 0 2px;border-radius:var(--sg-r-md)}
-.sg-gname{flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:100%;cursor:pointer;user-select:none}
-.sg-gname b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px;font-weight:500}
-.sg-count{flex:none;font-size:12px;line-height:20px;color:var(--sg-tertiary)}
-.sg-gactions{display:flex;gap:2px;opacity:0;transition:opacity .12s var(--sg-ease)}
-.sg-ghead:focus-within .sg-gactions,.sg-gactions:has([aria-pressed=true]){opacity:1}
-.sg-rename{flex:1;min-width:0;height:28px;padding:0 6px;border:.5px solid var(--sg-focus);border-radius:var(--sg-r-sm);background:var(--dsw-alias-button-elevated-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:20px;font-weight:500;outline:none}
-.sg-list>*+*{margin-top:2px}
-.sg-row{display:flex;align-items:center;gap:8px;height:32px;padding:0 6px 0 10px;border-radius:var(--sg-r-md);cursor:pointer;transition:background-color .12s var(--sg-ease)}
-.sg-row:focus-visible{background:var(--sg-hover);outline:none}
-.sg-lead{display:inline-flex;align-items:center;justify-content:center;width:16px;flex:none;color:var(--sg-caption)}
-.sg-rtitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px}
-.sg-rtitle.sg-missing{color:var(--sg-caption)}
-.sg-time{flex:none;font-size:10px;line-height:16px;color:var(--sg-tertiary)}
-.sg-ractions{display:none;gap:2px;margin-right:-2px}
-.sg-ractions .sg-icon{width:24px;height:24px}
-.sg-row:focus-within .sg-ractions{display:flex}
-.sg-row:focus-within .sg-time{display:none}
-.sg-gempty{padding:6px 10px 10px 34px;font-size:12px;line-height:18px;color:var(--sg-tertiary)}
-.sg-sp{margin:2px 0 6px;padding:6px;border-radius:var(--sg-r-lg);background:var(--dsw-alias-bg-layer-1);box-shadow:inset 0 0 0 .5px var(--sg-border);animation:sg-in .16s var(--sg-ease)}
+.sg-sp{display:flex;flex-direction:column;gap:8px;padding:12px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);animation:sg-in .14s ease}
 @keyframes sg-in{from{opacity:0;transform:translateY(-3px)}}
-.sg-search{display:flex;align-items:center;height:32px;padding-right:4px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-md);background:var(--dsw-alias-bg-base);color:var(--sg-tertiary);transition:border-color .15s var(--sg-ease)}
-.sg-search:focus-within{border-color:var(--sg-focus)}
-.sg-search-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;flex:none}
-.sg-search-input{flex:1;min-width:0;height:100%;padding:0;border:0;outline:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:18px}
-.sg-search-input::placeholder{color:var(--sg-tertiary)}
-.sg-search-input::-webkit-search-cancel-button{display:none}
-.sg-clear{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none}
-.sg-results{max-height:288px;overflow-y:auto;margin-top:4px;scrollbar-width:thin}
-.sg-results>*+*{margin-top:2px}
-.sg-result{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 6px 0 10px;border:0;border-radius:var(--sg-r-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;cursor:pointer}
-.sg-result[aria-selected=true]{background:var(--sg-hover)}
-.sg-result-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px;color:var(--dsw-alias-label-secondary)}
+.sg-sp-results{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;scrollbar-width:thin}
+.sg-result{display:flex;align-items:center;gap:8px;width:100%;height:34px;padding:0 8px 0 10px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;cursor:pointer}
+.sg-result[aria-selected=true]{background:var(--dsw-alias-interactive-bg-hover)}
+.sg-result-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:18px;color:var(--dsw-alias-label-secondary)}
 .sg-result-title mark{background:none;color:var(--dsw-alias-label-primary);font-weight:600}
 .sg-result-title.sg-plain{color:var(--dsw-alias-label-primary)}
-.sg-result-meta{flex:none;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:17px;color:var(--sg-tertiary)}
-.sg-result-add{display:inline-flex;flex:none;color:var(--sg-tertiary);opacity:0;transition:opacity .12s var(--sg-ease)}
+.sg-result-meta{flex:none;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;color:var(--dsw-alias-label-tertiary)}
+.sg-result-add{display:inline-flex;flex:none;color:var(--dsw-alias-label-tertiary);opacity:0;transition:opacity .12s}
 .sg-result[aria-selected=true] .sg-result-add{opacity:1}
-.sg-status{padding:10px 10px;font-size:12px;line-height:18px;color:var(--sg-tertiary)}
-.sg-spfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;padding:6px 0 0 10px;border-top:.5px solid var(--dsw-alias-border-l1)}
-.sg-hint{display:flex;gap:12px;font-size:11px;line-height:16px;color:var(--sg-tertiary);white-space:nowrap;overflow:hidden}
-.sg-hint kbd{display:inline-block;min-width:16px;margin-right:4px;padding:0 3px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-xs);font:inherit;font-size:10px;line-height:14px;text-align:center;color:var(--dsw-alias-label-secondary)}
-.sg-textbtn{flex:none;height:24px;padding:0 10px;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}
-.sg-group{transition:box-shadow .12s var(--sg-ease),background-color .12s var(--sg-ease)}
-.sg-group.sg-dropping{background:var(--sg-hover);box-shadow:inset 0 0 0 1.5px var(--sg-focus)}
-.sg-row[draggable=true]{cursor:grab}
-.sg-dropzone{display:flex;align-items:center;justify-content:center;gap:8px;height:56px;margin-top:12px;border:1px dashed var(--sg-border);border-radius:var(--sg-r-lg);color:var(--sg-tertiary);font-size:13px;line-height:18px;transition:border-color .12s var(--sg-ease),background-color .12s var(--sg-ease),color .12s var(--sg-ease)}
-.sg-dropzone.sg-dropping{border-color:var(--sg-focus);background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
-@media (hover:hover){.sg-btn:hover,.sg-clear:hover,.sg-row:hover{background:var(--sg-hover)}.sg-btn.sg-primary:hover{background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-button-primary-fill))}.sg-icon:hover:not(:disabled){background:var(--sg-hover);color:var(--dsw-alias-label-primary)}.sg-icon.sg-danger:hover{color:var(--dsw-alias-state-error-primary)}.sg-ghead:hover .sg-gactions{opacity:1}.sg-row:hover .sg-ractions{display:flex}.sg-row:hover .sg-time{display:none}.sg-textbtn:hover{background:var(--sg-hover);color:var(--dsw-alias-label-primary)}}
-@media (hover:none){.sg-gactions{opacity:1}.sg-ractions{display:flex}.sg-time,.sg-hint{display:none}}
-@media (pointer:coarse){.sg-search-input,.sg-rename{font-size:16px}}
+.sg-spfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:8px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.sg-hint{display:flex;gap:10px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;overflow:hidden}
+.sg-hint kbd{display:inline-block;min-width:16px;margin-right:4px;padding:0 3px;border:.5px solid var(--dsw-alias-border-l2);border-radius:4px;font:inherit;font-size:10px;line-height:14px;text-align:center;color:var(--dsw-alias-label-secondary)}
+.sg-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px 20px;border:.5px dashed var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);text-align:center;color:var(--dsw-alias-label-secondary)}
+.sg-empty p{margin:0}
+.sg-dropzone{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 12px;border:1px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-md,10px);color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;transition:border-color .12s,background-color .12s,color .12s}
+.sg-dropzone.sg-dropping{border-color:var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+@media (hover:none){.sg-hint{display:none}}
+@media (pointer:coarse){.sg-rename,.sg-select{font-size:16px}}
 @media (prefers-reduced-motion:reduce){.sg-sp{animation:none}.sg-page *{transition:none!important}}
 `
 
@@ -339,6 +400,17 @@ window.__ModuleLoader__.load({
           }
         }
 
+        const addMany = async (groupId, sessionIds) => {
+          if (!sessionIds.length) return
+          try {
+            await postOp({ action: 'add_many', groupId, sessionIds })
+          } catch {
+            for (const sessionId of sessionIds) {
+              await op({ action: 'add', groupId, sessionId })
+            }
+          }
+        }
+
         ctx.effect(() => ctx.contextMenus.register({
           id: 'session-groups',
           target: 'session',
@@ -388,7 +460,11 @@ window.__ModuleLoader__.load({
           },
         }), 'session-groups: session menu')
 
-        for (const [key, Icon] of [['session-groups.folder', IconGroups], ['session-groups.pin', IconPin], ['session-groups.remove', IconX]]) {
+        for (const [key, Icon] of [
+          ['session-groups.folder', IconGroups],
+          ['session-groups.pin', ({ size }) => h(IconPinOutlineRegular, { size })],
+          ['session-groups.remove', ({ size }) => h(IconCloseOutlineRegular, { size })],
+        ]) {
           ctx.slots.inject('contextMenu.icon', () => ctx.slots.register({ name: 'contextMenu.icon', key }, () => h(Icon, { size: 16 })))
         }
 
@@ -399,7 +475,10 @@ window.__ModuleLoader__.load({
           () => ctx.sessions.list.getSnapshot(),
         )
 
-        const carriesText = e => Array.from(e.dataTransfer?.types ?? []).includes('text/plain')
+        const MEMBER_MIME = 'application/x-dsh-session-group-member'
+        const GROUP_MIME = 'application/x-dsh-session-group'
+        const hasType = (e, type) => Array.from(e.dataTransfer?.types ?? []).includes(type)
+        const carriesText = e => hasType(e, 'text/plain')
 
         function useDocumentDragging() {
           const [dragging, setDragging] = React.useState(false)
@@ -456,7 +535,7 @@ window.__ModuleLoader__.load({
         function GroupName({ group, className = 'sg-rename' }) {
           const [value, setValue] = React.useState(group.name)
           const ref = React.useRef(null)
-          React.useLayoutEffect(() => { ref.current.focus(); ref.current.select() }, [])
+          React.useLayoutEffect(() => { ref.current?.focus(); ref.current?.select() }, [])
           const commit = () => {
             store.setView({ editing: null })
             const name = value.trim()
@@ -485,6 +564,7 @@ window.__ModuleLoader__.load({
 
         const PICK_LIMIT = 50
         const dirName = cwd => (cwd ?? '').split(/[\\/]/).filter(Boolean).pop() ?? ''
+        const countLabel = n => n === 1 ? t('sessionOne') : tf('sessions', { n })
 
         function Picker({ group, groups, list, onClose }) {
           const [query, setQuery] = React.useState('')
@@ -499,7 +579,7 @@ window.__ModuleLoader__.load({
             const all = list.ids
               .map(id => list.byId[id])
               .filter(s => s && !s.blank && s.origin !== 'subagent' && owner.get(s.id) !== group)
-              .filter(s => !q || (s.displayTitle ?? '').toLowerCase().includes(q) || s.id.startsWith(q))
+              .filter(s => !q || (s.displayTitle ?? '').toLowerCase().includes(q) || dirName(s.cwd).toLowerCase().includes(q) || s.id.startsWith(q))
               .toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
             return { items: all.slice(0, PICK_LIMIT).map(s => ({ s, owner: owner.get(s.id) })), total: all.length }
           }, [list, groups, group, q])
@@ -523,21 +603,21 @@ window.__ModuleLoader__.load({
             : total > PICK_LIMIT ? tf('moreResults', { n: PICK_LIMIT }) : null
           const kbd = (key, label) => h('span', null, h('kbd', null, key), label)
           return h('div', { className: 'sg-sp' },
-            h('div', { className: 'sg-search' },
-              h('span', { className: 'sg-search-icon' }, h(IconSearch)),
-              h('input', {
-                ref: inputRef, className: 'sg-search-input', type: 'search', value: query,
-                placeholder: t('searchPlaceholder'), 'aria-label': t('searchPlaceholder'),
-                role: 'combobox', 'aria-expanded': true, 'aria-controls': `sg-results-${group.id}`,
-                'aria-activedescendant': items[current] ? `sg-opt-${group.id}-${items[current].s.id}` : undefined,
-                onChange: e => { setQuery(e.target.value); setActive(0) },
-                onKeyDown,
-              }),
-              query ? h('button', {
-                type: 'button', className: 'sg-clear', title: t('clear'), 'aria-label': t('clear'),
-                onClick: () => { setQuery(''); setActive(0); inputRef.current?.focus() },
-              }, h(IconX, { size: 14 })) : null),
-            items.length > 0 ? h('div', { ref: listRef, id: `sg-results-${group.id}`, className: 'sg-results', role: 'listbox' },
+            h(Input, {
+              ref: inputRef,
+              type: 'search',
+              icon: h(IconSearchOutlineRegular, { size: 14 }),
+              value: query,
+              placeholder: t('searchPlaceholder'),
+              'aria-label': t('searchPlaceholder'),
+              role: 'combobox',
+              'aria-expanded': true,
+              'aria-controls': `sg-results-${group.id}`,
+              'aria-activedescendant': items[current] ? `sg-opt-${group.id}-${items[current].s.id}` : undefined,
+              onChange: e => { setQuery(e.target.value); setActive(0) },
+              onKeyDown,
+            }),
+            items.length > 0 ? h('div', { ref: listRef, id: `sg-results-${group.id}`, className: 'sg-sp-results', role: 'listbox' },
               items.map((item, i) => h('button', {
                 key: item.s.id, id: `sg-opt-${group.id}-${item.s.id}`, type: 'button', tabIndex: -1,
                 className: 'sg-result', role: 'option', 'aria-selected': i === current,
@@ -547,17 +627,71 @@ window.__ModuleLoader__.load({
               },
               h('span', { className: `sg-result-title${q ? '' : ' sg-plain'}` }, highlight(item.s.displayTitle || item.s.id, q)),
               h('span', { className: 'sg-result-meta' }, item.owner ? tf('inGroup', { name: item.owner.name }) : dirName(item.s.cwd)),
-              h('span', { className: 'sg-result-add' }, h(IconPlus, { size: 14 }))))) : null,
-            status ? h('div', { className: 'sg-status' }, status) : null,
+              h('span', { className: 'sg-result-add' }, h(IconPlusOutlineRegular, { size: 14 }))))) : null,
+            status ? h('p', { className: 'sg-note' }, status) : null,
             h('div', { className: 'sg-spfoot' },
               h('div', { className: 'sg-hint' }, kbd('↑↓', t('hintMove')), kbd('↵', t('hintAdd')), kbd('Esc', t('hintClose'))),
-              h('button', { type: 'button', className: 'sg-textbtn', onClick: onClose }, t('done'))))
+              h(Button, { size: 'sm', variant: 'ghost', onClick: onClose }, t('done'))))
         }
 
-        function SessionRow({ id, summary, pinned, locale }) {
+        function RailGroupItem({ group, index, groups, list, selected, onSelect }) {
+          const [over, setOver] = React.useState(false)
+          const depth = React.useRef(0)
+          const runningCount = group.sessionIds.filter(id => list.byId[id]?.running).length
+          const accepts = e => hasType(e, GROUP_MIME) || hasType(e, 'text/plain')
+          const dropProps = {
+            onDragEnter: e => { if (!accepts(e)) return; e.preventDefault(); depth.current += 1; setOver(true) },
+            onDragOver: e => { if (!accepts(e)) return; e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move' },
+            onDragLeave: () => { depth.current = Math.max(0, depth.current - 1); if (depth.current === 0) setOver(false) },
+            onDrop: e => {
+              depth.current = 0
+              setOver(false)
+              if (hasType(e, GROUP_MIME)) {
+                e.preventDefault(); e.stopPropagation()
+                const dragged = e.dataTransfer.getData(GROUP_MIME)
+                const from = groups.findIndex(g => g.id === dragged)
+                if (from < 0 || from === index) return
+                const beforeGroupId = from < index ? groups[index + 1]?.id : group.id
+                void op({ action: 'move_group', groupId: dragged, beforeGroupId }).catch(() => {})
+                return
+              }
+              const id = e.dataTransfer.getData('text/plain')?.trim()
+              const summary = id ? list.byId[id] : undefined
+              if (!summary || summary.blank) return
+              e.preventDefault(); e.stopPropagation()
+              if (!group.sessionIds.includes(id)) void op({ action: 'add', groupId: group.id, sessionId: id }).catch(() => {})
+            },
+          }
+          const meta = [
+            group.pinned.length ? tf('pinnedBadge', { n: group.pinned.length }) : null,
+            runningCount ? tf('runningBadge', { n: runningCount }) : null,
+          ].filter(Boolean).join(' · ')
+          return h('button', {
+            type: 'button',
+            className: `sg-rail-item${over ? ' sg-dropping' : ''}`,
+            'aria-current': selected || undefined,
+            draggable: true,
+            onDragStart: e => {
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData(GROUP_MIME, group.id)
+            },
+            onClick: onSelect,
+            ...dropProps,
+          },
+          h('span', { className: 'sg-rail-top' },
+            h('span', { className: 'sg-rail-icon' }, h(selected ? IconFolderOpenRegular : IconFolderCloseRegular, { size: 15 })),
+            h('span', { className: 'sg-rail-name' }, group.name),
+            runningCount > 0 ? h(StateDot, { state: 'ongoing', size: 10 }) : null,
+            h('span', { className: 'sg-rail-count' }, group.sessionIds.length)),
+          meta ? h('span', { className: 'sg-rail-meta' }, meta) : null)
+        }
+
+        function MemberRow({ id, summary, group, groups, pinned, locale }) {
           const title = summary?.displayTitle || summary?.title
           const open = () => { if (summary) ctx.uiWorkspace.openSession(id) }
           const stop = fn => e => { e.stopPropagation(); fn() }
+          const otherGroups = groups.filter(g => g.id !== group.id)
+          const dir = dirName(summary?.cwd)
           return h('div', {
             className: 'sg-row', role: 'button', tabIndex: 0, title: title ?? id,
             draggable: Boolean(summary),
@@ -568,61 +702,282 @@ window.__ModuleLoader__.load({
             onClick: open,
             onKeyDown: e => { if (e.key === 'Enter' && e.target === e.currentTarget) open() },
           },
-          h('span', { className: 'sg-lead' }, pinned ? h(IconPin, { size: 14, filled: true }) : null),
-          h('span', { className: `sg-rtitle${summary ? '' : ' sg-missing'}` }, title ?? `${t('unknownSession')} · ${id.slice(0, 8)}`),
-          h('span', { className: 'sg-time' }, relativeTime(summary?.updatedAt, locale)),
-          h('span', { className: 'sg-ractions' },
-            h('button', {
-              type: 'button', className: 'sg-icon', 'aria-pressed': pinned,
-              title: pinned ? t('unpin') : t('pin'), 'aria-label': pinned ? t('unpin') : t('pin'),
+          h('span', { className: 'sg-lead', 'data-pinned': pinned || undefined },
+            summary?.running
+              ? h(StateDot, { state: 'ongoing', size: 11 })
+              : pinned ? h(IconPinFillRegular, { size: 13 }) : null),
+          h('div', { className: 'sg-row-body' },
+            h('div', { className: 'sg-row-top' },
+              h('span', { className: `sg-rtitle${summary ? '' : ' sg-missing'}` }, title ?? `${t('unknownSession')} · ${id.slice(0, 8)}`),
+              dir ? h(Tag, { tone: 'quiet' }, dir) : null),
+            summary?.updatedAt ? h('div', { className: 'sg-row-sub' }, relativeTime(summary.updatedAt, locale)) : null),
+          h('div', { className: 'sg-ractions', onClick: e => e.stopPropagation() },
+            otherGroups.length > 0
+              ? h('select', {
+                className: 'sg-select',
+                value: '',
+                'aria-label': t('moveTo'),
+                onChange: e => {
+                  const target = e.target.value
+                  if (target) void op({ action: 'add', groupId: target, sessionId: id }).catch(() => {})
+                },
+              },
+              h('option', { value: '' }, t('moveToPick')),
+              otherGroups.map(g => h('option', { key: g.id, value: g.id }, g.name)))
+              : null,
+            h(Button, {
+              size: 'sm', variant: pinned ? 'outline' : 'ghost',
+              icon: h(pinned ? IconPinFillRegular : IconPinOutlineRegular, { size: 13 }),
+              'aria-pressed': pinned,
+              title: pinned ? t('unpin') : t('pin'),
+              'aria-label': pinned ? t('unpin') : t('pin'),
               onClick: stop(() => void op({ action: 'pin', sessionId: id, pinned: !pinned }).catch(() => {})),
-            }, h(IconPin, { size: 15, filled: pinned })),
-            h('button', {
-              type: 'button', className: 'sg-icon sg-danger', title: t('remove'), 'aria-label': t('remove'),
+            }),
+            h(Button, {
+              size: 'sm', variant: 'ghost', className: 'sg-danger-text',
+              icon: h(IconCloseOutlineRegular, { size: 13 }),
+              title: t('remove'), 'aria-label': t('remove'),
               onClick: stop(() => void op({ action: 'remove', sessionId: id }).catch(() => {})),
-            }, h(IconX))))
+            })))
         }
 
-        function Group({ group, index, count, groups, list, locale, view }) {
+        function GroupWorkspace({ group, index, groups, list, locale, view }) {
           const [picking, setPicking] = React.useState(false)
-          const collapsed = view.collapsed.has(group.id)
+          const [query, setQuery] = React.useState('')
+          const [filter, setFilter] = React.useState('all')
+          React.useEffect(() => { setPicking(false); setQuery(''); setFilter('all') }, [group.id])
+
           const editing = view.editing === `page:${group.id}`
-          const toggle = () => {
-            const next = new Set(view.collapsed)
-            if (collapsed) next.delete(group.id); else next.add(group.id)
-            store.setView({ collapsed: next })
+          const members = React.useMemo(() => orderedMembers(group, list.byId), [group, list.byId])
+          const pinnedSet = React.useMemo(() => new Set(group.pinned), [group.pinned])
+          const runningCount = members.filter(id => list.byId[id]?.running).length
+
+          const q = query.trim().toLowerCase()
+          const filtered = React.useMemo(() => members.filter(id => {
+            const s = list.byId[id]
+            if (filter === 'pinned' && !pinnedSet.has(id)) return false
+            if (filter === 'running' && !s?.running) return false
+            if (!q) return true
+            const hay = `${s?.displayTitle ?? ''} ${s?.title ?? ''} ${dirName(s?.cwd)} ${id}`.toLowerCase()
+            return hay.includes(q)
+          }), [members, list.byId, pinnedSet, filter, q])
+
+          const hasFilters = Boolean(q) || filter !== 'all'
+          const filterChips = [
+            ['all', t('filterAll'), members.length],
+            ...(group.pinned.length ? [['pinned', t('filterPinned'), group.pinned.length]] : []),
+            ...(runningCount ? [['running', t('filterRunning'), runningCount]] : []),
+          ]
+
+          return h('div', { className: 'sg-stack' },
+            h('section', { className: 'sg-hero' },
+              h('div', { className: 'sg-hero-top' },
+                h('div', { className: 'sg-hero-title' },
+                  editing
+                    ? h(GroupName, { group })
+                    : h('h2', { onDoubleClick: () => store.setView({ editing: `page:${group.id}` }) }, group.name),
+                  h('div', { className: 'sg-pills' },
+                    h(Tag, { tone: 'neutral' }, countLabel(members.length)),
+                    group.pinned.length ? h(Tag, { tone: 'outline' }, tf('pinnedBadge', { n: group.pinned.length })) : null,
+                    runningCount ? h(Tag, { tone: 'info' }, tf('runningBadge', { n: runningCount })) : null)),
+                h('div', { className: 'sg-hero-actions' },
+                  h(Button, {
+                    size: 'sm', variant: picking ? 'primary' : 'outline',
+                    icon: h(IconPlusOutlineRegular, { size: 13 }),
+                    'aria-pressed': picking,
+                    onClick: () => setPicking(p => !p),
+                  }, picking ? t('closePicker') : t('addSession')),
+                  h(Button, {
+                    size: 'sm', variant: 'ghost',
+                    icon: h(IconEditOutlineRegular, { size: 13 }),
+                    title: t('rename'), 'aria-label': t('rename'),
+                    onClick: () => store.setView({ editing: `page:${group.id}` }),
+                  }),
+                  h(Button, {
+                    size: 'sm', variant: 'ghost',
+                    icon: h(IconChevronUpOutlineRegular, { size: 13 }),
+                    title: t('moveUp'), 'aria-label': t('moveUp'),
+                    disabled: index === 0,
+                    onClick: () => void op({ action: 'move_group', groupId: group.id, beforeGroupId: groups[index - 1]?.id }).catch(() => {}),
+                  }),
+                  h(Button, {
+                    size: 'sm', variant: 'ghost',
+                    icon: h(IconChevronDownOutlineRegular, { size: 13 }),
+                    title: t('moveDown'), 'aria-label': t('moveDown'),
+                    disabled: index === groups.length - 1,
+                    onClick: () => void op({ action: 'move_group', groupId: group.id, beforeGroupId: groups[index + 2]?.id }).catch(() => {}),
+                  }),
+                  h(Button, {
+                    size: 'sm', variant: 'ghost', className: 'sg-danger-text',
+                    icon: h(IconTrashOutlineRegular, { size: 13 }),
+                    title: t('delete'), 'aria-label': t('delete'),
+                    onClick: () => store.setView({ pendingDelete: group }),
+                  })))),
+
+            picking ? h(Picker, { group, groups, list, onClose: () => setPicking(false) }) : null,
+
+            members.length > 0 ? h('div', { className: 'sg-bar' },
+              h(Input, {
+                type: 'search', className: 'sg-bar-search',
+                icon: h(IconSearchOutlineRegular, { size: 14 }),
+                value: query,
+                placeholder: t('filterGroupSessions'),
+                'aria-label': t('filterGroupSessions'),
+                onChange: e => setQuery(e.target.value),
+              }),
+              filterChips.length > 1 ? h('div', { className: 'sg-chips', role: 'group' },
+                filterChips.map(([key, label, n]) => h('button', {
+                  key, type: 'button', className: 'sg-chip', 'aria-pressed': filter === key,
+                  onClick: () => setFilter(key),
+                }, label, h('span', { className: 'sg-chip-n' }, n)))) : null) : null,
+
+            members.length === 0
+              ? h('div', { className: 'sg-empty' },
+                h(IconFolderOpenRegular, { size: 22 }),
+                h('p', null, t('emptyGroup')),
+                h('p', { className: 'sg-note' }, t('emptyGroupHint')),
+                !picking ? h(Button, { size: 'sm', variant: 'outline', icon: h(IconPlusOutlineRegular, { size: 13 }), onClick: () => setPicking(true) }, t('addSession')) : null)
+              : filtered.length === 0
+                ? h('div', { className: 'sg-empty' },
+                  h('p', null, t('noFilterMatches')),
+                  hasFilters ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => { setQuery(''); setFilter('all') } }, t('resetFilters')) : null)
+                : h('div', { className: 'sg-list' },
+                  filtered.map(id => h(MemberRow, {
+                    key: id, id, summary: list.byId[id], group, groups, pinned: pinnedSet.has(id), locale,
+                  }))))
+        }
+
+        function UngroupedWorkspace({ sessions, groups, locale, onCreateWith }) {
+          const [query, setQuery] = React.useState('')
+          const [selected, setSelected] = React.useState(() => new Set())
+          const [targetGroup, setTargetGroup] = React.useState(groups[0]?.id ?? '')
+          const [busy, setBusy] = React.useState(false)
+
+          React.useEffect(() => {
+            if (!groups.some(g => g.id === targetGroup)) setTargetGroup(groups[0]?.id ?? '')
+          }, [groups, targetGroup])
+
+          const validIds = React.useMemo(() => new Set(sessions.map(s => s.id)), [sessions])
+          const selectedIds = React.useMemo(() => [...selected].filter(id => validIds.has(id)), [selected, validIds])
+          const q = query.trim().toLowerCase()
+          const filtered = React.useMemo(() => sessions.filter(s => {
+            if (!q) return true
+            return `${s.displayTitle ?? ''} ${s.title ?? ''} ${dirName(s.cwd)} ${s.id}`.toLowerCase().includes(q)
+          }), [sessions, q])
+
+          const toggle = (id, checked) => {
+            setSelected(prev => {
+              const next = new Set(prev)
+              if (checked) next.add(id)
+              else next.delete(id)
+              return next
+            })
           }
-          const drop = useSessionDrop(list, sessionId => {
-            if (group.sessionIds.includes(sessionId)) return
-            if (collapsed) toggle()
-            void op({ action: 'add', groupId: group.id, sessionId }).catch(() => {})
-          })
-          const members = orderedMembers(group, list.byId)
-          const pinned = new Set(group.pinned)
-          const iconBtn = (label, icon, onClick, extra = {}) => h('button', {
-            type: 'button', className: `sg-icon${extra.danger ? ' sg-danger' : ''}`, title: label, 'aria-label': label,
-            disabled: extra.disabled, 'aria-pressed': extra.pressed, onClick,
-          }, icon)
-          return h('section', { className: `sg-group${drop.over ? ' sg-dropping' : ''}`, ...drop.props },
-            h('div', { className: 'sg-ghead' },
-              iconBtn(collapsed ? t('expand') : t('collapse'), h(IconChevron, { open: !collapsed }), toggle),
-              editing
-                ? h(GroupName, { group })
-                : h('div', { className: 'sg-gname', onClick: toggle, onDoubleClick: () => store.setView({ editing: `page:${group.id}` }) },
-                  h('b', null, group.name),
-                  h('span', { className: 'sg-count' }, tf('sessions', { n: group.sessionIds.length }))),
-              h('div', { className: 'sg-gactions' },
-                iconBtn(t('addSession'), h(IconPlus, { size: 15 }), () => { setPicking(p => !p); if (collapsed) toggle() }, { pressed: picking }),
-                iconBtn(t('rename'), h(IconEdit), () => store.setView({ editing: `page:${group.id}` })),
-                iconBtn(t('moveUp'), h(IconUp), () => void op({ action: 'move_group', groupId: group.id, beforeGroupId: groups[index - 1]?.id }).catch(() => {}), { disabled: index === 0 }),
-                iconBtn(t('moveDown'), h(IconDown), () => void op({ action: 'move_group', groupId: group.id, beforeGroupId: groups[index + 2]?.id }).catch(() => {}), { disabled: index === count - 1 }),
-                iconBtn(t('delete'), h(IconTrash), () => {
-                  store.setView({ pendingDelete: group })
-                }, { danger: true }))),
-            collapsed ? null : h('div', { className: 'sg-list' },
-              picking ? h(Picker, { group, groups, list, onClose: () => setPicking(false) }) : null,
-              members.length === 0 && !picking ? h('div', { className: 'sg-gempty' }, t('emptyGroup')) : null,
-              members.map(id => h(SessionRow, { key: id, id, summary: list.byId[id], pinned: pinned.has(id), locale }))))
+
+          const addSelected = async () => {
+            if (!selectedIds.length || !targetGroup || busy) return
+            setBusy(true)
+            try {
+              await addMany(targetGroup, selectedIds)
+              setSelected(new Set())
+            } catch {} finally { setBusy(false) }
+          }
+
+          const createSelected = async () => {
+            if (!selectedIds.length || busy) return
+            setBusy(true)
+            try {
+              await onCreateWith(selectedIds)
+              setSelected(new Set())
+            } finally { setBusy(false) }
+          }
+
+          return h('div', { className: 'sg-stack' },
+            h('section', { className: 'sg-hero' },
+              h('div', { className: 'sg-hero-top' },
+                h('div', { className: 'sg-hero-title' },
+                  h('h2', null, t('ungrouped')),
+                  h('p', { className: 'sg-note' }, t('ungroupedIntro'))),
+                h(Tag, { tone: 'neutral' }, countLabel(sessions.length)))),
+
+            sessions.length > 0 ? h('div', { className: 'sg-bar' },
+              h(Input, {
+                type: 'search', className: 'sg-bar-search',
+                icon: h(IconSearchOutlineRegular, { size: 14 }),
+                value: query,
+                placeholder: t('filterUngrouped'),
+                'aria-label': t('filterUngrouped'),
+                onChange: e => setQuery(e.target.value),
+              }),
+              filtered.length > 0 ? h(Button, {
+                size: 'sm', variant: 'ghost', disabled: busy,
+                onClick: () => setSelected(new Set(filtered.map(s => s.id))),
+              }, t('selectShown')) : null) : null,
+
+            selectedIds.length > 0 ? h('div', { className: 'sg-batch', role: 'region', 'aria-live': 'polite' },
+              h('span', { className: 'sg-batch-count' }, tf('selectedCount', { n: selectedIds.length })),
+              groups.length > 0 ? h('select', {
+                className: 'sg-select', value: targetGroup, disabled: busy,
+                'aria-label': t('addTo'),
+                onChange: e => setTargetGroup(e.target.value),
+              }, groups.map(g => h('option', { key: g.id, value: g.id }, g.name))) : null,
+              groups.length > 0 ? h(Button, { size: 'sm', variant: 'primary', disabled: busy || !targetGroup, onClick: () => void addSelected() }, t('addSelectedTo')) : null,
+              h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => void createSelected() }, t('createWithSelected')),
+              h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: () => setSelected(new Set()) }, t('clearSelection'))) : null,
+
+            sessions.length === 0
+              ? h('div', { className: 'sg-empty' },
+                h(IconGroups, { size: 22 }),
+                h('p', null, t('emptyUngrouped')))
+              : filtered.length === 0
+                ? h('div', { className: 'sg-empty' },
+                  h('p', null, t('noFilterMatches')),
+                  h(Button, { size: 'sm', variant: 'ghost', onClick: () => setQuery('') }, t('resetFilters')))
+                : h('div', { className: 'sg-list' },
+                  filtered.map(s => {
+                    const title = s.displayTitle || s.title || s.id
+                    const checked = selected.has(s.id)
+                    const dir = dirName(s.cwd)
+                    return h('div', {
+                      key: s.id, className: 'sg-row', 'data-selected': checked || undefined,
+                      role: 'button', tabIndex: 0, title,
+                      draggable: true,
+                      onDragStart: e => {
+                        e.dataTransfer.effectAllowed = 'move'
+                        e.dataTransfer.setData('text/plain', s.id)
+                      },
+                      onClick: () => ctx.uiWorkspace.openSession(s.id),
+                      onKeyDown: e => { if (e.key === 'Enter' && e.target === e.currentTarget) ctx.uiWorkspace.openSession(s.id) },
+                    },
+                    h('span', { onClick: e => e.stopPropagation() },
+                      h(Checkbox, {
+                        checked, disabled: busy, label: '',
+                        title: tf('selectSession', { title }),
+                        onChange: next => toggle(s.id, next),
+                      })),
+                    h('div', { className: 'sg-row-body' },
+                      h('div', { className: 'sg-row-top' },
+                        s.running ? h(StateDot, { state: 'ongoing', size: 10 }) : null,
+                        h('span', { className: 'sg-rtitle' }, title),
+                        dir ? h(Tag, { tone: 'quiet' }, dir) : null),
+                      s.updatedAt ? h('div', { className: 'sg-row-sub' }, relativeTime(s.updatedAt, locale)) : null),
+                    h('div', { className: 'sg-ractions', onClick: e => e.stopPropagation() },
+                      groups.length > 0
+                        ? h('select', {
+                          className: 'sg-select', value: '', disabled: busy,
+                          'aria-label': t('addTo'),
+                          onChange: e => {
+                            const target = e.target.value
+                            if (target) void op({ action: 'add', groupId: target, sessionId: s.id }).catch(() => {})
+                          },
+                        },
+                        h('option', { value: '' }, t('addToPick')),
+                        groups.map(g => h('option', { key: g.id, value: g.id }, g.name)))
+                        : h(Button, {
+                          size: 'sm', variant: 'outline', disabled: busy,
+                          onClick: () => void onCreateWith([s.id]),
+                        }, t('newGroup'))))
+                  })))
         }
 
         function GroupsPage() {
@@ -630,41 +985,105 @@ window.__ModuleLoader__.load({
           const { groups, status } = useGroups()
           const list = useSessions()
           const view = store.view()
-          const create = async sessionId => {
+          const dragging = useDocumentDragging()
+
+          const ungrouped = React.useMemo(() => {
+            const grouped = new Set()
+            for (const g of groups) for (const id of g.sessionIds) grouped.add(id)
+            return list.ids
+              .map(id => list.byId[id])
+              .filter(s => s && !s.blank && s.origin !== 'subagent' && !grouped.has(s.id))
+              .toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+          }, [groups, list])
+
+          const activeKey = view.selected === UNGROUPED_KEY
+            ? UNGROUPED_KEY
+            : groups.some(g => g.id === view.selected)
+              ? view.selected
+              : groups[0]?.id ?? UNGROUPED_KEY
+
+          const create = async sessionIds => {
             try {
-              const { groupId } = await op(sessionId
-                ? { action: 'create', name: t('defaultName'), sessionId }
-                : { action: 'create', name: t('defaultName') })
-              store.setView({ editing: `page:${groupId}` })
+              const payload = Array.isArray(sessionIds) && sessionIds.length
+                ? (sessionIds.length === 1
+                  ? { action: 'create', name: t('defaultName'), sessionId: sessionIds[0] }
+                  : { action: 'create', name: t('defaultName'), sessionIds })
+                : { action: 'create', name: t('defaultName') }
+              const { groupId } = await op(payload)
+              store.setView({ selected: groupId, editing: `page:${groupId}` })
             } catch {}
           }
-          const dragging = useDocumentDragging()
-          const newDrop = useSessionDrop(list, sessionId => void create(sessionId))
-          return h('div', { className: 'sg-page' },
+
+          const newDrop = useSessionDrop(list, sessionId => void create([sessionId]))
+          const selectedIndex = groups.findIndex(g => g.id === activeKey)
+          const selectedGroup = selectedIndex >= 0 ? groups[selectedIndex] : null
+          const syncDot = status === 'ready' ? 'done' : status === 'error' ? 'error' : 'ongoing'
+          const syncLabel = status === 'ready' ? t('synced') : status === 'error' ? t('offline') : t('syncing')
+
+          return h('section', { className: 'sg-page', 'aria-label': t('panel') },
             h('div', { className: 'sg-inner' },
-              h('div', { className: 'sg-head' },
-                h('h1', { className: 'sg-title' }, t('panel')),
-                h('button', { type: 'button', className: 'sg-btn sg-primary', onClick: () => void create() }, h(IconPlus, { size: 14 }), t('newGroup'))),
+              h('header', { className: 'sg-head' },
+                h('div', { className: 'sg-head-copy' },
+                  h('h1', { className: 'sg-title' }, t('panel')),
+                  h('p', { className: 'sg-note' }, t('intro'))),
+                h('div', { className: 'sg-head-actions' },
+                  h('span', { className: 'sg-live', role: 'status' }, h(StateDot, { state: syncDot, size: 8 }), syncLabel),
+                  h(Button, {
+                    size: 'sm', variant: 'primary',
+                    icon: h(IconPlusOutlineRegular, { size: 14 }),
+                    onClick: () => void create(),
+                  }, t('newGroup')))),
+
               status === 'error'
-                ? h('div', { className: 'sg-error', role: 'alert' }, t('loadFailed'),
-                  h('button', { type: 'button', className: 'sg-btn', onClick: connect }, t('retry')))
-                : status === 'loading' ? h('div', { role: 'status' }, t('loading')) : null,
-              status === 'ready' && groups.length === 0
-                ? h('div', { className: 'sg-emptystate' }, h(IconGroups, { size: 32 }),
-                  h('div', null, t('empty'), ' ', h('button', { type: 'button', className: 'sg-link', onClick: () => void create() }, t('newGroup'))))
+                ? h('div', { className: 'sg-banner', 'data-tone': 'error', role: 'alert' },
+                  h(IconWarningTriangleOutlineRegular, { size: 14 }),
+                  h('span', { className: 'sg-banner-text' }, t('loadFailed')),
+                  h(Button, { size: 'sm', variant: 'outline', onClick: connect }, t('retry')))
                 : null,
-              groups.map((group, index) => h(Group, {
-                key: group.id, group, index, count: groups.length, groups, list, locale: loc.active, view,
-              })),
-              status === 'ready' && (dragging || newDrop.over)
-                ? h('div', { className: `sg-dropzone${newDrop.over ? ' sg-dropping' : ''}`, ...newDrop.props },
-                  h(IconPlus, { size: 14 }), t('dropNew'))
-                : null))
+
+              status === 'loading'
+                ? h('div', { className: 'sg-empty', role: 'status' },
+                  h(StateDot, { state: 'ongoing', size: 16 }),
+                  h('p', null, t('loading')))
+                : h('div', { className: 'sg-hub' },
+                  h('nav', { className: 'sg-rail', 'aria-label': t('groupsHeading') },
+                    h('div', { className: 'sg-rail-label' },
+                      h('span', null, t('groupsHeading')),
+                      h('span', null, groups.length)),
+                    groups.length === 0
+                      ? h('p', { className: 'sg-note', style: { padding: '6px 8px' } }, t('empty'))
+                      : groups.map((group, index) => h(RailGroupItem, {
+                        key: group.id, group, index, groups, list,
+                        selected: activeKey === group.id,
+                        onSelect: () => store.setView({ selected: group.id, editing: null }),
+                      })),
+                    dragging || newDrop.over
+                      ? h('div', { className: `sg-dropzone${newDrop.over ? ' sg-dropping' : ''}`, ...newDrop.props },
+                        h(IconPlusOutlineRegular, { size: 14 }), t('dropNew'))
+                      : null,
+                    h('div', { className: 'sg-rail-sep' }),
+                    h('button', {
+                      type: 'button',
+                      className: 'sg-rail-item',
+                      'aria-current': activeKey === UNGROUPED_KEY || undefined,
+                      onClick: () => store.setView({ selected: UNGROUPED_KEY, editing: null }),
+                    },
+                    h('span', { className: 'sg-rail-top' },
+                      h('span', { className: 'sg-rail-icon' }, h(IconGroups, { size: 15 })),
+                      h('span', { className: 'sg-rail-name' }, t('ungrouped')),
+                      h('span', { className: 'sg-rail-count' }, ungrouped.length)))),
+
+                  selectedGroup
+                    ? h(GroupWorkspace, { group: selectedGroup, index: selectedIndex, groups, list, locale: loc.active, view })
+                    : groups.length === 0 && ungrouped.length === 0
+                      ? h('div', { className: 'sg-empty' },
+                        h(IconGroups, { size: 26 }),
+                        h('p', null, t('empty')),
+                        h('p', { className: 'sg-note' }, t('emptyHint')),
+                        h(Button, { size: 'sm', variant: 'primary', icon: h(IconPlusOutlineRegular, { size: 14 }), onClick: () => void create() }, t('newGroup')))
+                      : h(UngroupedWorkspace, { sessions: ungrouped, groups, locale: loc.active, onCreateWith: create }))))
         }
 
-        const MEMBER_MIME = 'application/x-dsh-session-group-member'
-        const GROUP_MIME = 'application/x-dsh-session-group'
-        const hasType = (e, type) => Array.from(e.dataTransfer?.types ?? []).includes(type)
         const usePanelInfo = () => React.useSyncExternalStore(
           fn => ctx.layout.panelInfo.subscribe(fn),
           () => ctx.layout.panelInfo.getSnapshot(),
@@ -721,18 +1140,18 @@ window.__ModuleLoader__.load({
           h('span', { className: 'sgs-title' }, title),
           h('span', { className: 'sgs-rest' },
             h('span', { className: 'sgs-time' }, relativeTime(summary.updatedAt, locale)),
-            pinned ? h('span', { className: 'sgs-pinmark', title: t('unpin') }, h(IconPin, { size: 13, filled: true })) : null),
+            pinned ? h('span', { className: 'sgs-pinmark', title: t('unpin') }, h(IconPinFillRegular, { size: 12 })) : null),
           h('span', { className: 'sgs-actions' },
             h('button', {
               type: 'button', className: 'sgs-btn', tabIndex: -1, 'aria-pressed': pinned,
               title: pinned ? t('unpin') : t('pin'), 'aria-label': pinned ? t('unpin') : t('pin'),
               onClick: stop(() => void op({ action: 'pin', sessionId: id, pinned: !pinned }).catch(() => {})),
-            }, h(IconPin, { size: 14, filled: pinned })),
+            }, h(pinned ? IconPinFillRegular : IconPinOutlineRegular, { size: 13 })),
             h('button', {
               type: 'button', className: 'sgs-btn', tabIndex: -1,
               title: `${t('remove')} · ${group.name}`, 'aria-label': t('remove'),
               onClick: stop(() => void op({ action: 'remove', sessionId: id }).catch(() => {})),
-            }, h(IconX, { size: 14 }))))
+            }, h(IconCloseOutlineRegular, { size: 13 }))))
         }
 
         function SidebarFolder({ group, index, groups, list, view, currentId, locale }) {
@@ -792,7 +1211,7 @@ window.__ModuleLoader__.load({
               },
             },
             h('span', { className: `sgs-slot sgs-folder-icon${containsCurrent && collapsed ? ' sgs-active' : ''}` },
-              h('span', { className: 'sgs-glyph' }, h(collapsed ? IconFolderClosed : IconFolderOpen, { size: 16 })),
+              h('span', { className: 'sgs-glyph' }, h(collapsed ? IconFolderCloseRegular : IconFolderOpenRegular, { size: 15 })),
               h('span', { className: 'sgs-chev' }, h(IconChevron, { size: 12, open: !collapsed }))),
             editing
               ? h(GroupName, { group, className: 'sgs-rename' })
@@ -802,13 +1221,13 @@ window.__ModuleLoader__.load({
               h('button', {
                 type: 'button', className: 'sgs-btn', tabIndex: -1, title: t('rename'), 'aria-label': t('rename'),
                 onClick: stop(() => store.setView({ editing: `sidebar:${group.id}` })),
-              }, h(IconEdit, { size: 14 })),
+              }, h(IconEditOutlineRegular, { size: 13 })),
               h('button', {
                 type: 'button', className: 'sgs-btn sgs-danger', tabIndex: -1, title: t('delete'), 'aria-label': t('delete'),
                 onClick: stop(() => {
                   store.setView({ pendingDelete: group })
                 }),
-              }, h(IconTrash, { size: 14 })))),
+              }, h(IconTrashOutlineRegular, { size: 13 })))),
             collapsed ? null : members.length === 0
               ? h('div', { className: 'sgs-hint' }, t('dropInto'))
               : members.map(id => h(SidebarMember, {
@@ -889,7 +1308,7 @@ window.__ModuleLoader__.load({
                 key: group.id, group, index, groups, list, view, currentId, locale: loc.active,
               })),
               showDropNew ? h('div', { className: `sgs-row sgs-dropnew${newDrop.over ? ' sgs-dropping' : ''}`, ...newDrop.props },
-                h('span', { className: 'sgs-slot' }, h(IconPlus, { size: 14 })),
+                h('span', { className: 'sgs-slot' }, h(IconPlusOutlineRegular, { size: 14 })),
                 h('span', { className: 'sgs-title' }, t('dropNew'))) : null)), host),
             confirmModal)
         }

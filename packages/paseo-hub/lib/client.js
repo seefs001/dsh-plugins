@@ -2,6 +2,13 @@ window.__ModuleLoader__.load({
   id: 'dsh-paseo-hub',
   factory(require) {
     const React = require('react')
+    const {
+      Button, CodeBlock, Input, JsonBlock, Modal, PathLabel, SegmentedTabs, StateDot, Switch, Tag,
+      IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconChevronRightOutlineRegular,
+      IconCloseOutlineRegular, IconCopyOutlineRegular, IconEllipsisOutlineRegular,
+      IconPlusOutlineRegular, IconRefreshOutlineRegular, IconRightUpOutlineRegular,
+      IconSearchOutlineRegular, IconSettingsOutlineRegular, IconWarningTriangleOutlineRegular,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'paseo-hub'
     const PANEL_ID = 'paseo-hub'
@@ -11,8 +18,11 @@ window.__ModuleLoader__.load({
       tab_api: 'Hub API',
       apiIntro: 'Manage organization triggers and manual runs via the Hub API without connecting this Host as a daemon.',
       apiCredentials: 'Organization API access',
+      apiConfigure: 'Configure',
+      apiHideConfigure: 'Hide settings',
       apiConfigured: 'Key saved',
       apiNotConfigured: 'No key saved',
+      apiWritesEnabled: 'Agent writes enabled',
       apiCheck: 'Check read access',
       apiKeyHintLong: 'Create a scoped key in Hub → API keys. Stored in Host credentials for this origin (separate from daemon credentials).',
       apiKeyLabel: 'Organization API key',
@@ -33,9 +43,10 @@ window.__ModuleLoader__.load({
       api_legacy: 'Legacy configuration',
       apiSearch: 'Search trigger names or IDs',
       apiNew: 'New from template',
-      apiEdit: 'View / edit YAML',
+      apiSelectHint: 'Select a trigger from the list to inspect its YAML, or create one from the template.',
       apiEnabled: 'Enabled',
       apiDisabled: 'Disabled',
+      apiValidated: 'Validated',
       apiYaml: 'Trigger YAML',
       apiYamlHint: 'Install creates or updates by name and activates immediately. Target daemon must be online during validation.',
       apiValidate: 'Validate only',
@@ -193,6 +204,9 @@ window.__ModuleLoader__.load({
       pagination: 'Pagination',
       copied: 'Copied',
       copy: 'Copy',
+      wrap: 'Wrap',
+      unwrap: 'Unwrap',
+      truncated: 'Truncated',
       done: 'Done',
       loadFailed: 'Could not load Paseo Hub',
       opFailed: 'Failed',
@@ -201,12 +215,16 @@ window.__ModuleLoader__.load({
       justNow: 'just now',
       updated: 'Updated {time}',
     }
+
     const ZH = {
       tab_api: 'Hub API',
       apiIntro: '通过组织 API 直接管理触发器和手动运行，不依赖本机 daemon 是否在线。',
       apiCredentials: '组织 API 访问',
+      apiConfigure: '配置凭据',
+      apiHideConfigure: '收起配置',
       apiConfigured: '已保存 Key',
       apiNotConfigured: '未配置 Key',
+      apiWritesEnabled: '已开启 Agent 写入',
       apiCheck: '检查读取权限',
       apiKeyHintLong: '在 Hub → API keys 创建带权限的 Key，仅存在本机 Host 凭据中并绑定当前地址（与 daemon 凭据分开）。',
       apiKeyLabel: '组织 API key',
@@ -227,9 +245,10 @@ window.__ModuleLoader__.load({
       api_legacy: '旧版配置',
       apiSearch: '搜索触发器名称或 ID',
       apiNew: '从模板新建',
-      apiEdit: '查看 / 编辑 YAML',
+      apiSelectHint: '从左侧选择一个触发器查看或编辑 YAML，或点击「从模板新建」。',
       apiEnabled: '已启用',
       apiDisabled: '已停用',
+      apiValidated: '已校验',
       apiYaml: '触发器 YAML',
       apiYamlHint: '安装按名称创建或覆盖并立即生效；校验时目标 daemon 需在线。',
       apiValidate: '仅校验',
@@ -387,6 +406,9 @@ window.__ModuleLoader__.load({
       pagination: '分页',
       copied: '已复制',
       copy: '复制',
+      wrap: '换行',
+      unwrap: '不换行',
+      truncated: '已截断',
       done: '已完成',
       loadFailed: '加载 Paseo Hub 失败',
       opFailed: '失败',
@@ -397,160 +419,157 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
-.ph-page{--ph-inset:clamp(24px,4vw,48px);--ph-hover:var(--dsw-alias-interactive-bg-hover);--ph-line:var(--dsw-alias-border-l2);--ph-tertiary:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));--ph-focus:var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));--ph-mono:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);height:100%;overflow-x:hidden;overflow-y:auto;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}
-@media (max-width:767px){.ph-page{--ph-inset:20px}}
-.ph-page :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--ph-focus);outline-offset:-2px}
-.ph-inner{max-width:960px;margin:0 auto;padding:28px var(--ph-inset) 48px;display:flex;flex-direction:column;gap:24px}
+.ph-page{--ph-mono:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);container-type:inline-size;height:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.ph-page *,.ph-page *::before,.ph-page *::after{box-sizing:border-box}
+.ph-page :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+.ph-inner{display:flex;flex-direction:column;gap:20px;width:min(100%,1080px);margin:0 auto;padding:28px clamp(20px,3.5vw,44px) 56px}
 [data-platform=darwin] .ph-inner{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
+@media (max-width:767px){.ph-inner{padding:20px 16px 48px}[data-platform=darwin] .ph-inner{padding-top:calc(20px + var(--dsh-frame-top-clearance,0px))}}
 .ph-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px 16px}
-.ph-heading{min-width:0;flex:1 1 320px}
+.ph-heading{min-width:0;flex:1 1 300px;display:flex;flex-direction:column;gap:4px}
 .ph-titlerow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.ph-h1{margin:0;font-size:20px;line-height:28px;font-weight:500}
-.ph-intro{margin:4px 0 0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}
-.ph-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ph-updated{font-size:12px;line-height:18px;color:var(--ph-tertiary);white-space:nowrap}
-.ph-tabs{--ph-tabs-inset:2px;position:relative;display:inline-grid;grid-auto-flow:column;grid-auto-columns:minmax(72px,auto);width:fit-content;max-width:100%;padding:var(--ph-tabs-inset);border-radius:calc(var(--dsw-radius-md,8px) + var(--ph-tabs-inset));background:var(--dsw-alias-bg-module-platform)}
-.ph-tab{position:relative;height:30px;padding:0 14px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:14px;line-height:20px;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
-.ph-tab[aria-selected=true]{background:var(--dsw-alias-bg-layer-3);box-shadow:inset 0 0 0 .5px var(--dsw-alias-border-l3);color:var(--dsw-alias-label-primary);font-weight:500}
-.ph-tabcount{font-size:12px;color:var(--ph-tertiary);font-weight:400}
-.ph-section{display:flex;flex-direction:column;gap:12px;min-width:0}
-.ph-sechead{display:flex;align-items:center;gap:10px;min-height:28px}
-.ph-sectitle{margin:0;font-size:14px;line-height:20px;font-weight:500}
-.ph-seccount{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
-.ph-sechead>.ph-spacer{flex:1}
+.ph-h1{margin:0;font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+.ph-intro{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.ph-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:none}
+.ph-updated{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}
+.ph-stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.ph-hero{display:flex;flex-direction:column;gap:14px;padding:16px 18px;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);min-width:0}
+.ph-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ph-hero-title{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 240px}
+.ph-hero-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.ph-hero-h2{margin:0;font-size:15px;line-height:22px;font-weight:600;overflow-wrap:anywhere}
+.ph-box{display:flex;flex-direction:column;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);min-width:0;overflow:hidden}
+.ph-box-pad{padding:16px 18px;gap:12px}
+.ph-box-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}
+.ph-box-title{display:flex;align-items:center;gap:8px;min-width:0}
+.ph-box-title h2,.ph-box-title h3{margin:0;font-size:14px;line-height:20px;font-weight:500}
 .ph-note{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
-.ph-warn{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-state-warn-primary);overflow-wrap:anywhere}
 .ph-error{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary);overflow-wrap:anywhere}
-.ph-banner{display:flex;align-items:center;gap:12px;padding:8px 8px 8px 14px;border:.5px solid var(--ph-line);border-radius:var(--dsw-radius-md,8px);font-size:13px;line-height:20px}
-.ph-banner[data-tone=error]{color:var(--dsw-alias-state-error-primary)}
-.ph-banner[data-tone=warn]{color:var(--dsw-alias-state-warn-primary)}
-.ph-banner>p{flex:1;margin:0;min-width:0;overflow-wrap:anywhere}
-.ph-btn{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 10px;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;box-shadow:inset 0 0 0 var(--dsh-hairline-width,.5px) var(--dsw-alias-border-l3);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:18px;white-space:nowrap;cursor:pointer;text-decoration:none}
-.ph-btn:disabled{cursor:not-allowed;opacity:.4}
-.ph-btn[data-variant=primary]{box-shadow:none;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground,var(--dsw-alias-bg-base))}
-.ph-btn[data-variant=ghost]{box-shadow:none;color:var(--dsw-alias-label-secondary)}
-.ph-btn[data-variant=danger]{color:var(--dsw-alias-state-error-primary)}
-.ph-btn[data-size=md]{height:32px;padding:0 14px;font-size:13px;border-radius:var(--dsw-radius-md,8px)}
-.ph-icon{width:28px;padding:0;box-shadow:none;color:var(--ph-tertiary)}
-.ph-icon[aria-expanded=true]{background:var(--ph-hover);color:var(--dsw-alias-label-primary)}
-.ph-tag{display:inline-flex;align-items:center;gap:5px;border-radius:999px;corner-shape:round;padding:1px 8px;font-size:11px;line-height:17px;font-weight:500;white-space:nowrap;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary)}
-.ph-tag[data-tone=outline]{background:transparent;box-shadow:inset 0 0 0 .5px var(--dsw-alias-border-l4,var(--ph-line));color:var(--ph-tertiary)}
-.ph-tag[data-tone=success]{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 10%,transparent);color:var(--dsw-alias-state-success-primary)}
-.ph-tag[data-tone=info]{background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 10%,transparent);color:var(--dsw-alias-state-business-primary)}
-.ph-tag[data-tone=warning]{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent);color:var(--dsw-alias-state-warn-primary)}
-.ph-tag[data-tone=danger]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent);color:var(--dsw-alias-state-error-primary)}
-.ph-dot{width:6px;height:6px;border-radius:50%;corner-shape:round;background:currentColor;flex:none}
-.ph-tag[data-pulse] .ph-dot{animation:ph-pulse 1.4s ease-in-out infinite}
-@keyframes ph-pulse{50%{opacity:.3}}
-.ph-facts{margin:0}
-.ph-facts>div{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:44px;padding:8px 2px;box-sizing:border-box;border-bottom:.5px solid var(--ph-line)}
-.ph-facts>div:last-child{border-bottom:0}
-.ph-facts dt{flex:none;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}
-.ph-facts dd{display:flex;align-items:center;justify-content:flex-end;gap:4px;min-width:0;margin:0;font-size:13px;line-height:20px;text-align:end;overflow-wrap:anywhere}
-.ph-code{padding:2px 6px;border-radius:4px;background:var(--dsw-alias-bg-module-platform);font-family:var(--ph-mono);font-size:12px;box-decoration-break:clone}
-.ph-link{color:var(--dsw-alias-link,var(--dsw-alias-state-business-primary));text-decoration:none}
+.ph-banner{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.ph-banner[data-tone=error]{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 32%,var(--dsw-alias-border-l2));background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 6%,var(--dsw-alias-bg-layer-1))}
+.ph-banner[data-tone=warn]{border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 34%,var(--dsw-alias-border-l2));background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 8%,var(--dsw-alias-bg-layer-1))}
+.ph-banner[data-tone=warn]>svg{color:var(--dsw-alias-state-warn-primary)}
+.ph-banner[data-tone=ok]{color:var(--dsw-alias-state-success-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-success-primary) 30%,var(--dsw-alias-border-l2));background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 7%,var(--dsw-alias-bg-layer-1))}
+.ph-banner>svg{flex:none;margin-top:2px}
+.ph-banner-body{flex:1;min-width:0;margin:0;overflow-wrap:anywhere;white-space:pre-wrap;font:inherit}
 .ph-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ph-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px}
-.ph-stat{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:.5px solid var(--ph-line);border-radius:var(--dsw-radius-lg,12px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
-.ph-stat b{font-size:20px;line-height:28px;font-weight:500;font-variant-numeric:tabular-nums}
+.ph-facts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 16px;margin:0;padding-top:12px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.ph-fact{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ph-fact dt{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.ph-fact dd{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:0;font-size:12.5px;line-height:18px;min-width:0;overflow-wrap:anywhere}
+.ph-code{padding:1px 6px;border-radius:5px;background:var(--dsw-alias-bg-layer-2);font-family:var(--ph-mono);font-size:12px;box-decoration-break:clone;overflow-wrap:anywhere}
+.ph-link{display:inline-flex;align-items:center;gap:4px;color:var(--dsw-alias-link,var(--dsw-alias-state-business-primary));text-decoration:none;font-size:12px;overflow-wrap:anywhere}
+@media (hover:hover){.ph-link:hover{text-decoration:underline;text-underline-offset:3px}}
+.ph-extbtn{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;text-decoration:none;white-space:nowrap;transition:background-color .15s}
+@media (hover:hover){.ph-extbtn:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.ph-extbtn[data-primary=true]{border-color:transparent;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground,var(--dsw-alias-bg-base));height:32px;padding:0 14px;font-size:13px}
+.ph-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px}
+.ph-stat{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s,border-color .15s}
+@media (hover:hover){.ph-stat:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3,var(--dsw-alias-border-l2))}}
+.ph-stat b{font-size:20px;line-height:28px;font-weight:600;font-variant-numeric:tabular-nums}
 .ph-stat span{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
 .ph-stat[data-tone=danger] b{color:var(--dsw-alias-state-error-primary)}
 .ph-stat[data-tone=info] b{color:var(--dsw-alias-state-business-primary)}
 .ph-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ph-search{display:flex;align-items:center;flex:1 1 240px;min-width:0;height:32px;padding-right:4px;box-sizing:border-box;border:.5px solid var(--dsw-alias-border-l4,var(--ph-line));border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-base));color:var(--ph-tertiary)}
-.ph-search:focus-within{border-color:var(--ph-focus)}
-.ph-search>svg{flex:none;margin:0 6px 0 10px}
-.ph-search input{flex:1;min-width:0;height:100%;padding:0;border:0;outline:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}
-.ph-search input::placeholder{color:var(--dsw-alias-label-dimmed,var(--ph-tertiary))}
-.ph-search input::-webkit-search-cancel-button{display:none}
-.ph-kbd{flex:none;min-width:16px;margin-right:4px;padding:0 4px;border:.5px solid var(--ph-line);border-radius:4px;font-size:11px;line-height:16px;text-align:center;color:var(--ph-tertiary)}
-.ph-select{box-sizing:border-box;height:32px;padding:0 28px 0 10px;border:.5px solid var(--dsw-alias-border-l4,var(--ph-line));border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-base));color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;cursor:pointer}
-.ph-select[data-size=sm]{height:28px;font-size:12px;padding:0 24px 0 8px}
-.ph-chips{display:flex;gap:4px;flex-wrap:wrap}
-.ph-chip{height:28px;padding:0 10px;border:0;border-radius:999px;corner-shape:round;background:transparent;box-shadow:inset 0 0 0 .5px var(--dsw-alias-border-l3);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
-.ph-chip[aria-pressed=true]{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);box-shadow:none}
-.ph-chip b{font-weight:400;opacity:.7;margin-left:4px;font-variant-numeric:tabular-nums}
+.ph-search-wrap{position:relative;flex:1 1 240px;min-width:180px}
+.ph-search-end{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;align-items:center}
+.ph-kbd{min-width:18px;padding:0 5px;border:.5px solid var(--dsw-alias-border-l2);border-radius:4px;font-size:11px;line-height:17px;text-align:center;color:var(--dsw-alias-label-tertiary);pointer-events:none}
+.ph-select{height:32px;padding:0 26px 0 10px;border:.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;cursor:pointer}
+.ph-select[data-size=sm]{height:28px;font-size:12px;padding:0 22px 0 8px}
+.ph-chips{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.ph-chip{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap;transition:background-color .15s,border-color .15s,color .15s}
+@media (hover:hover){.ph-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.ph-chip[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-2));border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font-weight:500}
+.ph-chip b{font-weight:400;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
 .ph-rows{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
-.ph-row{padding:10px 2px;border-bottom:.5px solid var(--ph-line)}
-.ph-row:last-child{border-bottom:0}
+.ph-row{padding:11px 16px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.ph-row:first-child{border-top:0}
 .ph-rowline{display:flex;align-items:center;gap:12px;min-width:0}
 .ph-rowmain{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
-.ph-rowtitle{display:flex;align-items:center;gap:8px;min-width:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.ph-rowtitle{display:flex;align-items:center;gap:6px;min-width:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .ph-rowtitle>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px;line-height:20px;font-weight:500}
-.ph-rowmeta{display:flex;align-items:center;gap:6px;min-width:0;font-size:12px;line-height:18px;color:var(--ph-tertiary);white-space:nowrap;overflow:hidden}
+@media (hover:hover){.ph-rowtitle:hover>span{text-decoration:underline;text-underline-offset:3px}}
+.ph-rowmeta{display:flex;align-items:center;gap:6px;min-width:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;overflow:hidden}
 .ph-rowmeta>span{overflow:hidden;text-overflow:ellipsis}
 .ph-rowmeta>span:last-child{flex:1;min-width:0}
 .ph-sep{flex:none}
-.ph-rowend{display:flex;align-items:center;gap:4px;flex:none}
-.ph-rowerror{margin:4px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary);overflow-wrap:anywhere}
-.ph-detail{margin:10px 0 2px;padding:4px 14px;border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-module-platform)}
-.ph-detail .ph-facts>div{min-height:36px;padding:6px 0}
-.ph-detail .ph-code{background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-base))}
+.ph-rowend{display:flex;align-items:center;gap:6px;flex:none}
+.ph-rowerror{margin:5px 0 0 18px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary);overflow-wrap:anywhere}
+.ph-detail{margin:10px 0 2px;padding:12px 14px;border-radius:var(--dsw-radius-sm,10px);background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l1)}
+.ph-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 18px;margin:0}
+.ph-detail-span{grid-column:1 / -1}
 .ph-menuwrap{position:relative}
 .ph-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:184px;padding:4px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.18))}
 .ph-menuitem{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;text-align:left;cursor:pointer;white-space:nowrap}
-.ph-menuitem:focus-visible{background:var(--ph-hover);outline:none}
+@media (hover:hover){.ph-menuitem:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
 .ph-menuitem:disabled{opacity:.4;cursor:default}
 .ph-menuitem[data-danger]{color:var(--dsw-alias-state-error-primary)}
-.ph-menusep{height:.5px;margin:4px 6px;background:var(--ph-line)}
-.ph-event{display:flex;align-items:flex-start;gap:10px;padding:10px 2px;border-bottom:.5px solid var(--ph-line)}
-.ph-event:last-child{border-bottom:0}
-.ph-event-dot{flex:none;width:6px;height:6px;margin-top:7px;border-radius:50%;corner-shape:round;background:var(--ph-tertiary)}
-.ph-event[data-level=warn] .ph-event-dot{background:var(--dsw-alias-state-warn-primary)}
-.ph-event[data-level=error] .ph-event-dot{background:var(--dsw-alias-state-error-primary)}
-.ph-event-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ph-menusep{height:.5px;margin:4px 6px;background:var(--dsw-alias-border-l1)}
+.ph-event{display:flex;align-items:flex-start;gap:10px;padding:11px 16px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.ph-event:first-child{border-top:0}
+.ph-event-dot{flex:none;margin-top:6px}
+.ph-event-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
 .ph-event-msg{margin:0;font-size:13px;line-height:20px;overflow-wrap:anywhere}
 .ph-event[data-level=error] .ph-event-msg{color:var(--dsw-alias-state-error-primary)}
-.ph-event-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;line-height:18px;color:var(--ph-tertiary)}
-.ph-event-time{flex:none;font-size:12px;line-height:20px;color:var(--ph-tertiary);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ph-event-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
+.ph-event-time{flex:none;font-size:12px;line-height:20px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;font-variant-numeric:tabular-nums}
 .ph-textlink{padding:0;border:0;background:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;font-family:var(--ph-mono)}
-.ph-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:48px 24px;border:.5px dashed var(--ph-line);border-radius:var(--dsw-radius-lg,12px);text-align:center;font-size:13px;line-height:20px;color:var(--ph-tertiary)}
+@media (hover:hover){.ph-textlink:hover{color:var(--dsw-alias-label-primary);text-decoration:underline;text-underline-offset:3px}}
+.ph-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px 20px;border:.5px dashed var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);text-align:center;color:var(--dsw-alias-label-secondary)}
+.ph-empty p{margin:0}
 .ph-pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:4px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
 .ph-pager-side{display:flex;align-items:center;gap:6px}
 .ph-pages{display:flex;align-items:center;gap:2px}
 .ph-page-btn{min-width:28px;height:28px;padding:0 6px;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;font-variant-numeric:tabular-nums;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+@media (hover:hover){.ph-page-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 .ph-page-btn:disabled{opacity:.35;cursor:default}
-.ph-page-btn[aria-current=page]{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-weight:500}
-.ph-gap{min-width:20px;text-align:center;color:var(--ph-tertiary)}
-.ph-form{display:flex;flex-direction:column;gap:16px;max-width:560px}
-.ph-field{display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:20px}
-.ph-input{box-sizing:border-box;height:34px;padding:0 12px;border:.5px solid var(--dsw-alias-border-l4,var(--ph-line));border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-base));color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}
-.ph-input:focus-visible{outline:none;border-color:var(--ph-focus)}
-.ph-usercode{margin:0;font-family:var(--ph-mono);font-size:28px;line-height:36px;letter-spacing:4px;font-weight:500}
-.ph-pre{position:relative;margin:0;padding:12px 14px;border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-module-platform);font-family:var(--ph-mono);font-size:12px;line-height:18px;white-space:pre;overflow-x:auto}
-.ph-pre-wrap{position:relative}
-.ph-pre-wrap>.ph-btn{position:absolute;top:6px;right:6px;background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-base))}
-.ph-modes{display:flex;flex-direction:column}
-.ph-mode{display:flex;align-items:center;gap:12px;min-height:44px;padding:8px 2px;box-sizing:border-box;border-bottom:.5px solid var(--ph-line)}
-.ph-mode:last-child{border-bottom:0}
-.ph-mode-main{flex:1;min-width:0;display:flex;flex-direction:column}
-.ph-mode-main b{font-size:13px;line-height:20px;font-weight:500}
-.ph-mode-main span{font-size:12px;line-height:18px;color:var(--ph-tertiary)}
-.ph-dialog{box-sizing:border-box;width:min(400px,calc(100vw - 32px));padding:0;border:0;border-radius:var(--dsw-radius-panel,20px);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);--dsw-elevation-stroke-color:var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-prominent,0 12px 40px rgba(0,0,0,.24))}
-.ph-dialog::backdrop{background:var(--dsw-alias-bg-mask-1)}
-.ph-dialog h2{margin:0;padding:22px 24px 0;font-size:16px;line-height:24px;font-weight:500}
-.ph-dialog p{margin:12px 24px 0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
-.ph-dialog footer{display:flex;justify-content:flex-end;gap:8px;padding:20px 24px 24px}
-.ph-btn[data-variant=destructive]{box-shadow:none;background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-label-on-color,#fff)}
-.ph-api-credentials>summary{cursor:pointer;font-size:13px;line-height:22px;color:var(--dsw-alias-label-primary);overflow-wrap:anywhere}
-.ph-api-credentials[open]>summary{margin-bottom:16px}
-.ph-check{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}
-.ph-check input{margin-top:3px;accent-color:var(--dsw-alias-link,var(--dsw-alias-state-business-primary))}
-.ph-editor{min-height:320px;width:100%;resize:vertical;font-family:var(--ph-mono);font-size:12px;line-height:1.6;padding:12px;tab-size:2;white-space:pre}
+.ph-page-btn[aria-current=page]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-weight:500}
+.ph-gap{min-width:20px;text-align:center;color:var(--dsw-alias-label-tertiary)}
+.ph-form{display:flex;flex-direction:column;gap:14px}
+.ph-form-narrow{max-width:560px}
+.ph-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+@container (max-width:640px){.ph-form-grid{grid-template-columns:minmax(0,1fr)}}
+.ph-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ph-field>label,.ph-field-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);font-weight:500}
+.ph-inline-row{display:flex;align-items:center;gap:8px;min-width:0}
+.ph-inline-row>:first-child{flex:1;min-width:0}
+.ph-switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base)}
+.ph-switch-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ph-switch-copy strong{font-size:13px;font-weight:500}
+.ph-usercode-box{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-base);border:.5px solid var(--dsw-alias-border-l2)}
+.ph-usercode{margin:0;font-family:var(--ph-mono);font-size:26px;line-height:34px;letter-spacing:4px;font-weight:600}
+.ph-editor{width:100%;min-height:320px;padding:12px 14px;border:.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:12px/1.6 var(--ph-mono);resize:vertical;tab-size:2;white-space:pre}
+.ph-editor:focus{outline:0;border-color:var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary))}
 .ph-editor-short{min-height:120px;white-space:pre-wrap}
-.ph-json{max-height:440px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
-.ph-api-error{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;flex:1}
-.ph-api-name{display:block;color:var(--dsw-alias-label-primary);overflow-wrap:anywhere}
-.ph-toast{position:sticky;bottom:16px;align-self:center;z-index:30;padding:6px 14px;border-radius:999px;corner-shape:round;background:var(--dsw-alias-toast-bg,var(--dsw-alias-label-primary));color:var(--dsw-alias-toast-label,var(--dsw-alias-bg-layer-3));font-size:12px;line-height:18px;box-shadow:var(--dsw-elevation-soft,0 2px 8px rgba(0,0,0,.16));pointer-events:none}
+.ph-api-split{display:grid;grid-template-columns:minmax(260px,330px) minmax(0,1fr);gap:16px;align-items:start}
+@container (max-width:780px){.ph-api-split{grid-template-columns:minmax(0,1fr)}}
+.ph-api-rail{display:flex;flex-direction:column;gap:10px;min-width:0}
+.ph-trig-list{display:flex;flex-direction:column;gap:4px;margin:0;padding:0;list-style:none}
+.ph-trig-item{display:flex;align-items:center;gap:8px;width:100%;padding:9px 11px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-md,10px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s,border-color .15s}
+@media (hover:hover){.ph-trig-item:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
+.ph-trig-item[aria-current=true]{background:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-border-l2)}
+.ph-trig-item:disabled{opacity:.5;cursor:default}
+.ph-trig-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ph-trig-name{font-weight:500;font-size:13px;line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ph-mode{display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.ph-mode:first-child{border-top:0}
+.ph-mode-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ph-mode-main b{font-size:13px;line-height:20px;font-weight:500}
+.ph-mode-main span{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);font-family:var(--ph-mono)}
+.ph-tag-inner{display:inline-flex;align-items:center;gap:5px}
+.ph-danger-text{color:var(--dsw-alias-state-error-primary)}
+.ph-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
+.ph-toast{position:sticky;bottom:16px;align-self:center;z-index:30;padding:6px 14px;border-radius:999px;background:var(--dsw-alias-toast-bg,var(--dsw-alias-label-primary));color:var(--dsw-alias-toast-label,var(--dsw-alias-bg-layer-3));font-size:12px;line-height:18px;box-shadow:var(--dsw-elevation-soft,0 2px 8px rgba(0,0,0,.16));pointer-events:none}
 .ph-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-@media (hover:hover){.ph-tab:hover,.ph-btn[data-variant=ghost]:hover:not(:disabled),.ph-icon:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.ph-btn:hover:not(:disabled),.ph-stat:hover,.ph-menuitem:hover:not(:disabled){background:var(--ph-hover)}.ph-btn[data-variant=primary]:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-button-primary-fill))}.ph-link:hover,.ph-rowtitle:hover>span{text-decoration:underline;text-underline-offset:3px}.ph-chip:hover{color:var(--dsw-alias-label-primary);background:var(--ph-hover)}.ph-textlink:hover{color:var(--dsw-alias-label-primary);text-decoration:underline;text-underline-offset:3px}.ph-page-btn:hover:not(:disabled){background:var(--ph-hover);color:var(--dsw-alias-label-primary)}}
-@media (max-width:640px){.ph-rowmeta>span:not(:first-child),.ph-rowmeta>.ph-sep{display:none}.ph-kbd{display:none}}
-@media (pointer:coarse){.ph-input,.ph-search input,.ph-select{font-size:16px}}
-@media (prefers-reduced-motion:reduce){.ph-tag[data-pulse] .ph-dot{animation:none}}
+.ph-mono-input input{font-family:var(--ph-mono);font-size:12.5px}
+@media (max-width:640px){.ph-rowmeta>span:not(:first-child),.ph-rowmeta>.ph-sep,.ph-kbd{display:none}}
+@media (pointer:coarse){.ph-editor,.ph-select{font-size:16px}}
 `
 
     const STATE_TONE = { connected: 'success', connecting: 'warning', reconnecting: 'warning', signing_in: 'warning', revoked: 'danger', not_connected: 'outline' }
+    const STATE_DOT = { connected: 'done', connecting: 'ongoing', reconnecting: 'ongoing', signing_in: 'ongoing', revoked: 'error', not_connected: 'idle' }
     const STATUS_TONE = { running: 'info', finished: 'success', completed: 'success', failed: 'danger', canceled: 'warning', idle: 'neutral', archived: 'outline' }
+    const STATUS_DOT = { running: 'ongoing', finished: 'done', completed: 'done', failed: 'error', canceled: 'warning', idle: 'idle', archived: 'idle' }
     const RUN_FILTERS = ['all', 'running', 'finished', 'completed', 'failed', 'canceled', 'idle', 'archived']
     const GROUPS = ['all', 'connection', 'run', 'op', 'hub', 'api']
 
@@ -564,20 +583,14 @@ window.__ModuleLoader__.load({
 
     const qs = params => Object.entries(params).filter(([, v]) => v !== '' && v != null && v !== 'all').map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')
 
-    const svg = (size, ...children) => h('svg', { width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.3, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, ...children)
-    const Icon = {
-      refresh: ({ size = 14 }) => svg(size, h('path', { d: 'M13 3.5V6h-2.5M3 12.5V10h2.5M12.6 6A5 5 0 0 0 3.6 5M3.4 10a5 5 0 0 0 9 1' })),
-      search: ({ size = 14 }) => svg(size, h('circle', { cx: 7, cy: 7, r: 4.5 }), h('path', { d: 'M10.5 10.5 14 14' })),
-      close: ({ size = 12 }) => svg(size, h('path', { d: 'M4 4l8 8M12 4l-8 8' })),
-      more: ({ size = 14 }) => svg(size, h('circle', { cx: 3.5, cy: 8, r: .6, fill: 'currentColor' }), h('circle', { cx: 8, cy: 8, r: .6, fill: 'currentColor' }), h('circle', { cx: 12.5, cy: 8, r: .6, fill: 'currentColor' })),
-      left: ({ size = 14 }) => svg(size, h('path', { d: 'M10 3.5 5.5 8l4.5 4.5' })),
-      right: ({ size = 14 }) => svg(size, h('path', { d: 'M6 3.5 10.5 8 6 12.5' })),
-      chevron: ({ size = 14, open }) => svg(size, h('path', { d: open ? 'M3.5 6 8 10.5 12.5 6' : 'M6 3.5 10.5 8 6 12.5' })),
-      external: ({ size = 12 }) => svg(size, h('path', { d: 'M9.5 2.5h4v4M13.5 2.5 8 8M11.5 9.5v4h-9v-9h4' })),
-      copy: ({ size = 13 }) => svg(size, h('rect', { x: 5.5, y: 5.5, width: 8, height: 8, rx: 1.5 }), h('path', { d: 'M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2' })),
-      hub: ({ size = 16 }) => h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', 'aria-hidden': true },
-        h('circle', { cx: 6.5, cy: 6.5, r: 2.5 }), h('circle', { cx: 17.5, cy: 6.5, r: 2.5 }), h('circle', { cx: 12, cy: 17, r: 3 }), h('path', { d: 'M8 8.5l2.6 5.6M16 8.5l-2.6 5.6' })),
-    }
+    const IconHub = ({ size = 16 }) => h('svg', {
+      width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+      strokeWidth: 1.6, strokeLinecap: 'round', 'aria-hidden': true,
+    },
+    h('circle', { cx: 6.5, cy: 6.5, r: 2.5 }),
+    h('circle', { cx: 17.5, cy: 6.5, r: 2.5 }),
+    h('circle', { cx: 12, cy: 17, r: 3 }),
+    h('path', { d: 'M8 8.5l2.6 5.6M16 8.5l-2.6 5.6' }))
 
     return {
       inject: ['slots', 'locale'],
@@ -635,7 +648,9 @@ window.__ModuleLoader__.load({
               const data = await request(key, { signal })
               if (!signal?.aborted) setState({ identity, data, error: null, loading: false, at: new Date().toISOString() })
             } catch (error) {
-              if (!signal?.aborted && error?.name !== 'AbortError') setState(prev => ({ ...(prev.identity === identity ? prev : { identity, data: null }), error: String(error?.message ?? error), loading: false }))
+              if (!signal?.aborted && error?.name !== 'AbortError') {
+                setState(prev => ({ ...(prev.identity === identity ? prev : { identity, data: null }), error: String(error?.message ?? error), loading: false }))
+              }
             }
           }, [key])
           usePoll(load, [load], fast)
@@ -643,24 +658,16 @@ window.__ModuleLoader__.load({
           return { ...(state.identity === identity ? state : { data: null, loading: true, error: null }), reload }
         }
 
-        function Btn({ variant, size, icon, label, children, ...rest }) {
-          return h('button', { type: 'button', className: `ph-btn${icon && !label && !children ? ' ph-icon' : ''}`, 'data-variant': variant, 'data-size': size, ...rest }, icon ? h(icon) : null, label ?? children)
+        function StatusTag({ tone, dotState, children, title }) {
+          return h(Tag, { tone, title },
+            h('span', { className: 'ph-tag-inner' },
+              dotState ? h(StateDot, { state: dotState, size: 7 }) : null,
+              children))
         }
 
-        function Tag({ tone, pulse, children, title }) {
-          return h('span', { className: 'ph-tag', 'data-tone': tone, 'data-pulse': pulse ? '' : undefined, title }, h('span', { className: 'ph-dot', 'aria-hidden': true }), children)
-        }
-
-        function Confirm({ title, text, confirmLabel, destructive, onConfirm, onClose }) {
-          const ref = React.useRef(null)
+        function ConfirmModal({ title, text, confirmLabel, destructive, onConfirm, onClose }) {
           const [busy, setBusy] = React.useState(false)
           const [error, setError] = React.useState(null)
-          React.useEffect(() => {
-            const dialog = ref.current
-            const previous = document.activeElement
-            dialog.showModal()
-            return () => { dialog.close(); if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true }) }
-          }, [])
           const run = async () => {
             setBusy(true)
             setError(null)
@@ -668,25 +675,30 @@ window.__ModuleLoader__.load({
             if (message) { setBusy(false); setError(message); return }
             onClose()
           }
-          return h('dialog', {
-            ref, className: 'ph-dialog', 'aria-labelledby': 'ph-dialog-title',
-            onCancel: e => { e.preventDefault(); if (!busy) onClose() },
-            onClick: e => { if (e.target === ref.current && !busy) onClose() },
-            onKeyDown: e => e.stopPropagation(),
-          },
-            h('h2', { id: 'ph-dialog-title' }, title),
-            h('p', null, text),
-            error ? h('p', { className: 'ph-error', role: 'alert' }, `${t('opFailed')}: ${error}`) : null,
-            h('footer', null,
-              h(Btn, { size: 'md', onClick: onClose, disabled: busy, autoFocus: destructive }, t('cancel')),
-              h(Btn, { size: 'md', variant: destructive ? 'destructive' : 'primary', onClick: run, disabled: busy, 'aria-busy': busy, autoFocus: !destructive }, confirmLabel)))
+          return h(Modal, {
+            open: true,
+            onClose: () => { if (!busy) onClose() },
+            title,
+            closeLabel: t('cancel'),
+            description: text,
+            tone: destructive ? 'warning' : undefined,
+            footer: h(React.Fragment, null,
+              h(Button, { variant: 'outline', disabled: busy, 'data-modal-autofocus': destructive || undefined, onClick: onClose }, t('cancel')),
+              h(Button, {
+                variant: 'primary',
+                className: destructive ? 'ph-danger-fill' : undefined,
+                disabled: busy, 'aria-busy': busy,
+                'data-modal-autofocus': !destructive || undefined,
+                onClick: () => void run(),
+              }, confirmLabel)),
+          }, error ? h('p', { className: 'ph-error', role: 'alert' }, `${t('opFailed')}: ${error}`) : null)
         }
 
         function Menu({ items }) {
           const [open, setOpen] = React.useState(false)
           const ref = React.useRef(null)
           React.useEffect(() => {
-            if (!open) return
+            if (!open) return undefined
             const away = e => { if (!ref.current?.contains(e.target)) setOpen(false) }
             const key = e => { if (e.key === 'Escape') { setOpen(false); ref.current?.querySelector('button')?.focus() } }
             document.addEventListener('pointerdown', away)
@@ -702,11 +714,20 @@ window.__ModuleLoader__.load({
             list[(at + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length]?.focus()
           }
           return h('div', { className: 'ph-menuwrap', ref },
-            h(Btn, { icon: Icon.more, 'aria-label': t('more'), title: t('more'), 'aria-haspopup': 'menu', 'aria-expanded': open, onClick: () => setOpen(v => !v) }),
+            h(Button, {
+              size: 'sm', variant: 'ghost',
+              icon: h(IconEllipsisOutlineRegular, { size: 15 }),
+              'aria-label': t('more'), title: t('more'), 'aria-haspopup': 'menu', 'aria-expanded': open,
+              onClick: () => setOpen(v => !v),
+            }),
             open ? h('div', { className: 'ph-menu', role: 'menu', onKeyDown: onKey },
               items.filter(Boolean).map((item, i) => item === '-'
                 ? h('div', { key: `sep-${i}`, className: 'ph-menusep', role: 'separator' })
-                : h('button', { key: item.label, type: 'button', role: 'menuitem', className: 'ph-menuitem', 'data-danger': item.danger ? '' : undefined, disabled: item.disabled, onClick: () => { setOpen(false); item.onSelect() } }, item.label))) : null)
+                : h('button', {
+                  key: item.label, type: 'button', role: 'menuitem', className: 'ph-menuitem',
+                  'data-danger': item.danger ? '' : undefined, disabled: item.disabled,
+                  onClick: () => { setOpen(false); item.onSelect() },
+                }, item.label))) : null)
         }
 
         function Pager({ data, onPage, onSize }) {
@@ -715,10 +736,9 @@ window.__ModuleLoader__.load({
           const from = (page - 1) * pageSize + 1
           const to = Math.min(total, page * pageSize)
           const list = []
-          const push = n => list.push(n)
           for (let n = 1; n <= pages; n++) {
-            if (n === 1 || n === pages || Math.abs(n - page) <= 1) push(n)
-            else if (list[list.length - 1] !== '…') push('…')
+            if (n === 1 || n === pages || Math.abs(n - page) <= 1) list.push(n)
+            else if (list[list.length - 1] !== '…') list.push('…')
           }
           return h('nav', { className: 'ph-pager', 'aria-label': t('pagination') },
             h('div', { className: 'ph-pager-side' },
@@ -727,21 +747,28 @@ window.__ModuleLoader__.load({
                 h('select', { className: 'ph-select', 'data-size': 'sm', value: pageSize, onChange: e => onSize(Number(e.target.value)) },
                   PAGE_SIZES.map(n => h('option', { key: n, value: n }, n))))),
             pages > 1 ? h('div', { className: 'ph-pages' },
-              h('button', { type: 'button', className: 'ph-page-btn', disabled: page <= 1, onClick: () => onPage(page - 1), 'aria-label': t('prev'), title: t('prev') }, h(Icon.left)),
+              h('button', { type: 'button', className: 'ph-page-btn', disabled: page <= 1, onClick: () => onPage(page - 1), 'aria-label': t('prev'), title: t('prev') }, h(IconChevronLeftOutlineRegular, { size: 13 })),
               list.map((n, i) => n === '…'
                 ? h('span', { key: `gap-${i}`, className: 'ph-gap', 'aria-hidden': true }, '…')
                 : h('button', { key: n, type: 'button', className: 'ph-page-btn', 'aria-current': n === page ? 'page' : undefined, 'aria-label': tf('pageN', { n }), onClick: () => onPage(n) }, n)),
-              h('button', { type: 'button', className: 'ph-page-btn', disabled: page >= pages, onClick: () => onPage(page + 1), 'aria-label': t('next'), title: t('next') }, h(Icon.right))) : null)
+              h('button', { type: 'button', className: 'ph-page-btn', disabled: page >= pages, onClick: () => onPage(page + 1), 'aria-label': t('next'), title: t('next') }, h(IconChevronRightOutlineRegular, { size: 13 }))) : null)
         }
 
         function SearchBox({ value, onChange, placeholder, inputRef }) {
-          return h('label', { className: 'ph-search' },
-            h(Icon.search),
-            h('span', { className: 'ph-sr' }, t('search')),
-            h('input', { ref: inputRef, type: 'search', value, placeholder, onChange: e => onChange(e.target.value), onKeyDown: e => { if (e.key === 'Escape' && value) { e.stopPropagation(); onChange('') } } }),
-            value
-              ? h('button', { type: 'button', className: 'ph-page-btn', 'aria-label': t('clearFilters'), onClick: () => onChange('') }, h(Icon.close))
-              : h('kbd', { className: 'ph-kbd', 'aria-hidden': true }, '/'))
+          return h('div', { className: 'ph-search-wrap' },
+            h(Input, {
+              ref: inputRef,
+              type: 'search',
+              icon: h(IconSearchOutlineRegular, { size: 14 }),
+              value,
+              placeholder,
+              'aria-label': t('search'),
+              onChange: e => onChange(e.target.value),
+              onKeyDown: e => { if (e.key === 'Escape' && value) { e.stopPropagation(); onChange('') } },
+            }),
+            h('span', { className: 'ph-search-end' }, value
+              ? h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCloseOutlineRegular, { size: 11 }), 'aria-label': t('clearFilters'), onClick: () => onChange('') })
+              : h('kbd', { className: 'ph-kbd', 'aria-hidden': true }, '/')))
         }
 
         function useSlashFocus(ref) {
@@ -765,39 +792,53 @@ window.__ModuleLoader__.load({
           return out
         }
 
-        function ConnectionSection({ data }) {
+        function ConnectionHero({ data }) {
           const { op, confirm, copy } = useApp()
-          const tone = STATE_TONE[data.state]
-          return h('section', { className: 'ph-section', 'aria-labelledby': 'ph-conn' },
-            h('div', { className: 'ph-sechead' },
-              h('h2', { className: 'ph-sectitle', id: 'ph-conn' }, t('connection')),
-              h('span', { className: 'ph-spacer' }),
+          return h('section', { className: 'ph-hero', 'aria-labelledby': 'ph-conn' },
+            h('div', { className: 'ph-hero-top' },
+              h('div', { className: 'ph-hero-title' },
+                h('div', { className: 'ph-hero-row' },
+                  h('h2', { className: 'ph-hero-h2', id: 'ph-conn' }, data.slug ?? t('connection')),
+                  h(StatusTag, { tone: STATE_TONE[data.state], dotState: STATE_DOT[data.state] }, t(`state_${data.state}`))),
+                h('a', { className: 'ph-link', href: data.hubOrigin, target: '_blank', rel: 'noreferrer' },
+                  data.hubOrigin, h(IconRightUpOutlineRegular, { size: 11 }))),
               h('div', { className: 'ph-actions' },
-                h('a', { className: 'ph-btn', href: data.hubOrigin, target: '_blank', rel: 'noreferrer' }, t('openHub'), h(Icon.external)),
-                data.state === 'connected' ? null : h(Btn, { onClick: () => op({ action: 'reconnect' }) }, t('reconnect')),
-                h(Btn, {
-                  variant: 'danger',
+                h('a', { className: 'ph-extbtn', href: data.hubOrigin, target: '_blank', rel: 'noreferrer' },
+                  t('openHub'), h(IconRightUpOutlineRegular, { size: 12 })),
+                data.state === 'connected' ? null : h(Button, { size: 'sm', variant: 'outline', onClick: () => void op({ action: 'reconnect' }) }, t('reconnect')),
+                h(Button, {
+                  size: 'sm', variant: 'ghost', className: 'ph-danger-text',
                   onClick: () => confirm({
                     title: t('disconnectTitle'), text: tf('disconnectText', { hub: data.hubOrigin }), confirmLabel: t('disconnect'), destructive: true,
                     onConfirm: () => op({ action: 'disconnect' }),
                   }),
                 }, t('disconnect')))),
-            data.lastError ? h('div', { className: 'ph-banner', 'data-tone': data.state === 'revoked' ? 'error' : 'warn', role: 'status' }, h('p', null, data.lastError)) : null,
-            h('dl', { className: 'ph-facts' },
-              h('div', null, h('dt', null, t('status')), h('dd', null, h(Tag, { tone, pulse: tone === 'warning' }, t(`state_${data.state}`)))),
-              h('div', null, h('dt', null, t('hub')), h('dd', null, h('a', { className: 'ph-link', href: data.hubOrigin, target: '_blank', rel: 'noreferrer' }, data.hubOrigin))),
-              h('div', null, h('dt', null, t('daemon')), h('dd', null, data.slug ?? '—')),
-              h('div', null, h('dt', null, t('daemonId')), h('dd', null, h('code', { className: 'ph-code' }, data.daemonId),
-                h(Btn, { icon: Icon.copy, 'aria-label': t('copy'), title: t('copy'), onClick: () => copy(data.daemonId) }))),
-              h('div', null, h('dt', null, t('permissions')), h('dd', null, (data.permissions ?? []).map(p => h('code', { key: p, className: 'ph-code' }, p)))),
-              h('div', null, h('dt', null, t('since')), h('dd', { title: fmt(data.connectedAt) }, data.state === 'connected' ? ago(data.connectedAt) : '—')),
-              h('div', null, h('dt', null, t('enrolled')), h('dd', { title: fmt(data.enrolledAt) }, fmt(data.enrolledAt)))))
+            data.lastError ? h('div', { className: 'ph-banner', 'data-tone': data.state === 'revoked' ? 'error' : 'warn', role: 'status' },
+              h(IconWarningTriangleOutlineRegular, { size: 14 }),
+              h('p', { className: 'ph-banner-body' }, data.lastError)) : null,
+            h('dl', { className: 'ph-facts-grid' },
+              h('div', { className: 'ph-fact' },
+                h('dt', null, t('daemonId')),
+                h('dd', null,
+                  h('code', { className: 'ph-code' }, data.daemonId),
+                  h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCopyOutlineRegular, { size: 12 }), 'aria-label': t('copy'), title: t('copy'), onClick: () => copy(data.daemonId) }))),
+              h('div', { className: 'ph-fact' },
+                h('dt', null, t('since')),
+                h('dd', { title: fmt(data.connectedAt) }, data.state === 'connected' ? ago(data.connectedAt) : '—')),
+              h('div', { className: 'ph-fact' },
+                h('dt', null, t('enrolled')),
+                h('dd', { title: fmt(data.enrolledAt) }, fmt(data.enrolledAt))),
+              h('div', { className: 'ph-fact' },
+                h('dt', null, t('permissions')),
+                h('dd', null, (data.permissions ?? []).length
+                  ? (data.permissions ?? []).map(p => h(Tag, { key: p, tone: 'neutral' }, p))
+                  : '—'))))
         }
 
         function Stats({ stats, onPick }) {
           const items = [
             ['total', 'all', stats.total],
-            ['running', 'running', stats.running, 'info'],
+            ['running', 'running', stats.running, stats.running > 0 ? 'info' : undefined],
             ['finished', 'finished', stats.finished + stats.completed],
             ['failed', 'failed', stats.failed, stats.failed > 0 ? 'danger' : undefined],
             ['last24h', 'all', stats.last24h],
@@ -808,25 +849,25 @@ window.__ModuleLoader__.load({
         }
 
         function Overview({ data, goto }) {
-          return h(React.Fragment, null,
+          return h('div', { className: 'ph-stack' },
+            h(ConnectionHero, { data }),
             h(Stats, { stats: data.stats, onPick: status => goto('runs', { status }) }),
-            h(ConnectionSection, { data }),
-            h('section', { className: 'ph-section', 'aria-labelledby': 'ph-latest-runs' },
-              h('div', { className: 'ph-sechead' },
-                h('h2', { className: 'ph-sectitle', id: 'ph-latest-runs' }, t('latestRuns')),
-                h('span', { className: 'ph-seccount' }, data.stats.total),
-                h('span', { className: 'ph-spacer' }),
-                data.stats.total > 0 ? h(Btn, { variant: 'ghost', onClick: () => goto('runs') }, t('viewAll'), h(Icon.right, { size: 12 })) : null),
+            h('section', { className: 'ph-box', 'aria-labelledby': 'ph-latest-runs' },
+              h('div', { className: 'ph-box-head' },
+                h('div', { className: 'ph-box-title' },
+                  h('h2', { id: 'ph-latest-runs' }, t('latestRuns')),
+                  h(Tag, { tone: 'neutral' }, data.stats.total)),
+                data.stats.total > 0 ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => goto('runs') }, t('viewAll')) : null),
               data.recent.length === 0
-                ? h('div', { className: 'ph-empty' }, h(Icon.hub, { size: 24 }), t('noRuns'))
+                ? h('div', { className: 'ph-empty', style: { border: 0, borderRadius: 0 } }, h(IconHub, { size: 24 }), h('p', null, t('noRuns')))
                 : h('ul', { className: 'ph-rows' }, data.recent.map(run => h(RunRow, { key: run.sessionId, run, compact: true })))),
-            h('section', { className: 'ph-section', 'aria-labelledby': 'ph-latest-activity' },
-              h('div', { className: 'ph-sechead' },
-                h('h2', { className: 'ph-sectitle', id: 'ph-latest-activity' }, t('latestActivity')),
-                h('span', { className: 'ph-spacer' }),
-                data.activity.length > 0 ? h(Btn, { variant: 'ghost', onClick: () => goto('activity') }, t('viewAll'), h(Icon.right, { size: 12 })) : null),
+            h('section', { className: 'ph-box', 'aria-labelledby': 'ph-latest-activity' },
+              h('div', { className: 'ph-box-head' },
+                h('div', { className: 'ph-box-title' },
+                  h('h2', { id: 'ph-latest-activity' }, t('latestActivity'))),
+                data.activity.length > 0 ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => goto('activity') }, t('viewAll')) : null),
               data.activity.length === 0
-                ? h('p', { className: 'ph-note' }, t('noActivity'))
+                ? h('div', { className: 'ph-empty', style: { border: 0, borderRadius: 0, padding: '24px 16px' } }, h('p', null, t('noActivity')))
                 : h('div', null, data.activity.map(event => h(EventRow, { key: event.id, event })))))
         }
 
@@ -839,41 +880,55 @@ window.__ModuleLoader__.load({
             h('div', { className: 'ph-rowline' },
               h('div', { className: 'ph-rowmain' },
                 h('button', { type: 'button', className: 'ph-rowtitle', 'aria-expanded': open, onClick: () => setOpen(v => !v), title: open ? t('hideDetails') : t('details') },
-                  h(Icon.chevron, { size: 12, open }), h('span', null, run.title || run.sessionId)),
+                  h(open ? IconChevronDownOutlineRegular : IconChevronRightOutlineRegular, { size: 12 }),
+                  h('span', null, run.title || run.sessionId)),
                 h('div', { className: 'ph-rowmeta', title: fmt(run.createdAt) }, meta.flatMap((part, i) => [
                   i ? h('span', { key: `s${i}`, className: 'ph-sep', 'aria-hidden': true }, '·') : null,
                   h('span', { key: i }, part),
                 ]))),
               h('div', { className: 'ph-rowend' },
-                h(Tag, { tone: STATUS_TONE[run.status], pulse: run.status === 'running' }, t(`status_${run.status}`)),
-                run.running ? h(Btn, { onClick: () => runOp('cancel-run', run.sessionId) }, t('stop')) : null,
-                canOpen() ? h(Btn, { onClick: () => openSession(run.sessionId) }, t('openSession')) : null,
+                h(StatusTag, { tone: STATUS_TONE[run.status], dotState: STATUS_DOT[run.status] }, t(`status_${run.status}`)),
+                run.running ? h(Button, { size: 'sm', variant: 'outline', onClick: () => void runOp('cancel-run', run.sessionId) }, t('stop')) : null,
+                canOpen() ? h(Button, { size: 'sm', variant: 'outline', onClick: () => openSession(run.sessionId) }, t('openSession')) : null,
                 compact ? null : h(Menu, { items: [
                   { label: t('copyId'), onSelect: () => copy(run.sessionId) },
                   { label: t('copyPath'), onSelect: () => copy(run.cwd) },
                   { label: t('runActivity'), onSelect: () => goto('activity', { sessionId: run.sessionId }) },
                   '-',
                   archived
-                    ? { label: t('restore'), onSelect: () => runOp('restore-run', run.sessionId) }
-                    : { label: t('archive'), onSelect: () => runOp('archive-run', run.sessionId) },
+                    ? { label: t('restore'), onSelect: () => void runOp('restore-run', run.sessionId) }
+                    : { label: t('archive'), onSelect: () => void runOp('archive-run', run.sessionId) },
                   archived ? { label: t('forget'), danger: true, onSelect: () => confirm({
                     title: t('forgetTitle'), text: t('forgetText'), confirmLabel: t('forget'), destructive: true,
                     onConfirm: () => runOp('forget-run', run.sessionId),
                   }) } : null,
                 ] }))),
             run.lastError && !open ? h('p', { className: 'ph-rowerror' }, run.lastError) : null,
-            open ? h('div', { className: 'ph-detail' }, h('dl', { className: 'ph-facts' },
-              h('div', null, h('dt', null, t('sessionId')), h('dd', null, h('code', { className: 'ph-code' }, run.sessionId), h(Btn, { icon: Icon.copy, 'aria-label': t('copyId'), title: t('copyId'), onClick: () => copy(run.sessionId) }))),
-              h('div', null, h('dt', null, t('directory')), h('dd', null, h('code', { className: 'ph-code' }, run.cwd), h(Btn, { icon: Icon.copy, 'aria-label': t('copyPath'), title: t('copyPath'), onClick: () => copy(run.cwd) }))),
-              h('div', null, h('dt', null, t('mode')), h('dd', null, run.preset && run.preset !== run.modeId ? `${run.modeId} → ${run.preset}` : run.modeId ?? '—')),
-              h('div', null, h('dt', null, t('model')), h('dd', null, run.model ?? t('deploymentDefault'))),
-              run.thinkingOptionId ? h('div', null, h('dt', null, t('effort')), h('dd', null, run.thinkingOptionId)) : null,
-              run.worktree ? h('div', null, h('dt', null, t('worktree')), h('dd', null, `${run.worktree.branch} · ${run.worktree.path}`)) : null,
-              h('div', null, h('dt', null, t('hubTools')), h('dd', null, run.hubTools ? t('mounted') : t('notMounted'))),
-              h('div', null, h('dt', null, t('createdAt')), h('dd', null, fmt(run.createdAt))),
-              h('div', null, h('dt', null, t('lastActivity')), h('dd', null, run.lastActivityAt ? `${fmt(run.lastActivityAt)} · ${tf('turns', { n: run.turns })}` : '—')),
-              run.finishedAt ? h('div', null, h('dt', null, t('finishedAt')), h('dd', null, fmt(run.finishedAt))) : null,
-              run.lastError ? h('div', null, h('dt', null, t('lastError')), h('dd', { className: 'ph-error' }, run.lastError)) : null)) : null)
+            open ? h('div', { className: 'ph-detail' },
+              h('dl', { className: 'ph-detail-grid' },
+                h('div', { className: 'ph-fact' },
+                  h('dt', null, t('sessionId')),
+                  h('dd', null,
+                    h('code', { className: 'ph-code' }, run.sessionId),
+                    h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCopyOutlineRegular, { size: 12 }), 'aria-label': t('copyId'), title: t('copyId'), onClick: () => copy(run.sessionId) }))),
+                h('div', { className: 'ph-fact' },
+                  h('dt', null, t('directory')),
+                  h('dd', null,
+                    run.cwd ? h(PathLabel, { path: run.cwd }) : '—',
+                    run.cwd ? h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCopyOutlineRegular, { size: 12 }), 'aria-label': t('copyPath'), title: t('copyPath'), onClick: () => copy(run.cwd) }) : null)),
+                h('div', { className: 'ph-fact' },
+                  h('dt', null, t('mode')),
+                  h('dd', null, run.preset && run.preset !== run.modeId ? `${run.modeId} → ${run.preset}` : run.modeId ?? '—')),
+                h('div', { className: 'ph-fact' },
+                  h('dt', null, t('model')),
+                  h('dd', null, run.model ?? t('deploymentDefault'))),
+                run.thinkingOptionId ? h('div', { className: 'ph-fact' }, h('dt', null, t('effort')), h('dd', null, run.thinkingOptionId)) : null,
+                run.worktree ? h('div', { className: 'ph-fact' }, h('dt', null, t('worktree')), h('dd', null, `${run.worktree.branch} · ${run.worktree.path}`)) : null,
+                h('div', { className: 'ph-fact' }, h('dt', null, t('hubTools')), h('dd', null, run.hubTools ? t('mounted') : t('notMounted'))),
+                h('div', { className: 'ph-fact' }, h('dt', null, t('createdAt')), h('dd', null, fmt(run.createdAt))),
+                h('div', { className: 'ph-fact' }, h('dt', null, t('lastActivity')), h('dd', null, run.lastActivityAt ? `${fmt(run.lastActivityAt)} · ${tf('turns', { n: run.turns })}` : '—')),
+                run.finishedAt ? h('div', { className: 'ph-fact' }, h('dt', null, t('finishedAt')), h('dd', null, fmt(run.finishedAt))) : null,
+                run.lastError ? h('div', { className: 'ph-fact ph-detail-span' }, h('dt', null, t('lastError')), h('dd', { className: 'ph-error' }, run.lastError)) : null)) : null)
         }
 
         function RunsTab({ initial }) {
@@ -892,35 +947,43 @@ window.__ModuleLoader__.load({
           const stats = data?.stats
           const setSize = n => { localStorage.setItem('paseo-hub:pageSize', String(n)); setPageSize(n) }
           const filtered = search || status !== 'all'
-          return h('section', { className: 'ph-section' },
+          return h('div', { className: 'ph-stack' },
             h('div', { className: 'ph-filters' },
               h(SearchBox, { value: q, onChange: setQ, placeholder: t('searchRuns'), inputRef })),
             h('div', { className: 'ph-chips', role: 'group', 'aria-label': t('status') },
               RUN_FILTERS.filter(key => key === 'all' || key === status || (stats?.[key] ?? 0) > 0).map(key =>
                 h('button', { key, type: 'button', className: 'ph-chip', 'aria-pressed': status === key, onClick: () => setStatus(key) },
-                  key === 'all' ? t('filter_all') : t(`status_${key}`), h('b', null, key === 'all' ? stats?.total ?? '' : stats?.[key] ?? 0)))),
-            res.error ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' }, h('p', null, res.error), h(Btn, { onClick: () => res.reload() }, t('retry'))) : null,
+                  key === 'all' ? t('filter_all') : t(`status_${key}`),
+                  h('b', null, key === 'all' ? stats?.total ?? '' : stats?.[key] ?? 0)))),
+            res.error ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' },
+              h(IconWarningTriangleOutlineRegular, { size: 14 }),
+              h('p', { className: 'ph-banner-body' }, res.error),
+              h(Button, { size: 'sm', variant: 'outline', onClick: () => res.reload() }, t('retry'))) : null,
             data && data.total === 0
-              ? h('div', { className: 'ph-empty' }, filtered ? t('noMatches') : t('noRuns'),
-                  filtered ? h(Btn, { onClick: () => { setQ(''); setStatus('all') } }, t('clearFilters')) : null)
-              : data ? h('ul', { className: 'ph-rows', 'aria-busy': res.loading }, data.items.map(run => h(RunRow, { key: run.sessionId, run }))) : null,
+              ? h('div', { className: 'ph-empty' },
+                h('p', null, filtered ? t('noMatches') : t('noRuns')),
+                filtered ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => { setQ(''); setStatus('all') } }, t('clearFilters')) : null)
+              : data ? h('section', { className: 'ph-box', 'aria-busy': res.loading },
+                h('ul', { className: 'ph-rows' }, data.items.map(run => h(RunRow, { key: run.sessionId, run })))) : null,
             h(Pager, { data, onPage: setPage, onSize: setSize }))
         }
 
         function EventRow({ event }) {
           const { goto } = useApp()
+          const dotState = event.level === 'error' ? 'error' : event.level === 'warn' ? 'warning' : 'idle'
           return h('div', { className: 'ph-event', 'data-level': event.level },
-            h('span', { className: 'ph-event-dot', 'aria-hidden': true }),
+            h('span', { className: 'ph-event-dot' }, h(StateDot, { state: dotState, size: 7 })),
             h('div', { className: 'ph-event-main' },
               h('p', { className: 'ph-event-msg' }, event.message),
               h('div', { className: 'ph-event-meta' },
                 h('span', null, t(`group_${event.kind.split('.')[0]}`) || event.kind),
-                event.sessionId ? h(React.Fragment, null, h('span', { 'aria-hidden': true }, '·'),
+                event.sessionId ? h(React.Fragment, null,
+                  h('span', { 'aria-hidden': true }, '·'),
                   h('button', { type: 'button', className: 'ph-textlink', title: t('runActivity'), onClick: () => goto('activity', { sessionId: event.sessionId }) }, event.sessionId.replace(/^session-/, '').slice(0, 8)),
                   canOpen() ? h('button', { type: 'button', className: 'ph-textlink', onClick: () => openSession(event.sessionId) }, t('openSession')) : null) : null),
-              event.kind === 'api.dispatch' && event.detail ? h('details', null,
-                h('summary', { className: 'ph-textlink' }, t('apiResult')),
-                h('pre', { className: 'ph-pre ph-json', tabIndex: 0 }, JSON.stringify(event.detail, null, 2))) : null),
+              event.kind === 'api.dispatch' && event.detail
+                ? h(JsonBlock, { label: t('apiResult'), payload: event.detail, defaultOpen: false, truncatedLabel: t('truncated') })
+                : null),
             h('time', { className: 'ph-event-time', dateTime: event.at, title: fmt(event.at) }, ago(event.at)))
         }
 
@@ -941,7 +1004,7 @@ window.__ModuleLoader__.load({
           const data = res.data
           const setSize = n => { localStorage.setItem('paseo-hub:pageSize', String(n)); setPageSize(n) }
           const filtered = search || level !== 'all' || group !== 'all' || sessionId
-          return h('section', { className: 'ph-section' },
+          return h('div', { className: 'ph-stack' },
             h('div', { className: 'ph-filters' },
               h(SearchBox, { value: q, onChange: setQ, placeholder: t('searchActivity'), inputRef }),
               h('label', null, h('span', { className: 'ph-sr' }, t('group')),
@@ -951,18 +1014,28 @@ window.__ModuleLoader__.load({
                 h('select', { className: 'ph-select', value: level, onChange: e => setLevel(e.target.value) },
                   h('option', { value: 'all' }, `${t('level')}: ${t('filter_all')}`),
                   h('option', { value: 'problems' }, t('level_problems')))),
-              h(Btn, { size: 'md', variant: 'ghost', disabled: !data || data.total === 0, onClick: () => confirm({
-                title: t('clearActivityTitle'), text: t('clearActivityText'), confirmLabel: t('clear'), destructive: true,
-                onConfirm: () => op({ action: 'clear-activity' }),
-              }) }, t('clearActivity'))),
+              h(Button, {
+                size: 'sm', variant: 'ghost', className: 'ph-danger-text',
+                disabled: !data || data.total === 0,
+                onClick: () => confirm({
+                  title: t('clearActivityTitle'), text: t('clearActivityText'), confirmLabel: t('clear'), destructive: true,
+                  onConfirm: () => op({ action: 'clear-activity' }),
+                }),
+              }, t('clearActivity'))),
             sessionId ? h('div', { className: 'ph-chips' },
               h('button', { type: 'button', className: 'ph-chip', 'aria-pressed': true, onClick: () => setSessionId(''), title: t('clearFilters') },
-                `${t('session')}: ${sessionId.replace(/^session-/, '').slice(0, 8)} `, h(Icon.close, { size: 10 }))) : null,
-            res.error ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' }, h('p', null, res.error), h(Btn, { onClick: () => res.reload() }, t('retry'))) : null,
+                `${t('session')}: ${sessionId.replace(/^session-/, '').slice(0, 8)}`,
+                h(IconCloseOutlineRegular, { size: 10 }))) : null,
+            res.error ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' },
+              h(IconWarningTriangleOutlineRegular, { size: 14 }),
+              h('p', { className: 'ph-banner-body' }, res.error),
+              h(Button, { size: 'sm', variant: 'outline', onClick: () => res.reload() }, t('retry'))) : null,
             data && data.total === 0
-              ? h('div', { className: 'ph-empty' }, filtered ? t('noMatches') : t('noActivity'),
-                  filtered ? h(Btn, { onClick: () => { setQ(''); setLevel('all'); setGroup('all'); setSessionId('') } }, t('clearFilters')) : null)
-              : data ? h('div', { 'aria-busy': res.loading }, data.items.map(event => h(EventRow, { key: event.id, event }))) : null,
+              ? h('div', { className: 'ph-empty' },
+                h('p', null, filtered ? t('noMatches') : t('noActivity')),
+                filtered ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => { setQ(''); setLevel('all'); setGroup('all'); setSessionId('') } }, t('clearFilters')) : null)
+              : data ? h('section', { className: 'ph-box', 'aria-busy': res.loading },
+                data.items.map(event => h(EventRow, { key: event.id, event }))) : null,
             h(Pager, { data, onPage: setPage, onSize: setSize }))
         }
 
@@ -970,27 +1043,36 @@ window.__ModuleLoader__.load({
           const { copy } = useApp()
           const mode = data.defaultModeId ?? data.modes[0]?.id ?? '<mode>'
           const snippet = `run:\n  target: { daemon: ${data.slug ?? '<daemon>'}, cwd: /path/to/project }\n  agent:\n    provider: dsh\n    model: <provider>/<model>   # optional\n    mode: ${mode}\n  prompt: Describe the task.`
-          return h(React.Fragment, null,
-            h('section', { className: 'ph-section', 'aria-labelledby': 'ph-modes' },
-              h('div', { className: 'ph-sechead' }, h('h2', { className: 'ph-sectitle', id: 'ph-modes' }, t('modes')), h('span', { className: 'ph-seccount' }, data.modes.length)),
-              h('p', { className: 'ph-note' }, t('modesHint')),
+          const toolbarLabels = { copy: t('copy'), copied: t('copied'), wrap: t('wrap'), unwrap: t('unwrap') }
+          return h('div', { className: 'ph-stack' },
+            h('section', { className: 'ph-box', 'aria-labelledby': 'ph-modes' },
+              h('div', { className: 'ph-box-head' },
+                h('div', { className: 'ph-box-title' },
+                  h('h2', { id: 'ph-modes' }, t('modes')),
+                  h(Tag, { tone: 'neutral' }, data.modes.length)),
+                h('span', { className: 'ph-note' }, t('modesHint'))),
               !data.presetsAvailable || data.modes.length === 0
-                ? h('div', { className: 'ph-banner', 'data-tone': 'warn' }, h('p', null, t('noPresets')))
-                : h('div', { className: 'ph-modes' }, data.modes.map(entry => h('div', { key: entry.id, className: 'ph-mode' },
-                    h('div', { className: 'ph-mode-main' }, h('b', null, entry.label), entry.label === entry.id && entry.preset === entry.id ? null : h('span', null, entry.preset === entry.id ? entry.id : `${entry.id} → ${entry.preset}`)),
-                    entry.id === data.defaultModeId ? h(Tag, { tone: 'info' }, t('defaultMode')) : null,
-                    h(Btn, { icon: Icon.copy, 'aria-label': `${t('copy')} ${entry.id}`, title: t('copy'), onClick: () => copy(entry.id) }))))),
-            h('section', { className: 'ph-section', 'aria-labelledby': 'ph-snippet' },
-              h('div', { className: 'ph-sechead' }, h('h2', { className: 'ph-sectitle', id: 'ph-snippet' }, t('triggerYaml'))),
+                ? h('div', { className: 'ph-box-pad' },
+                  h('div', { className: 'ph-banner', 'data-tone': 'warn' },
+                    h(IconWarningTriangleOutlineRegular, { size: 14 }),
+                    h('p', { className: 'ph-banner-body' }, t('noPresets'))))
+                : h('div', null, data.modes.map(entry => h('div', { key: entry.id, className: 'ph-mode' },
+                  h('div', { className: 'ph-mode-main' },
+                    h('b', null, entry.label),
+                    entry.label === entry.id && entry.preset === entry.id ? null : h('span', null, entry.preset === entry.id ? entry.id : `${entry.id} → ${entry.preset}`)),
+                  entry.id === data.defaultModeId ? h(Tag, { tone: 'info' }, t('defaultMode')) : null,
+                  h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCopyOutlineRegular, { size: 13 }), 'aria-label': `${t('copy')} ${entry.id}`, title: t('copy'), onClick: () => copy(entry.id) }))))),
+
+            h('section', { className: 'ph-box ph-box-pad', 'aria-labelledby': 'ph-snippet' },
+              h('div', { className: 'ph-box-title' }, h('h2', { id: 'ph-snippet' }, t('triggerYaml'))),
               h('p', { className: 'ph-note' }, t('triggerHint')),
-              h('div', { className: 'ph-pre-wrap' },
-                h('pre', { className: 'ph-pre' }, snippet),
-                h(Btn, { icon: Icon.copy, onClick: () => copy(snippet) }, t('copy')))),
-            h('section', { className: 'ph-section', 'aria-labelledby': 'ph-settings' },
-              h('div', { className: 'ph-sechead' }, h('h2', { className: 'ph-sectitle', id: 'ph-settings' }, t('settings'))),
-              h('dl', { className: 'ph-facts' },
-                h('div', null, h('dt', null, t('agentPreset')), h('dd', null, data.config?.agentPreset ?? t('deploymentDefault'))),
-                h('div', null, h('dt', null, t('listWorkspaces')), h('dd', null, data.config?.listWorkspaces ? t('yes') : t('no')))),
+              h(CodeBlock, { code: snippet, lang: 'yaml', copyLabel: t('copy'), copiedLabel: t('copied'), toolbarLabels })),
+
+            h('section', { className: 'ph-box ph-box-pad', 'aria-labelledby': 'ph-settings' },
+              h('div', { className: 'ph-box-title' }, h('h2', { id: 'ph-settings' }, t('settings'))),
+              h('dl', { className: 'ph-facts-grid', style: { borderTop: 0, paddingTop: 0 } },
+                h('div', { className: 'ph-fact' }, h('dt', null, t('agentPreset')), h('dd', null, data.config?.agentPreset ?? t('deploymentDefault'))),
+                h('div', { className: 'ph-fact' }, h('dt', null, t('listWorkspaces')), h('dd', null, data.config?.listWorkspaces ? t('yes') : t('no')))),
               h('p', { className: 'ph-note' }, t('settingsHint'))))
         }
 
@@ -1008,6 +1090,7 @@ window.__ModuleLoader__.load({
         function ApiConsole({ data }) {
           const { confirm, copy, nonce, goto } = useApp()
           const [saved, setSaved] = React.useState(data.api ?? { configured: false })
+          const [showConfig, setShowConfig] = React.useState(() => !data.api?.configured)
           const [origin, setOrigin] = React.useState(data.api?.origin ?? data.hubOrigin ?? '')
           const [apiKey, setApiKey] = React.useState('')
           const [toolWrites, setToolWrites] = React.useState(data.api?.toolWrites === true)
@@ -1021,6 +1104,7 @@ window.__ModuleLoader__.load({
           const search = useDebounced(query)
           const [page, setPage] = React.useState(1)
           const [pageSize, setPageSize] = React.useState(10)
+          const [selectedTrigger, setSelectedTrigger] = React.useState(null)
           const [editor, setEditor] = React.useState(false)
           const [yaml, setYaml] = React.useState('')
           const [validated, setValidated] = React.useState(null)
@@ -1060,14 +1144,23 @@ window.__ModuleLoader__.load({
           }
           const reloadList = async () => setList(await apiRequest({ action: 'triggers', query: search, page, pageSize }))
           const makeTemplate = () => {
+            setSelectedTrigger(null)
             setEditor(true); setValidated(null); setResult(null)
             setYaml(`name: manual-task\nenabled: true\non:\n  manual.run: {}\nrun:\n  target: { daemon: ${data.slug ?? 'my-daemon'}, cwd: /path/to/project }\n  agent:\n    provider: dsh\n    mode: ${data.defaultModeId ?? 'workspace-write'}\n  prompt: "Complete the task and call hub.finish_execution."\n  max_runtime: 1h\n  idle_timeout: 5m\n`)
           }
+          const openTrigger = item => job(async () => {
+            const value = await apiRequest({ action: 'get-trigger', name: item.id })
+            setSelectedTrigger(item)
+            setYaml(value.trigger.yaml)
+            setValidated(null)
+            setEditor(true)
+            setResult(null)
+          })
           const save = e => {
             e.preventDefault()
             void job(async () => {
               const value = await apiRequest({ action: 'configure', origin, apiKey, toolWrites })
-              setSaved(value); setApiKey(''); setResult(null); setResource(null); setProjects([]); setValidated(null); setValidatedBundle(null); setNotice(t('apiSaved'))
+              setSaved(value); setApiKey(''); setResult(null); setResource(null); setProjects([]); setValidated(null); setValidatedBundle(null); setShowConfig(false); setNotice(t('apiSaved'))
             })
           }
           const validate = () => job(async () => {
@@ -1100,78 +1193,164 @@ window.__ModuleLoader__.load({
             if (action === 'projects') setProjects(value.items)
           })
           const check = () => job(async () => { setResult(await apiRequest({ action: 'check' })) })
-          const configureSection = h('details', { className: 'ph-api-credentials', open: !saved.configured || undefined },
-            h('summary', null, t('apiCredentials'), saved.configured ? ` · ${saved.origin}` : ''),
-            h('section', { className: 'ph-section' },
-            h('div', { className: 'ph-sechead' }, h('h2', { className: 'ph-sectitle' }, t('apiCredentials')),
-              h('span', { className: 'ph-spacer' }),
-              h(Tag, { tone: saved.configured ? 'success' : 'outline' }, saved.configured ? t('apiConfigured') : t('apiNotConfigured')),
-              saved.configured ? h(Btn, { disabled: busy, onClick: check }, t('apiCheck')) : null),
-            h('p', { className: 'ph-note' }, t('apiKeyHintLong')),
-            h('form', { className: 'ph-form', onSubmit: save },
-              h('label', { className: 'ph-field' }, t('origin'), h('input', { className: 'ph-input', type: 'url', required: true, value: origin, placeholder: 'https://hub.example.com', onChange: e => setOrigin(e.target.value) })),
-              h('label', { className: 'ph-field' }, t('apiKeyLabel'), h('input', { className: 'ph-input', type: 'password', autoComplete: 'new-password', value: apiKey, required: !saved.configured || origin.replace(/\/$/, '') !== saved.origin, placeholder: saved.configured ? t('apiKeyUnchanged') : '', onChange: e => setApiKey(e.target.value) })),
-              h('label', { className: 'ph-check' }, h('input', { type: 'checkbox', checked: toolWrites, onChange: e => setToolWrites(e.target.checked) }), t('apiToolWrites')),
-              h('p', { className: 'ph-note' }, t('apiToolHint')),
-              h('div', { className: 'ph-actions' },
-                h('button', { type: 'submit', className: 'ph-btn', 'data-variant': 'primary', disabled: busy }, t('apiSave')),
-                saved.configured ? h(Btn, { variant: 'danger', disabled: busy, onClick: () => confirm({
-                  title: t('apiForgetTitle'), text: t('apiForgetText'), confirmLabel: t('apiForget'), destructive: true,
-                  onConfirm: () => job(async () => { setSaved(await apiRequest({ action: 'forget-key' })); setApiKey(''); setResult(null); setResource(null); setProjects([]) }),
-                }) }, t('apiForget')) : null))))
 
-          return h(React.Fragment, null,
+          const sectionItems = ['triggers', 'dispatch', 'resources', 'legacy'].map(key => ({
+            id: `ph-api-tab-${key}`, panelId: 'ph-api-panel', value: key, label: t(`api_${key}`),
+          }))
+
+          return h('div', { className: 'ph-stack' },
             h('p', { className: 'ph-note' }, t('apiIntro')),
-            configureSection,
-            error ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' }, h('pre', { className: 'ph-api-error' }, error), h(Btn, { icon: Icon.close, 'aria-label': t('cancel'), onClick: () => setError(null) })) : null,
-            notice ? h('p', { className: 'ph-note', role: 'status' }, notice) : null,
-            saved.configured ? h(React.Fragment, null,
-              h('div', { className: 'ph-chips', role: 'group', 'aria-label': t('apiSections') }, ['triggers', 'dispatch', 'resources', 'legacy'].map(key =>
-                h('button', { key, type: 'button', className: 'ph-chip', 'aria-pressed': section === key, onClick: () => { setSection(key); setError(null); setResult(null); setNotice('') } }, t(`api_${key}`)))),
-              section === 'triggers' ? h('section', { className: 'ph-section' },
-                h('div', { className: 'ph-filters' }, h(SearchBox, { value: query, onChange: setQuery, inputRef, placeholder: t('apiSearch') }),
-                  h(Btn, { disabled: busy, onClick: () => job(reloadList) }, t('refresh')),
-                  h(Btn, { disabled: busy, variant: 'primary', onClick: makeTemplate }, t('apiNew'))),
-                list && list.total === 0 ? h('div', { className: 'ph-empty' }, t('noMatches')) : null,
-                list ? h('ul', { className: 'ph-rows' }, list.items.map(item => h('li', { key: item.id, className: 'ph-row' },
-                  h('div', { className: 'ph-rowline' }, h('div', { className: 'ph-rowmain' }, h('strong', { className: 'ph-api-name' }, item.name), h('span', { className: 'ph-note' }, item.format)),
-                    h(Tag, { tone: item.enabled ? 'success' : 'outline' }, item.enabled ? t('apiEnabled') : t('apiDisabled')),
-                    h(Btn, { disabled: busy, onClick: () => job(async () => { const value = await apiRequest({ action: 'get-trigger', name: item.id }); setYaml(value.trigger.yaml); setValidated(null); setEditor(true); setResult(null) }) }, t('apiEdit')))))) : null,
-                h(Pager, { data: list, onPage: setPage, onSize: size => { setPageSize(size); setPage(1) } }),
-                editor ? h('div', { className: 'ph-section' },
-                  h('div', { className: 'ph-sechead' }, h('h3', { className: 'ph-sectitle' }, t('apiYaml')), h('span', { className: 'ph-spacer' }), h(Btn, { disabled: busy, onClick: () => copy(yaml), icon: Icon.copy }, t('copy'))),
-                  h('textarea', { className: 'ph-input ph-editor', 'aria-label': t('apiYaml'), value: yaml, spellCheck: false, disabled: busy, onChange: e => { setYaml(e.target.value); setValidated(null) } }),
-                  h('p', { className: 'ph-note' }, t('apiYamlHint')),
-                  h('div', { className: 'ph-actions' }, h(Btn, { disabled: busy || !yaml.trim(), onClick: validate }, t('apiValidate')),
-                    h(Btn, { variant: 'primary', disabled: busy || validated !== yaml, onClick: install }, t('apiInstall')))) : null) : null,
-              section === 'dispatch' ? h('section', { className: 'ph-section' },
-                h('p', { className: 'ph-note' }, t('apiDispatchHint')),
-                h('form', { className: 'ph-form', onSubmit: dispatch },
-                  h('label', { className: 'ph-field' }, t('apiProject'), h('input', { className: 'ph-input', required: true, value: projectSlug, list: 'ph-api-projects', onChange: e => setProjectSlug(e.target.value) })),
-                  h('datalist', { id: 'ph-api-projects' }, projects.map(p => h('option', { key: p.id, value: p.slug }, p.name))),
-                  h(Btn, { disabled: busy, onClick: () => readResource('projects') }, t('apiLoadProjects')),
-                  h('label', { className: 'ph-field' }, t('apiTrigger'), h('input', { className: 'ph-input', required: true, value: trigger, onChange: e => setTrigger(e.target.value) })),
-                  h('label', { className: 'ph-field' }, t('apiActor'), h('input', { className: 'ph-input', required: true, value: actor, onChange: e => setActor(e.target.value) })),
-                  h('label', { className: 'ph-field' }, t('apiInput'), h('textarea', { className: 'ph-input ph-editor ph-editor-short', value: input, onChange: e => setInput(e.target.value) })),
-                  h('label', { className: 'ph-check' }, h('input', { type: 'checkbox', checked: inputJson, onChange: e => setInputJson(e.target.checked) }), t('apiInputJson')),
-                  h('label', { className: 'ph-field' }, t('apiDeliveryKey'), h('input', { className: 'ph-input', required: true, value: deliveryKey, onChange: e => setDeliveryKey(e.target.value) })),
-                  h('div', { className: 'ph-actions' }, h(Btn, { disabled: busy, onClick: () => { setDeliveryKey(crypto.randomUUID()); setResult(null) } }, t('apiNewDeliveryKey'))),
-                  h('p', { className: 'ph-note' }, t('apiDeliveryHint')),
-                  h('label', { className: 'ph-field' }, t('apiRevision'), h('input', { className: 'ph-input', value: expectedVersionId, onChange: e => setExpectedVersionId(e.target.value) })),
-                  h('div', { className: 'ph-actions' }, h('button', { type: 'submit', className: 'ph-btn', 'data-variant': 'primary', disabled: busy }, t('apiDispatch'))))) : null,
-              section === 'resources' ? h('section', { className: 'ph-section' },
-                h('div', { className: 'ph-actions' }, ['projects', 'resources', 'setup-resources'].map(action => h(Btn, { key: action, disabled: busy, onClick: () => readResource(action) }, t(`apiRead_${action}`)))),
-                h('p', { className: 'ph-note' }, t('apiResourceHint')),
-                resource ? h('pre', { className: 'ph-pre ph-json', tabIndex: 0 }, JSON.stringify(resource, null, 2)) : null) : null,
-              section === 'legacy' ? h('section', { className: 'ph-section' },
-                h('p', { className: 'ph-note' }, t('apiLegacyHint')),
-                h('textarea', { className: 'ph-input ph-editor', 'aria-label': t('apiLegacyBundle'), spellCheck: false, value: bundle, disabled: busy, onChange: e => { setBundle(e.target.value); setValidatedBundle(null) } }),
+            h('section', { className: 'ph-hero', 'aria-label': t('apiCredentials') },
+              h('div', { className: 'ph-hero-top' },
+                h('div', { className: 'ph-hero-title' },
+                  h('div', { className: 'ph-hero-row' },
+                    h('h2', { className: 'ph-hero-h2' }, t('apiCredentials')),
+                    h(StatusTag, { tone: saved.configured ? 'success' : 'outline', dotState: saved.configured ? 'done' : 'idle' }, saved.configured ? t('apiConfigured') : t('apiNotConfigured')),
+                    saved.configured && saved.toolWrites ? h(Tag, { tone: 'warning' }, t('apiWritesEnabled')) : null),
+                  saved.configured ? h('span', { className: 'ph-note' }, saved.origin) : null),
                 h('div', { className: 'ph-actions' },
-                  h(Btn, { disabled: busy, onClick: () => job(async () => { const args = JSON.parse(bundle); setValidatedBundle(null); setResult(await apiRequest({ ...args, action: 'validate-configuration' })); setValidatedBundle(bundle); setNotice(t('apiValid')) }) }, t('apiValidate')),
-                  h(Btn, { variant: 'primary', disabled: busy || validatedBundle !== bundle, onClick: () => confirm({ title: t('apiInstallTitle'), text: `${saved.origin}\n${t('apiLegacyInstallText')}`, confirmLabel: t('apiInstall'), onConfirm: () => job(async () => { setResult(await apiRequest({ ...JSON.parse(bundle), action: 'install-configuration' })); setNotice(t('apiInstalled')) }) }) }, t('apiInstall')))) : null) : null,
-            result ? h('section', { className: 'ph-section' }, h('div', { className: 'ph-sechead' }, h('h3', { className: 'ph-sectitle' }, t('apiResult')), h('span', { className: 'ph-spacer' }), h(Btn, { icon: Icon.copy, onClick: () => copy(JSON.stringify(result, null, 2)) }, t('copy'))),
-              h('pre', { className: 'ph-pre ph-json', tabIndex: 0 }, JSON.stringify(result, null, 2)),
-              h(Btn, { variant: 'ghost', onClick: () => goto('activity') }, t('apiViewActivity'))) : null)
+                  saved.configured ? h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => void check() }, t('apiCheck')) : null,
+                  h(Button, {
+                    size: 'sm', variant: showConfig ? 'outline' : 'ghost',
+                    icon: h(IconSettingsOutlineRegular, { size: 13 }),
+                    'aria-expanded': showConfig,
+                    onClick: () => setShowConfig(v => !v),
+                  }, t(showConfig ? 'apiHideConfigure' : 'apiConfigure')))),
+              showConfig ? h('form', { className: 'ph-form ph-form-narrow', onSubmit: save, style: { paddingTop: 10, borderTop: '.5px solid var(--dsw-alias-border-l1)' } },
+                h('p', { className: 'ph-note' }, t('apiKeyHintLong')),
+                h('div', { className: 'ph-field' },
+                  h('label', { htmlFor: 'ph-api-origin' }, t('origin')),
+                  h(Input, { id: 'ph-api-origin', type: 'url', required: true, value: origin, placeholder: 'https://hub.example.com', onChange: e => setOrigin(e.target.value) })),
+                h('div', { className: 'ph-field' },
+                  h('label', { htmlFor: 'ph-api-key' }, t('apiKeyLabel')),
+                  h(Input, {
+                    id: 'ph-api-key', type: 'password', autoComplete: 'new-password', value: apiKey,
+                    required: !saved.configured || origin.replace(/\/$/, '') !== saved.origin,
+                    placeholder: saved.configured ? t('apiKeyUnchanged') : '',
+                    onChange: e => setApiKey(e.target.value),
+                  })),
+                h('div', { className: 'ph-switch-row' },
+                  h('div', { className: 'ph-switch-copy' },
+                    h('strong', null, t('apiToolWrites')),
+                    h('span', { className: 'ph-note' }, t('apiToolHint'))),
+                  h(Switch, { checked: toolWrites, onChange: setToolWrites, label: '' })),
+                h('div', { className: 'ph-actions' },
+                  h(Button, { type: 'submit', size: 'sm', variant: 'primary', disabled: busy }, t('apiSave')),
+                  saved.configured ? h(Button, {
+                    size: 'sm', variant: 'ghost', className: 'ph-danger-text', disabled: busy,
+                    onClick: () => confirm({
+                      title: t('apiForgetTitle'), text: t('apiForgetText'), confirmLabel: t('apiForget'), destructive: true,
+                      onConfirm: () => job(async () => { setSaved(await apiRequest({ action: 'forget-key' })); setApiKey(''); setResult(null); setResource(null); setProjects([]); setShowConfig(true) }),
+                    }),
+                  }, t('apiForget')) : null)) : null),
+
+            error ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' },
+              h(IconWarningTriangleOutlineRegular, { size: 14 }),
+              h('pre', { className: 'ph-banner-body' }, error),
+              h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCloseOutlineRegular, { size: 12 }), 'aria-label': t('cancel'), onClick: () => setError(null) })) : null,
+
+            notice ? h('div', { className: 'ph-banner', 'data-tone': 'ok', role: 'status' },
+              h('p', { className: 'ph-banner-body' }, notice),
+              h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCloseOutlineRegular, { size: 12 }), 'aria-label': t('cancel'), onClick: () => setNotice('') })) : null,
+
+            saved.configured ? h(React.Fragment, null,
+              h(SegmentedTabs, {
+                size: 'sm',
+                label: t('apiSections'),
+                value: section,
+                onChange: next => { setSection(next); setError(null); setResult(null); setNotice('') },
+                items: sectionItems,
+              }),
+
+              h('div', { id: 'ph-api-panel', role: 'tabpanel', className: 'ph-stack' },
+                section === 'triggers' ? h('div', { className: 'ph-api-split' },
+                  h('aside', { className: 'ph-api-rail' },
+                    h('div', { className: 'ph-filters' },
+                      h(SearchBox, { value: query, onChange: setQuery, inputRef, placeholder: t('apiSearch') }),
+                      h(Button, { size: 'sm', variant: 'outline', icon: h(IconRefreshOutlineRegular, { size: 13 }), disabled: busy, title: t('refresh'), 'aria-label': t('refresh'), onClick: () => void job(reloadList) }),
+                      h(Button, { size: 'sm', variant: 'primary', icon: h(IconPlusOutlineRegular, { size: 13 }), disabled: busy, onClick: makeTemplate }, t('apiNew'))),
+                    list && list.total === 0 ? h('div', { className: 'ph-empty' }, h('p', null, t('noMatches'))) : null,
+                    list && list.items.length > 0 ? h('ul', { className: 'ph-trig-list' }, list.items.map(item => h('li', { key: item.id },
+                      h('button', {
+                        type: 'button', className: 'ph-trig-item', disabled: busy,
+                        'aria-current': selectedTrigger?.id === item.id || undefined,
+                        onClick: () => void openTrigger(item),
+                      },
+                      h('div', { className: 'ph-trig-body' },
+                        h('span', { className: 'ph-trig-name' }, item.name),
+                        h('span', { className: 'ph-note' }, item.format)),
+                      h(Tag, { tone: item.enabled ? 'success' : 'outline' }, item.enabled ? t('apiEnabled') : t('apiDisabled')))))) : null,
+                    h(Pager, { data: list, onPage: setPage, onSize: size => { setPageSize(size); setPage(1) } })),
+
+                  editor ? h('section', { className: 'ph-box ph-box-pad' },
+                    h('div', { className: 'ph-hero-top' },
+                      h('div', { className: 'ph-box-title' },
+                        h('h3', null, selectedTrigger ? selectedTrigger.name : t('apiYaml')),
+                        validated === yaml && yaml.trim() ? h(Tag, { tone: 'success' }, t('apiValidated')) : null),
+                      h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCopyOutlineRegular, { size: 13 }), disabled: busy, onClick: () => copy(yaml) }, t('copy'))),
+                    h('textarea', { className: 'ph-editor', 'aria-label': t('apiYaml'), value: yaml, spellCheck: false, disabled: busy, onChange: e => { setYaml(e.target.value); setValidated(null) } }),
+                    h('p', { className: 'ph-note' }, t('apiYamlHint')),
+                    h('div', { className: 'ph-actions' },
+                      h(Button, { size: 'sm', variant: 'outline', disabled: busy || !yaml.trim(), onClick: () => void validate() }, t('apiValidate')),
+                      h(Button, { size: 'sm', variant: 'primary', disabled: busy || validated !== yaml, onClick: install }, t('apiInstall'))))
+                    : h('div', { className: 'ph-empty' },
+                      h('p', null, t('apiSelectHint')),
+                      h(Button, { size: 'sm', variant: 'outline', icon: h(IconPlusOutlineRegular, { size: 13 }), disabled: busy, onClick: makeTemplate }, t('apiNew')))) : null,
+
+                section === 'dispatch' ? h('section', { className: 'ph-box ph-box-pad' },
+                  h('p', { className: 'ph-note' }, t('apiDispatchHint')),
+                  h('form', { className: 'ph-form', onSubmit: dispatch },
+                    h('div', { className: 'ph-form-grid' },
+                      h('div', { className: 'ph-field' },
+                        h('label', { htmlFor: 'ph-disp-proj' }, t('apiProject')),
+                        h('div', { className: 'ph-inline-row' },
+                          h(Input, { id: 'ph-disp-proj', required: true, value: projectSlug, list: 'ph-api-projects', onChange: e => setProjectSlug(e.target.value) }),
+                          h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => void readResource('projects') }, t('apiLoadProjects'))),
+                        h('datalist', { id: 'ph-api-projects' }, projects.map(p => h('option', { key: p.id, value: p.slug }, p.name)))),
+                      h('div', { className: 'ph-field' },
+                        h('label', { htmlFor: 'ph-disp-trig' }, t('apiTrigger')),
+                        h(Input, { id: 'ph-disp-trig', required: true, value: trigger, onChange: e => setTrigger(e.target.value) })),
+                      h('div', { className: 'ph-field' },
+                        h('label', { htmlFor: 'ph-disp-actor' }, t('apiActor')),
+                        h(Input, { id: 'ph-disp-actor', required: true, value: actor, onChange: e => setActor(e.target.value) })),
+                      h('div', { className: 'ph-field' },
+                        h('label', { htmlFor: 'ph-disp-rev' }, t('apiRevision')),
+                        h(Input, { id: 'ph-disp-rev', className: 'ph-mono-input', value: expectedVersionId, onChange: e => setExpectedVersionId(e.target.value) }))),
+                    h('div', { className: 'ph-field' },
+                      h('label', { htmlFor: 'ph-disp-input' }, t('apiInput')),
+                      h('textarea', { id: 'ph-disp-input', className: 'ph-editor ph-editor-short', value: input, onChange: e => setInput(e.target.value) })),
+                    h('div', { className: 'ph-switch-row' },
+                      h('div', { className: 'ph-switch-copy' }, h('strong', null, t('apiInputJson'))),
+                      h(Switch, { checked: inputJson, onChange: setInputJson, label: '' })),
+                    h('div', { className: 'ph-field' },
+                      h('label', { htmlFor: 'ph-disp-dk' }, t('apiDeliveryKey')),
+                      h('div', { className: 'ph-inline-row' },
+                        h(Input, { id: 'ph-disp-dk', className: 'ph-mono-input', required: true, value: deliveryKey, onChange: e => setDeliveryKey(e.target.value) }),
+                        h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => { setDeliveryKey(crypto.randomUUID()); setResult(null) } }, t('apiNewDeliveryKey'))),
+                      h('p', { className: 'ph-note' }, t('apiDeliveryHint'))),
+                    h('div', { className: 'ph-actions' },
+                      h(Button, { type: 'submit', size: 'sm', variant: 'primary', disabled: busy }, t('apiDispatch'))))) : null,
+
+                section === 'resources' ? h('section', { className: 'ph-box ph-box-pad' },
+                  h('div', { className: 'ph-actions' }, ['projects', 'resources', 'setup-resources'].map(action =>
+                    h(Button, { key: action, size: 'sm', variant: 'outline', disabled: busy, onClick: () => void readResource(action) }, t(`apiRead_${action}`)))),
+                  h('p', { className: 'ph-note' }, t('apiResourceHint')),
+                  resource ? h(JsonBlock, { label: t('api_resources'), payload: resource, defaultOpen: true, truncatedLabel: t('truncated') }) : null) : null,
+
+                section === 'legacy' ? h('section', { className: 'ph-box ph-box-pad' },
+                  h('p', { className: 'ph-note' }, t('apiLegacyHint')),
+                  h('textarea', { className: 'ph-editor', 'aria-label': t('apiLegacyBundle'), spellCheck: false, value: bundle, disabled: busy, onChange: e => { setBundle(e.target.value); setValidatedBundle(null) } }),
+                  h('div', { className: 'ph-actions' },
+                    h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => void job(async () => { const args = JSON.parse(bundle); setValidatedBundle(null); setResult(await apiRequest({ ...args, action: 'validate-configuration' })); setValidatedBundle(bundle); setNotice(t('apiValid')) }) }, t('apiValidate')),
+                    h(Button, { size: 'sm', variant: 'primary', disabled: busy || validatedBundle !== bundle, onClick: () => confirm({ title: t('apiInstallTitle'), text: `${saved.origin}\n${t('apiLegacyInstallText')}`, confirmLabel: t('apiInstall'), onConfirm: () => job(async () => { setResult(await apiRequest({ ...JSON.parse(bundle), action: 'install-configuration' })); setNotice(t('apiInstalled')) }) }) }, t('apiInstall')))) : null)) : null,
+
+            result ? h('section', { className: 'ph-box ph-box-pad' },
+              h('div', { className: 'ph-hero-top' },
+                h('div', { className: 'ph-box-title' }, h('h3', null, t('apiResult'))),
+                h('div', { className: 'ph-actions' },
+                  h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCopyOutlineRegular, { size: 13 }), onClick: () => copy(JSON.stringify(result, null, 2)) }, t('copy')),
+                  h(Button, { size: 'sm', variant: 'ghost', onClick: () => goto('activity') }, t('apiViewActivity')))),
+              h(JsonBlock, { label: t('apiResult'), payload: result, defaultOpen: true, truncatedLabel: t('truncated') })) : null)
         }
 
         function SignIn({ data }) {
@@ -1188,39 +1367,51 @@ window.__ModuleLoader__.load({
             setBusy(false)
             setError(message)
           }
-          return h('section', { className: 'ph-section', 'aria-labelledby': 'ph-signin' },
-            h('div', { className: 'ph-sechead' }, h('h2', { className: 'ph-sectitle', id: 'ph-signin' }, t('signInTitle'))),
-            h('p', { className: 'ph-note' }, t('introLong')),
-            h('form', { className: 'ph-form', onSubmit: submit },
-              h('label', { className: 'ph-field' }, t('origin'),
-                h('input', { className: 'ph-input', type: 'url', required: true, placeholder: 'https://hub.example.com', value: origin, autoComplete: 'url', onChange: e => setOrigin(e.target.value) }),
+          return h('section', { className: 'ph-hero', 'aria-labelledby': 'ph-signin' },
+            h('div', { className: 'ph-hero-title' },
+              h('h2', { className: 'ph-hero-h2', id: 'ph-signin' }, t('signInTitle')),
+              h('p', { className: 'ph-note' }, t('introLong'))),
+            h('form', { className: 'ph-form ph-form-narrow', onSubmit: submit },
+              h('div', { className: 'ph-field' },
+                h('label', { htmlFor: 'ph-signin-origin' }, t('origin')),
+                h(Input, { id: 'ph-signin-origin', type: 'url', required: true, placeholder: 'https://hub.example.com', value: origin, autoComplete: 'url', onChange: e => setOrigin(e.target.value) }),
                 h('span', { className: 'ph-note' }, t('originHint'))),
-              h('label', { className: 'ph-field' }, t('apiKey'),
-                h('input', { className: 'ph-input', type: 'password', value: apiKey, autoComplete: 'off', onChange: e => setApiKey(e.target.value) }),
+              h('div', { className: 'ph-field' },
+                h('label', { htmlFor: 'ph-signin-key' }, t('apiKey')),
+                h(Input, { id: 'ph-signin-key', type: 'password', value: apiKey, autoComplete: 'off', onChange: e => setApiKey(e.target.value) }),
                 h('span', { className: 'ph-note' }, t('apiKeyHint'))),
-              error || data.lastError ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' }, h('p', null, error ?? data.lastError)) : null,
+              error || data.lastError ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' },
+                h(IconWarningTriangleOutlineRegular, { size: 14 }),
+                h('p', { className: 'ph-banner-body' }, error ?? data.lastError)) : null,
               h('div', { className: 'ph-actions' },
-                h('button', { type: 'submit', className: 'ph-btn', 'data-variant': 'primary', 'data-size': 'md', disabled: !origin.trim() || busy, 'aria-busy': busy }, t('signIn')))))
+                h(Button, { type: 'submit', variant: 'primary', disabled: !origin.trim() || busy, 'aria-busy': busy }, t('signIn')))))
         }
 
         function Pending({ data }) {
           const { op, copy } = useApp()
           const login = data.login
-          if (login?.method !== 'browser') return h('section', { className: 'ph-section', 'aria-live': 'polite' },
-            h(Tag, { tone: 'warning', pulse: true }, t(login?.method === 'starting' ? 'signingIn' : 'enrolling')),
-            login?.method === 'starting' ? h(Btn, { size: 'md', onClick: () => op({ action: 'cancel-sign-in' }) }, t('cancel')) : null)
-          return h('section', { className: 'ph-section', 'aria-live': 'polite', 'aria-labelledby': 'ph-pending' },
-            h('div', { className: 'ph-sechead' }, h('h2', { className: 'ph-sectitle', id: 'ph-pending' }, t('signingIn')), h(Tag, { tone: 'warning', pulse: true }, t('state_signing_in'))),
+          if (login?.method !== 'browser') {
+            return h('section', { className: 'ph-hero', 'aria-live': 'polite' },
+              h('div', { className: 'ph-hero-top' },
+                h(StatusTag, { tone: 'warning', dotState: 'ongoing' }, t(login?.method === 'starting' ? 'signingIn' : 'enrolling')),
+                login?.method === 'starting' ? h(Button, { size: 'sm', variant: 'outline', onClick: () => void op({ action: 'cancel-sign-in' }) }, t('cancel')) : null))
+          }
+          return h('section', { className: 'ph-hero', 'aria-live': 'polite', 'aria-labelledby': 'ph-pending' },
+            h('div', { className: 'ph-hero-row' },
+              h('h2', { className: 'ph-hero-h2', id: 'ph-pending' }, t('signingIn')),
+              h(StatusTag, { tone: 'warning', dotState: 'ongoing' }, t('state_signing_in'))),
             h('p', { className: 'ph-note' }, t('code')),
+            h('div', null,
+              h('div', { className: 'ph-usercode-box' },
+                h('p', { className: 'ph-usercode' }, login.userCode),
+                h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCopyOutlineRegular, { size: 14 }), 'aria-label': t('copyCode'), title: t('copyCode'), onClick: () => copy(login.userCode) }))),
+            h('dl', { className: 'ph-facts-grid' },
+              h('div', { className: 'ph-fact' }, h('dt', null, t('hub')), h('dd', null, login.origin)),
+              h('div', { className: 'ph-fact' }, h('dt', null, t('expires')), h('dd', { title: fmt(login.expiresAt) }, ago(login.expiresAt)))),
             h('div', { className: 'ph-actions' },
-              h('p', { className: 'ph-usercode' }, login.userCode),
-              h(Btn, { icon: Icon.copy, 'aria-label': t('copyCode'), title: t('copyCode'), onClick: () => copy(login.userCode) })),
-            h('dl', { className: 'ph-facts' },
-              h('div', null, h('dt', null, t('hub')), h('dd', null, login.origin)),
-              h('div', null, h('dt', null, t('expires')), h('dd', { title: fmt(login.expiresAt) }, ago(login.expiresAt)))),
-            h('div', { className: 'ph-actions' },
-              h('a', { className: 'ph-btn', 'data-variant': 'primary', 'data-size': 'md', href: login.verificationUriComplete, target: '_blank', rel: 'noreferrer' }, t('openApproval'), h(Icon.external)),
-              h(Btn, { size: 'md', onClick: () => op({ action: 'cancel-sign-in' }) }, t('cancel'))))
+              h('a', { className: 'ph-extbtn', 'data-primary': 'true', href: login.verificationUriComplete, target: '_blank', rel: 'noreferrer' },
+                t('openApproval'), h(IconRightUpOutlineRegular, { size: 13 })),
+              h(Button, { variant: 'outline', onClick: () => void op({ action: 'cancel-sign-in' }) }, t('cancel'))))
         }
 
         const TABS = ['overview', 'runs', 'activity', 'api', 'setup']
@@ -1238,7 +1429,7 @@ window.__ModuleLoader__.load({
           const [toast, setToast] = React.useState(null)
           const [, tick] = React.useReducer(n => n + 1, 0)
           React.useEffect(() => { const id = setInterval(tick, 30_000); return () => clearInterval(id) }, [])
-          React.useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(null), 1600); return () => clearTimeout(id) }, [toast])
+          React.useEffect(() => { if (!toast) return undefined; const id = setTimeout(() => setToast(null), 1600); return () => clearTimeout(id) }, [toast])
 
           const refresh = React.useCallback(() => setNonce(n => n + 1), [])
           const app = React.useMemo(() => {
@@ -1267,15 +1458,12 @@ window.__ModuleLoader__.load({
 
           const enrolled = data?.daemonId != null
           const current = TABS.includes(tab) ? tab : 'overview'
-          const tone = data ? STATE_TONE[data.state] : undefined
-          const onTabKey = e => {
-            const at = TABS.indexOf(current)
-            const next = e.key === 'ArrowRight' ? TABS[(at + 1) % TABS.length] : e.key === 'ArrowLeft' ? TABS[(at - 1 + TABS.length) % TABS.length] : null
-            if (!next) return
-            e.preventDefault()
-            app.goto(next)
-            e.currentTarget.querySelector(`#ph-tab-${next}`)?.focus()
-          }
+          const tabItems = data ? TABS.map(key => ({
+            id: `ph-tab-${key}`,
+            panelId: 'ph-tabpanel',
+            value: key,
+            label: key === 'runs' && data.stats.running > 0 ? `${t(`tab_${key}`)} (${data.stats.running})` : t(`tab_${key}`),
+          })) : []
 
           return h(Ctx.Provider, { value: app }, h('div', { className: 'ph-page' },
             h('div', { className: 'ph-inner' },
@@ -1283,36 +1471,38 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'ph-heading' },
                   h('div', { className: 'ph-titlerow' },
                     h('h1', { className: 'ph-h1' }, t('panel')),
-                    data ? h(Tag, { tone, pulse: tone === 'warning', title: data.lastError ?? undefined }, t(`state_${data.state}`)) : null),
+                    data ? h(StatusTag, { tone: STATE_TONE[data.state], dotState: STATE_DOT[data.state], title: data.lastError ?? undefined }, t(`state_${data.state}`)) : null),
                   h('p', { className: 'ph-intro' }, t('intro'))),
                 h('div', { className: 'ph-toolbar' },
                   state.at ? h('span', { className: 'ph-updated', title: fmt(state.at) }, tf('updated', { time: ago(state.at) })) : null,
-                  h(Btn, { icon: Icon.refresh, 'aria-label': t('refresh'), title: t('refresh'), onClick: refresh }))),
+                  h(Button, { size: 'sm', variant: 'outline', icon: h(IconRefreshOutlineRegular, { size: 13 }), 'aria-label': t('refresh'), title: t('refresh'), onClick: refresh }, t('refresh')))),
               state.error ? h('div', { className: 'ph-banner', 'data-tone': 'error', role: 'alert' },
-                h('p', null, `${t('loadFailed')}: ${state.error}`), h(Btn, { onClick: refresh }, t('retry'))) : null,
-              data ? h('div', { className: 'ph-tabs', role: 'tablist', 'aria-label': t('tabsLabel'), onKeyDown: onTabKey },
-                TABS.map(key => h('button', {
-                  key, id: `ph-tab-${key}`, type: 'button', role: 'tab', className: 'ph-tab',
-                  'aria-selected': current === key, 'aria-controls': 'ph-tabpanel', tabIndex: current === key ? 0 : -1,
-                  onClick: () => app.goto(key),
-                }, t(`tab_${key}`),
-                key === 'runs' && data.stats.running > 0 ? h('span', { className: 'ph-tabcount' }, data.stats.running) : null))) : null,
+                h(IconWarningTriangleOutlineRegular, { size: 14 }),
+                h('p', { className: 'ph-banner-body' }, `${t('loadFailed')}: ${state.error}`),
+                h(Button, { size: 'sm', variant: 'outline', onClick: refresh }, t('retry'))) : null,
+              data ? h(SegmentedTabs, {
+                size: 'sm',
+                label: t('tabsLabel'),
+                value: current,
+                onChange: next => app.goto(next),
+                items: tabItems,
+              }) : null,
               data && current === 'overview' && !enrolled && data.state === 'signing_in' ? h(Pending, { data }) : null,
               data && current === 'overview' && !enrolled && data.state !== 'signing_in' ? h(SignIn, { data }) : null,
-              data ? h('div', { id: 'ph-tabpanel', role: 'tabpanel', 'aria-labelledby': `ph-tab-${current}`, style: { display: 'flex', flexDirection: 'column', gap: 32 } },
+              data ? h('div', { id: 'ph-tabpanel', role: 'tabpanel', 'aria-labelledby': `ph-tab-${current}`, className: 'ph-stack' },
                 current === 'overview' && enrolled ? h(Overview, { data, goto: app.goto }) : null,
                 current === 'runs' ? h(RunsTab, { initial: tabArgs }) : null,
                 current === 'activity' ? h(ActivityTab, { initial: tabArgs }) : null,
                 current === 'api' ? h(ApiConsole, { data }) : null,
                 current === 'setup' ? h(SetupTab, { data }) : null) : null,
               toast ? h('div', { className: 'ph-toast', role: 'status' }, toast) : null),
-            dialog ? h(Confirm, { ...dialog, onClose: () => setDialog(null) }) : null))
+            dialog ? h(ConfirmModal, { ...dialog, onClose: () => setDialog(null) }) : null))
         }
 
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS }, HubPage))
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
           name: 'sidebar.panellist', id: PANEL_ID, order: 45, locale: NS, label: () => t('panel'),
-        }, ({ size }) => h(Icon.hub, { size: size ?? 16 })))
+        }, ({ size }) => h(IconHub, { size: size ?? 16 })))
       },
     }
   },

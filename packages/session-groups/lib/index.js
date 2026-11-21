@@ -5,7 +5,7 @@ export const STATE_PATH = '/session-groups/state'
 export const OP_PATH = '/session-groups/op'
 export const EVENTS_PATH = '/session-groups/events'
 export const TOOL_NAME = 'session_groups'
-export const ACTIONS = ['list', 'create', 'rename', 'delete', 'move_group', 'add', 'remove', 'pin']
+export const ACTIONS = ['list', 'create', 'rename', 'delete', 'move_group', 'add', 'add_many', 'remove', 'pin']
 
 const MAX_BODY_BYTES = 64 * 1024
 const MAX_NAME = 80
@@ -93,6 +93,14 @@ export function applyOp(state, op) {
         const sessionId = requireSession(op.sessionId)
         groups = withoutSession(groups, sessionId)
         group.sessionIds.push(sessionId)
+      } else if (op.sessionIds !== undefined) {
+        if (!Array.isArray(op.sessionIds)) throw new OpError('sessionIds must be an array')
+        const incoming = [...new Set(op.sessionIds.map(requireSession))]
+        const moving = new Set(incoming)
+        groups = groups.map(g => g.sessionIds.some(id => moving.has(id))
+          ? { ...g, sessionIds: g.sessionIds.filter(id => !moving.has(id)), pinned: g.pinned.filter(id => !moving.has(id)) }
+          : g)
+        group.sessionIds.push(...incoming)
       }
       return { state: { ...state, groups: [...groups, group] }, result: { groupId: group.id } }
     }
@@ -121,6 +129,20 @@ export function applyOp(state, op) {
       if (group.sessionIds.includes(sessionId)) return { state, result: {} }
       const groups = withoutSession(state.groups, sessionId)
         .map(g => g.id === group.id ? { ...g, sessionIds: [...g.sessionIds, sessionId] } : g)
+      return { state: { ...state, groups }, result: {} }
+    }
+    case 'add_many': {
+      const group = requireGroup(state, op.groupId)
+      if (!Array.isArray(op.sessionIds) || op.sessionIds.length === 0) throw new OpError('sessionIds must be a non-empty array')
+      const incoming = [...new Set(op.sessionIds.map(requireSession))]
+      const toAdd = incoming.filter(id => !group.sessionIds.includes(id))
+      if (toAdd.length === 0) return { state, result: {} }
+      const moving = new Set(toAdd)
+      const groups = state.groups.map(g => {
+        if (g.id === group.id) return { ...g, sessionIds: [...g.sessionIds, ...toAdd] }
+        if (!g.sessionIds.some(id => moving.has(id))) return g
+        return { ...g, sessionIds: g.sessionIds.filter(id => !moving.has(id)), pinned: g.pinned.filter(id => !moving.has(id)) }
+      })
       return { state: { ...state, groups }, result: {} }
     }
     case 'remove': {
@@ -177,8 +199,8 @@ async function openDomain(ctx) {
 const TOOL_DESCRIPTION = [
   'Manage the user\'s custom session groups shown in the "Session groups" panel of the Web UI.',
   'A session belongs to at most one group; adding it to another group moves it. Pinned sessions lead their group.',
-  'Actions: list; create {name, sessionId?}; rename {groupId, name}; delete {groupId} (sessions are kept);',
-  'move_group {groupId, beforeGroupId?} (omit beforeGroupId to move last); add {groupId, sessionId}; remove {sessionId};',
+  'Actions: list; create {name, sessionId?, sessionIds?}; rename {groupId, name}; delete {groupId} (sessions are kept);',
+  'move_group {groupId, beforeGroupId?} (omit beforeGroupId to move last); add {groupId, sessionId}; add_many {groupId, sessionIds}; remove {sessionId};',
   'pin {sessionId, pinned}. Every action returns the complete resulting groups.',
 ].join(' ')
 
@@ -300,6 +322,7 @@ export function apply(ctx) {
           beforeGroupId: { type: 'string', description: 'move_group: place before this group; omit to move last.' },
           name: { type: 'string', description: 'create/rename: group name.' },
           sessionId: { type: 'string', description: 'Session id for add/remove/pin, or the first member for create.' },
+          sessionIds: { type: 'array', items: { type: 'string' }, description: 'Session ids for add_many or create.' },
           pinned: { type: 'boolean', description: 'pin: true to pin, false to unpin.' },
         },
         required: ['action'],

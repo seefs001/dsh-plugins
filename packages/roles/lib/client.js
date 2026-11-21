@@ -2,7 +2,12 @@ window.__ModuleLoader__.load({
   id: 'dsh-roles',
   factory(require) {
     const React = require('react')
-    const { Button, Modal } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const {
+      Button, Checkbox, CodeBlock, Input, Modal, PathLabel, SegmentedTabs, StateDot, Tag,
+      IconCheckOutlineRegular, IconChevronRightOutlineRegular, IconCloseOutlineRegular,
+      IconEllipsisOutlineRegular, IconPlusOutlineRegular, IconRefreshOutlineRegular,
+      IconSearchOutlineRegular, IconTrashOutlineRegular, IconWarningTriangleOutlineRegular,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'roles'
     const KEY = 'dsh-roles'
@@ -17,18 +22,23 @@ window.__ModuleLoader__.load({
       manage: 'Manage roles…',
       switchFailed: 'Could not switch role: {message}',
       chipTitle: 'Session role: {name}. Click to edit.',
-      intro: 'Pair a prompt with skills and pick a role per session from the model menu.',
+      intro: 'Pair a system prompt with reusable skills and switch roles per session from the model menu.',
       configHint: 'Manage roles from the Roles panel in the sidebar.',
       openManager: 'Open Roles',
       newRole: 'New role',
-      search: 'Search roles',
+      search: 'Search roles…',
+      filterAll: 'All',
+      filterActive: 'In use',
+      filterBuiltin: 'Built-in',
+      filterCustom: 'Custom',
+      resetFilters: 'Reset filters',
       noMatches: 'No matching roles.',
       empty: 'No roles yet. Create one or restore the built-in roles.',
-      restore: 'Restore {n} built-in roles',
+      restore: 'Restore {n} built-in',
       restored: 'Restored {n} built-in roles.',
       builtin: 'Built-in',
       modified: 'Edited',
-      unsavedNew: 'Unsaved',
+      unsavedNew: 'Unsaved draft',
       unsaved: 'Unsaved changes',
       skillsCount: '{n} skills',
       usedBy: 'Used by {n} sessions',
@@ -45,14 +55,18 @@ window.__ModuleLoader__.load({
       skillsHint: 'Loaded on demand through the skill tool in sessions using this role. Local skills with the same name take precedence.',
       addSkill: 'Add skill',
       localSkills: 'Local skill references',
+      localSelectedEmpty: 'No local skills referenced yet.',
+      localBrowse: 'Browse local catalog',
+      localHide: 'Hide catalog',
       localHint: 'Reference local skills by name without copying files. Other session skills stay available.',
       localCwd: 'Project directory (optional)',
       localLoad: 'Load catalog',
-      localSearch: 'Search local skills',
+      localSearch: 'Filter local skills…',
       localEmpty: 'No local skills found.',
-      localMissing: 'Not found in this catalog; check the project directory.',
+      localMissing: 'Not found in current catalog',
       localPartial: 'Discovery is incomplete; some skills may be missing.',
       localLimit: 'Up to 20 local references per role.',
+      removeRef: 'Remove {name}',
       inlineSkills: 'Role-owned skills',
       noSkills: 'No role-owned skills yet.',
       untitledSkill: 'untitled-skill',
@@ -69,7 +83,11 @@ window.__ModuleLoader__.load({
       previewSkills: 'Skill catalog entries',
       previewLoading: 'Rendering…',
       previewInvalid: 'Fix highlighted fields to preview.',
-      save: 'Save',
+      copy: 'Copy',
+      copied: 'Copied',
+      wrap: 'Wrap',
+      unwrap: 'Unwrap',
+      save: 'Save changes',
       create: 'Create role',
       saving: 'Saving…',
       saved: 'Saved.',
@@ -81,11 +99,11 @@ window.__ModuleLoader__.load({
       moveUp: 'Move up',
       moveDown: 'Move down',
       reset: 'Reset to built-in',
-      resetConfirm: 'Reset "{name}" to its built-in content? Your edits will be lost.',
+      resetConfirm: 'Reset “{name}” to its built-in content? Your edits will be lost.',
       cancel: 'Cancel',
       delete: 'Delete',
-      deleteConfirm: 'Delete role "{name}"?',
-      deleteConfirmUsed: 'Delete role "{name}"? {n} sessions using it will switch to None.',
+      deleteConfirm: 'Delete role “{name}”?',
+      deleteConfirmUsed: 'Delete role “{name}”? {n} sessions using it will switch to None.',
       conflict: 'This role changed elsewhere after you started editing. Saving overwrites it.',
       loadLatest: 'Load latest',
       failed: 'Failed: {message}',
@@ -103,6 +121,7 @@ window.__ModuleLoader__.load({
       errSkills: 'Fix invalid skills.',
       copySuffix: 'copy',
       newRoleName: 'New role',
+      roleSections: 'Role editor sections',
     }
     const zh = {
       panel: '角色',
@@ -112,24 +131,29 @@ window.__ModuleLoader__.load({
       manage: '管理角色…',
       switchFailed: '切换角色失败：{message}',
       chipTitle: '当前角色：{name}，点击编辑。',
-      intro: '给角色配好提示词和技能，在输入框的模型菜单里按会话切换。',
+      intro: '给角色配好系统提示词与专属技能，在输入框的模型菜单里按会话切换。',
       configHint: '请在左侧栏的「角色」面板管理角色。',
       openManager: '打开角色管理',
       newRole: '新建角色',
-      search: '搜索角色',
+      search: '搜索角色…',
+      filterAll: '全部',
+      filterActive: '使用中',
+      filterBuiltin: '内置',
+      filterCustom: '自定义',
+      resetFilters: '重置筛选',
       noMatches: '没有匹配的角色。',
       empty: '还没有角色。新建一个，或恢复内置角色。',
       restore: '恢复 {n} 个内置角色',
       restored: '已恢复 {n} 个内置角色。',
       builtin: '内置',
       modified: '已修改',
-      unsavedNew: '未保存',
+      unsavedNew: '未保存草稿',
       unsaved: '有未保存修改',
       skillsCount: '{n} 个技能',
       usedBy: '{n} 个会话使用中',
       unused: '未使用',
       namePlaceholder: '角色名称',
-      descriptionPlaceholder: '一句话简介',
+      descriptionPlaceholder: '一句话简介（展示在列表与模型菜单中）',
       pickIcon: '选择图标',
       iconCustom: '或输入 emoji',
       tabPrompt: '提示词',
@@ -140,14 +164,18 @@ window.__ModuleLoader__.load({
       skillsHint: '仅在使用该角色的会话中按需加载；同名本地技能优先。',
       addSkill: '添加技能',
       localSkills: '引用本地技能',
+      localSelectedEmpty: '尚未引用本地技能。',
+      localBrowse: '浏览本地目录',
+      localHide: '收起目录',
       localHint: '按名称引用本地技能，不复制文件，也不隐藏其他会话技能。',
       localCwd: '项目目录（可选）',
       localLoad: '读取目录',
-      localSearch: '搜索本地技能',
+      localSearch: '筛选本地技能…',
       localEmpty: '未发现本地技能。',
-      localMissing: '当前目录未找到，请核对会话项目目录。',
+      localMissing: '当前目录未找到',
       localPartial: '扫描未完成，部分技能可能尚未列出。',
       localLimit: '每个角色最多引用 20 个本地技能。',
+      removeRef: '移除 {name}',
       inlineSkills: '角色自带技能',
       noSkills: '暂无角色自带技能。',
       untitledSkill: '未命名技能',
@@ -164,7 +192,11 @@ window.__ModuleLoader__.load({
       previewSkills: '技能目录条目',
       previewLoading: '生成中…',
       previewInvalid: '修正标出字段后可预览。',
-      save: '保存',
+      copy: '复制',
+      copied: '已复制',
+      wrap: '换行',
+      unwrap: '不换行',
+      save: '保存更改',
       create: '创建角色',
       saving: '保存中…',
       saved: '已保存。',
@@ -198,6 +230,7 @@ window.__ModuleLoader__.load({
       errSkills: '请先修正技能字段。',
       copySuffix: '副本',
       newRoleName: '新角色',
+      roleSections: '角色编辑分区',
     }
 
     async function op(body) {
@@ -272,12 +305,12 @@ window.__ModuleLoader__.load({
 .rl-cell:disabled{opacity:.5;cursor:default}
 .rl-cell-label{flex:0 0 auto;white-space:nowrap}
 .rl-cell-value{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;color:var(--dsw-alias-label-tertiary)}
-.rl-chev{flex:0 0 auto;width:12px;height:12px;color:var(--dsw-alias-menu-icon,var(--dsw-alias-label-tertiary));transition:transform .15s}
+.rl-chev{flex:0 0 auto;color:var(--dsw-alias-menu-icon,var(--dsw-alias-label-tertiary));transition:transform .15s}
 .rl-chev[data-open=true]{transform:rotate(90deg)}
 .rl-list{display:flex;flex-direction:column;max-height:240px;overflow-y:auto;margin:0 0 2px 0;padding-left:8px}
 .rl-opt-icon{flex:0 0 18px;text-align:center}
 .rl-opt-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rl-check{flex:0 0 auto;width:14px;height:14px;color:var(--dsw-alias-label-primary)}
+.rl-check{flex:0 0 auto;color:var(--dsw-alias-label-primary)}
 .rl-manage{color:var(--dsw-alias-label-secondary)}
 .rl-chip{display:inline-flex;align-items:center;gap:5px;max-width:200px;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .15s,color .15s}
 @media (hover:hover){.rl-chip:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}}
@@ -286,151 +319,124 @@ window.__ModuleLoader__.load({
 `
 
     const PAGE_CSS = `
-.rlp{--rlp-line:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l2);--rlp-soft:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1);--rlp-mono:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);display:flex;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
-.rlp :where(button){font:inherit}
-.rlp :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
-.rlp-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
-.rlp-side{display:flex;flex-direction:column;flex:0 0 288px;min-width:0;min-height:0;border-right:var(--rlp-soft)}
-.rlp-side-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:28px 16px 12px 20px}
-[data-platform=darwin] .rlp-side-head,[data-platform=darwin] .rlp-ed-head{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
-.rlp-h1{margin:0;font-size:20px;line-height:28px;font-weight:500}
-.rlp-intro{margin:0;padding:0 20px 12px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
-.rlp-search{display:flex;align-items:center;gap:6px;margin:0 16px 8px 16px;padding:0 10px;height:32px;border:var(--rlp-line);border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-tertiary)}
-.rlp-search:focus-within{border-color:var(--dsw-alias-brand-primary)}
-.rlp-search input{flex:1;min-width:0;height:30px;padding:0;border:0;outline:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit}
-.rlp-list{flex:1;min-height:0;overflow:auto;padding:0 8px 8px;list-style:none;margin:0}
-.rlp-item{position:relative;display:flex;align-items:flex-start;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:var(--dsw-radius-md,10px);background:transparent;color:inherit;text-align:left;cursor:pointer}
+.rlp-page{--rlp-mono:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);container-type:inline-size;height:100%;overflow-y:auto;overscroll-behavior:contain;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.rlp-page *,.rlp-page *::before,.rlp-page *::after{box-sizing:border-box}
+.rlp-page :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+.rlp-inner{display:flex;flex-direction:column;gap:20px;width:min(100%,1080px);margin:0 auto;padding:28px clamp(20px,3.5vw,44px) 56px}
+[data-platform=darwin] .rlp-inner{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
+@media (max-width:767px){.rlp-inner{padding:20px 16px 48px}[data-platform=darwin] .rlp-inner{padding-top:calc(20px + var(--dsh-frame-top-clearance,0px))}}
+.rlp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.rlp-head-copy{display:flex;flex-direction:column;gap:4px;flex:1 1 280px;min-width:0}
+.rlp-h1{margin:0;font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+.rlp-note{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+.rlp-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:none}
+.rlp-hub{display:grid;grid-template-columns:minmax(236px,276px) minmax(0,1fr);gap:20px;align-items:start}
+@container (max-width:760px){.rlp-hub{grid-template-columns:minmax(0,1fr)}}
+.rlp-rail{display:flex;flex-direction:column;gap:10px;min-width:0;position:sticky;top:16px}
+@container (max-width:760px){.rlp-rail{position:static}}
+.rlp-chips{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.rlp-chip{display:inline-flex;align-items:center;gap:4px;height:25px;padding:0 9px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11.5px;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
+@media (hover:hover){.rlp-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.rlp-chip[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-2));border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font-weight:500}
+.rlp-chip-n{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.rlp-list{display:flex;flex-direction:column;gap:4px;list-style:none;margin:0;padding:0;max-height:calc(100vh - 260px);overflow-y:auto}
+@container (max-width:760px){.rlp-list{max-height:300px}}
+.rlp-item{display:flex;align-items:flex-start;gap:10px;width:100%;padding:9px 10px;border:.5px solid transparent;border-radius:var(--dsw-radius-md,12px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s,border-color .15s}
 @media (hover:hover){.rlp-item:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-.rlp-item[aria-current=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-interactive-bg-hover))}
-.rlp-item-icon{flex:0 0 28px;height:28px;display:grid;place-items:center;border-radius:8px;background:var(--dsw-alias-bg-layer-2);font-size:16px;line-height:1}
-.rlp-item-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.rlp-item[aria-current=true]{background:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-border-l2)}
+.rlp-item-icon{flex:0 0 30px;height:30px;display:grid;place-items:center;border-radius:8px;background:var(--dsw-alias-bg-layer-2);font-size:16px;line-height:1}
+.rlp-item-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .rlp-item-top{display:flex;align-items:center;gap:6px;min-width:0}
-.rlp-item-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
-.rlp-item-desc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
+.rlp-item-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-size:13px;line-height:18px}
+.rlp-item-desc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:17px}
 .rlp-item-meta{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rlp-dot{flex:none;width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-warn-primary)}
-.rlp-live{flex:none;width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-success-primary)}
-.rlp-side-foot{padding:8px 16px 16px;border-top:var(--rlp-soft)}
-.rlp-empty{padding:16px 12px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
-.rlp-main{position:relative;display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
-.rlp-ed-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable}
-.rlp-ed{min-width:0;border:0;max-width:880px;margin:0 auto;padding:0 clamp(20px,4vw,40px) 32px;display:flex;flex-direction:column;gap:16px}
-.rlp-local{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
-.rlp-local-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
-.rlp-local-tools .rlp-field{flex:1;min-width:160px}
-.rlp-local-list{max-height:300px;overflow:auto;border:var(--rlp-line);border-radius:10px}
-.rlp-local-option{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;cursor:pointer}
-.rlp-local-option+.rlp-local-option{border-top:var(--rlp-soft)}
-.rlp-local-option input{flex:none;margin-top:4px;accent-color:var(--dsw-alias-brand-primary)}
-.rlp-local-option>span{min-width:0;display:flex;flex-direction:column;gap:2px;overflow-wrap:anywhere}
-.rlp-local-option code{font:12px/18px var(--rlp-mono)}
-.rlp-local-option small{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
-.rlp-ed-head{display:flex;align-items:flex-start;gap:14px;padding-top:28px}
-.rlp-icon-btn{flex:none;width:52px;height:52px;display:grid;place-items:center;border:var(--rlp-line);border-radius:14px;background:var(--dsw-alias-bg-layer-1);font-size:26px;line-height:1;cursor:pointer}
+.rlp-stack{display:flex;flex-direction:column;gap:14px;min-width:0;border:0;margin:0;padding:0}
+.rlp-hero{display:flex;flex-direction:column;gap:12px;padding:16px 18px;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);min-width:0}
+.rlp-hero-top{display:flex;align-items:flex-start;gap:14px}
+.rlp-icon-btn{flex:none;width:52px;height:52px;display:grid;place-items:center;border:.5px solid var(--dsw-alias-border-l2);border-radius:14px;background:var(--dsw-alias-bg-base);font-size:26px;line-height:1;cursor:pointer;transition:background-color .15s,border-color .15s}
 @media (hover:hover){.rlp-icon-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-.rlp-titles{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.rlp-title-input{width:100%;box-sizing:border-box;margin:0;padding:2px 6px;margin-left:-6px;border:var(--dsh-hairline-width,1px) solid transparent;border-radius:8px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:20px;line-height:28px;font-weight:500}
-.rlp-desc-input{width:100%;box-sizing:border-box;padding:2px 6px;margin-left:-6px;border:var(--dsh-hairline-width,1px) solid transparent;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit}
-.rlp-title-input:hover,.rlp-desc-input:hover{border-color:var(--dsw-alias-border-l2)}
-.rlp-title-input:focus,.rlp-desc-input:focus{outline:0;border-color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-1)}
-.rlp-title-input[aria-invalid=true]{border-color:var(--dsw-alias-state-error-primary)}
-.rlp-title-input::placeholder,.rlp-desc-input::placeholder,.rlp textarea::placeholder,.rlp-field input::placeholder{color:var(--dsw-alias-label-tertiary)}
-.rlp-badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;color:var(--dsw-alias-label-tertiary);font-size:12px}
-.rlp-tag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px;border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:20px;white-space:nowrap}
-.rlp-tag.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.rlp-head-actions{flex:none;display:flex;align-items:center;gap:8px;padding-top:2px}
-.rlp-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border:var(--rlp-line);border-radius:16px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;white-space:nowrap;cursor:pointer;transition:background-color .15s}
-.rlp-btn.sm{height:28px;padding:0 10px;border-radius:14px;font-size:12px}
-.rlp-btn.icon{width:32px;padding:0}
-.rlp-btn.ghost{border-color:transparent}
-@media (hover:hover){.rlp-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
-.rlp-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground,var(--dsw-alias-label-on-color))}
-@media (hover:hover){.rlp-btn.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-button-primary-fill))}}
-.rlp-btn.danger{color:var(--dsw-alias-state-error-primary)}
-.rlp-btn:disabled{opacity:.4;cursor:default}
+.rlp-titles{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:8px}
+.rlp-badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.rlp-dirty{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border-radius:var(--dsw-radius-md,10px);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 10%,var(--dsw-alias-bg-layer-1));border:.5px solid color-mix(in srgb,var(--dsw-alias-state-warn-primary) 34%,var(--dsw-alias-border-l2));font-size:12px}
+.rlp-dirty[data-tone=err]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 8%,var(--dsw-alias-bg-layer-1));border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 34%,var(--dsw-alias-border-l2));color:var(--dsw-alias-state-error-primary)}
+.rlp-dirty[data-tone=ok]{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 8%,var(--dsw-alias-bg-layer-1));border-color:color-mix(in srgb,var(--dsw-alias-state-success-primary) 30%,var(--dsw-alias-border-l2));color:var(--dsw-alias-state-success-primary)}
+.rlp-dirty-msg{flex:1 1 auto;min-width:0;font-weight:500}
+.rlp-kbd{color:var(--dsw-alias-label-tertiary);font-size:11px;white-space:nowrap}
+.rlp-banner{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.rlp-banner[data-tone=warn]{border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 34%,var(--dsw-alias-border-l2));background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 9%,var(--dsw-alias-bg-layer-1))}
+.rlp-banner[data-tone=warn]>svg{color:var(--dsw-alias-state-warn-primary)}
+.rlp-banner[data-tone=error]{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 30%,var(--dsw-alias-border-l2))}
+.rlp-banner>svg{flex:none}
+.rlp-banner-text{flex:1;min-width:0;overflow-wrap:anywhere}
+.rlp-box{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);min-width:0}
+.rlp-box-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.rlp-box-title{display:flex;align-items:center;gap:8px;min-width:0}
+.rlp-box-title h3{margin:0;font-size:14px;line-height:20px;font-weight:500}
+.rlp-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.rlp-field>label,.rlp-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.rlp-page textarea{width:100%;padding:12px 14px;border:.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:12.5px/1.65 var(--rlp-mono);resize:vertical;tab-size:2}
+.rlp-page textarea:focus{outline:0;border-color:var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary))}
+.rlp-page textarea[aria-invalid=true]{border-color:var(--dsw-alias-state-error-primary)}
+.rlp-page textarea.rlp-prompt{min-height:max(300px,calc(100vh - 420px))}
+.rlp-err{margin:0;color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}
+.rlp-meter{display:flex;justify-content:space-between;gap:12px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+.rlp-meter b{font-weight:400;font-variant-numeric:tabular-nums}
+.rlp-meter b.over{color:var(--dsw-alias-state-error-primary)}
+.rlp-ref-pills{display:flex;flex-wrap:wrap;gap:6px}
+.rlp-ref-pill{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 6px 0 9px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:var(--dsw-alias-bg-layer-1);font:12px/18px var(--rlp-mono);color:var(--dsw-alias-label-primary)}
+.rlp-ref-pill[data-missing=true]{border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 40%,var(--dsw-alias-border-l2));background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 10%,transparent);color:var(--dsw-alias-state-warn-primary)}
+.rlp-ref-x{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:0;border-radius:999px;background:transparent;color:inherit;cursor:pointer;opacity:.7}
+@media (hover:hover){.rlp-ref-x:hover{opacity:1;background:var(--dsw-alias-interactive-bg-hover)}}
+.rlp-local-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.rlp-local-tools .rlp-field{flex:1 1 200px}
+.rlp-local-list{max-height:280px;overflow:auto;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,10px)}
+.rlp-local-option{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.rlp-local-option:first-child{border-top:0}
+@media (hover:hover){.rlp-local-option:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.rlp-local-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.rlp-local-name{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font:12px/18px var(--rlp-mono)}
+.rlp-skill{border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,10px);overflow:hidden}
+.rlp-skill[data-invalid=true]{border-color:var(--dsw-alias-state-error-primary)}
+.rlp-skill-head{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 6px}
+.rlp-skill-fold{flex:1;display:flex;align-items:center;gap:8px;min-width:0;height:30px;padding:0 6px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+@media (hover:hover){.rlp-skill-fold:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.rlp-skill-name{flex:none;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:12px/18px var(--rlp-mono);font-weight:500}
+.rlp-skill-name.placeholder{color:var(--dsw-alias-label-tertiary);font-weight:400}
+.rlp-skill-desc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:12px}
+.rlp-skill-body{display:flex;flex-direction:column;gap:12px;padding:12px 14px 14px;border-top:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}
+.rlp-skill-body textarea{min-height:200px}
+.rlp-row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:12px}
+@container (max-width:600px){.rlp-row2{grid-template-columns:1fr}}
+.rlp-cat{display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,10px);overflow:hidden}
+.rlp-cat-row{padding:9px 12px;font-size:12px;line-height:18px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.rlp-cat-row:first-child{border-top:0}
+.rlp-cat-row code{font-family:var(--rlp-mono)}
 .rlp-pop-anchor{position:relative}
 .rlp-pop{position:absolute;z-index:20;top:calc(100% + 6px);min-width:180px;padding:4px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent)}
 .rlp-pop.right{right:0}
 .rlp-pop.left{left:0}
-.rlp-menu-item{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-primary);text-align:left;cursor:pointer;white-space:nowrap}
+.rlp-menu-item{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;cursor:pointer;white-space:nowrap}
 @media (hover:hover){.rlp-menu-item:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
 .rlp-menu-item:disabled{opacity:.4;cursor:default}
 .rlp-menu-item.danger{color:var(--dsw-alias-state-error-primary)}
 @media (hover:hover){.rlp-menu-item.danger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-danger,var(--dsw-alias-interactive-bg-hover))}}
-.rlp-menu-sep{height:1px;margin:4px 6px;background:var(--dsw-alias-border-l1)}
+.rlp-menu-sep{height:.5px;margin:4px 6px;background:var(--dsw-alias-border-l1)}
 .rlp-emoji{width:264px;padding:8px}
 .rlp-emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px}
 .rlp-emoji-grid button{height:30px;border:0;border-radius:6px;background:transparent;font-size:18px;line-height:1;cursor:pointer}
 @media (hover:hover){.rlp-emoji-grid button:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .rlp-emoji-grid button[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-interactive-bg-hover))}
-.rlp-emoji input{box-sizing:border-box;width:100%;height:30px;margin-top:8px;padding:0 8px;border:var(--rlp-line);border-radius:8px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit}
-.rlp-banner{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-state-warn-tertiary,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-state-warn-label,var(--dsw-alias-label-primary));font-size:12px;line-height:18px}
-.rlp-banner span{flex:1}
-.rlp-tabs{display:flex;gap:4px;border-bottom:var(--rlp-soft);margin-top:4px}
-.rlp-tab{position:relative;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 10px;border:0;background:transparent;color:var(--dsw-alias-label-tertiary);font-size:14px;cursor:pointer}
-.rlp-tab[aria-selected=true]{color:var(--dsw-alias-label-primary)}
-.rlp-tab[aria-selected=true]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:1px;background:var(--dsw-alias-brand-primary)}
-.rlp-count{min-width:16px;height:16px;padding:0 5px;border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;text-align:center}
-.rlp-err-dot{width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-error-primary)}
-.rlp-hint{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
-.rlp-err{margin:0;color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}
-.rlp-meter{display:flex;justify-content:space-between;gap:12px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
-.rlp-meter b{font-weight:400;font-variant-numeric:tabular-nums}
-.rlp-meter b.over{color:var(--dsw-alias-state-error-primary)}
-.rlp textarea{box-sizing:border-box;width:100%;padding:12px 14px;border:var(--rlp-line);border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:12.5px/1.65 var(--rlp-mono);resize:vertical;tab-size:2}
-.rlp textarea:focus{outline:0;border-color:var(--dsw-alias-brand-primary)}
-.rlp textarea[aria-invalid=true],.rlp-field input[aria-invalid=true]{border-color:var(--dsw-alias-state-error-primary)}
-.rlp textarea.rlp-prompt{min-height:max(320px,calc(100vh - 360px))}
-.rlp-skills{display:flex;flex-direction:column;gap:8px}
-.rlp-skill{border:var(--rlp-line);border-radius:var(--dsw-radius-md,12px);overflow:hidden}
-.rlp-skill[data-invalid=true]{border-color:var(--dsw-alias-state-error-primary)}
-.rlp-skill-head{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 4px}
-.rlp-skill-fold{flex:1;display:flex;align-items:center;gap:8px;min-width:0;height:32px;padding:0 6px;border:0;border-radius:8px;background:transparent;color:inherit;text-align:left;cursor:pointer}
-@media (hover:hover){.rlp-skill-fold:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-.rlp-skill-name{flex:none;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:12px/18px var(--rlp-mono)}
-.rlp-skill-name.placeholder{color:var(--dsw-alias-label-tertiary)}
-.rlp-skill-desc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary)}
-.rlp-skill-body{display:flex;flex-direction:column;gap:14px;padding:6px 14px 14px;border-top:var(--rlp-soft)}
-.rlp-field{display:flex;flex-direction:column;gap:4px;min-width:0}
-.rlp-field>label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
-.rlp-field input{box-sizing:border-box;width:100%;height:32px;padding:0 10px;border:var(--rlp-line);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit}
-.rlp-field input.mono{font:12.5px/20px var(--rlp-mono)}
-.rlp-field input:focus{outline:0;border-color:var(--dsw-alias-brand-primary)}
-.rlp-field textarea{min-height:220px}
-.rlp-row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:12px}
-@media (max-width:720px){.rlp-row2{grid-template-columns:1fr}}
-.rlp-chev{flex:none;width:12px;height:12px;color:var(--dsw-alias-label-tertiary);transition:transform .15s}
-.rlp-chev[data-open=true]{transform:rotate(90deg)}
-.rlp-pre{margin:0;padding:14px 16px;border:var(--rlp-line);border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1);font:12.5px/1.65 var(--rlp-mono);white-space:pre-wrap;overflow-wrap:anywhere}
-.rlp-cat{display:flex;flex-direction:column;border:var(--rlp-line);border-radius:var(--dsw-radius-md,10px)}
-.rlp-cat-row{padding:8px 14px;font-size:12px;line-height:18px}
-.rlp-cat-row+.rlp-cat-row{border-top:var(--rlp-soft)}
-.rlp-cat-row code{font-family:var(--rlp-mono)}
-.rlp-h3{margin:4px 0 0;font-size:13px;line-height:20px;font-weight:500}
-.rlp-bar{display:flex;align-items:center;gap:10px;padding:10px clamp(20px,4vw,40px);border-top:var(--rlp-soft);background:var(--dsw-alias-bg-base)}
-.rlp-bar-msg{flex:1;min-width:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rlp-bar-msg.err{color:var(--dsw-alias-state-error-primary)}
-.rlp-bar-msg.ok{color:var(--dsw-alias-state-success-primary)}
-.rlp-bar-msg.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.rlp-kbd{color:var(--dsw-alias-label-tertiary);font-size:11px}
-.rlp-blank{flex:1;display:grid;place-items:center;padding:24px;color:var(--dsw-alias-label-secondary);text-align:center}
-.rlp-blank>div{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:360px}
-.rlp-blank-icon{font-size:40px;line-height:1}
-@media (max-width:760px){.rlp{flex-direction:column;overflow:auto}.rlp-side{flex:none;max-height:45%;border-right:0;border-bottom:var(--rlp-soft)}.rlp-main{flex:none;min-height:70vh}}
-@media (pointer:coarse){.rlp-search input,.rlp-field input,.rlp textarea,.rlp-title-input,.rlp-desc-input{font-size:16px}}
+.rlp-emoji-custom{margin-top:8px}
+.rlp-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px 20px;border:.5px dashed var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);text-align:center;color:var(--dsw-alias-label-secondary)}
+.rlp-empty p{margin:0}
+.rlp-danger-text{color:var(--dsw-alias-state-error-primary)}
+.rlp-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
+.rlp-mono-input input{font-family:var(--rlp-mono);font-size:12.5px}
 .rlc{display:flex;flex-direction:column;align-items:flex-start;gap:10px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}
 .rlc p{margin:0}
-.rlc .rlp-btn{height:30px;border-radius:999px;corner-shape:round}
+@media (pointer:coarse){.rlp-page textarea{font-size:16px}}
 `
 
-    function Chevron({ open, className = 'rl-chev' }) {
-      return h('svg', { className, 'data-open': open ? 'true' : 'false', viewBox: '0 0 12 12', width: 12, height: 12, 'aria-hidden': true },
-        h('path', { d: 'M4.5 2.5 8 6l-3.5 3.5', fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round' }))
-    }
-    function Check() {
-      return h('svg', { className: 'rl-check', viewBox: '0 0 14 14', width: 14, height: 14, 'aria-hidden': true },
-        h('path', { d: 'M3 7.2 5.8 10 11 4', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' }))
-    }
     const svg = (size, children) => h('svg', {
       width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor',
       strokeWidth: 1.3, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
@@ -440,16 +446,8 @@ window.__ModuleLoader__.load({
       h('path', { key: 'b', d: 'M7 7.3h6.5v3.9a3.25 3.25 0 0 1-6.5 0' }),
       h('path', { key: 'c', d: 'M4.4 8.6q1.35 1 2.7 0M9 12.2q1.35-1 2.7 0' }),
     ])
-    const IconSearch = ({ size = 14 }) => svg(size, [
-      h('circle', { key: 'a', cx: 7, cy: 7, r: 4.25 }),
-      h('path', { key: 'b', d: 'M10.2 10.2 13.5 13.5' }),
-    ])
-    const IconPlus = ({ size = 14 }) => svg(size, h('path', { d: 'M8 3v10M3 8h10' }))
-    const IconMore = ({ size = 16 }) => svg(size, [3.5, 8, 12.5].map(x => h('circle', { key: x, cx: x, cy: 8, r: 0.9, fill: 'currentColor' })))
-    const IconTrash = ({ size = 14 }) => svg(size, h('path', { d: 'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5' }))
 
     const EMOJIS = ['🎭', '🔍', '🏛️', '🐛', '✍️', '🧪', '🛡️', '⚙️', '🚀', '📐', '🧭', '🧠', '📊', '🗂️', '🎨', '🧹', '🔧', '📝', '💡', '🤖', '👩‍💻', '🧑‍🏫', '🕵️', '⚖️', '📚', '🌐', '🔒', '⏱️', '🧩', '📦', '🎯', '🦉']
-
     const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
     return {
@@ -503,30 +501,30 @@ window.__ModuleLoader__.load({
               type: 'button', role: 'menuitem', className: 'rl-cell', 'aria-expanded': open,
               onClick: () => setOpen(!open),
             },
-              h('span', { className: 'rl-cell-label' }, t('role')),
-              h('span', { className: 'rl-cell-value' }, current ? roleLabel(current) : t('none')),
-              h(Chevron, { open })),
+            h('span', { className: 'rl-cell-label' }, t('role')),
+            h('span', { className: 'rl-cell-value' }, current ? roleLabel(current) : t('none')),
+            h('span', { className: 'rl-chev', 'data-open': open ? 'true' : 'false' }, h(IconChevronRightOutlineRegular, { size: 12 }))),
             open ? h('div', { className: 'rl-list', role: 'group', 'aria-label': t('role') },
               h('button', {
                 type: 'button', role: 'menuitemradio', 'aria-checked': currentId === null, className: 'rl-cell',
                 disabled: busy, title: t('noneHint'), onClick: () => select(null),
               },
-                h('span', { className: 'rl-opt-icon' }),
-                h('span', { className: 'rl-opt-name' }, t('none')),
-                currentId === null ? h(Check) : null),
+              h('span', { className: 'rl-opt-icon' }),
+              h('span', { className: 'rl-opt-name' }, t('none')),
+              currentId === null ? h('span', { className: 'rl-check' }, h(IconCheckOutlineRegular, { size: 14 })) : null),
               roles.map(role => h('button', {
                 key: role.id, type: 'button', role: 'menuitemradio', 'aria-checked': role.id === currentId, className: 'rl-cell',
                 disabled: busy, title: role.description || role.name, onClick: () => select(role.id),
               },
-                h('span', { className: 'rl-opt-icon' }, role.icon),
-                h('span', { className: 'rl-opt-name' }, role.name),
-                role.id === currentId ? h(Check) : null)),
+              h('span', { className: 'rl-opt-icon' }, role.icon),
+              h('span', { className: 'rl-opt-name' }, role.name),
+              role.id === currentId ? h('span', { className: 'rl-check' }, h(IconCheckOutlineRegular, { size: 14 })) : null)),
               h('button', {
                 type: 'button', role: 'menuitem', className: 'rl-cell rl-manage',
                 onClick: () => { dismiss(); openManager(currentId) },
               },
-                h('span', { className: 'rl-opt-icon' }),
-                h('span', { className: 'rl-opt-name' }, t('manage')))) : null)
+              h('span', { className: 'rl-opt-icon' }),
+              h('span', { className: 'rl-opt-name' }, t('manage')))) : null)
         }
 
         ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({
@@ -573,7 +571,7 @@ window.__ModuleLoader__.load({
         let newSeq = 0
 
         const ui = {
-          state: { selected: null, drafts: {}, tab: 'prompt', query: '' },
+          state: { selected: null, drafts: {}, tab: 'prompt', query: '', filter: 'all' },
           listeners: new Set(),
           subscribe: fn => { ui.listeners.add(fn); return () => ui.listeners.delete(fn) },
           get: () => ui.state,
@@ -660,7 +658,8 @@ window.__ModuleLoader__.load({
                 key: emoji, type: 'button', 'aria-pressed': emoji === value,
                 onClick: () => { onChange(emoji); pop.setOpen(false) },
               }, emoji))),
-              h('input', {
+              h(Input, {
+                className: 'rlp-emoji-custom',
                 value, placeholder: t('iconCustom'), 'aria-label': t('iconCustom'), maxLength: 8,
                 onChange: e => onChange(e.target.value),
                 onKeyDown: e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) pop.setOpen(false) },
@@ -670,10 +669,13 @@ window.__ModuleLoader__.load({
         function MoreMenu({ items }) {
           const pop = usePopover()
           return h('div', { className: 'rlp-pop-anchor', ref: pop.ref },
-            h('button', {
-              type: 'button', className: 'rlp-btn icon ghost', title: t('more'), 'aria-label': t('more'),
-              'aria-haspopup': 'menu', 'aria-expanded': pop.open, onClick: () => pop.setOpen(!pop.open),
-            }, h(IconMore)),
+            h(Button, {
+              size: 'sm', variant: 'ghost',
+              icon: h(IconEllipsisOutlineRegular, { size: 15 }),
+              title: t('more'), 'aria-label': t('more'),
+              'aria-haspopup': 'menu', 'aria-expanded': pop.open,
+              onClick: () => pop.setOpen(!pop.open),
+            }),
             pop.open ? h('div', {
               className: 'rlp-pop right', role: 'menu',
               ref: node => { if (node && !node.contains(document.activeElement)) node.querySelector('button:not(:disabled)')?.focus() },
@@ -709,30 +711,36 @@ window.__ModuleLoader__.load({
           const shown = field => { const e = err(field); return e && (showErrors || !e.required) }
           const invalid = ['name', 'description', 'whenToUse', 'content'].some(shown)
           const id = field => `rlp-${skill.key}-${field}`
-          return h('div', { className: 'rlp-skill', 'data-invalid': invalid },
+          return h('div', { className: 'rlp-skill', 'data-invalid': invalid || undefined },
             h('div', { className: 'rlp-skill-head' },
               h('button', { type: 'button', className: 'rlp-skill-fold', 'aria-expanded': open, onClick: onToggle },
-                h(Chevron, { open, className: 'rlp-chev' }),
+                h('span', { className: 'rl-chev', 'data-open': open ? 'true' : 'false' }, h(IconChevronRightOutlineRegular, { size: 12 })),
+                invalid ? h(StateDot, { state: 'error', size: 7 }) : null,
                 h('span', { className: `rlp-skill-name${skill.name ? '' : ' placeholder'}` }, skill.name || t('untitledSkill')),
                 h('span', { className: 'rlp-skill-desc' }, skill.description)),
-              h('button', { type: 'button', className: 'rlp-btn icon sm ghost danger', title: t('removeSkill'), 'aria-label': `${t('removeSkill')} ${skill.name}`, onClick: onRemove }, h(IconTrash))),
+              h(Button, {
+                size: 'sm', variant: 'ghost', className: 'rlp-danger-text',
+                icon: h(IconTrashOutlineRegular, { size: 13 }),
+                title: t('removeSkill'), 'aria-label': `${t('removeSkill')} ${skill.name}`,
+                onClick: onRemove,
+              })),
             open ? h('div', { className: 'rlp-skill-body' },
               h('div', { className: 'rlp-row2' },
                 h('div', { className: 'rlp-field' },
                   h('label', { htmlFor: id('name') }, t('skillName')),
-                  h('input', { id: id('name'), className: 'mono', value: skill.name, onChange: set('name'), placeholder: 'review-checklist', spellCheck: false, autoComplete: 'off', 'aria-invalid': shown('name') || undefined }),
-                  shown('name') ? h(FieldError, { error: err('name'), show: showErrors }) : h('p', { className: 'rlp-hint' }, t('skillNameHint'))),
+                  h(Input, { id: id('name'), className: 'rlp-mono-input', value: skill.name, onChange: set('name'), placeholder: 'review-checklist', spellCheck: false, autoComplete: 'off', 'aria-invalid': shown('name') || undefined }),
+                  shown('name') ? h(FieldError, { error: err('name'), show: showErrors }) : h('p', { className: 'rlp-note' }, t('skillNameHint'))),
                 h('div', { className: 'rlp-field' },
                   h('label', { htmlFor: id('description') }, t('skillDescription')),
-                  h('input', { id: id('description'), value: skill.description, onChange: set('description'), 'aria-invalid': shown('description') || undefined }),
-                  shown('description') ? h(FieldError, { error: err('description'), show: showErrors }) : h('p', { className: 'rlp-hint' }, t('skillDescriptionHint')))),
+                  h(Input, { id: id('description'), value: skill.description, onChange: set('description'), 'aria-invalid': shown('description') || undefined }),
+                  shown('description') ? h(FieldError, { error: err('description'), show: showErrors }) : h('p', { className: 'rlp-note' }, t('skillDescriptionHint')))),
               h('div', { className: 'rlp-field' },
                 h('label', { htmlFor: id('whenToUse') }, t('skillWhen')),
-                h('input', { id: id('whenToUse'), value: skill.whenToUse, onChange: set('whenToUse'), placeholder: t('skillWhenHint'), 'aria-invalid': shown('whenToUse') || undefined }),
+                h(Input, { id: id('whenToUse'), value: skill.whenToUse, onChange: set('whenToUse'), placeholder: t('skillWhenHint'), 'aria-invalid': shown('whenToUse') || undefined }),
                 h(FieldError, { error: err('whenToUse'), show: showErrors })),
               h('div', { className: 'rlp-field' },
                 h('label', { htmlFor: id('content') }, t('skillContent')),
-                h('textarea', { id: id('content'), value: skill.content, onChange: set('content'), spellCheck: false, rows: 14, 'aria-invalid': shown('content') || undefined }),
+                h('textarea', { id: id('content'), value: skill.content, onChange: set('content'), spellCheck: false, rows: 12, 'aria-invalid': shown('content') || undefined }),
                 h(FieldError, { error: err('content'), show: showErrors }),
                 h(Meter, { value: skill.content.length, max: limits.skillContent, hint: t('skillContentHint') }))) : null)
         }
@@ -740,8 +748,15 @@ window.__ModuleLoader__.load({
         function LocalSkills({ selected, inlineNames, onChange }) {
           const [cwd, setCwd] = React.useState('')
           const [query, setQuery] = React.useState('')
+          const [browsing, setBrowsing] = React.useState(false)
           const [catalog, setCatalog] = React.useState({ status: 'loading', skills: [] })
           const sequence = React.useRef(0)
+
+          const workspacePaths = React.useMemo(() => {
+            const items = ctx.get('workspaces')?.list?.getSnapshot?.()?.items ?? []
+            return [...new Set(items.map(w => w.path).filter(Boolean))]
+          }, [])
+
           const load = async (directory = cwd) => {
             const request = ++sequence.current
             setCatalog(s => ({ ...s, status: 'loading', error: null }))
@@ -753,6 +768,7 @@ window.__ModuleLoader__.load({
             }
           }
           React.useEffect(() => { void load(''); return () => { sequence.current++ } }, [])
+
           const known = new Set(catalog.skills.map(s => s.name))
           const missing = selected.filter(name => !known.has(name))
           const needle = query.trim().toLocaleLowerCase()
@@ -761,31 +777,70 @@ window.__ModuleLoader__.load({
             ...catalog.skills,
           ].filter(s => `${s.name} ${s.description ?? ''}`.toLocaleLowerCase().includes(needle))
           const toggle = name => onChange(selected.includes(name) ? selected.filter(n => n !== name) : [...selected, name])
-          return h('section', { className: 'rlp-local', 'aria-label': t('localSkills') },
-            h('h3', { className: 'rlp-h3' }, t('localSkills')),
-            h('p', { className: 'rlp-hint' }, t('localHint')),
-            h('div', { className: 'rlp-local-tools' },
-              h('label', { className: 'rlp-field' },
-                h('span', { className: 'rlp-hint' }, t('localCwd')),
-                h('input', { value: cwd, placeholder: '/path/to/project', onChange: e => setCwd(e.target.value),
-                  onKeyDown: e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); void load() } } })),
-              h('button', { type: 'button', className: 'rlp-btn', disabled: catalog.status === 'loading', onClick: () => void load() }, t('localLoad'))),
-            h('label', { className: 'rlp-field' },
-              h('input', { type: 'search', value: query, placeholder: t('localSearch'), 'aria-label': t('localSearch'), onChange: e => setQuery(e.target.value) })),
-            catalog.status === 'loading' ? h('p', { className: 'rlp-hint', role: 'status' }, t('loading')) : null,
-            catalog.error ? h('p', { className: 'rlp-err', role: 'alert' }, t('failed', { message: catalog.error })) : null,
-            catalog.complete === false ? h('p', { className: 'rlp-hint' }, t('localPartial')) : null,
-            rows.length ? h('div', { className: 'rlp-local-list' }, rows.map(skill => h('label', { key: skill.name, className: 'rlp-local-option' },
-              h('input', {
-                type: 'checkbox', checked: selected.includes(skill.name),
-                disabled: !selected.includes(skill.name) && (selected.length >= 20 || inlineNames.includes(skill.name)),
-                onChange: () => toggle(skill.name),
+
+          return h('section', { className: 'rlp-box', 'aria-label': t('localSkills') },
+            h('div', { className: 'rlp-box-head' },
+              h('div', { className: 'rlp-box-title' },
+                h('h3', null, t('localSkills')),
+                h(Tag, { tone: 'neutral' }, `${selected.length} / 20`)),
+              h(Button, {
+                size: 'sm', variant: browsing ? 'outline' : 'ghost',
+                'aria-expanded': browsing,
+                onClick: () => setBrowsing(v => !v),
+              }, t(browsing ? 'localHide' : 'localBrowse'))),
+            h('p', { className: 'rlp-note' }, t('localHint')),
+            selected.length > 0
+              ? h('div', { className: 'rlp-ref-pills' }, selected.map(name => {
+                const isMissing = catalog.status === 'ready' && !known.has(name)
+                return h('span', { key: name, className: 'rlp-ref-pill', 'data-missing': isMissing || undefined, title: isMissing ? t('localMissing') : name },
+                  isMissing ? h(StateDot, { state: 'warning', size: 6 }) : null,
+                  name,
+                  h('button', {
+                    type: 'button', className: 'rlp-ref-x',
+                    'aria-label': t('removeRef', { name }),
+                    onClick: () => toggle(name),
+                  }, h(IconCloseOutlineRegular, { size: 11 })))
+              }))
+              : h('p', { className: 'rlp-note' }, t('localSelectedEmpty')),
+            browsing ? h(React.Fragment, null,
+              h('div', { className: 'rlp-local-tools' },
+                h('div', { className: 'rlp-field' },
+                  h('span', { className: 'rlp-label' }, t('localCwd')),
+                  h(Input, {
+                    className: 'rlp-mono-input',
+                    value: cwd, placeholder: workspacePaths[0] || '/path/to/project',
+                    list: workspacePaths.length ? 'rlp-workspace-paths' : undefined,
+                    onChange: e => setCwd(e.target.value),
+                    onKeyDown: e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); void load() } },
+                  })),
+                workspacePaths.length ? h('datalist', { id: 'rlp-workspace-paths' }, workspacePaths.map(p => h('option', { key: p, value: p }))) : null,
+                h(Button, {
+                  size: 'sm', variant: 'outline',
+                  icon: catalog.status === 'loading' ? h(StateDot, { state: 'ongoing', size: 12 }) : h(IconRefreshOutlineRegular, { size: 13 }),
+                  disabled: catalog.status === 'loading',
+                  onClick: () => void load(),
+                }, t('localLoad'))),
+              h(Input, {
+                type: 'search',
+                icon: h(IconSearchOutlineRegular, { size: 14 }),
+                value: query, placeholder: t('localSearch'), 'aria-label': t('localSearch'),
+                onChange: e => setQuery(e.target.value),
               }),
-              h('span', null, h('code', null, skill.name),
-                h('small', null, skill.missing ? (catalog.status === 'ready' ? t('localMissing') : '') : skill.description),
-                skill.path ? h('small', null, skill.path) : null))))
-              : catalog.status === 'ready' ? h('p', { className: 'rlp-hint' }, t('localEmpty')) : null,
-            selected.length >= 20 ? h('p', { className: 'rlp-hint' }, t('localLimit')) : null)
+              catalog.error ? h('p', { className: 'rlp-err', role: 'alert' }, t('failed', { message: catalog.error })) : null,
+              catalog.complete === false ? h('p', { className: 'rlp-note' }, t('localPartial')) : null,
+              rows.length ? h('div', { className: 'rlp-local-list' }, rows.map(skill => {
+                const checked = selected.includes(skill.name)
+                const disabled = !checked && (selected.length >= 20 || inlineNames.includes(skill.name))
+                return h('div', { key: skill.name, className: 'rlp-local-option' },
+                  h(Checkbox, { checked, disabled, label: '', onChange: () => toggle(skill.name) }),
+                  h('div', { className: 'rlp-local-body' },
+                    h('span', { className: 'rlp-local-name' },
+                      h('strong', null, skill.name),
+                      skill.missing && catalog.status === 'ready' ? h(Tag, { tone: 'warning' }, t('localMissing')) : null),
+                    skill.description ? h('span', { className: 'rlp-note' }, skill.description) : null,
+                    skill.path ? h(PathLabel, { path: skill.path }) : null))
+              })) : catalog.status === 'ready' ? h('p', { className: 'rlp-note' }, t('localEmpty')) : null,
+              selected.length >= 20 ? h('p', { className: 'rlp-note' }, t('localLimit')) : null) : null)
         }
 
         function Preview({ form, errors }) {
@@ -803,17 +858,25 @@ window.__ModuleLoader__.load({
             }, 250)
             return () => { live = false; clearTimeout(timer) }
           }, [payload, blocked])
-          if (blocked) return h('p', { className: 'rlp-hint' }, t('previewInvalid'))
+          if (blocked) return h('div', { className: 'rlp-empty' }, h('p', null, t('previewInvalid')))
           const skills = payloadOf(form).skills
-          return h(React.Fragment, null,
-            h('p', { className: 'rlp-hint' }, t('previewHint')),
-            state.status === 'error' ? h('p', { className: 'rlp-err' }, t('failed', { message: state.message }))
-              : h('pre', { className: 'rlp-pre', 'aria-busy': state.status === 'loading' }, state.status === 'ready' ? state.prompt : t('previewLoading')),
-            form.localSkills?.length ? h(React.Fragment, null,
-              h('h3', { className: 'rlp-h3' }, t('localSkills')),
-              h('p', { className: 'rlp-hint' }, form.localSkills.join(', '))) : null,
-            skills.length ? h(React.Fragment, null,
-              h('h3', { className: 'rlp-h3' }, t('previewSkills')),
+          const toolbarLabels = { copy: t('copy'), copied: t('copied'), wrap: t('wrap'), unwrap: t('unwrap') }
+          return h('div', { className: 'rlp-stack' },
+            h('p', { className: 'rlp-note' }, t('previewHint')),
+            state.status === 'error'
+              ? h('p', { className: 'rlp-err', role: 'alert' }, t('failed', { message: state.message }))
+              : h(CodeBlock, {
+                code: state.status === 'ready' ? state.prompt : t('previewLoading'),
+                lang: 'markdown',
+                copyLabel: t('copy'),
+                copiedLabel: t('copied'),
+                toolbarLabels,
+              }),
+            form.localSkills?.length ? h('section', { className: 'rlp-box' },
+              h('div', { className: 'rlp-box-title' }, h('h3', null, t('localSkills'))),
+              h('div', { className: 'rlp-ref-pills' }, form.localSkills.map(name => h(Tag, { key: name, tone: 'neutral' }, name)))) : null,
+            skills.length ? h('section', { className: 'rlp-box' },
+              h('div', { className: 'rlp-box-title' }, h('h3', null, t('previewSkills')), h(Tag, { tone: 'neutral' }, skills.length)),
               h('div', { className: 'rlp-cat' }, skills.map(s => h('div', { key: s.name, className: 'rlp-cat-row' },
                 h('code', null, s.name), ': ', s.description, s.whenToUse ? ` (${s.whenToUse})` : '')))) : null)
         }
@@ -941,74 +1004,96 @@ window.__ModuleLoader__.load({
             setOpenSkills(prev => new Set(prev).add(skill.key))
           }
 
-          const tabs = [
-            { id: 'prompt', label: t('tabPrompt'), flag: (errors.prompt && (showErrors || !errors.prompt.required)) },
-            { id: 'skills', label: t('tabSkills'), count: form.skills.length + (form.localSkills?.length ?? 0), flag: skillErrors },
-            { id: 'preview', label: t('tabPreview') },
+          const totalSkills = form.skills.length + (form.localSkills?.length ?? 0)
+          const promptErr = Boolean(errors.prompt && (showErrors || !errors.prompt.required))
+          const tabItems = [
+            { id: 'rlp-tab-prompt', panelId: 'rlp-panel', value: 'prompt', label: promptErr ? `${t('tabPrompt')} •` : t('tabPrompt') },
+            { id: 'rlp-tab-skills', panelId: 'rlp-panel', value: 'skills', label: `${t('tabSkills')} (${totalSkills})${skillErrors ? ' •' : ''}` },
+            { id: 'rlp-tab-preview', panelId: 'rlp-panel', value: 'preview', label: t('tabPreview') },
           ]
           const showName = errors.name && (showErrors || !errors.name.required)
 
-          const message = status.kind !== 'idle' ? status
-            : dirty ? { kind: 'warn', text: isNew ? t('unsavedNew') : t('unsaved') } : null
-
-          return h('div', { className: 'rlp-main' },
-            h('div', { className: 'rlp-ed-scroll' },
-              h('fieldset', { className: 'rlp-ed', disabled: busy },
-                h('div', { className: 'rlp-ed-head' },
-                  h(EmojiPicker, { value: form.icon, onChange: icon => update({ icon }) }),
-                  h('div', { className: 'rlp-titles' },
-                    h('input', { className: 'rlp-title-input', value: form.name, onChange: set('name'), placeholder: t('namePlaceholder'), 'aria-label': t('namePlaceholder'), 'aria-invalid': showName || undefined, maxLength: limits.name + 20 }),
-                    h('input', { className: 'rlp-desc-input', value: form.description, onChange: set('description'), placeholder: t('descriptionPlaceholder'), 'aria-label': t('descriptionPlaceholder') }),
-                    showName ? h('p', { className: 'rlp-err', role: 'alert' }, errors.name.message) : null,
-                    errors.description ? h('p', { className: 'rlp-err', role: 'alert' }, errors.description.message) : null,
-                    h('div', { className: 'rlp-badges' },
-                      stored?.builtin ? h('span', { className: 'rlp-tag' }, t('builtin')) : null,
-                      modified ? h('span', { className: 'rlp-tag' }, t('modified')) : null,
-                      isNew ? h('span', { className: 'rlp-tag warn' }, t('unsavedNew')) : h('span', null, used ? t('usedBy', { n: used }) : t('unused')))),
-                  h('div', { className: 'rlp-head-actions' }, h(MoreMenu, { items: menu }))),
-                conflict ? h('div', { className: 'rlp-banner', role: 'status' },
-                  h('span', null, t('conflict')),
-                  h('button', { type: 'button', className: 'rlp-btn sm', onClick: discard }, t('loadLatest'))) : null,
-                h('div', { className: 'rlp-tabs', role: 'tablist', 'aria-label': t('role') }, tabs.map((item, i) => h('button', {
-                  key: item.id, type: 'button', role: 'tab', className: 'rlp-tab', 'aria-selected': tab === item.id, tabIndex: tab === item.id ? 0 : -1,
-                  onClick: () => ui.set({ tab: item.id }),
-                  onKeyDown: e => {
-                    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
-                    e.preventDefault()
-                    const nextTab = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length
-                    ui.set({ tab: tabs[nextTab].id })
-                    e.currentTarget.parentElement.children[nextTab]?.focus()
-                  },
-                }, item.label,
-                item.count !== undefined ? h('span', { className: 'rlp-count' }, item.count) : null,
-                item.flag ? h('span', { className: 'rlp-err-dot', 'aria-hidden': true }) : null))),
-                tab === 'prompt' ? h('div', { className: 'rlp-field', role: 'tabpanel' },
-                  h('textarea', {
-                    className: 'rlp-prompt', value: form.prompt, onChange: set('prompt'), placeholder: t('promptPlaceholder'),
-                    spellCheck: false, 'aria-label': t('tabPrompt'), 'aria-invalid': (errors.prompt && (showErrors || !errors.prompt.required)) || undefined,
+          return h('fieldset', { className: 'rlp-stack', disabled: busy },
+            h('section', { className: 'rlp-hero' },
+              h('div', { className: 'rlp-hero-top' },
+                h(EmojiPicker, { value: form.icon, onChange: icon => update({ icon }) }),
+                h('div', { className: 'rlp-titles' },
+                  h(Input, {
+                    value: form.name, onChange: set('name'),
+                    placeholder: t('namePlaceholder'), 'aria-label': t('namePlaceholder'),
+                    'aria-invalid': showName || undefined, maxLength: limits.name + 20,
                   }),
-                  h(FieldError, { error: errors.prompt, show: showErrors }),
-                  h(Meter, { value: form.prompt.length, max: limits.prompt, hint: t('promptHint') })) : null,
-                tab === 'skills' ? h('div', { className: 'rlp-skills', role: 'tabpanel' },
-                  h(LocalSkills, { selected: form.localSkills ?? [], inlineNames: form.skills.map(s => s.name.trim()), onChange: localSkills => update({ localSkills }) }),
-                  h('h3', { className: 'rlp-h3' }, t('inlineSkills')),
-                  h('p', { className: 'rlp-hint' }, t('skillsHint')),
-                  form.skills.length === 0 ? h('p', { className: 'rlp-hint' }, t('noSkills')) : null,
-                  form.skills.map((skill, i) => h(SkillCard, {
-                    key: skill.key, skill, errors, showErrors, limits,
-                    open: openSkills.has(skill.key), onToggle: () => toggleSkill(skill.key),
-                    onChange: next => update({ skills: form.skills.map((s, j) => j === i ? next : s) }),
-                    onRemove: () => update({ skills: form.skills.filter((_, j) => j !== i) }),
-                  })),
-                  h('div', null, h('button', { type: 'button', className: 'rlp-btn sm', disabled: form.skills.length >= limits.skills, onClick: addSkill },
-                    h(IconPlus, { size: 12 }), t('addSkill')))) : null,
-                tab === 'preview' ? h('div', { className: 'rlp-field', role: 'tabpanel' }, h(Preview, { form, errors })) : null)),
-            h('div', { className: 'rlp-bar' },
-              h('span', { className: `rlp-bar-msg${message ? ` ${message.kind}` : ''}`, role: 'status', 'aria-live': 'polite' }, message?.text ?? ''),
-              dirty ? h('span', { className: 'rlp-kbd' }, t('saveShortcut')) : null,
-              h('button', { type: 'button', className: 'rlp-btn', disabled: busy || !dirty, onClick: discard }, isNew ? t('discardNew') : t('discard')),
-              h('button', { type: 'button', className: 'rlp-btn primary', disabled: busy || !dirty, onClick: save },
-                busy ? t('saving') : isNew ? t('create') : t('save'))),
+                  showName ? h('p', { className: 'rlp-err', role: 'alert' }, errors.name.message) : null,
+                  h(Input, {
+                    value: form.description, onChange: set('description'),
+                    placeholder: t('descriptionPlaceholder'), 'aria-label': t('descriptionPlaceholder'),
+                  }),
+                  errors.description ? h('p', { className: 'rlp-err', role: 'alert' }, errors.description.message) : null,
+                  h('div', { className: 'rlp-badges' },
+                    stored?.builtin ? h(Tag, { tone: 'neutral' }, t('builtin')) : null,
+                    modified ? h(Tag, { tone: 'outline' }, t('modified')) : null,
+                    isNew
+                      ? h(Tag, { tone: 'warning' }, t('unsavedNew'))
+                      : h(Tag, { tone: used ? 'success' : 'quiet' }, used ? t('usedBy', { n: used }) : t('unused')))),
+                h(MoreMenu, { items: menu }))),
+
+            conflict ? h('div', { className: 'rlp-banner', 'data-tone': 'warn', role: 'status' },
+              h(IconWarningTriangleOutlineRegular, { size: 14 }),
+              h('span', { className: 'rlp-banner-text' }, t('conflict')),
+              h(Button, { size: 'sm', variant: 'outline', onClick: discard }, t('loadLatest'))) : null,
+
+            dirty || status.kind !== 'idle' ? h('div', {
+              className: 'rlp-dirty',
+              'data-tone': status.kind === 'err' ? 'err' : !dirty && status.kind === 'ok' ? 'ok' : undefined,
+              role: 'status', 'aria-live': 'polite',
+            },
+            h('span', { className: 'rlp-dirty-msg' }, status.kind !== 'idle' ? status.text : isNew ? t('unsavedNew') : t('unsaved')),
+            dirty ? h('span', { className: 'rlp-kbd' }, t('saveShortcut')) : null,
+            dirty ? h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: discard }, isNew ? t('discardNew') : t('discard')) : null,
+            dirty ? h(Button, { size: 'sm', variant: 'primary', disabled: busy, onClick: save }, busy ? t('saving') : isNew ? t('create') : t('save')) : null) : null,
+
+            h(SegmentedTabs, {
+              size: 'sm',
+              label: t('roleSections'),
+              value: tab,
+              onChange: next => ui.set({ tab: next }),
+              items: tabItems,
+            }),
+
+            h('div', { id: 'rlp-panel', role: 'tabpanel', className: 'rlp-stack' },
+              tab === 'prompt' ? h('section', { className: 'rlp-box' },
+                h('textarea', {
+                  className: 'rlp-prompt', value: form.prompt, onChange: set('prompt'), placeholder: t('promptPlaceholder'),
+                  spellCheck: false, 'aria-label': t('tabPrompt'), 'aria-invalid': promptErr || undefined,
+                }),
+                h(FieldError, { error: errors.prompt, show: showErrors }),
+                h(Meter, { value: form.prompt.length, max: limits.prompt, hint: t('promptHint') })) : null,
+
+              tab === 'skills' ? h(React.Fragment, null,
+                h(LocalSkills, { selected: form.localSkills ?? [], inlineNames: form.skills.map(s => s.name.trim()), onChange: localSkills => update({ localSkills }) }),
+                h('section', { className: 'rlp-box', 'aria-label': t('inlineSkills') },
+                  h('div', { className: 'rlp-box-head' },
+                    h('div', { className: 'rlp-box-title' },
+                      h('h3', null, t('inlineSkills')),
+                      h(Tag, { tone: 'neutral' }, `${form.skills.length} / ${limits.skills}`)),
+                    h(Button, {
+                      size: 'sm', variant: 'outline',
+                      icon: h(IconPlusOutlineRegular, { size: 13 }),
+                      disabled: form.skills.length >= limits.skills,
+                      onClick: addSkill,
+                    }, t('addSkill'))),
+                  h('p', { className: 'rlp-note' }, t('skillsHint')),
+                  form.skills.length === 0
+                    ? h('div', { className: 'rlp-empty' }, h('p', null, t('noSkills')))
+                    : form.skills.map((skill, i) => h(SkillCard, {
+                      key: skill.key, skill, errors, showErrors, limits,
+                      open: openSkills.has(skill.key), onToggle: () => toggleSkill(skill.key),
+                      onChange: next => update({ skills: form.skills.map((s, j) => j === i ? next : s) }),
+                      onRemove: () => update({ skills: form.skills.filter((_, j) => j !== i) }),
+                    })))) : null,
+
+              tab === 'preview' ? h(Preview, { form, errors }) : null),
+
             confirmState ? h(Modal, {
               open: true,
               onClose: () => setConfirmState(null),
@@ -1028,12 +1113,11 @@ window.__ModuleLoader__.load({
         function RolesPage() {
           useLocale()
           const { status, roles, sessions, error, limits, builtinMissing, builtinModified } = useRoles()
-          const { selected, drafts, query } = useUi()
+          const { selected, drafts, query, filter } = useUi()
           const navSeq = React.useSyncExternalStore(navStore.subscribe, navStore.get)
           const [note, setNote] = React.useState(null)
-          const searchRef = React.useRef(null)
 
-          React.useEffect(() => { if (nav.roleId) ui.set({ selected: nav.roleId, query: '' }) }, [navSeq])
+          React.useEffect(() => { if (nav.roleId) ui.set({ selected: nav.roleId, query: '', filter: 'all' }) }, [navSeq])
 
           const newKeys = Object.keys(drafts).filter(isNewKey)
           const exists = key => isNewKey(key) ? drafts[key] !== undefined : roles.some(r => r.id === key)
@@ -1044,27 +1128,30 @@ window.__ModuleLoader__.load({
             if (fallback !== selected) ui.set({ selected: fallback })
           })
 
-          if (status === 'loading') return h('div', { className: 'rlp' }, h('div', { className: 'rlp-blank' }, t('loading')))
-          if (status === 'error') {
-            return h('div', { className: 'rlp' },
-              h('div', { className: 'rlp-blank' }, h('div', null,
-                h('p', { className: 'rlp-err' }, t('loadFailed', { message: error })),
-                h('button', { type: 'button', className: 'rlp-btn', onClick: () => store.reload() }, t('retry')))))
-          }
-
           const usage = {}
           for (const id of Object.values(sessions)) usage[id] = (usage[id] ?? 0) + 1
-          const needle = query.trim().toLocaleLowerCase()
-          const matches = item => !needle || [item.name, item.description, ...item.skills.map(s => s.name), ...(item.localSkills ?? [])].join('\n').toLocaleLowerCase().includes(needle)
-          const rows = [
+
+          const allRows = [
             ...roles.map(role => ({ key: role.id, role, form: drafts[role.id]?.form ?? role })),
             ...newKeys.map(key => ({ key, role: null, form: drafts[key].form })),
-          ].filter(row => matches(row.form))
+          ]
+          const activeCount = allRows.filter(r => (usage[r.key] ?? 0) > 0).length
+          const builtinCount = allRows.filter(r => Boolean(r.role?.builtin)).length
+          const customCount = allRows.length - builtinCount
+
+          const needle = query.trim().toLocaleLowerCase()
+          const matches = item => !needle || [item.name, item.description, ...item.skills.map(s => s.name), ...(item.localSkills ?? [])].join('\n').toLocaleLowerCase().includes(needle)
+          const rows = allRows.filter(row => {
+            if (filter === 'active' && !(usage[row.key] > 0)) return false
+            if (filter === 'builtin' && !row.role?.builtin) return false
+            if (filter === 'custom' && Boolean(row.role?.builtin)) return false
+            return matches(row.form)
+          })
 
           const newRole = () => {
             const key = `new:${++newSeq}`
             ui.setDraft(key, { form: { name: t('newRoleName'), icon: '🎭', description: '', prompt: '', skills: [], localSkills: [] }, baseAt: 0 })
-            ui.set({ selected: key, tab: 'prompt', query: '' })
+            ui.set({ selected: key, tab: 'prompt', query: '', filter: 'all' })
           }
           const restore = async () => {
             try {
@@ -1075,54 +1162,99 @@ window.__ModuleLoader__.load({
             }
           }
           const atLimit = roles.length + newKeys.length >= limits.roles
-
-          const side = h('aside', { className: 'rlp-side', 'aria-label': t('panel') },
-            h('div', { className: 'rlp-side-head' },
-              h('h1', { className: 'rlp-h1' }, t('panel')),
-              h('button', { type: 'button', className: 'rlp-btn sm', disabled: atLimit, onClick: newRole }, h(IconPlus, { size: 12 }), t('newRole'))),
-            h('p', { className: 'rlp-intro' }, t('intro')),
-            roles.length + newKeys.length > 6 || needle ? h('label', { className: 'rlp-search' },
-              h(IconSearch),
-              h('input', { ref: searchRef, type: 'search', value: query, placeholder: t('search'), 'aria-label': t('search'), onChange: e => ui.set({ query: e.target.value }) })) : null,
-            h('ul', { className: 'rlp-list', role: 'list' },
-              rows.length === 0 ? h('li', { className: 'rlp-empty' }, needle ? t('noMatches') : t('empty')) : null,
-              rows.map(({ key, role, form }) => {
-                const dirty = isNewKey(key) || (drafts[key] !== undefined && !sameForm(drafts[key].form, formOf(role)))
-                const skills = form.skills.length + (form.localSkills?.length ?? 0)
-                const meta = [skills ? t('skillsCount', { n: skills }) : null, usage[key] ? t('usedBy', { n: usage[key] }) : null].filter(Boolean).join(' · ')
-                return h('li', { key },
-                  h('button', { type: 'button', className: 'rlp-item', 'aria-current': key === selected, onClick: () => ui.set({ selected: key }) },
-                    h('span', { className: 'rlp-item-icon', 'aria-hidden': true }, form.icon || '🎭'),
-                    h('span', { className: 'rlp-item-body' },
-                      h('span', { className: 'rlp-item-top' },
-                        h('span', { className: 'rlp-item-name' }, form.name || t('namePlaceholder')),
-                        usage[key] ? h('span', { className: 'rlp-live', title: t('usedBy', { n: usage[key] }) }) : null,
-                        dirty ? h('span', { className: 'rlp-dot', title: isNewKey(key) ? t('unsavedNew') : t('unsaved') }) : null),
-                      form.description ? h('span', { className: 'rlp-item-desc' }, form.description) : null,
-                      meta ? h('span', { className: 'rlp-item-meta' }, meta) : null)))
-              })),
-            builtinMissing > 0 || note ? h('div', { className: 'rlp-side-foot' },
-              note ? h('p', { className: 'rlp-hint', role: 'status' }, note) : null,
-              builtinMissing > 0 ? h('button', { type: 'button', className: 'rlp-btn sm', onClick: restore }, t('restore', { n: builtinMissing })) : null) : null)
+          const filterChips = [
+            ['all', t('filterAll'), allRows.length],
+            ...(activeCount ? [['active', t('filterActive'), activeCount]] : []),
+            ...(builtinCount ? [['builtin', t('filterBuiltin'), builtinCount]] : []),
+            ...(customCount ? [['custom', t('filterCustom'), customCount]] : []),
+          ]
 
           const stored = selected && !isNewKey(selected) ? roles.find(r => r.id === selected) ?? null : null
           const editable = selected && (stored || (isNewKey(selected) && drafts[selected]))
-          const main = editable
-            ? h(RoleEditor, {
-              key: selected, roleKey: selected, stored, roles, sessions, limits, builtinModified,
-              onSaved: (id, message) => { ui.set({ selected: id }); setNote(message ?? null) },
-              onDeleted: key => {
-                const keys = rows.map(r => r.key)
-                const at = keys.indexOf(key)
-                ui.set({ selected: keys[at + 1] ?? keys[at - 1] ?? null })
-              },
-            })
-            : h('div', { className: 'rlp-main' }, h('div', { className: 'rlp-blank' }, h('div', null,
-              h('span', { className: 'rlp-blank-icon', 'aria-hidden': true }, '🎭'),
-              h('p', { className: 'rlp-hint' }, t('empty')),
-              h('button', { type: 'button', className: 'rlp-btn primary', onClick: newRole }, t('newRole')))))
 
-          return h('section', { className: 'rlp', 'aria-label': t('panel') }, side, main)
+          return h('section', { className: 'rlp-page', 'aria-label': t('panel') },
+            h('div', { className: 'rlp-inner' },
+              h('header', { className: 'rlp-head' },
+                h('div', { className: 'rlp-head-copy' },
+                  h('h1', { className: 'rlp-h1' }, t('panel')),
+                  h('p', { className: 'rlp-note' }, t('intro'))),
+                h('div', { className: 'rlp-head-actions' },
+                  builtinMissing > 0
+                    ? h(Button, { size: 'sm', variant: 'outline', onClick: () => void restore() }, t('restore', { n: builtinMissing }))
+                    : null,
+                  h(Button, {
+                    size: 'sm', variant: 'primary',
+                    icon: h(IconPlusOutlineRegular, { size: 14 }),
+                    disabled: atLimit || status !== 'ready',
+                    onClick: newRole,
+                  }, t('newRole')))),
+
+              note ? h('div', { className: 'rlp-banner', role: 'status' },
+                h('span', { className: 'rlp-banner-text' }, note),
+                h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCloseOutlineRegular, { size: 12 }), onClick: () => setNote(null) })) : null,
+
+              status === 'loading'
+                ? h('div', { className: 'rlp-empty', role: 'status' },
+                  h(StateDot, { state: 'ongoing', size: 16 }),
+                  h('p', null, t('loading')))
+                : status === 'error'
+                  ? h('div', { className: 'rlp-banner', 'data-tone': 'error', role: 'alert' },
+                    h(IconWarningTriangleOutlineRegular, { size: 14 }),
+                    h('span', { className: 'rlp-banner-text' }, t('loadFailed', { message: error })),
+                    h(Button, { size: 'sm', variant: 'outline', onClick: () => store.reload() }, t('retry')))
+                  : h('div', { className: 'rlp-hub' },
+                    h('aside', { className: 'rlp-rail', 'aria-label': t('panel') },
+                      allRows.length > 3 || needle ? h(Input, {
+                        type: 'search',
+                        icon: h(IconSearchOutlineRegular, { size: 14 }),
+                        value: query, placeholder: t('search'), 'aria-label': t('search'),
+                        onChange: e => ui.set({ query: e.target.value }),
+                      }) : null,
+                      filterChips.length > 1 ? h('div', { className: 'rlp-chips', role: 'group' },
+                        filterChips.map(([key, label, n]) => h('button', {
+                          key, type: 'button', className: 'rlp-chip', 'aria-pressed': filter === key,
+                          onClick: () => ui.set({ filter: key }),
+                        }, label, h('span', { className: 'rlp-chip-n' }, n)))) : null,
+                      rows.length === 0
+                        ? h('div', { className: 'rlp-empty' },
+                          h('p', null, needle || filter !== 'all' ? t('noMatches') : t('empty')),
+                          needle || filter !== 'all'
+                            ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => ui.set({ query: '', filter: 'all' }) }, t('resetFilters'))
+                            : null)
+                        : h('ul', { className: 'rlp-list', role: 'list' }, rows.map(({ key, role, form }) => {
+                          const dirty = isNewKey(key) || (drafts[key] !== undefined && !sameForm(drafts[key].form, formOf(role)))
+                          const skills = form.skills.length + (form.localSkills?.length ?? 0)
+                          const meta = [skills ? t('skillsCount', { n: skills }) : null, usage[key] ? t('usedBy', { n: usage[key] }) : null].filter(Boolean).join(' · ')
+                          return h('li', { key },
+                            h('button', {
+                              type: 'button', className: 'rlp-item',
+                              'aria-current': key === selected || undefined,
+                              onClick: () => ui.set({ selected: key }),
+                            },
+                            h('span', { className: 'rlp-item-icon', 'aria-hidden': true }, form.icon || '🎭'),
+                            h('span', { className: 'rlp-item-body' },
+                              h('span', { className: 'rlp-item-top' },
+                                h('span', { className: 'rlp-item-name' }, form.name || t('namePlaceholder')),
+                                usage[key] ? h(StateDot, { state: 'done', size: 6 }) : null,
+                                dirty ? h(StateDot, { state: 'warning', size: 6 }) : null),
+                              form.description ? h('span', { className: 'rlp-item-desc' }, form.description) : null,
+                              meta ? h('span', { className: 'rlp-item-meta' }, meta) : null)))
+                        }))),
+
+                    editable
+                      ? h(RoleEditor, {
+                        key: selected, roleKey: selected, stored, roles, sessions, limits, builtinModified,
+                        onSaved: (id, message) => { ui.set({ selected: id }); setNote(message ?? null) },
+                        onDeleted: key => {
+                          const keys = rows.map(r => r.key)
+                          const at = keys.indexOf(key)
+                          ui.set({ selected: keys[at + 1] ?? keys[at - 1] ?? null })
+                        },
+                      })
+                      : h('div', { className: 'rlp-empty' },
+                        h('span', { style: { fontSize: 32, lineHeight: 1 }, 'aria-hidden': true }, '🎭'),
+                        h('p', null, t('empty')),
+                        h(Button, { size: 'sm', variant: 'primary', icon: h(IconPlusOutlineRegular, { size: 14 }), onClick: newRole }, t('newRole'))))))
         }
 
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS }, RolesPage))
@@ -1134,7 +1266,7 @@ window.__ModuleLoader__.load({
           useLocale()
           return h('div', { className: 'rlc' },
             h('p', null, t('configHint')),
-            h('button', { type: 'button', className: 'rlp-btn', onClick: () => openManager() }, t('openManager')))
+            h(Button, { size: 'sm', variant: 'outline', onClick: () => openManager() }, t('openManager')))
         }
 
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
