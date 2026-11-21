@@ -22,7 +22,7 @@ function taskProgress(trace, update, seq, parent) {
   } else if (text) trace.rows.push({ kind: 'task-progress', seq, cliParent: parent, input, text: text.slice(0, MAX_PROGRESS), clipped: text.length > MAX_PROGRESS })
   trace.progressSeq = seq
 }
-const defined = value => Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null))
+export const defined = value => Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null))
 
 function updatePatchFrame(row, update) {
   if (Array.isArray(update.content) && (row.patchFrame || ['edit','move','delete'].includes(update.kind ?? row.tool.kind) || update.content.some(b => b?.type === 'diff'))) {
@@ -33,7 +33,7 @@ function updatePatchFrame(row, update) {
 }
 
 // external: Codex appends terminal_output chunks while Claude Code replaces the full transcript under the same key
-function foldTerminal(row, u) {
+export function foldTerminal(row, u) {
   const id = u.toolCallId, m = u._meta, info = m?.terminal_info
   if (u.sessionUpdate === 'tool_call' && row.tool.toolCallId) row.terminal = null
   if (typeof id !== 'string' || !id || !m || row.terminal === null) return
@@ -63,7 +63,7 @@ function foldTerminal(row, u) {
   }
 }
 
-function namedPlan(update) {
+export function namedPlan(update) {
   const p = update?.sessionUpdate === 'plan_update' ? update.plan : null
   const id = update?.sessionUpdate === 'plan_removed' ? update.planId : p?.planId
   if (typeof id !== 'string' || !id.trim()) return null
