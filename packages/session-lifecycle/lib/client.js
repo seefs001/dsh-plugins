@@ -3,6 +3,10 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const ReactDOM = require('react-dom')
+    const {
+      DisclosureRow, JsonBlock, Tag, TextShimmer,
+      IconClockOutlineRegular, IconInspectOutlineRegular,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'session-lifecycle'
     const KEY = 'session-lifecycle-outcome'
@@ -39,6 +43,7 @@ window.__ModuleLoader__.load({
         budget: 'Calls today', saving: 'Working…', active: 'Enabled for', loadError: 'Unavailable or access denied', nativeFile: 'Registered deliverable', retrySettings: 'Reload settings',
         directory: 'Working directory (exact match)', modelIssue: 'Last summary failed; showing session status.', catalogIssue: 'Model list unavailable. You can still disable automatic summaries.',
         missing: 'Older conversations without a summary yet: ', recover: 'Load next batch', recovering: 'Loading history…',
+        tvStopped: 'Stopped', tvInspect: 'Inspect', tvResult: 'Result',
       },
       zh: {
         later: '稍后回答的问题', laterAction: '稍后回答', custom: '选择日期和时间…', apply: '确定', cancel: '取消', returned: '最近返回', incomplete: '部分旧会话仍待核对。',
@@ -68,6 +73,7 @@ window.__ModuleLoader__.load({
         budget: '今日已用', saving: '处理中…', active: '当前已启用', loadError: '暂不可用或无权访问', nativeFile: '已登记交付物', retrySettings: '重新读取设置',
         directory: '工作目录（仅此目录）', modelIssue: '上次摘要生成失败，当前仅显示会话状态。', catalogIssue: '模型目录暂不可用，仍可关闭自动摘要。',
         missing: '还没生成结果摘要的旧会话：', recover: '再读一批', recovering: '正在读取…',
+        tvStopped: '已中止', tvInspect: '查看', tvResult: '结果',
       },
     }
 
@@ -318,6 +324,20 @@ window.__ModuleLoader__.load({
 .sl-back{font:inherit;font-size:12px;color:var(--dsw-alias-label-secondary);background:transparent;border:0;border-radius:var(--dsw-radius-sm,8px);padding:4px 8px;cursor:pointer}
 @media (pointer:coarse){.sl-page select{font-size:16px}}
 @container(max-width:620px){.sl-body{padding:20px 20px 48px}[data-platform=darwin] .sl-body{padding-top:calc(20px + var(--dsh-frame-top-clearance,0px))}.sl-page li{grid-template-columns:20px minmax(0,1fr)}.sl-page li>.sl-pactions{grid-column:2;justify-content:flex-start}}
+.sl-tv{display:flex;flex-direction:column}
+.sl-tv-row{min-width:0}
+.sl-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.sl-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.sl-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
+.sl-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.sl-tv-tag{flex:none;margin-left:6px}
+.sl-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
+.sl-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+.sl-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
+.sl-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.sl-tv-inspect:focus-visible{opacity:1}
+@media (hover:hover){.sl-tv:hover .sl-tv-inspect{opacity:1}.sl-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media (hover:none){.sl-tv-inspect{opacity:1}}
 `
 
     return {
@@ -832,6 +852,63 @@ window.__ModuleLoader__.load({
                 }, h('summary', null, count(section, board[section].length)), rows(board[section], section))),
                 retrievable.length > 0 && h('footer', null, t('missing') + retrievable.length + ' ', button(t(busy ? 'recovering' : 'recover'), recover, '', { disabled: busy }))))))
         }
+
+        function LifecycleToolRow({ phase, block, inspect, useDisclosure }) {
+          const { expanded, toggle } = useDisclosure()
+          const settled = phase === 'result' && block && 'kind' in block
+          const call = settled ? block.call : block
+          let args = {}
+          try {
+            const parsed = JSON.parse(call?.argsRaw ?? '{}')
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed
+          } catch {}
+          const text = settled && Array.isArray(block.content)
+            ? block.content.filter(item => item.type === 'text').map(item => item.text).join('\n') : ''
+          let payload = null
+          if (text) { try { payload = JSON.parse(text) } catch {} }
+          const action = typeof args.action === 'string' ? args.action : block?.args?.text?.('action') ?? ''
+          const state = phase === 'preparing' ? 'preparing'
+            : !settled ? 'running'
+              : block.error?.code === 'interrupted' ? 'stopped'
+                : block.isError ? 'error' : 'ok'
+          const running = state === 'preparing' || state === 'running'
+          let summary = ''
+          if (state === 'stopped') summary = t('tvStopped')
+          else if (state === 'error') summary = text.split('\n')[0] || ''
+          else if (typeof args.minutes === 'number') summary = `${args.minutes}m`
+          else if (typeof args.until === 'string' && args.until) summary = args.until
+          else if (typeof args.mode === 'string' && args.mode) summary = args.mode
+          const expandable = Boolean(text)
+          const open = expanded && expandable
+          return h('div', { className: 'sl-tv', 'data-tool': 'session_lifecycle', 'data-state': state },
+            h(DisclosureRow, {
+              rowClassName: 'sl-tv-row',
+              icon: h(IconClockOutlineRegular, { size: 14 }),
+              title: t('lifecycle'),
+              running,
+              open,
+              expandable,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: state === 'preparing' ? null : h(React.Fragment, null,
+                action ? h(Tag, { className: 'sl-tv-tag', tone: state === 'error' ? 'error' : 'outline' }, action) : null,
+                summary ? h(React.Fragment, null,
+                  h('span', { className: 'sl-tv-sep', 'aria-hidden': true }),
+                  h('span', { className: `sl-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+                    h(TextShimmer, null, summary))) : null),
+            },
+            open ? h('div', { className: 'sl-tv-body' },
+              payload !== null
+                ? h(JsonBlock, { label: t('tvResult'), payload, defaultOpen: true })
+                : h('pre', { className: 'sl-tv-pre', 'data-error': state === 'error' || undefined }, text),
+              inspect ? h('button', { type: 'button', className: 'sl-tv-inspect', onClick: inspect },
+                h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+        }
+
+        ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+          name: 'tool.call.toolview', key: 'session_lifecycle', locale: NS, priority: -10,
+        }, LifecycleToolRow))
 
         ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({ name: 'conversation.session.header.utilities', id: `${NS}-return`, order: 5, locale: NS }, ReturnLink))
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: NS, locale: NS }, Page))
