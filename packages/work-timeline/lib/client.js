@@ -2,8 +2,12 @@ window.__ModuleLoader__.load({
   id: 'dsh-work-timeline',
   factory(require) {
     const React = require('react')
+    const {
+      DisclosureRow, FileTypeIcon, IconInspectOutlineRegular, Tag, TextShimmer,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const KEY = 'dsh-work-timeline'
+    const META = 'dshWorkTimeline'
     const TYPE = 'dsh-work-timeline/work'
     const VIEWS = ['plan', 'process', 'artifacts']
     const ROLES = ['deliverable', 'evidence']
@@ -36,6 +40,17 @@ window.__ModuleLoader__.load({
         emptyBody: 'When the agent tracks multi-step work with work_update, its plan, revisions and linked files appear here.',
         showLess: 'Show less',
         error: 'Could not open: {message}',
+        'tool.create': 'Create work plan',
+        'tool.update': 'Update work plan',
+        'tool.read': 'Read work plan',
+        'tool.openTimeline': 'Timeline',
+        'tool.unchanged': 'No changes',
+        'tool.addedCount': '+{n} added',
+        'tool.updatedCount': '{n} updated',
+        'tool.empty': 'No active work',
+        'tool.revisions': '{n} revisions',
+        'tool.stopped': 'Stopped',
+        'tool.inspect': 'Inspect',
       },
       zh: {
         title: '工作时间线', overview: '工作概览', open: '打开工作详情',
@@ -65,6 +80,17 @@ window.__ModuleLoader__.load({
         emptyBody: 'Agent 用 work_update 跟踪多步骤任务后，计划、修订过程和关联文件会显示在这里。',
         showLess: '收起',
         error: '无法打开：{message}',
+        'tool.create': '创建工作计划',
+        'tool.update': '更新工作计划',
+        'tool.read': '读取工作计划',
+        'tool.openTimeline': '时间线',
+        'tool.unchanged': '无变更',
+        'tool.addedCount': '+{n} 新增',
+        'tool.updatedCount': '{n} 更新',
+        'tool.empty': '尚无进行中的工作',
+        'tool.revisions': '{n} 次修订',
+        'tool.stopped': '已中止',
+        'tool.inspect': '查看',
       },
     }
     const CSS = `
@@ -241,6 +267,30 @@ window.__ModuleLoader__.load({
   .wt-head{padding:12px 14px 10px}.wt-tabs{margin:0 14px}.wt-body{padding:12px 14px 20px}
   .wt-tab-count{display:none}.wt-file-step{padding-left:12px}.wt-change{flex-wrap:wrap}.wt-change-delta{max-width:100%}
 }
+.wt-tool{min-width:0}
+.wt-tool-row{min-width:0;color:var(--dsw-alias-label-tertiary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.wt-tool-sep{flex:none;width:2px;height:2px;margin:0 6px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.wt-tool-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wt-tool-error{color:var(--dsw-alias-state-error-primary)}
+.wt-tool-stopped{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.wt-tool-suffix{flex:none;margin-left:6px;font-size:12px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;white-space:nowrap}
+.wt-tool-tag{flex:none;margin-left:6px}
+.wt-tool-open{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l4);
+  border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;white-space:nowrap}
+@media (hover:hover){.wt-tool-open:hover{background:var(--dsw-alias-interactive-bg-hover-solid,var(--dsw-alias-interactive-bg-hover));color:var(--dsw-alias-label-primary)}}
+.wt-tool-body{display:flex;flex-direction:column;gap:8px;margin:4px 0 4px 20px;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);
+  border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-card-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary)}
+.wt-tool-reason{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;white-space:pre-wrap;overflow-wrap:anywhere}
+.wt-tool-list{display:flex;flex-direction:column;gap:4px}
+.wt-tool-item{display:flex;align-items:center;gap:8px;min-width:0;font-size:12px;line-height:18px}
+.wt-tool-item-text{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wt-tool-item-delta{flex:none;color:var(--dsw-alias-label-tertiary);font-size:11px;white-space:nowrap}
+.wt-tool-item-delta b{font-weight:500;color:var(--dsw-alias-label-secondary)}
+.wt-tool-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 0 20px;padding:2px 8px;
+  border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);
+  color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px}
+.wt-tool-inspect svg{width:12px;height:12px}
+@media (hover:hover){.wt-tool-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid,var(--dsw-alias-interactive-bg-hover));color:var(--dsw-alias-label-primary)}}
 
 `
     const encode = value => encodeURIComponent(value).replace(/%3A/gi, ':')
@@ -570,13 +620,237 @@ window.__ModuleLoader__.load({
           return h(WorkBody, { key: `${sessionId}:${state.current.id}`, state, sessionId, actions: tab.actions })
         }
 
+        function openTimeline(event) {
+          event.stopPropagation()
+          try { ctx.sidebarRight.openTab(KEY) } catch {}
+        }
+
+        function WorkUpdateRow(props) {
+          const t = useLocale()
+          const { expanded, toggle } = props.useDisclosure()
+          const { getTriggerProps } = props.useContextMenu()
+          const projection = props.useProjection(KEY)
+          const state = workRowState(props.phase, props.block)
+          const running = state === 'preparing' || state === 'running'
+          const parsed = parseWorkUpdate(props.phase, props.block)
+          const snapshot = parsed.snapshot
+          const sum = snapshot ? count(snapshot.steps) : null
+          const revRecord = parsed.revision !== undefined
+            ? projection?.history?.find(row => row.revision === parsed.revision)
+            : undefined
+          const deltaText = revRecord ? revisionDeltaSummary(revRecord, t)
+            : parsed.changed === false ? t('tool.unchanged') : ''
+          const title = t(parsed.action === 'create' || parsed.revision === 1 ? 'tool.create' : 'tool.update')
+          const summary = state === 'stopped' ? t('tool.stopped')
+            : state === 'error' ? parsed.errorLine || snapshot?.title || parsed.reason
+              : snapshot?.title || parsed.reason || ''
+          const expandable = state !== 'preparing' && Boolean(parsed.reason || snapshot || parsed.errorText)
+          const open = expanded && expandable
+          const collapsedContent = h(React.Fragment, null,
+            summary ? h(React.Fragment, null,
+              h('span', { className: 'wt-tool-sep', 'aria-hidden': true }),
+              h('span', { className: `wt-tool-summary${state === 'error' ? ' wt-tool-error' : state === 'stopped' ? ' wt-tool-stopped' : ''}` },
+                h(TextShimmer, null, summary))) : null,
+            state === 'ok' && parsed.revision !== undefined
+              ? h(Tag, { className: 'wt-tool-tag' }, t('revisionShort', { n: parsed.revision })) : null,
+            state === 'ok' && sum && sum.total > 0
+              ? h('span', { className: 'wt-tool-suffix' }, `${sum.completed}/${sum.total}`) : null,
+            state === 'ok' && deltaText
+              ? h('span', { className: 'wt-tool-suffix' }, deltaText) : null)
+          const headerAccessory = projection?.current
+            ? h('button', { type: 'button', className: 'wt-tool-open', onClick: openTimeline }, t('tool.openTimeline'))
+            : null
+          const steps = revRecord?.steps?.length ? revRecord.steps : null
+          const artifacts = snapshot?.artifacts ?? []
+          return h('div', { className: 'wt wt-tool', 'data-tool': 'work_update', 'data-state': state },
+            h(DisclosureRow, {
+              rowClassName: 'wt-tool-row',
+              icon: h(WorkGlyph, { size: 14 }),
+              title,
+              running,
+              open,
+              expandable,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent,
+              headerAccessory,
+            },
+            open ? h(React.Fragment, null,
+              h('div', { className: 'wt-tool-body' },
+                state === 'error' && parsed.errorText
+                  ? h('p', { className: 'wt-error' }, parsed.errorText)
+                  : h(React.Fragment, null,
+                    parsed.reason ? h('p', { className: 'wt-tool-reason' }, parsed.reason) : null,
+                    steps ? h('ul', { className: 'wt-tool-list' }, steps.map(change => h('li', { key: change.id, className: 'wt-tool-item' },
+                      h(StatusGlyph, { status: change.status }),
+                      h('span', { className: 'wt-tool-item-text' }, change.title),
+                      h('span', { className: 'wt-tool-item-delta' }, change.previous && change.previous !== change.status
+                        ? h(React.Fragment, null, t(change.previous), ' → ', h('b', null, t(change.status)))
+                        : h(React.Fragment, null, t(change.previous ? 'changeUpdated' : 'changeAdded'), ' · ', h('b', null, t(change.status)))))))
+                      : snapshot?.steps?.length ? h('ul', { className: 'wt-tool-list' }, snapshot.steps.map(step => h('li', { key: step.id, className: 'wt-tool-item' },
+                        h(StatusGlyph, { status: step.status }),
+                        h('span', { className: 'wt-tool-item-text' }, step.content),
+                        h('span', { className: 'wt-tool-item-delta' }, t(step.status))))) : null,
+                    snapshot?.outcome ? h('div', { className: 'wt-outcome', 'data-tone': snapshot.status },
+                      h('span', { className: 'wt-label' }, t('outcome')),
+                      h('p', { className: 'wt-outcome-text' }, snapshot.outcome)) : null,
+                    artifacts.length > 0 ? h('div', { className: 'wt-chips' }, artifacts.map(artifact => h('button', {
+                      key: artifact.id,
+                      type: 'button',
+                      className: 'wt-chip',
+                      'data-role': artifact.role,
+                      title: artifact.path,
+                      ...getTriggerProps(() => ({ kind: 'file', value: { sessionId: props.sessionId, path: artifact.path } })),
+                      onClick: event => { event.stopPropagation(); props.openFile(artifact.path) },
+                    }, h(FileTypeIcon, { path: artifact.path, size: 14 }), h('span', { className: 'wt-ellipsis' }, artifact.title)))) : null)),
+              props.inspect ? h('button', { type: 'button', className: 'wt-tool-inspect', onClick: props.inspect },
+                h(IconInspectOutlineRegular, { size: 12 }), t('tool.inspect')) : null) : null))
+        }
+
+        function WorkReadRow(props) {
+          const t = useLocale()
+          const { expanded, toggle } = props.useDisclosure()
+          const state = workRowState(props.phase, props.block)
+          const running = state === 'preparing' || state === 'running'
+          const parsed = parseWorkRead(props.phase, props.block)
+          const current = parsed.current
+          const sum = current?.snapshot ? count(current.snapshot.steps) : null
+          const summary = state === 'stopped' ? t('tool.stopped')
+            : state === 'error' ? parsed.errorLine || ''
+              : state === 'ok' ? (current ? current.snapshot.title : t('tool.empty')) : ''
+          const expandable = state !== 'preparing' && Boolean(current || parsed.errorText)
+          const open = expanded && expandable
+          const collapsedContent = h(React.Fragment, null,
+            summary ? h(React.Fragment, null,
+              h('span', { className: 'wt-tool-sep', 'aria-hidden': true }),
+              h('span', { className: `wt-tool-summary${state === 'error' ? ' wt-tool-error' : state === 'stopped' ? ' wt-tool-stopped' : ''}` },
+                h(TextShimmer, null, summary))) : null,
+            state === 'ok' && current
+              ? h(Tag, { className: 'wt-tool-tag' }, t('revisionShort', { n: current.revision })) : null,
+            state === 'ok' && sum && sum.total > 0
+              ? h('span', { className: 'wt-tool-suffix' }, `${sum.completed}/${sum.total}`) : null,
+            state === 'ok' && parsed.historyCount > 0
+              ? h('span', { className: 'wt-tool-suffix' }, t('tool.revisions', { n: parsed.historyCount })) : null)
+          const headerAccessory = current
+            ? h('button', { type: 'button', className: 'wt-tool-open', onClick: openTimeline }, t('tool.openTimeline'))
+            : null
+          return h('div', { className: 'wt wt-tool', 'data-tool': 'work_read', 'data-state': state },
+            h(DisclosureRow, {
+              rowClassName: 'wt-tool-row',
+              icon: h(WorkGlyph, { size: 14 }),
+              title: t('tool.read'),
+              running,
+              open,
+              expandable,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent,
+              headerAccessory,
+            },
+            open ? h(React.Fragment, null,
+              h('div', { className: 'wt-tool-body' },
+                state === 'error' && parsed.errorText
+                  ? h('p', { className: 'wt-error' }, parsed.errorText)
+                  : current ? h(React.Fragment, null,
+                    current.snapshot.objective ? h('p', { className: 'wt-tool-reason' }, current.snapshot.objective) : null,
+                    current.snapshot.steps.length > 0 ? h('ul', { className: 'wt-tool-list' }, current.snapshot.steps.map(step => h('li', { key: step.id, className: 'wt-tool-item' },
+                      h(StatusGlyph, { status: step.status }),
+                      h('span', { className: 'wt-tool-item-text' }, step.content),
+                      h('span', { className: 'wt-tool-item-delta' }, t(step.status))))) : null) : null),
+              props.inspect ? h('button', { type: 'button', className: 'wt-tool-inspect', onClick: props.inspect },
+                h(IconInspectOutlineRegular, { size: 12 }), t('tool.inspect')) : null) : null))
+        }
+
         ctx.effect(() => ctx.sidebarRightTabs.register({
           id: TYPE, kind: KEY, title: () => translate('title'),
           guide: [{ id: 'work', order: 30, icon: WorkGlyph, title: () => translate('title'), description: () => `${translate('plan')} · ${translate('process')} · ${translate('artifacts')}` }],
         }))
         ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: TYPE }, Panel))
         ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'work-timeline', order: 0 }, Dock))
+        ctx.slots.inject('tool.call.toolview', function* () {
+          yield ctx.slots.register({ name: 'tool.call.toolview', key: 'work_update', locale: KEY }, WorkUpdateRow)
+          yield ctx.slots.register({ name: 'tool.call.toolview', key: 'work_read', locale: KEY }, WorkReadRow)
+        })
       },
+      _internal: { workRowState, parseWorkUpdate, parseWorkRead, revisionDeltaSummary },
+    }
+
+    function firstLine(text) {
+      if (typeof text !== 'string') return ''
+      const index = text.indexOf('\n')
+      return index === -1 ? text : text.slice(0, index)
+    }
+
+    function resultText(block) {
+      if (!block || !('kind' in block)) return ''
+      const parts = []
+      for (const item of block.content ?? []) {
+        parts.push(item.type === 'text' ? item.text : JSON.stringify(item))
+      }
+      if (!parts.length && block.error) parts.push(`${block.error.name}: ${block.error.code}`)
+      return parts.join('\n')
+    }
+
+    function parseJson(raw) {
+      if (typeof raw !== 'string' || !raw) return null
+      try {
+        const value = JSON.parse(raw)
+        return value && typeof value === 'object' ? value : null
+      } catch {
+        return null
+      }
+    }
+
+    function workRowState(phase, block) {
+      if (phase === 'preparing') return 'preparing'
+      if (!block || !('kind' in block)) return 'running'
+      if (block.error?.code === 'interrupted') return 'stopped'
+      return block.isError ? 'error' : 'ok'
+    }
+
+    function parseWorkUpdate(phase, block) {
+      const settled = phase === 'result' && block && 'kind' in block
+      const rawArgs = settled ? block.call?.argsRaw : block?.argsRaw
+      const args = parseJson(rawArgs)
+      const meta = settled && !block.isError ? block.meta?.[META] : undefined
+      const work = meta?.version === 1 && meta.work ? meta.work : null
+      const snapshot = work?.snapshot ?? (args?.snapshot && Array.isArray(args.snapshot.steps) ? args.snapshot : null)
+      const reason = work?.reason ?? (typeof args?.reason === 'string' ? args.reason : block?.args?.text?.('reason') ?? '')
+      const errorText = settled && block.isError ? resultText(block) : ''
+      return {
+        action: typeof args?.action === 'string' ? args.action : undefined,
+        changed: typeof meta?.changed === 'boolean' ? meta.changed : undefined,
+        revision: typeof work?.revision === 'number' ? work.revision : undefined,
+        snapshot,
+        reason,
+        errorText,
+        errorLine: firstLine(errorText),
+      }
+    }
+
+    function parseWorkRead(phase, block) {
+      const settled = phase === 'result' && block && 'kind' in block
+      const text = settled ? resultText(block) : ''
+      if (!settled) return { current: null, historyCount: 0, errorText: '', errorLine: '' }
+      if (block.isError) return { current: null, historyCount: 0, errorText: text, errorLine: firstLine(text) }
+      const parsed = parseJson(text)
+      return {
+        current: parsed?.current?.snapshot ? parsed.current : null,
+        historyCount: Array.isArray(parsed?.history) ? parsed.history.length : 0,
+        errorText: '',
+        errorLine: '',
+      }
+    }
+
+    function revisionDeltaSummary(record, t) {
+      const added = record.steps.filter(item => item.kind === 'added').length + record.artifacts.filter(item => item.kind === 'added').length
+      const updated = record.steps.filter(item => item.kind === 'updated').length + record.artifacts.filter(item => item.kind === 'updated').length
+      return [
+        added > 0 ? t('tool.addedCount', { n: added }) : '',
+        updated > 0 ? t('tool.updatedCount', { n: updated }) : '',
+      ].filter(Boolean).join(' · ')
     }
   },
 })
