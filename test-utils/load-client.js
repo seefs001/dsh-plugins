@@ -4,7 +4,7 @@ import vm from 'node:vm'
 export function loadClient(file, modules = {}) {
   let registered
   const window = { __ModuleLoader__: { load: record => { registered = record } } }
-  const sandbox = { window, atob, btoa, TextDecoder, TextEncoder, URLSearchParams, Uint8Array, JSON, Date }
+  const sandbox = { window, atob, btoa, TextDecoder, TextEncoder, URL, URLSearchParams, AbortController, Uint8Array, JSON, Date }
   vm.runInNewContext(readFileSync(file, 'utf8'), sandbox, { filename: file })
   if (!registered) throw new Error(`${file} did not call window.__ModuleLoader__.load`)
   const require = id => {
