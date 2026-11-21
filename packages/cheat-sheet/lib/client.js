@@ -3,6 +3,10 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const ReactDOM = require('react-dom')
+    const {
+      DisclosureRow, JsonBlock, Tag, TextShimmer,
+      IconInspectOutlineRegular, IconSkillOutlineRegular,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'cheat-sheet'
     const STATE_PATH = 'cheat-sheet/state'
@@ -66,6 +70,10 @@ window.__ModuleLoader__.load({
         details: 'Skill details',
         selectHint: 'Select a skill to view details.',
         countUnknown: 'Count unavailable',
+        tvStopped: 'Stopped',
+        tvInspect: 'Inspect',
+        tvResult: 'Result',
+        tvPinsCount: '{n} pinned',
       },
       zh: {
         title: '技能速查',
@@ -125,6 +133,10 @@ window.__ModuleLoader__.load({
         details: '技能详情',
         selectHint: '选择一项查看说明。',
         countUnknown: '次数暂不可用',
+        tvStopped: '已中止',
+        tvInspect: '查看',
+        tvResult: '结果',
+        tvPinsCount: '{n} 个置顶',
       },
     }
 
@@ -204,6 +216,20 @@ window.__ModuleLoader__.load({
 @media(pointer:coarse){.dcs-search{font-size:16px}}
 @media(max-width:480px){.dcs-trigger span{display:none}}
 @media(max-width:720px){.dcs-main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}.dcs-list-pane{border-right:0}.dcs-detail{max-height:44dvh;border-top:.5px solid var(--dsw-alias-border-l1);padding:14px 12px 16px}.dcs-head{padding:14px 12px 10px}.dcs-toolbar{padding:0 12px 10px}.dcs-banner{padding:8px 12px}.dcs-foot{padding:10px 12px}.dcs-foot .dcs-hint{display:none}}
+.dcs-tv{display:flex;flex-direction:column}
+.dcs-tv-row{min-width:0}
+.dcs-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.dcs-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.dcs-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
+.dcs-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.dcs-tv-tag{flex:none;margin-left:6px}
+.dcs-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
+.dcs-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+.dcs-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
+.dcs-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.dcs-tv-inspect:focus-visible{opacity:1}
+@media(hover:hover){.dcs-tv:hover .dcs-tv-inspect{opacity:1}.dcs-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media(hover:none){.dcs-tv-inspect{opacity:1}}
 `
 
     const svg = (children, props) => h('svg', { viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, ...props }, ...children)
@@ -613,6 +639,65 @@ window.__ModuleLoader__.load({
           document.head.append(style)
           return () => style.remove()
         }, 'cheat-sheet: styles')
+        function CheatSheetToolRow({ phase, block, inspect, useDisclosure, t }) {
+          const { expanded, toggle } = useDisclosure()
+          const settled = phase === 'result' && block && 'kind' in block
+          const call = settled ? block.call : block
+          let args = {}
+          try {
+            const parsed = JSON.parse(call?.argsRaw ?? '{}')
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed
+          } catch {}
+          const text = settled && Array.isArray(block.content)
+            ? block.content.filter(item => item.type === 'text').map(item => item.text).join('\n') : ''
+          let payload = null
+          if (text) { try { payload = JSON.parse(text) } catch {} }
+          const action = typeof args.action === 'string' ? args.action : block?.args?.text?.('action') ?? ''
+          const state = phase === 'preparing' ? 'preparing'
+            : !settled ? 'running'
+              : block.error?.code === 'interrupted' ? 'stopped'
+                : block.isError ? 'error' : 'ok'
+          const running = state === 'preparing' || state === 'running'
+          let summary = ''
+          if (state === 'stopped') summary = t('tvStopped')
+          else if (state === 'error') summary = text.split('\n')[0] || ''
+          else if (typeof args.name === 'string' && args.name) {
+            summary = `${args.name}${typeof args.pinned === 'boolean' ? ` · ${args.pinned ? 'pinned' : 'unpinned'}` : ''}`
+          } else if (Array.isArray(payload?.pinned)) {
+            summary = t('tvPinsCount', { n: payload.pinned.length })
+          }
+          const expandable = Boolean(text)
+          const open = expanded && expandable
+          return h('div', { className: 'dcs-tv', 'data-tool': 'cheat_sheet', 'data-state': state },
+            h(DisclosureRow, {
+              rowClassName: 'dcs-tv-row',
+              icon: h(IconSkillOutlineRegular, { size: 14 }),
+              title: t('title'),
+              running,
+              open,
+              expandable,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: state === 'preparing' ? null : h(React.Fragment, null,
+                action ? h(Tag, { className: 'dcs-tv-tag', tone: state === 'error' ? 'error' : 'outline' }, action) : null,
+                summary ? h(React.Fragment, null,
+                  h('span', { className: 'dcs-tv-sep', 'aria-hidden': true }),
+                  h('span', { className: `dcs-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+                    h(TextShimmer, null, summary))) : null),
+            },
+            open ? h('div', { className: 'dcs-tv-body' },
+              payload !== null
+                ? h(JsonBlock, { label: t('tvResult'), payload, defaultOpen: true })
+                : h('pre', { className: 'dcs-tv-pre', 'data-error': state === 'error' || undefined }, text),
+              inspect ? h('button', { type: 'button', className: 'dcs-tv-inspect', onClick: inspect },
+                h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+        }
+
+        ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+          name: 'tool.call.toolview', key: 'cheat_sheet', locale: NS, priority: -10,
+        }, CheatSheetToolRow))
+
         const listSkills = (sessionId, signal) => ctx.remote.skills.list({ sessionId }, signal)
         ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
           name: 'conversation.input.left', id: 'cheat-sheet', order: 80, locale: NS,
