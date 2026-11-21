@@ -2,6 +2,10 @@ window.__ModuleLoader__.load({
   id: 'dsh-branch-switcher',
   factory(require) {
     const React = require('react')
+    const {
+      DisclosureRow, JsonBlock, Tag, TextShimmer,
+      IconBranchOutlineRegular, IconInspectOutlineRegular,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'branchSwitcher'
     const SLOT = 'conversation.hero.options'
@@ -14,6 +18,7 @@ window.__ModuleLoader__.load({
       worktree: 'New worktree', worktreeHint: 'Create an isolated checkout when the first message is sent.',
       readonly: 'Branch switching is unavailable in read-only mode.',
       refreshFailed: 'Switched branches, though the panel failed to refresh:', changed: 'Switched to {branch}', choose: 'Switch to {branch}',
+      tvTitle: 'Branch switcher', tvStopped: 'Stopped', tvInspect: 'Inspect', tvResult: 'Result', tvCount: '{n} branches',
     }
     const ZH = {
       switch: '切换分支', search: '搜索本地分支', loading: '正在加载分支…', switching: '正在切换分支…',
@@ -23,6 +28,7 @@ window.__ModuleLoader__.load({
       worktree: '新建工作树', worktreeHint: '发送首条消息时创建独立工作目录。',
       readonly: '只读模式下不能切换分支。',
       refreshFailed: '分支已切换，但面板刷新失败：', changed: '已切换到 {branch}', choose: '切换到 {branch}',
+      tvTitle: '切换分支', tvStopped: '已中止', tvInspect: '查看', tvResult: '结果', tvCount: '{n} 个分支',
     }
     const CSS = `
 .dbs-root{display:inline-flex;flex:none;align-items:center;gap:2px;min-width:0}
@@ -52,6 +58,20 @@ window.__ModuleLoader__.load({
 @media(hover:hover){.dbs-chip:hover:not(:disabled),.dbs-toggle:hover:not(:has(input:disabled)),.dbs-row:hover:not(:disabled),.dbs-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dbs-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
 @media(pointer:coarse){.dbs-search{font-size:16px}}
 @media(max-width:600px){.dbs-root{flex-direction:column;align-items:flex-end;gap:0}.dbs-chip{max-width:120px}}
+.dbs-tv{display:flex;flex-direction:column}
+.dbs-tv-row{min-width:0}
+.dbs-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.dbs-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.dbs-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
+.dbs-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.dbs-tv-tag{flex:none;margin-left:6px}
+.dbs-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
+.dbs-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+.dbs-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
+.dbs-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.dbs-tv-inspect:focus-visible{opacity:1}
+@media(hover:hover){.dbs-tv:hover .dbs-tv-inspect{opacity:1}.dbs-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media(hover:none){.dbs-tv-inspect{opacity:1}}
 `
     function BranchIcon() {
       return h('svg', { viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.2, 'aria-hidden': true },
@@ -187,6 +207,66 @@ window.__ModuleLoader__.load({
                 h('button', { type: 'button', className: 'dbs-btn dbs-primary', disabled: !candidate || candidate === listed?.current || pending || readonly,
                   title: candidate ? tf('choose', candidate) : undefined, onClick: () => void switchBranch() }, pending ? t('switching') : t('switch')))))
         }
+        function BranchToolRow({ phase, block, inspect, useDisclosure }) {
+          const { expanded, toggle } = useDisclosure()
+          const settled = phase === 'result' && block && 'kind' in block
+          const call = settled ? block.call : block
+          let args = {}
+          try {
+            const parsed = JSON.parse(call?.argsRaw ?? '{}')
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed
+          } catch {}
+          const text = settled && Array.isArray(block.content)
+            ? block.content.filter(item => item.type === 'text').map(item => item.text).join('\n') : ''
+          let payload = null
+          if (text) { try { payload = JSON.parse(text) } catch {} }
+          const action = typeof args.action === 'string' ? args.action : block?.args?.text?.('action') ?? ''
+          const state = phase === 'preparing' ? 'preparing'
+            : !settled ? 'running'
+              : block.error?.code === 'interrupted' ? 'stopped'
+                : block.isError ? 'error' : 'ok'
+          const running = state === 'preparing' || state === 'running'
+          let summary = ''
+          if (state === 'stopped') summary = t('tvStopped')
+          else if (state === 'error') summary = text.split('\n')[0] || ''
+          else if (action === 'switch' && typeof args.branch === 'string') {
+            summary = typeof args.current === 'string' && args.current ? `${args.current} → ${args.branch}` : args.branch
+          } else if (Array.isArray(payload?.branches)) {
+            const count = t('tvCount').replace('{n}', String(payload.branches.length))
+            summary = payload.current ? `${payload.current} · ${count}` : count
+          }
+          const expandable = Boolean(text)
+          const open = expanded && expandable
+          return h('div', { className: 'dbs-tv', 'data-tool': 'branch_switcher', 'data-state': state },
+            h(DisclosureRow, {
+              rowClassName: 'dbs-tv-row',
+              icon: h(IconBranchOutlineRegular, { size: 14 }),
+              title: t('tvTitle'),
+              running,
+              open,
+              expandable,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: state === 'preparing' ? null : h(React.Fragment, null,
+                action ? h(Tag, { className: 'dbs-tv-tag', tone: state === 'error' ? 'error' : 'outline' }, action) : null,
+                summary ? h(React.Fragment, null,
+                  h('span', { className: 'dbs-tv-sep', 'aria-hidden': true }),
+                  h('span', { className: `dbs-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+                    h(TextShimmer, null, summary))) : null),
+            },
+            open ? h('div', { className: 'dbs-tv-body' },
+              payload !== null
+                ? h(JsonBlock, { label: t('tvResult'), payload, defaultOpen: true })
+                : h('pre', { className: 'dbs-tv-pre', 'data-error': state === 'error' || undefined }, text),
+              inspect ? h('button', { type: 'button', className: 'dbs-tv-inspect', onClick: inspect },
+                h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+        }
+
+        ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+          name: 'tool.call.toolview', key: 'branch_switcher', locale: NS, priority: -10,
+        }, BranchToolRow))
+
         const SessionSeat = props => h(BranchSeat, { ...props, key: props.sessionId })
         ctx.slots.inject(SLOT, () => {
           let dispose
