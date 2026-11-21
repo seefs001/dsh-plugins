@@ -6,9 +6,10 @@ import { isAbsolute, join } from 'node:path'
 import { AcpConnection, RpcError } from './transport.js'
 import { WorkbenchStore } from './store.js'
 import { advertisedModels, advertisedModes, inputModalities } from './models.js'
+import { extractAgentMeta, resolveAdapter } from './adapters.js'
 import { contextWindow } from './usage.js'
 import { rememberNotice } from './notices.js'
-import { formFields, formResponse } from './forms.js'
+import { formFields, formResponse, urlElicitation, urlResponse } from './forms.js'
 import { activityOf } from './activity.js'
 import { anchorCompaction, cliParentOf } from './trace.js'
 
@@ -29,6 +30,7 @@ const DEFAULT_PROVIDERS = [
 ]
 const MAX_MODELS = 200
 const MAX_HIDDEN_MODELS = 500
+const MAX_PROBE_MODELS = 24
 const CLIENT_CAPABILITY_META = { parameterizedModelPicker: true }
 
 export function summary(session, runtime) {
@@ -51,6 +53,7 @@ export class Workbench {
     this.runtimes = new Map()
     this.listeners = new Map()
     this.probes = new Set()
+    this.authByProvider = new Map()
     this.closed = false
     this.store = new WorkbenchStore(domain, error => {
       this.log?.(`ACP storage: ${error.message}`)
@@ -110,6 +113,7 @@ export class Workbench {
     return {
       providers: [...this.store.providers.values()],
       activeByProvider,
+      authByProvider: Object.fromEntries(this.authByProvider),
       defaultCwd: recentCwd || homedir(),
       storageError: this.store.failure?.message ?? null,
     }
@@ -118,7 +122,14 @@ export class Workbench {
   overview(session) {
     const runtime = this.runtimes.get(session.id)
     const interactions = runtime && !runtime.closing && !runtime.canceling
-      ? [...runtime.interactions.values()].filter(item => !item.responding).map(item => item.fields ? { ...item.public, fields: item.fields } : item.public) : []
+      ? [...runtime.interactions.values()]
+        .filter(item => !item.responding)
+        .map(item => item.fields
+          ? { ...item.public, fields: item.fields }
+          : item.urlInfo
+            ? { ...item.public, urlInfo: item.urlInfo }
+            : item.public)
+      : []
     return { ...summary(session, runtime), interactions }
   }
 
@@ -130,7 +141,7 @@ export class Workbench {
 
   detail(session) {
     const report = this.commandReport(session)
-    return { ...this.overview(session), capabilities: session.capabilities ?? {}, authMethods: session.authMethods ?? [], modes: session.modes ?? null,
+    return { ...this.overview(session), capabilities: session.capabilities ?? {}, agentMeta: session.agentMeta ?? null, authMethods: session.authMethods ?? [], modes: session.modes ?? null,
       models: session.models ?? null, configOptions: session.configOptions ?? [], commands: report?.commands ?? [], commandStamp: report?.stamp ?? null, usage: session.lastContext?.window ?? null,
       storageError: this.store.failure?.message ?? null }
   }
@@ -240,28 +251,72 @@ export class Workbench {
     return provider
   }
 
-  async noteAdvertised(providerId, models, capabilities, { modes, authoritative = false } = {}) {
+  recordAuthStatus(providerId, params) {
+    if (!providerId || !params || typeof params !== 'object') return
+    const state = typeof params.state === 'string' && params.state.trim() ? params.state.trim() : null
+    const accounts = Array.isArray(params.accounts)
+      ? params.accounts
+        .filter(item => item && typeof item === 'object')
+        .map(item => ({
+          ...(typeof item.email === 'string' && item.email ? { email: item.email } : {}),
+          ...(typeof item.name === 'string' && item.name ? { name: item.name } : {}),
+          ...(typeof item.label === 'string' && item.label ? { label: item.label } : {}),
+          ...(typeof item.methodId === 'string' && item.methodId ? { methodId: item.methodId } : {}),
+          ...(typeof item.subscriptionType === 'string' && item.subscriptionType ? { subscriptionType: item.subscriptionType } : {}),
+        }))
+        .filter(item => Object.keys(item).length > 0)
+      : []
+    if (!state && !accounts.length) return
+    const next = { state: state ?? 'unknown', accounts, updatedAt: now() }
+    const prev = this.authByProvider.get(providerId)
+    if (prev && prev.state === next.state && JSON.stringify(prev.accounts) === JSON.stringify(next.accounts)) return
+    this.authByProvider.set(providerId, next)
+    this.changed()
+  }
+
+  async noteAdvertised(providerId, models, capabilities, { modes, meta, authoritative = false } = {}) {
     const provider = this.store.providers.get(providerId)
     if (!provider) return
     const previous = provider.advertised
     const known = new Map(previous?.models?.map(model => [model.id, model]) ?? [])
     const inputs = inputModalities(capabilities) ?? previous?.inputModalities
     const nextModes = modes ?? previous?.modes
+    const nextMeta = meta ? { ...previous?.meta, ...meta } : previous?.meta
     const nextModels = models.length
-      ? (authoritative ? models : models.map(model => ({ ...known.get(model.id), ...model })))
+      ? (authoritative
+        ? models.map(model => {
+          const prev = known.get(model.id)
+          return !model.contextWindow && prev?.contextWindow ? { ...model, contextWindow: prev.contextWindow } : model
+        })
+        : models.map(model => ({ ...known.get(model.id), ...model })))
       : previous?.models ?? []
     const facts = {
       models: nextModels,
       ...(inputs ? { inputModalities: inputs } : {}),
       ...(nextModes ? { modes: nextModes } : {}),
+      ...(nextMeta ? { meta: nextMeta } : {}),
     }
     const prevFacts = {
       models: previous?.models ?? [],
       ...(previous?.inputModalities ? { inputModalities: previous.inputModalities } : {}),
       ...(previous?.modes ? { modes: previous.modes } : {}),
+      ...(previous?.meta ? { meta: previous.meta } : {}),
     }
     if (JSON.stringify(prevFacts) === JSON.stringify(facts)) return
     await this.store.saveProvider({ ...provider, advertised: { at: now(), ...facts } })
+    this.changed()
+    this.modelsChanged?.(providerId)
+  }
+
+  async noteModelContextWindow(providerId, modelId, size) {
+    if (!providerId || typeof modelId !== 'string' || !modelId || !Number.isFinite(size) || size <= 0) return
+    const provider = this.store.providers.get(providerId)
+    const advertised = provider?.advertised?.models
+    if (!Array.isArray(advertised) || !advertised.length) return
+    const target = advertised.find(model => model.id === modelId || model.wireId === modelId)
+    if (!target || target.contextWindow === size) return
+    const nextModels = advertised.map(model => model === target ? { ...model, contextWindow: size } : model)
+    await this.store.saveProvider({ ...provider, advertised: { ...provider.advertised, at: now(), models: nextModels } })
     this.changed()
     this.modelsChanged?.(providerId)
   }
@@ -276,6 +331,49 @@ export class Workbench {
       this.log?.(`ACP cursor model catalog: ${error.message}`)
       return null
     }
+  }
+
+  async closeRemoteSession(connection, capabilities, sessionId) {
+    if (!sessionId || !capabilities?.sessionCapabilities?.close || connection?.closed) return
+    try { await connection.request('session/close', { sessionId }, 2_000) } catch {}
+  }
+
+  async probePerModelCatalog(connection, result, adapter) {
+    const sessionId = result?.sessionId
+    const modelOption = (result?.configOptions ?? []).find(item => item?.category === 'model' && item.type === 'select')
+    const optionModels = (modelOption?.options ?? []).flatMap(group => group.options ?? [group])
+      .filter(item => typeof item?.value === 'string' && item.value)
+    if (!sessionId || !modelOption?.id || optionModels.length < 2) return null
+    const current = modelOption.currentValue
+    const candidates = optionModels
+      .filter(item => item.value !== 'default' || adapter?.mapDefaultToAuto)
+      .slice(0, MAX_PROBE_MODELS)
+    if (!candidates.length) return null
+    const models = []
+    for (const item of candidates) {
+      let configOptions
+      if (item.value === current) {
+        configOptions = result.configOptions ?? []
+      } else {
+        try {
+          const switched = await connection.request('session/set_config_option', {
+            sessionId,
+            configId: modelOption.id,
+            value: item.value,
+          }, 15_000)
+          configOptions = switched?.configOptions ?? []
+        } catch {
+          configOptions = []
+        }
+      }
+      models.push({
+        value: item.value,
+        name: item.name,
+        ...(typeof item.description === 'string' ? { description: item.description } : {}),
+        configOptions,
+      })
+    }
+    return models.length ? { models } : null
   }
 
   async create(op, native) {
@@ -305,14 +403,20 @@ export class Workbench {
     const provider = this.provider(providerId)
     const cwd = await this.directory(typeof rawCwd === 'string' && rawCwd.trim() ? rawCwd : homedir())
     const connection = await this.spawn(provider, cwd, {
-      onNotification: () => {}, onRequest: () => { throw new RpcError('Client operations are unavailable during CLI setup', -32601) },
+      onNotification: (method, params) => {
+        if (method === 'auth/status_update' || method === '_auth/status_update') this.recordAuthStatus(provider.id, params)
+      },
+      onRequest: () => { throw new RpcError('Client operations are unavailable during CLI setup', -32601) },
     })
     this.probes.add(connection)
     try {
       if (this.closed) throw new Error('ACP Workbench is unloading')
       const info = await connection.request('initialize', {
         protocolVersion: 1,
-        clientCapabilities: { _meta: CLIENT_CAPABILITY_META },
+        clientCapabilities: {
+          session: { configOptions: { boolean: {} } },
+          _meta: CLIENT_CAPABILITY_META,
+        },
         clientInfo: CLIENT_INFO,
       })
       if (info.protocolVersion !== 1) throw new Error(`Unsupported ACP version ${info.protocolVersion}`)
@@ -345,15 +449,31 @@ export class Workbench {
 
   async probe(providerId, rawCwd, mode, cursor) {
     return this.withProbe(providerId, rawCwd, async ({ connection, info, provider, cwd }) => {
-      if (mode === 'diagnose') return { command: [provider.command, ...provider.args], ...info }
+      const adapter = resolveAdapter({ providerId: provider.id, command: provider.command, agentInfo: info.agentInfo, capabilities: info.agentCapabilities })
+      if (mode === 'diagnose') {
+        const meta = extractAgentMeta(info, null)
+        return { command: [provider.command, ...provider.args], ...info, ...(meta ? { agentMeta: meta } : {}), authStatus: this.authByProvider.get(provider.id) ?? null }
+      }
       if (mode === 'models') {
         // external: ACP only advertises models inside a session/new response
         const result = await connection.request('session/new', { cwd, mcpServers: [] }, 60_000)
-        const catalog = await this.fetchCursorCatalog(connection)
-        const models = advertisedModels(result, info.agentCapabilities, catalog)
-        const modes = advertisedModes(result)
-        await this.noteAdvertised(provider.id, models, info.agentCapabilities, { modes, authoritative: !!catalog })
-        return { models, modes, sessionId: result.sessionId ?? null }
+        try {
+          let catalog = adapter.catalogMode === 'cursor-extension' ? await this.fetchCursorCatalog(connection) : null
+          if (!catalog && adapter.probePerModelConfig) {
+            catalog = await this.probePerModelCatalog(connection, result, adapter)
+          }
+          const models = advertisedModels(result, info.agentCapabilities, catalog, adapter)
+          const modes = advertisedModes(result)
+          const meta = extractAgentMeta(info, result)
+          await this.noteAdvertised(provider.id, models, info.agentCapabilities, {
+            modes,
+            meta,
+            authoritative: !!catalog || adapter.catalogMode === 'config-variants',
+          })
+          return { models, modes, meta, sessionId: result.sessionId ?? null }
+        } finally {
+          await this.closeRemoteSession(connection, info.agentCapabilities, result?.sessionId)
+        }
       }
       return this.historyPage(connection, info, cwd, cursor)
     })
@@ -361,7 +481,7 @@ export class Workbench {
 
   isCurrent(session, runtime) { return !this.closed && this.runtimes.get(session.id) === runtime && !runtime.closing }
 
-  async connect(session) {
+  async connect(session, { initialConfigOptions } = {}) {
     if (this.closed) throw new Error('ACP Workbench is unloading')
     this.store.assertWritable()
     if (session.native?.retired) throw new Error('This external context was retired; its history is read-only')
@@ -371,7 +491,7 @@ export class Workbench {
       throw new Error('This CLI session is already in use by another record. Open its original DSH conversation.')
     }
     const provider = structuredClone(this.provider(session.providerId))
-    const runtime = { generation: randomUUID(), connection: null, interactions: new Map(), closing: false, replaying: !!session.remoteId, turnId: null }
+    const runtime = { generation: randomUUID(), connection: null, interactions: new Map(), closing: false, replaying: !!session.remoteId, turnId: null, adapter: null }
     runtime.spawnReady = new Promise(resolve => { runtime.releaseSpawn = resolve })
     this.runtimes.set(session.id, runtime)
     session.lastError = null
@@ -395,12 +515,21 @@ export class Workbench {
       runtime.releaseSpawn()
       if (!this.isCurrent(session, runtime)) { await connection.stop(); throw new Error('Connection was canceled during startup') }
       const info = await connection.request('initialize', {
-        protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false, plan: {}, elicitation: { form: {} }, session: { compaction: {}, notices: {} },
-          _meta: { terminal_output: true, terminal_output_delta: true, ...CLIENT_CAPABILITY_META } }, clientInfo: CLIENT_INFO,
+        protocolVersion: 1,
+        clientCapabilities: {
+          fs: { readTextFile: false, writeTextFile: false },
+          terminal: false,
+          plan: {},
+          elicitation: { form: {}, url: {} },
+          session: { compaction: {}, notices: {}, configOptions: { boolean: {} } },
+          _meta: { terminal_output: true, terminal_output_delta: true, ...CLIENT_CAPABILITY_META },
+        },
+        clientInfo: CLIENT_INFO,
       })
       if (info.protocolVersion !== 1) throw new Error(`Unsupported ACP version ${info.protocolVersion}`)
       session.capabilities = info.agentCapabilities ?? {}
       session.authMethods = info.authMethods ?? []
+      runtime.adapter = resolveAdapter({ providerId: provider.id, command: provider.command, agentInfo: info.agentInfo, capabilities: session.capabilities })
       this.record(session, 'initialize', info)
       const canResume = !!session.capabilities.sessionCapabilities?.resume
       const canLoad = !!session.capabilities.loadSession
@@ -408,12 +537,21 @@ export class Workbench {
       const captureImport = session.native?.imported && !session.native.replayRange
       const localHistory = session.native && !captureImport && (session.historyLoaded || session.native.runs.some(run => run.state === 'completed'))
       const method = !session.remoteId ? 'session/new' : canResume && (localHistory || !canLoad) ? 'session/resume' : 'session/load'
-      const params = { cwd: session.cwd, mcpServers: [], ...(session.remoteId ? { sessionId: session.remoteId } : {}) }
+      const useInitialConfig = Array.isArray(initialConfigOptions) && initialConfigOptions.length > 0 && !!session.capabilities.sessionCapabilities?.options
+      const baseParams = { cwd: session.cwd, mcpServers: [], ...(session.remoteId ? { sessionId: session.remoteId } : {}) }
+      const params = useInitialConfig ? { ...baseParams, configOptions: initialConfigOptions } : baseParams
       const from = session.eventSeq + 1
       let result
       try { result = await connection.request(method, params, 60_000) } catch (error) {
-        if (method !== 'session/resume' || !canLoad || !(error instanceof RpcError) || error.code !== -32601 || !this.isCurrent(session, runtime)) throw error
-        result = await connection.request('session/load', params, 60_000)
+        if (useInitialConfig && error instanceof RpcError && error.code === -32602 && this.isCurrent(session, runtime)) {
+          try { result = await connection.request(method, baseParams, 60_000) } catch (retryError) {
+            if (method !== 'session/resume' || !canLoad || !(retryError instanceof RpcError) || retryError.code !== -32601 || !this.isCurrent(session, runtime)) throw retryError
+            result = await connection.request('session/load', baseParams, 60_000)
+          }
+        } else {
+          if (method !== 'session/resume' || !canLoad || !(error instanceof RpcError) || error.code !== -32601 || !this.isCurrent(session, runtime)) throw error
+          result = await connection.request('session/load', params, 60_000)
+        }
       }
       if (!this.isCurrent(session, runtime)) throw new Error('Connection was canceled during startup')
       session.historyLoaded = true
@@ -426,13 +564,15 @@ export class Workbench {
       session.modes = result.modes ?? session.modes ?? null
       session.models = result.models ?? session.models ?? null
       session.configOptions = result.configOptions ?? session.configOptions ?? []
+      session.agentMeta = extractAgentMeta(info, result) ?? null
       runtime.replaying = false
       this.record(session, 'session', result)
-      const catalog = await this.fetchCursorCatalog(connection)
+      const catalog = runtime.adapter.catalogMode === 'cursor-extension' ? await this.fetchCursorCatalog(connection) : null
       if (!this.isCurrent(session, runtime)) throw new Error('Connection was canceled during startup')
-      await this.noteAdvertised(session.providerId, advertisedModels(result, session.capabilities, catalog), session.capabilities, {
+      await this.noteAdvertised(session.providerId, advertisedModels(result, session.capabilities, catalog, runtime.adapter), session.capabilities, {
         modes: advertisedModes(result),
-        authoritative: !!catalog,
+        meta: session.agentMeta ?? undefined,
+        authoritative: !!catalog || runtime.adapter.catalogMode === 'config-variants',
       })
       await this.transition(session, 'idle')
     } catch (error) {
@@ -444,17 +584,33 @@ export class Workbench {
 
   async notification(session, runtime, method, params) {
     if (!this.isCurrent(session, runtime)) return
+    if (method === 'auth/status_update' || method === '_auth/status_update') {
+      this.recordAuthStatus(session.providerId, params)
+      return
+    }
     if (params.sessionId && session.remoteId && params.sessionId !== session.remoteId) return
     const owner = method === 'session/update' ? anchorCompaction(session, runtime, params, session.eventSeq + 1) : undefined
     const event = this.record(session, 'notification', { method, params, replay: runtime.replaying, turnId: runtime.turnId, ...(owner !== undefined && { compactionOwner: owner }),
       ...(params.update?.sessionUpdate === 'notice' && session.state === 'starting' && { noticePhase: 'connect' }) })
     if (method === '$/cancel_request') {
-      const match = [...runtime.interactions].find(([, p]) => !p.responding && p.public.kind === 'form' && p.wireId != null && p.wireId === params.requestId)
+      const match = [...runtime.interactions].find(([, p]) => !p.responding && (p.public.kind === 'form' || p.public.kind === 'url') && p.wireId != null && p.wireId === params.requestId)
       if (match) {
         const [id, pending] = match
         runtime.interactions.delete(id)
         pending.resolve({ action: 'cancel' })
         this.record(session, 'interaction-expired', { id, reason: 'withdrawn' })
+        if (runtime.turnId && !runtime.canceling) await this.transition(session, runtime.interactions.size ? 'waiting' : 'running')
+      }
+      return
+    }
+    if (method === 'session/complete_elicitation') {
+      const targetId = params.elicitationId
+      const match = [...runtime.interactions].find(([, p]) => !p.responding && p.public.kind === 'url' && (!targetId || p.urlInfo?.elicitationId === targetId))
+      if (match) {
+        const [id, pending] = match
+        runtime.interactions.delete(id)
+        pending.resolve({ action: 'accept' })
+        this.record(session, 'interaction-result', { id, result: { action: 'accept' }, completedExternally: true })
         if (runtime.turnId && !runtime.canceling) await this.transition(session, runtime.interactions.size ? 'waiting' : 'running')
       }
       return
@@ -471,7 +627,7 @@ export class Workbench {
       case 'notice': if (!runtime.turnId) rememberNotice(runtime, event); break
       case 'config_option_update':
         session.configOptions = update.configOptions ?? []
-        await this.noteAdvertised(session.providerId, advertisedModels({ models: session.models, configOptions: session.configOptions }, session.capabilities), undefined, {
+        await this.noteAdvertised(session.providerId, advertisedModels({ models: session.models, configOptions: session.configOptions }, session.capabilities, null, runtime.adapter), undefined, {
           modes: advertisedModes({ modes: session.modes, configOptions: session.configOptions }),
         })
         break
@@ -491,6 +647,13 @@ export class Workbench {
         const window = contextWindow(update)
         if (window && !runtime.replaying && session.remoteId && params.sessionId === session.remoteId && !cliParentOf(update)) {
           session.lastContext = { remoteId: session.remoteId, at: event.at, window }
+          const currentModelId = session.configOptions?.find(o => o.category === 'model')?.currentValue ?? session.models?.currentModelId
+          if (currentModelId && currentModelId !== 'default') {
+            void this.noteModelContextWindow(session.providerId, currentModelId, window.size)
+          }
+          if (window.model && window.model !== currentModelId) {
+            void this.noteModelContextWindow(session.providerId, window.model, window.size)
+          }
         }
         break
       }
@@ -500,13 +663,13 @@ export class Workbench {
   }
 
   async request(session, runtime, method, params, wireId) {
-    const form = method === 'elicitation/create'
-    if (!this.isCurrent(session, runtime) || runtime.canceling) return form ? { action: 'cancel' } : { outcome: { outcome: 'cancelled' } }
-    if (form && (!session.remoteId || params.sessionId !== session.remoteId || params.requestId != null)) throw new RpcError('A form must address the active CLI session', -32602)
+    const elicitation = method === 'elicitation/create'
+    if (!this.isCurrent(session, runtime) || runtime.canceling) return elicitation ? { action: 'cancel' } : { outcome: { outcome: 'cancelled' } }
+    if (elicitation && (!session.remoteId || params.sessionId !== session.remoteId || params.requestId != null)) throw new RpcError('A form must address the active CLI session', -32602)
     if (params.sessionId && session.remoteId && params.sessionId !== session.remoteId) throw new RpcError('Wrong session', -32602)
     const normalized = method.replace(/^_/, '')
     let kind
-    if (form) kind = 'form'
+    if (elicitation) kind = params.mode === 'url' ? 'url' : 'form'
     else if (normalized === 'session/request_permission') kind = 'permission'
     else if (normalized === 'cursor/ask_question') kind = 'question'
     else if (normalized === 'cursor/create_plan') kind = 'plan'
@@ -529,8 +692,9 @@ export class Workbench {
     }
     let resolve
     const answer = new Promise(r => { resolve = r })
-    const fields = form ? formFields(params) : null
-    runtime.interactions.set(id, { public: interaction, fields, wireId, resolve })
+    const fields = kind === 'form' ? formFields(params) : null
+    const urlInfo = kind === 'url' ? urlElicitation(params) : null
+    runtime.interactions.set(id, { public: interaction, fields, urlInfo, wireId, resolve })
     interaction.requestSeq = this.record(session, 'interaction', interaction).seq
     await this.transition(session, 'waiting')
     return answer
@@ -543,6 +707,7 @@ export class Workbench {
     const { kind, params } = pending.public
     let result
     if (kind === 'form') result = formResponse(pending.fields, op)
+    else if (kind === 'url') result = urlResponse(op)
     else if (op.cancel === true) result = { outcome: { outcome: 'cancelled' } }
     else if (kind === 'permission') {
       if (!params.options?.some(o => o.optionId === op.optionId)) throw new Error('Choose an advertised permission option')
@@ -564,7 +729,7 @@ export class Workbench {
     pending.responding = true
     const chosen = kind === 'permission' && !op.cancel ? params.options.find(option => option.optionId === op.optionId) : null
     try {
-      this.record(session, 'interaction-result', { id: pending.public.id, result: kind === 'form' ? { action: result.action } : result, ...(chosen ? { optionName: chosen.name ?? chosen.optionId, optionKind: chosen.kind } : {}) })
+      this.record(session, 'interaction-result', { id: pending.public.id, result: kind === 'form' || kind === 'url' ? { action: result.action } : result, ...(chosen ? { optionName: chosen.name ?? chosen.optionId, optionKind: chosen.kind } : {}) })
       await this.store.flush()
     } catch (error) {
       await this.failed(session, runtime, error)
@@ -579,7 +744,7 @@ export class Workbench {
 
   expire(session, runtime, reason) {
     for (const [id, pending] of runtime.interactions) {
-      pending.resolve(pending.public.kind === 'form' ? { action: 'cancel' } : { outcome: { outcome: 'cancelled' } })
+      pending.resolve(pending.public.kind === 'form' || pending.public.kind === 'url' ? { action: 'cancel' } : { outcome: { outcome: 'cancelled' } })
       if (!this.store.failure) this.record(session, 'interaction-expired', { id, reason })
     }
     runtime.interactions.clear()
@@ -638,6 +803,20 @@ export class Workbench {
     return { accepted: true, sessionId: session.id, turnId }
   }
 
+  async steer(session, rawText, options = {}) {
+    const text = str(rawText, 'text', 200_000)
+    const runtime = this.runtimes.get(session.id)
+    if (!runtime || runtime.closing || !runtime.turnId || runtime.canceling) throw new Error('Steering requires an active turn')
+    if (!session.agentMeta?.steering) throw new Error('This provider does not advertise active-turn steering')
+    const result = await runtime.connection.request('_session/steering', {
+      sessionId: session.remoteId,
+      prompt: options.content ?? [{ type: 'text', text }],
+      _meta: { steering: { idleBehavior: 'promptRequired' } },
+    }, 30_000)
+    this.record(session, 'steer', { text, turnId: runtime.turnId, result: result ?? {} })
+    return { steered: true, sessionId: session.id, turnId: runtime.turnId }
+  }
+
   agentRejected(session, runtime, error) {
     return error instanceof RpcError && this.isCurrent(session, runtime) && !runtime.connection?.closed
   }
@@ -670,7 +849,7 @@ export class Workbench {
       if (op.modelId !== undefined) session.models = { ...session.models, currentModelId: op.modelId }
       if (result.configOptions) {
         session.configOptions = result.configOptions
-        await this.noteAdvertised(session.providerId, advertisedModels({ ...result, models: result.models ?? session.models }, session.capabilities), undefined, {
+        await this.noteAdvertised(session.providerId, advertisedModels({ ...result, models: result.models ?? session.models }, session.capabilities, null, runtime.adapter), undefined, {
           modes: advertisedModes({ modes: result.modes ?? session.modes, configOptions: result.configOptions }),
         })
       } else if (op.configId !== undefined) {

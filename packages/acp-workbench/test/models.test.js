@@ -299,3 +299,148 @@ test('parseParameterizedModelId and extractLegacyOverrides parse legacy Cursor b
     options: {},
   })
 })
+
+test('advertisedModels synthesizes canonical Antigravity base models and per-model thought_level from session/new', () => {
+  const agyResult = {
+    models: {
+      currentModelId: 'gemini-4-neon',
+      availableModels: [
+        { modelId: 'gemini-4-neon-low', name: 'Gemini 4 Neon (Low)' },
+        { modelId: 'gemini-4-neon-medium', name: 'Gemini 4 Neon (Medium)' },
+        { modelId: 'gemini-4-neon-high', name: 'Gemini 4 Neon (High)' },
+        { modelId: 'gemini-4-neon-xhigh', name: 'Gemini 4 Neon (Extra)' },
+        { modelId: 'claude-opus-5-5-low', name: 'Claude Opus 5.5 (Low)' },
+        { modelId: 'claude-opus-5-5-medium', name: 'Claude Opus 5.5 (Medium)' },
+        { modelId: 'claude-opus-5-5-high', name: 'Claude Opus 5.5 (High)' },
+        { modelId: 'gemini-pro-orchestrator-neon', name: 'Orchestrator Neon' },
+        { modelId: 'gpt-oss-120b-medium', name: 'GPT-OSS 120B (Medium)' },
+      ],
+    },
+    configOptions: [
+      {
+        id: 'model',
+        category: 'model',
+        type: 'select',
+        currentValue: 'gemini-4-neon',
+        options: [
+          { value: 'gemini-4-neon', name: 'Gemini 4 Neon' },
+          { value: 'claude-opus-5-5', name: 'Claude Opus 5.5' },
+          { value: 'gemini-pro-orchestrator-neon', name: 'Orchestrator Neon' },
+          { value: 'gpt-oss-120b-medium', name: 'GPT-OSS 120B (Medium)' },
+        ],
+      },
+      {
+        id: 'thought_level',
+        name: 'Thought Level',
+        category: 'thought_level',
+        type: 'select',
+        currentValue: 'high',
+        options: [
+          { value: 'low', name: 'Low' },
+          { value: 'medium', name: 'Medium' },
+          { value: 'high', name: 'High' },
+          { value: 'xhigh', name: 'Extra' },
+        ],
+      },
+      {
+        id: 'mode',
+        category: 'mode',
+        type: 'select',
+        currentValue: 'default',
+        options: [{ value: 'default', name: 'Default' }, { value: 'plan', name: 'Plan' }],
+      },
+    ],
+  }
+
+  const models = advertisedModels(agyResult, { promptCapabilities: { image: true } })
+  assert.deepEqual(models.map(item => item.id), [
+    'gemini-4-neon',
+    'claude-opus-5-5',
+    'gemini-pro-orchestrator-neon',
+    'gpt-oss-120b-medium',
+  ])
+
+  const neon = models.find(item => item.id === 'gemini-4-neon')
+  assert.deepEqual(neon.reasoning.efforts.map(item => item.id), ['low', 'medium', 'high', 'xhigh'])
+  assert.equal(neon.reasoning.efforts.find(item => item.id === 'xhigh')?.name, 'Extra')
+  assert.equal(neon.reasoning.defaultEffort, 'high')
+
+  const opus = models.find(item => item.id === 'claude-opus-5-5')
+  assert.deepEqual(opus.reasoning.efforts.map(item => item.id), ['low', 'medium', 'high'])
+  assert.equal(opus.reasoning.configId, 'thought_level')
+  assert.equal(opus.reasoning.defaultEffort, 'high')
+
+  assert.equal(models.find(item => item.id === 'gemini-pro-orchestrator-neon')?.reasoning, undefined)
+  assert.equal(models.find(item => item.id === 'gpt-oss-120b-medium')?.reasoning, undefined)
+
+  const provider = {
+    advertised: { models },
+    models: [
+      { id: 'gemini-4-neon-xhigh', name: 'Legacy Neon Extra' },
+      { id: 'claude-opus-5-5-low', name: 'Legacy Opus Low' },
+    ],
+  }
+  assert.deepEqual(visibleModels(provider).map(item => item.id), [
+    'gemini-4-neon',
+    'claude-opus-5-5',
+    'gemini-pro-orchestrator-neon',
+    'gpt-oss-120b-medium',
+  ])
+  assert.deepEqual(extractLegacyOverrides('gemini-4-neon-xhigh', provider), {
+    baseId: 'gemini-4-neon',
+    effort: 'xhigh',
+    options: {},
+  })
+  assert.equal(modelDetails(provider, 'claude-opus-5-5-low').id, 'claude-opus-5-5')
+})
+
+test('advertisedModels drops non-Auto default for Claude Code and preserves boolean fast/ultracode/agent options', () => {
+  const claudeAdapter = { id: 'claude-code', mapDefaultToAuto: false }
+  const catalog = {
+    models: [
+      { value: 'default', name: 'Default (recommended)', description: 'Opus 5.5', configOptions: [] },
+      {
+        value: 'opus',
+        name: 'Opus 5.5 (opus)',
+        description: 'Custom Opus model (claude-opus-5-5)',
+        configOptions: [
+          {
+            id: 'effort',
+            category: 'thought_level',
+            type: 'select',
+            currentValue: 'high',
+            options: [{ value: 'default', name: 'Default' }, { value: 'low', name: 'Low' }, { value: 'high', name: 'High' }, { value: 'max', name: 'Max' }],
+          },
+          { id: 'fast', name: 'Fast mode', description: 'Faster responses', category: 'model_config', type: 'boolean', currentValue: false },
+          { id: 'ultracode', name: 'Ultracode', category: 'model_config', type: 'boolean', currentValue: false },
+          { id: 'agent', name: 'Agent', type: 'select', currentValue: 'default', options: [{ value: 'default', name: 'Default' }, { value: 'reviewer', name: 'Reviewer' }] },
+        ],
+      },
+      {
+        value: 'haiku',
+        name: 'Claude Haiku 4.5 (haiku)',
+        configOptions: [
+          {
+            id: 'effort',
+            category: 'thought_level',
+            type: 'select',
+            currentValue: 'default',
+            options: [{ value: 'default', name: 'Default' }, { value: 'low', name: 'Low' }],
+          },
+        ],
+      },
+    ],
+  }
+
+  const models = advertisedModels(null, { promptCapabilities: { image: true } }, catalog, claudeAdapter)
+  assert.deepEqual(models.map(item => item.id), ['opus', 'haiku'])
+  const opus = models.find(item => item.id === 'opus')
+  assert.equal(opus.contextWindow, 1_000_000)
+  assert.deepEqual(opus.options.map(item => [item.id, item.type]), [
+    ['fast', 'boolean'],
+    ['ultracode', 'boolean'],
+    ['agent', 'select'],
+  ])
+  assert.equal(opus.options.find(item => item.id === 'fast')?.description, 'Faster responses')
+  assert.equal(models.find(item => item.id === 'haiku')?.contextWindow, 200_000)
+})

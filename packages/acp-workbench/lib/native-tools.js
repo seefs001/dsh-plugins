@@ -70,7 +70,11 @@ function webAction(tool, input) {
   const same = !tool.name || !tool._meta?.claudeCode?.toolName || tool.name === tool._meta.claudeCode.toolName
   const url = firstText(input.url, input.Url)
   const query = firstText(input.query, input.Query, input.SearchTerm)
-  const mode = same && name === 'WebSearch' ? 'search' : same && name === 'WebFetch' ? 'page' : 'unknown'
+  const mode = same && (name === 'WebSearch' || name === 'search_web')
+    ? 'search'
+    : same && (name === 'WebFetch' || name === 'read_url_content')
+      ? 'page'
+      : 'unknown'
   const action = input.action
   if (!name && typeof input.query === 'string' && action && ['search', 'open_page', 'find_in_page'].includes(action.type)) {
     const queries = textList(action.queries)
@@ -249,20 +253,21 @@ export function mapToolCall(tool, terminal) {
     const target = path
     if (target) {
       const offset = positiveInt(input.offset ?? input.start_line ?? input.StartLine)
-      const limit = positiveInt(input.limit)
+      const endLine = positiveInt(input.end_line ?? input.EndLine)
+      const limit = positiveInt(input.limit) ?? (offset && endLine && endLine >= offset ? endLine - offset + 1 : undefined)
       const argsObj = { file_path: target, ...(offset ? { offset } : {}), ...(limit ? { limit } : {}) }
       return { name: 'read', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'read' }
     }
   }
 
-  const isWrite = rawName === 'Write' || rawName === 'write_to_file' || (kind === 'edit' && input.old_string === undefined && (typeof input.content === 'string' || typeof input.file_text === 'string' || typeof input.file_content === 'string'))
+  const isWrite = rawName === 'Write' || rawName === 'write_to_file' || (kind === 'edit' && input.old_string === undefined && input.TargetContent === undefined && (typeof input.content === 'string' || typeof input.CodeContent === 'string' || typeof input.file_text === 'string' || typeof input.file_content === 'string'))
   if (isWrite && path) {
-    const content = input.content ?? input.file_text ?? input.file_content ?? ''
+    const content = input.content ?? input.CodeContent ?? input.file_text ?? input.file_content ?? ''
     const argsObj = { file_path: path, content: typeof content === 'string' ? content : '' }
     return { name: 'write', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'write' }
   }
 
-  if (kind === 'edit' || kind === 'delete' || kind === 'move' || diffs.length > 0 || rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'NotebookEdit') {
+  if (kind === 'edit' || kind === 'delete' || kind === 'move' || diffs.length > 0 || rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'NotebookEdit' || rawName === 'replace_file_content' || rawName === 'multi_replace_file_content') {
     const uniquePaths = [...new Set([...diffs.map(item => item.path), ...(path ? [path] : [])])]
     if (uniquePaths.length > 1 || kind === 'delete' || kind === 'move') {
       const moveTargets = kind === 'move' ? moveEndpoints(input, uniquePaths) : null
@@ -273,13 +278,30 @@ export function mapToolCall(tool, terminal) {
       return { name: 'apply_patch', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: kind ?? 'edit' }
     }
     if (uniquePaths.length === 1) {
-      const oldString = typeof input.old_string === 'string' ? input.old_string : typeof input.old_str === 'string' ? input.old_str : undefined
-      const newString = typeof input.new_string === 'string' ? input.new_string : typeof input.new_str === 'string' ? input.new_str : undefined
+      const oldString = typeof input.old_string === 'string'
+        ? input.old_string
+        : typeof input.old_str === 'string'
+          ? input.old_str
+          : typeof input.TargetContent === 'string'
+            ? input.TargetContent
+            : undefined
+      const newString = typeof input.new_string === 'string'
+        ? input.new_string
+        : typeof input.new_str === 'string'
+          ? input.new_str
+          : typeof input.ReplacementContent === 'string'
+            ? input.ReplacementContent
+            : undefined
+      const replaceAll = typeof input.replace_all === 'boolean'
+        ? input.replace_all
+        : typeof input.AllowMultiple === 'boolean'
+          ? input.AllowMultiple
+          : undefined
       const argsObj = {
         file_path: uniquePaths[0],
         ...(oldString !== undefined ? { old_string: oldString } : {}),
         ...(newString !== undefined ? { new_string: newString } : {}),
-        ...(typeof input.replace_all === 'boolean' ? { replace_all: input.replace_all } : {}),
+        ...(replaceAll !== undefined ? { replace_all: replaceAll } : {}),
       }
       return { name: 'edit', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'edit' }
     }
@@ -293,7 +315,7 @@ export function mapToolCall(tool, terminal) {
     return { name: 'bash', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'execute' }
   }
 
-  if (kind === 'fetch' || rawName === 'WebSearch' || rawName === 'WebFetch') {
+  if (kind === 'fetch' || rawName === 'WebSearch' || rawName === 'WebFetch' || rawName === 'search_web' || rawName === 'read_url_content') {
     const web = webAction(tool ?? {}, input)
     if (web.mode === 'page' || (web.url && web.mode !== 'search')) {
       const argsObj = { url: web.url ?? firstText(input.url, input.Url, tool?.title) ?? '' }
@@ -305,15 +327,22 @@ export function mapToolCall(tool, terminal) {
     }
   }
 
-  if (kind === 'search' || rawName === 'Grep' || rawName === 'Glob' || rawName === 'grep_search' || rawName === 'find_by_name') {
-    const pattern = firstText(input.pattern, input.query, input.Query, input.SearchTerm, input.glob, tool?.title)
+  if (kind === 'search' || rawName === 'Grep' || rawName === 'Glob' || rawName === 'grep_search' || rawName === 'find_by_name' || rawName === 'list_dir') {
+    const searchPath = firstText(input.path, input.SearchPath, input.SearchDirectory, input.DirectoryPath, input.directory)
+    const pattern = firstText(input.pattern, input.Pattern, input.query, input.Query, input.SearchTerm, input.glob, rawName === 'list_dir' ? '*' : undefined, tool?.title)
     if (pattern) {
-      const searchPath = firstText(input.path, input.SearchPath, input.SearchDirectory, input.directory)
       if (isGlobTool(tool ?? {}, input)) {
         const argsObj = { pattern, ...(searchPath ? { path: searchPath } : {}) }
         return { name: 'glob', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'search' }
       }
-      const include = validInclude(input.include) ? input.include.trim() : undefined
+      const rawInclude = typeof input.include === 'string'
+        ? input.include
+        : typeof input.Includes === 'string'
+          ? input.Includes
+          : Array.isArray(input.Includes) && input.Includes.length === 1 && typeof input.Includes[0] === 'string'
+            ? input.Includes[0]
+            : undefined
+      const include = validInclude(rawInclude) ? rawInclude.trim() : undefined
       const argsObj = { pattern, ...(searchPath ? { path: searchPath } : {}), ...(include ? { include } : {}) }
       return { name: 'grep', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'search' }
     }
@@ -522,7 +551,15 @@ export function mapToolResult(mappedCall, tool, terminal, { cwd, aborted = false
     let diffs = diffsFromTool(tool ?? {})
     const filePath = argumentsObj.file_path ?? diffs[0]?.path
     if (!diffs.length && filePath) {
-      if (name === 'edit' && typeof argumentsObj.new_string === 'string') {
+      if (name === 'edit' && Array.isArray(tool?.rawInput?.ReplacementChunks) && tool.rawInput.ReplacementChunks.length > 0) {
+        diffs = tool.rawInput.ReplacementChunks
+          .filter(chunk => isPlainObject(chunk) && typeof chunk.ReplacementContent === 'string')
+          .map(chunk => ({
+            path: filePath,
+            oldText: typeof chunk.TargetContent === 'string' && chunk.TargetContent ? chunk.TargetContent : null,
+            newText: chunk.ReplacementContent,
+          }))
+      } else if (name === 'edit' && typeof argumentsObj.new_string === 'string') {
         diffs = [{ path: filePath, oldText: argumentsObj.old_string || null, newText: argumentsObj.new_string }]
       } else if (name === 'write' && typeof argumentsObj.content === 'string') {
         diffs = [{ path: filePath, oldText: null, newText: argumentsObj.content }]

@@ -110,11 +110,11 @@ window.__ModuleLoader__.load({
       saveModels: 'Save model visibility', modelsSaved: 'Model picker updated.', noModels: 'Refresh models to load the choices.',
       modelInfoHint: 'Models appear in the DSH model picker with CLI-reported metadata, reasoning levels, context sizes, and fast mode.',
       modelSearch: 'Search models by name, ID, or description…', showAllModels: 'Show all', hideAllModels: 'Hide all',
-      modelCountShown: '{shown} / {total} visible', modelFast: 'Fast', modelContextOptions: '{values}',
+      modelCountShown: '{shown} / {total} visible', modelFast: 'Fast', modelUltracode: 'Ultracode', modelContextOptions: '{values}',
       fast: 'Fast', context: 'Context', draftOptionHint: 'Selected options apply automatically on the next message.',
       providerConfig: 'CLI config', hideConfig: 'Hide config', closeDiag: 'Close',
       modesLabel: 'Modes', filterAll: 'All', filterVisible: 'Visible', filterHidden: 'Hidden',
-      filterThinking: 'Thinking', filterFast: 'Fast', filterMultiCtx: 'Multi-context',
+      filterThinking: 'Thinking', filterFast: 'Fast', filterUltracode: 'Ultracode', filterMultiCtx: 'Multi-context',
       unsavedChanges: '{n} unsaved changes', revertChanges: 'Revert', saveChanges: 'Save changes',
       activeConnected: '{n} active', activeWorking: '{n} running', activeWaiting: '{n} waiting',
       noModelsYet: 'No models loaded for this provider yet.', fetchModelsNow: 'Fetch models from CLI',
@@ -124,7 +124,11 @@ window.__ModuleLoader__.load({
       modelContext: 'Context: {n} tokens', modelOutput: 'Output limit: {n} tokens', modelInput: 'Input: {types}',
       modelEfforts: 'Reasoning: {levels}', modelInfoUnknown: 'No model details advertised', modalityText: 'text', modalityImage: 'image',
       supported: 'Advertised', unsupported: 'Not supported', unreported: 'Not reported', authMethods: 'Sign-in methods', rawResult: 'Raw result', none: 'None advertised',
-      'cap.loadSession': 'Resume sessions', 'cap.image': 'Image input', 'cap.audio': 'Audio input', 'cap.embeddedContext': 'Embedded context',
+      tierLabel: 'Plan tier', authLabel: 'Account', authSignedIn: 'Signed in', authSignedOut: 'Signed out',
+      urlElicitation: 'External link confirmation', urlOpen: 'Open link', urlAccept: 'Confirm', urlDecline: 'Decline', urlHelp: 'Inspect the link before opening or confirming.',
+      steerLabel: 'Steer active turn', steerPlaceholder: 'Send guidance to the running turn without canceling…', steerSend: 'Steer',
+      'cap.loadSession': 'Load session', 'cap.resume': 'Resume', 'cap.fork': 'Fork', 'cap.close': 'Close', 'cap.options': 'Session options',
+      'cap.steering': 'Steering', 'cap.additionalDirs': 'Extra dirs', 'cap.image': 'Image input', 'cap.audio': 'Audio input', 'cap.embeddedContext': 'Embedded context',
       'cap.list': 'Session list', 'cap.mcpHttp': 'MCP over HTTP', 'cap.mcpSse': 'MCP over SSE',
       discovered: 'CLI sessions in this directory', more: 'More', noDiscovered: 'No sessions found.',
       loginHint: 'If sign-in fails, run the CLI login command in a terminal, then reconnect.',
@@ -237,11 +241,11 @@ window.__ModuleLoader__.load({
       saveModels: '保存模型显示设置', modelsSaved: '模型列表已更新。', noModels: '请先刷新模型以载入候选项。',
       modelInfoHint: '模型会带着 CLI 公布的元信息、思考强度、上下文窗口和 Fast 属性出现在模型选择器中。',
       modelSearch: '搜索模型名称、ID 或说明…', showAllModels: '全部显示', hideAllModels: '全部隐藏',
-      modelCountShown: '已显示 {shown} / {total}', modelFast: 'Fast', modelContextOptions: '{values}',
+      modelCountShown: '已显示 {shown} / {total}', modelFast: 'Fast', modelUltracode: 'Ultracode', modelContextOptions: '{values}',
       fast: '快速', context: '上下文', draftOptionHint: '所选属性会在发送下一条消息时自动应用。',
       providerConfig: 'CLI 配置', hideConfig: '收起配置', closeDiag: '关闭',
       modesLabel: '模式', filterAll: '全部', filterVisible: '已显示', filterHidden: '已隐藏',
-      filterThinking: '思考', filterFast: 'Fast', filterMultiCtx: '多上下文',
+      filterThinking: '思考', filterFast: 'Fast', filterUltracode: 'Ultracode', filterMultiCtx: '多上下文',
       unsavedChanges: '{n} 项修改未保存', revertChanges: '撤销', saveChanges: '保存更改',
       activeConnected: '{n} 个已连接', activeWorking: '{n} 个运行中', activeWaiting: '{n} 个待审批',
       noModelsYet: '还没有为这个提供方拉取模型目录。', fetchModelsNow: '从 CLI 拉取模型列表',
@@ -251,7 +255,11 @@ window.__ModuleLoader__.load({
       modelContext: '上下文：{n} tokens', modelOutput: '输出上限：{n} tokens', modelInput: '输入：{types}',
       modelEfforts: '思考强度：{levels}', modelInfoUnknown: 'CLI 未公布模型信息', modalityText: '文本', modalityImage: '图片',
       supported: '已公布', unsupported: '不支持', unreported: '未公布', authMethods: '登录方式', rawResult: '原始结果', none: '未公布',
-      'cap.loadSession': '恢复会话', 'cap.image': '图片输入', 'cap.audio': '音频输入', 'cap.embeddedContext': '嵌入上下文',
+      tierLabel: '订阅档位', authLabel: '登录状态', authSignedIn: '已登录', authSignedOut: '未登录',
+      urlElicitation: '外部链接确认', urlOpen: '打开链接', urlAccept: '确认', urlDecline: '拒绝', urlHelp: '请核对链接后再打开或确认。',
+      steerLabel: '引导当前轮次', steerPlaceholder: '无需中止，直接向运行中的轮次补充指令…', steerSend: '发送引导',
+      'cap.loadSession': '加载会话', 'cap.resume': '恢复会话', 'cap.fork': '分支会话', 'cap.close': '关闭会话', 'cap.options': '会话选项',
+      'cap.steering': '运行中引导', 'cap.additionalDirs': '附加目录', 'cap.image': '图片输入', 'cap.audio': '音频输入', 'cap.embeddedContext': '嵌入上下文',
       'cap.list': '会话列表', 'cap.mcpHttp': 'HTTP MCP', 'cap.mcpSse': 'SSE MCP',
       discovered: '此目录下的 CLI 会话', more: '更多', noDiscovered: '没有找到会话。',
       loginHint: '若登录失败，请在终端执行 CLI 的登录命令后重新连接。',
@@ -434,7 +442,11 @@ window.__ModuleLoader__.load({
 .aw-pills{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:2px}
 .aw-pill{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:999px;font-size:11px;line-height:17px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l1);white-space:nowrap}
 .aw-pill[data-tone=fast]{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 10%,transparent);border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 28%,transparent)}
+.aw-pill[data-tone=accent]{color:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));background:color-mix(in srgb,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)) 10%,transparent);border-color:color-mix(in srgb,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)) 28%,transparent)}
 .aw-pill[data-tone=thought]{color:var(--dsw-alias-label-primary)}
+.aw-steer{display:flex;align-items:center;gap:8px;padding:6px 8px}
+.aw-steer .aw-input{flex:1 1 auto;min-width:0}
+.aw-url-link{color:var(--dsw-alias-link,var(--dsw-alias-state-business-primary));text-decoration:underline;overflow-wrap:anywhere;font-size:12px}
 .aw-empty-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:36px 20px;border:.5px dashed var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);text-align:center;color:var(--dsw-alias-label-secondary)}
 .aw-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
 .aw-box{display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);min-width:0}
@@ -933,6 +945,17 @@ window.__ModuleLoader__.load({
       return { kind: 'matches', files: [...files.values()], total: rows.length, truncated: raw?.truncated === true }
     }
 
+    function booleanSelectPair(choices) {
+      if (!Array.isArray(choices) || choices.length !== 2) return null
+      const values = choices.map(item => typeof item === 'string' ? item : item?.value ?? item?.id)
+      if (values.some(item => typeof item !== 'string' || !item)) return null
+      const lower = values.map(item => item.toLowerCase())
+      const trueIdx = lower.findIndex(item => item === 'true' || item === 'on')
+      const falseIdx = lower.findIndex(item => item === 'false' || item === 'off')
+      if (trueIdx < 0 || falseIdx < 0 || trueIdx === falseIdx) return null
+      return { on: values[trueIdx], off: values[falseIdx] }
+    }
+
     function providerVisibleModels(provider) {
       const hidden = new Set(provider?.hiddenModels ?? [])
       const advertised = provider?.advertised?.models ?? []
@@ -941,6 +964,7 @@ window.__ModuleLoader__.load({
         if (!model?.id || model.id === 'default' || advertisedIds.has(model.id)) return false
         const base = /^([^[\]]+)\[[^[\]]*\]$/u.exec(model.id)?.[1]?.trim()
         if (base && (advertisedIds.has(base) || (base === 'default' && advertisedIds.has('auto')))) return false
+        if (advertised.some(entry => model.id.startsWith(`${entry.id}-`) && entry.reasoning?.efforts?.some(e => e.id.toLowerCase() === model.id.slice(entry.id.length + 1).toLowerCase()))) return false
         return true
       })
       return [...advertised, ...extras].filter(model => model.id !== 'default' && !hidden.has(model.id))
@@ -951,8 +975,9 @@ window.__ModuleLoader__.load({
       for (const option of session.configOptions ?? []) {
         if (!option?.id) continue
         const label = option.name ?? option.id
-        if (option.type === 'boolean') entries.push({ id: option.id, label, category: option.category, kind: 'boolean', value: !!option.currentValue, op: value => ({ configId: option.id, value }) })
-        else entries.push({ id: option.id, label, category: option.category, kind: 'select', value: option.currentValue ?? '',
+        const description = typeof option.description === 'string' ? option.description.trim() : ''
+        if (option.type === 'boolean') entries.push({ id: option.id, label, description, category: option.category, kind: 'boolean', value: !!option.currentValue, op: value => ({ configId: option.id, value }) })
+        else entries.push({ id: option.id, label, description, category: option.category, kind: 'select', value: option.currentValue ?? '',
           options: (option.options ?? []).flatMap(group => group.options ?? [group]).map(item => ({ value: item.value, label: item.name ?? String(item.value) })),
           op: value => ({ configId: option.id, value }) })
       }
@@ -1773,20 +1798,54 @@ window.__ModuleLoader__.load({
         }
         function FormField({ field, value, set, disabled, group }) {
           const tt = useT(), f = field, multi = f.kind === 'multiple'
+          const limits = f.kind === 'number'
+            ? [f.min != null && tt('formMin', { n: f.min }), f.max != null && tt('formMax', { n: f.max })].filter(Boolean)
+            : [f.min > 0 && tt('formMin', { n: f.min }), f.max != null && tt('formMax', { n: f.max })].filter(Boolean)
           return h('fieldset', { className: 'aw-question aw-form-field', disabled }, h('legend', null, f.title, ' ', h('small', { className: 'aw-note' }, tt(f.required ? 'formRequired' : 'formOptional'))),
-            f.description && h('p', { className: 'aw-note' }, f.description), (f.min > 0 || f.max != null) && h('p', { className: 'aw-note' }, [f.min > 0 && tt('formMin', { n: f.min }), f.max != null && tt('formMax', { n: f.max })].filter(Boolean).join(' · ')),
-            f.kind === 'text' ? h('textarea', { className: 'aw-input', rows: 2, 'aria-label': f.title, value: value ?? '', onChange: e => set(e.target.value || undefined) }) : f.choices.map(c => {
-              const checked = multi ? (value ?? EMPTY).includes(c.value) : value === c.value
-              return h('div', { className: 'aw-section', key: c.value }, h('label', { className: 'aw-option' }, h('input', { type: multi ? 'checkbox' : 'radio', name: group, checked,
-                onChange: e => { if (!multi) return set(c.value); const next = e.target.checked ? [...(value ?? EMPTY), c.value] : value.filter(v => v !== c.value); set(next.length ? next : undefined) } }),
-                h('span', null, c.label, c.description && h('small', { className: 'aw-note aw-form-hint' }, c.description))),
-                c.preview && h('details', { className: 'aw-tech' }, h('summary', null, tt('formPreview')), h('pre', { className: 'aw-log' }, c.preview)))
-            }), f.kind === 'single' && !f.required && value !== undefined && h(Button, { size: 'sm', variant: 'ghost', disabled, onClick: () => set(undefined) }, tt('clearField')))
+            f.description && h('p', { className: 'aw-note' }, f.description), limits.length > 0 && h('p', { className: 'aw-note' }, limits.join(' · ')),
+            f.kind === 'boolean'
+              ? h('label', { className: 'aw-option' },
+                h('input', { type: 'checkbox', checked: Boolean(value), onChange: e => set(e.target.checked) }),
+                h('span', null, f.title))
+              : f.kind === 'number'
+                ? h(Input, {
+                  type: 'number',
+                  className: 'aw-input',
+                  step: f.integer ? 1 : 'any',
+                  min: f.min ?? undefined,
+                  max: f.max ?? undefined,
+                  'aria-label': f.title,
+                  value: value === undefined ? '' : String(value),
+                  onChange: e => {
+                    const raw = e.target.value.trim()
+                    if (!raw) return set(undefined)
+                    const parsed = Number(raw)
+                    set(Number.isFinite(parsed) ? parsed : raw)
+                  },
+                })
+                : f.kind === 'text'
+                  ? h('textarea', { className: 'aw-input', rows: 2, 'aria-label': f.title, value: value ?? '', onChange: e => set(e.target.value || undefined) })
+                  : f.choices.map(c => {
+                    const checked = multi ? (value ?? EMPTY).includes(c.value) : value === c.value
+                    return h('div', { className: 'aw-section', key: c.value }, h('label', { className: 'aw-option' }, h('input', { type: multi ? 'checkbox' : 'radio', name: group, checked,
+                      onChange: e => { if (!multi) return set(c.value); const next = e.target.checked ? [...(value ?? EMPTY), c.value] : value.filter(v => v !== c.value); set(next.length ? next : undefined) } }),
+                      h('span', null, c.label, c.description && h('small', { className: 'aw-note aw-form-hint' }, c.description))),
+                      c.preview && h('details', { className: 'aw-tech' }, h('summary', null, tt('formPreview')), h('pre', { className: 'aw-log' }, c.preview)))
+                  }),
+            f.kind === 'single' && !f.required && value !== undefined && h(Button, { size: 'sm', variant: 'ghost', disabled, onClick: () => set(undefined) }, tt('clearField')))
         }
 
         function InteractionCard({ item, sessionId, cwd, run, disabled, inline }) {
           const tt = useT(), scopeId = React.useId()
-          const [answers, setAnswers] = React.useState({}), [values, setValues] = React.useState(() => new Map())
+          const [answers, setAnswers] = React.useState({})
+          const [values, setValues] = React.useState(() => {
+            const init = new Map()
+            for (const f of item.fields ?? EMPTY) {
+              if (f.defaultValue !== undefined) init.set(f.id, f.defaultValue)
+              else if (f.kind === 'boolean' && f.required) init.set(f.id, false)
+            }
+            return init
+          })
           const [reason, setReason] = React.useState('')
           const params = item.params ?? {}
           const send = response => run({ action: 'respond', sessionId, interactionId: item.id, ...response })
@@ -1802,10 +1861,27 @@ window.__ModuleLoader__.load({
               title: option.kind?.endsWith('always') ? tt('permanent') : undefined,
             }, option.name ?? option.optionId), h('small', { id: `${scopeId}-${i}` }, permissionScope(option))))
             if (options.some(option => option.kind?.endsWith('always'))) note = tt('permanent')
+          } else if (item.kind === 'url') {
+            const href = item.urlInfo?.url ?? params.url
+            body = h('div', { className: 'aw-section' },
+              h('strong', null, item.urlInfo?.message ?? params.message),
+              href ? h('a', { className: 'aw-url-link aw-mono', href, target: '_blank', rel: 'noopener noreferrer' }, href) : null)
+            actions = [
+              href ? h('a', { key: 'open', className: 'aw-url-link', href, target: '_blank', rel: 'noopener noreferrer' }, tt('urlOpen')) : null,
+              h(Button, { key: 'accept', size: 'sm', variant: 'primary', disabled, onClick: () => send({ formAction: 'accept' }) }, tt('urlAccept')),
+              h(Button, { key: 'decline', size: 'sm', variant: 'ghost', disabled, onClick: () => send({ formAction: 'decline' }) }, tt('urlDecline')),
+            ].filter(Boolean)
+            note = tt('urlHelp')
           } else if (item.kind === 'form') {
             const fields = item.fields ?? EMPTY, invalid = fields.some(f => {
               if (!values.has(f.id)) return f.required
-              const v = values.get(f.id), length = Array.isArray(v) ? v.length : Array.from(v).length
+              const v = values.get(f.id)
+              if (f.kind === 'boolean') return typeof v !== 'boolean'
+              if (f.kind === 'number') {
+                if (typeof v !== 'number' || !Number.isFinite(v) || (f.integer && !Number.isInteger(v))) return true
+                return (f.min != null && v < f.min) || (f.max != null && v > f.max)
+              }
+              const length = Array.isArray(v) ? v.length : Array.from(v).length
               return length < f.min || (f.max != null && length > f.max)
             })
             body = h('div', { className: 'aw-section' }, h('strong', null, params.message),
@@ -1846,7 +1922,7 @@ window.__ModuleLoader__.load({
               h(Button, { key: 'skip', size: 'sm', variant: 'ghost', disabled, onClick: () => send({ skip: true }) }, tt('skip')),
             ]
           }
-          const title = tt(item.kind === 'plan' ? 'kind.plan' : item.kind)
+          const title = tt(item.kind === 'plan' ? 'kind.plan' : item.kind === 'url' ? 'urlElicitation' : item.kind)
           return h('section', { className: inline ? 'aw-ask aw-ask-inline' : 'aw-card aw-ask', 'data-tone': 'warn', 'aria-label': title },
             h('div', { className: 'aw-ask-head' }, h(IconWarningTriangleOutlineRegular, { size: 16 }), h('span', null, title)),
             h('div', { className: 'aw-ask-body' }, body),
@@ -1856,14 +1932,15 @@ window.__ModuleLoader__.load({
         }
 
         function ConfigControl({ entry, disabled, onChange, compact }) {
+          const tooltip = entry.description ? `${entry.label} — ${entry.description}` : entry.label
           if (entry.kind === 'boolean') {
-            return h('span', { className: 'aw-switch' }, h(Switch, { checked: entry.value, disabled, label: entry.label, onChange: value => onChange(entry.op(value)) }), h('span', null, entry.label))
+            return h('span', { className: 'aw-switch', title: tooltip }, h(Switch, { checked: entry.value, disabled, label: entry.label, onChange: value => onChange(entry.op(value)) }), h('span', null, entry.label))
           }
           const known = entry.options.some(option => option.value === entry.value)
-          const select = h('select', { className: 'aw-select', value: entry.value, disabled, 'aria-label': entry.label, title: entry.label, onChange: event => onChange(entry.op(event.target.value)) },
+          const select = h('select', { className: 'aw-select', value: entry.value, disabled, 'aria-label': entry.label, title: tooltip, onChange: event => onChange(entry.op(event.target.value)) },
             known ? null : h('option', { value: entry.value }, entry.value || '—'),
             entry.options.map(option => h('option', { key: option.value, value: option.value }, option.label)))
-          return compact ? select : h('label', { className: 'aw-field' }, h('span', null, entry.label), select)
+          return compact ? select : h('label', { className: 'aw-field', title: tooltip }, h('span', null, entry.label), select)
         }
 
         const costNumber = n => new Intl.NumberFormat(undefined, { maximumSignificantDigits: 21 }).format(n)
@@ -2258,6 +2335,21 @@ window.__ModuleLoader__.load({
 
         const GROUPS = ['attention', 'working', 'review', 'recent', 'history']
 
+        function SteerBar({ sessionId, externalId, view, disabled }) {
+          const tt = useT()
+          const [text, setText] = React.useState('')
+          const submit = async event => {
+            event.preventDefault()
+            const trimmed = text.trim()
+            if (!trimmed || disabled) return
+            const result = await view.run({ action: 'native-steer', dshSessionId: sessionId, externalId, text: trimmed })
+            if (result) setText('')
+          }
+          return h('form', { className: 'aw-card aw-steer', onSubmit: submit, 'aria-label': tt('steerLabel') },
+            h(Input, { className: 'aw-input', value: text, disabled, placeholder: tt('steerPlaceholder'), 'aria-label': tt('steerLabel'), onChange: e => setText(e.target.value) }),
+            h(Button, { type: 'submit', size: 'sm', variant: 'outline', disabled: disabled || !text.trim() }, tt('steerSend')))
+        }
+
         function NativeDock(props) {
           const tt = useT()
           const canWrite = props.useAccess('session/prompt')
@@ -2273,10 +2365,12 @@ window.__ModuleLoader__.load({
           const quiet = children.filter(s => s.activity.group === 'recent')
           const contextReport = binding && !binding.archived && data.contextReport?.externalId === binding.id ? data.contextReport : null
           const notices = binding && !binding.archived && data.noticeFeed?.externalId === binding.id && data.noticeFeed.remoteId === binding.remoteId && data.noticeFeed.items.length ? data.noticeFeed : null
-          if (!notices && !contextReport && !own.length && !children.length && !view.error) return null
+          const canSteer = !!(binding && !binding.archived && data?.controls?.canSteer && canWrite)
+          if (!notices && !contextReport && !own.length && !children.length && !canSteer && !view.error) return null
           const childRow = child => h(ChildRow, { key: child.id, child, sessionId: props.sessionId, view, canWrite })
           return h('div', { className: 'acpw aw-dock' },
             own.flatMap(s => s.interactions.map(item => h(InteractionCard, { key: item.id, item, sessionId: s.id, cwd: s.cwd, run: view.run, disabled: view.busy || !canWrite }))),
+            canSteer ? h(SteerBar, { key: 'steer:' + binding.id, sessionId: props.sessionId, externalId: binding.id, view, disabled: view.busy }) : null,
             notices ? h(ConnectionNotices, { key: 'notice:' + binding.id + ':' + notices.connection, report: notices }) : null,
             contextReport ? h(ContextReport, { key: 'context:' + binding.id, report: contextReport, title: tt('contextRecent') }) : null,
             children.length ? h('section', { className: 'aw-card', 'aria-label': tt('children') },
@@ -2424,12 +2518,13 @@ window.__ModuleLoader__.load({
             }))
         }
 
-        function ToolbarSelect({ label, value, options, disabled, onSelect }) {
+        function ToolbarSelect({ label, description, value, options, disabled, onSelect }) {
           const button = React.useRef(null)
           const popup = React.useRef(null)
           const id = React.useId()
           const current = options.find(item => item.value === value) ?? options[0]
           const display = current?.name ?? value ?? ''
+          const tooltip = description ? `${label}: ${display} — ${description}` : `${label}: ${display}`
           const position = event => {
             const panel = popup.current
             if (!panel) return
@@ -2446,7 +2541,7 @@ window.__ModuleLoader__.load({
           return h(React.Fragment, null,
             h('button', {
               ref: button, type: 'button', className: 'aw-tb-btn', disabled,
-              'aria-label': `${label}: ${display}`, title: `${label}: ${display}`,
+              'aria-label': `${label}: ${display}`, title: tooltip,
               'aria-haspopup': 'dialog', popovertarget: id, onClick: position,
             }, h('span', null, display), h(IconChevronDownOutlineRegular, { size: 12, 'aria-hidden': true })),
             h('div', { ref: popup, id, className: 'aw-tb-pop', popover: 'auto', role: 'dialog', 'aria-label': label },
@@ -2454,6 +2549,7 @@ window.__ModuleLoader__.load({
                 const active = option.value === value
                 return h('button', {
                   key: option.value, type: 'button', className: 'aw-tb-item', 'aria-pressed': active, disabled,
+                  title: option.description || undefined,
                   onClick: () => {
                     popup.current?.hidePopover()
                     button.current?.focus()
@@ -2471,16 +2567,29 @@ window.__ModuleLoader__.load({
           if (!controls) return null
           const disabled = !canWrite || view.busy || view.data.status !== 'idle'
           const modes = controls.modes?.options?.length > 1 ? controls.modes : null
-          const contextOpt = controls.options?.find(item => item.id === 'context' && item.type === 'select' && item.choices?.length > 1)
-          const fastOpt = controls.options?.find(item => item.id === 'fast')
-          if (!modes && !contextOpt && !fastOpt) return null
-          const fastValue = controls.values?.fast ?? fastOpt?.defaultValue
-          const fastOn = fastOpt?.type === 'boolean' ? Boolean(fastValue) : fastValue === 'true'
-          const toggleFast = () => {
-            if (!fastOpt) return
-            const nextValue = fastOpt.type === 'boolean' ? !fastOn : (fastOn ? 'false' : 'true')
-            view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: fastOpt.id, value: nextValue })
+          const options = controls.options ?? EMPTY
+          const contextOpt = options.find(item => item.id === 'context' && item.type === 'select' && item.choices?.length > 1)
+          const fastOpt = options.find(item => item.id === 'fast')
+          const extraOptions = options.filter(item => item.id !== 'context' && item.id !== 'fast' && (item.type === 'boolean' || item.choices?.length > 1))
+          if (!modes && !contextOpt && !fastOpt && !extraOptions.length) return null
+
+          const renderToggle = (opt, iconOnly) => {
+            const pair = opt.type === 'select' ? booleanSelectPair(opt.choices) : null
+            const rawValue = controls.values?.[opt.id] ?? opt.defaultValue
+            const active = opt.type === 'boolean' ? Boolean(rawValue) : pair ? rawValue === pair.on : rawValue === 'true' || rawValue === 'on'
+            const nextValue = opt.type === 'boolean' ? !active : pair ? (active ? pair.off : pair.on) : (active ? 'false' : 'true')
+            const name = opt.name || opt.id
+            const statusText = `${name}: ${active ? 'On' : 'Off'}`
+            const tooltip = opt.description ? `${statusText} — ${opt.description}` : statusText
+            return h('button', {
+              key: opt.id, type: 'button',
+              className: iconOnly ? 'aw-tb-btn aw-tb-icon' : 'aw-tb-btn',
+              disabled, 'data-active': active, 'aria-pressed': active,
+              'aria-label': statusText, title: tooltip,
+              onClick: () => view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: opt.id, value: nextValue }),
+            }, iconOnly ? h(FastBolt, { on: active }) : h('span', null, name))
           }
+
           return h('div', { className: 'acpw aw-tb' },
             modes ? h(ToolbarSelect, {
               label: tt('mode'),
@@ -2491,18 +2600,26 @@ window.__ModuleLoader__.load({
             }) : null,
             contextOpt ? h(ToolbarSelect, {
               label: contextOpt.name || tt('context'),
+              description: contextOpt.description,
               value: controls.values?.context ?? contextOpt.defaultValue ?? contextOpt.choices[0].value,
               options: contextOpt.choices,
               disabled,
               onSelect: value => view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: contextOpt.id, value }),
             }) : null,
-            fastOpt ? h('button', {
-              type: 'button', className: 'aw-tb-btn aw-tb-icon', disabled,
-              'data-active': fastOn, 'aria-pressed': fastOn,
-              'aria-label': `${fastOpt.name || tt('fast')}: ${fastOn ? 'On' : 'Off'}`,
-              title: `${fastOpt.name || tt('fast')}: ${fastOn ? 'On' : 'Off'}`,
-              onClick: toggleFast,
-            }, h(FastBolt, { on: fastOn })) : null)
+            fastOpt ? renderToggle(fastOpt, true) : null,
+            extraOptions.map(opt => {
+              const pair = opt.type === 'select' ? booleanSelectPair(opt.choices) : null
+              if (opt.type === 'boolean' || pair) return renderToggle(opt, false)
+              return h(ToolbarSelect, {
+                key: opt.id,
+                label: opt.name || opt.id,
+                description: opt.description,
+                value: controls.values?.[opt.id] ?? opt.defaultValue ?? opt.choices[0].value,
+                options: opt.choices,
+                disabled,
+                onSelect: value => view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: opt.id, value }),
+              })
+            }))
         }
 
         ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, CliMenuOption))
@@ -2513,7 +2630,7 @@ window.__ModuleLoader__.load({
         ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))
 
         function useWorkbench() {
-          const [data, setData] = React.useState({ providers: EMPTY, activeByProvider: {}, defaultCwd: '', storageError: null })
+          const [data, setData] = React.useState({ providers: EMPTY, activeByProvider: {}, authByProvider: {}, defaultCwd: '', storageError: null })
           const [ready, setReady] = React.useState(false)
           const [error, setError] = React.useState('')
           const kick = React.useRef(null)
@@ -2554,18 +2671,40 @@ window.__ModuleLoader__.load({
           if (n >= 1_000) return `${Math.round(n / 1_000)}K`
           return String(n)
         }
+        const authSummary = (status, tt) => {
+          if (!status) return ''
+          const first = status.accounts?.[0]
+          const identity = first?.email || first?.name || first?.label || ''
+          const state = status.state === 'authenticated' || status.state === 'signed_in' ? tt('authSignedIn')
+            : status.state === 'unauthenticated' || status.state === 'signed_out' ? tt('authSignedOut')
+              : status.state
+          return [state, identity].filter(Boolean).join(' · ')
+        }
+
         const capabilityTags = info => {
           const agent = info.agentCapabilities ?? {}
+          const sess = agent.sessionCapabilities ?? {}
           return [
-            ['cap.loadSession', agent.sessionCapabilities?.resume || agent.loadSession], ['cap.list', agent.sessionCapabilities?.list], ['cap.image', agent.promptCapabilities?.image],
-            ['cap.audio', agent.promptCapabilities?.audio], ['cap.embeddedContext', agent.promptCapabilities?.embeddedContext],
-            ['cap.mcpHttp', agent.mcpCapabilities?.http], ['cap.mcpSse', agent.mcpCapabilities?.sse],
+            ['cap.loadSession', agent.loadSession],
+            ['cap.resume', sess.resume],
+            ['cap.fork', sess.fork],
+            ['cap.close', sess.close],
+            ['cap.options', sess.options],
+            ['cap.list', sess.list],
+            ['cap.additionalDirs', sess.additionalDirectories],
+            ['cap.steering', info._meta?.steering?.supported],
+            ['cap.image', agent.promptCapabilities?.image],
+            ['cap.audio', agent.promptCapabilities?.audio],
+            ['cap.embeddedContext', agent.promptCapabilities?.embeddedContext],
+            ['cap.mcpHttp', agent.mcpCapabilities?.http],
+            ['cap.mcpSse', agent.mcpCapabilities?.sse],
           ].map(([key, value]) => ({ key, status: value == null ? 'unreported' : value === false ? 'unsupported' : 'supported' }))
         }
 
         function CapabilityReport({ info, onClose }) {
           const tt = useT()
           const agentInfo = info.agentInfo ?? info.serverInfo
+          const authText = authSummary(info.authStatus, tt)
           return h('section', { className: 'aw-box', 'aria-label': tt('capabilities') },
             h('div', { className: 'aw-box-head' },
               h('h3', { className: 'aw-grow' }, tt('capabilities')),
@@ -2573,6 +2712,8 @@ window.__ModuleLoader__.load({
             h('dl', { className: 'aw-facts' },
               agentInfo ? h(React.Fragment, null, h('dt', null, tt('agent')), h('dd', null, [agentInfo.title ?? agentInfo.name, agentInfo.version].filter(Boolean).join(' '))) : null,
               h('dt', null, tt('protocol')), h('dd', null, `ACP v${info.protocolVersion ?? '?'}`),
+              info.agentMeta?.tier?.name ? h(React.Fragment, null, h('dt', null, tt('tierLabel')), h('dd', null, info.agentMeta.tier.name)) : null,
+              authText ? h(React.Fragment, null, h('dt', null, tt('authLabel')), h('dd', null, authText)) : null,
               h('dt', null, tt('authMethods')), h('dd', null, info.authMethods?.length ? info.authMethods.map(method => method.name ?? method.id).join(', ') : tt('none'))),
             h('div', { className: 'aw-tags', 'aria-label': tt('capabilities') }, capabilityTags(info).map(item => h(Tag, { key: item.key, tone: item.status === 'supported' ? 'success' : 'quiet' }, `${tt(item.key)} · ${tt(item.status)}`))),
             h(Json, { label: tt('rawResult'), payload: info }))
@@ -2604,7 +2745,9 @@ window.__ModuleLoader__.load({
         function ModelRow({ model, hidden, busy, onToggle }) {
           const tt = useT()
           const contextOpt = model.options?.find(opt => opt.id === 'context' && opt.choices?.length)
-          const hasFast = model.options?.some(opt => opt.id === 'fast')
+          const fastOpt = model.options?.find(opt => opt.id === 'fast')
+          const ultracodeOpt = model.options?.find(opt => opt.id === 'ultracode')
+          const extraOpts = (model.options ?? EMPTY).filter(opt => opt.id !== 'context' && opt.id !== 'fast' && opt.id !== 'ultracode')
           const hasImage = model.inputModalities?.includes('image')
           const contextLabel = contextOpt
             ? contextOpt.choices.map(c => c.name ?? c.value).join(' / ')
@@ -2618,15 +2761,17 @@ window.__ModuleLoader__.load({
                 h('span', { className: 'aw-model-name' }, model.name ?? model.id),
                 model.name && model.name !== model.id ? h('span', { className: 'aw-model-id aw-mono' }, model.id) : null),
               model.description ? h('span', { className: 'aw-model-desc' }, model.description) : null,
-              efforts.length || contextLabel || hasFast || hasImage || outputLabel ? h('div', { className: 'aw-pills' },
+              efforts.length || contextLabel || fastOpt || ultracodeOpt || extraOpts.length || hasImage || outputLabel ? h('div', { className: 'aw-pills' },
                 efforts.length ? h('span', { className: 'aw-pill', 'data-tone': 'thought' }, tt('modelEfforts', { levels: efforts.map(e => e.name ?? e.id).join(' · ') })) : null,
                 contextLabel ? h('span', { className: 'aw-pill' }, `${tt('context')}: ${contextLabel}`) : null,
-                hasFast ? h('span', { className: 'aw-pill', 'data-tone': 'fast' }, `⚡ ${tt('modelFast')}`) : null,
+                fastOpt ? h('span', { className: 'aw-pill', 'data-tone': 'fast', title: fastOpt.description || undefined }, `⚡ ${tt('modelFast')}`) : null,
+                ultracodeOpt ? h('span', { className: 'aw-pill', 'data-tone': 'accent', title: ultracodeOpt.description || undefined }, tt('modelUltracode')) : null,
+                extraOpts.map(opt => h('span', { key: opt.id, className: 'aw-pill', title: opt.description || undefined }, opt.name ?? opt.id)),
                 hasImage ? h('span', { className: 'aw-pill' }, tt('modalityImage')) : null,
                 outputLabel ? h('span', { className: 'aw-pill' }, `${tt('ctxOutput')}: ${outputLabel}`) : null) : null))
         }
 
-        function ProviderWorkbench({ providers, activeByProvider, defaultCwd, run, busy, creating, setCreating }) {
+        function ProviderWorkbench({ providers, activeByProvider, authByProvider, defaultCwd, run, busy, creating, setCreating }) {
           const tt = useT()
           const [editing, setEditing] = React.useState(providers[0]?.id ?? '')
           const [draft, setDraft] = React.useState(() => providers[0] ? { ...providers[0], args: JSON.stringify(providers[0].args) } : blankProvider())
@@ -2667,6 +2812,7 @@ window.__ModuleLoader__.load({
           const hiddenCount = allModels.length - visibleCount
           const thinkingCount = allModels.filter(model => !!model.reasoning?.efforts?.length).length
           const fastCount = allModels.filter(model => model.options?.some(opt => opt.id === 'fast')).length
+          const ultracodeCount = allModels.filter(model => model.options?.some(opt => opt.id === 'ultracode')).length
           const multiCtxCount = allModels.filter(model => model.options?.some(opt => opt.id === 'context' && opt.choices?.length > 1)).length
 
           const changedCount = React.useMemo(() => {
@@ -2685,6 +2831,7 @@ window.__ModuleLoader__.load({
             if (modelFilter === 'hidden' && !hiddenSet.has(model.id)) return false
             if (modelFilter === 'thinking' && !model.reasoning?.efforts?.length) return false
             if (modelFilter === 'fast' && !model.options?.some(opt => opt.id === 'fast')) return false
+            if (modelFilter === 'ultracode' && !model.options?.some(opt => opt.id === 'ultracode')) return false
             if (modelFilter === 'multictx' && !model.options?.some(opt => opt.id === 'context' && opt.choices?.length > 1)) return false
             if (!needle) return true
             return [model.id, model.name, model.description].some(text => text?.toLowerCase().includes(needle))
@@ -2738,6 +2885,8 @@ window.__ModuleLoader__.load({
             setHiddenModels(old => shown ? old.filter(item => item !== id) : [...new Set([...old, id])])
           }
           const modes = saved?.advertised?.modes?.options ?? EMPTY
+          const tier = saved?.advertised?.meta?.tier
+          const authText = authSummary(saved ? authByProvider?.[saved.id] : null, tt)
 
           const filterChips = [
             ['all', tt('filterAll'), allModels.length],
@@ -2745,6 +2894,7 @@ window.__ModuleLoader__.load({
             ['hidden', tt('filterHidden'), hiddenCount],
             ...(thinkingCount ? [['thinking', tt('filterThinking'), thinkingCount]] : []),
             ...(fastCount ? [['fast', tt('filterFast'), fastCount]] : []),
+            ...(ultracodeCount ? [['ultracode', tt('filterUltracode'), ultracodeCount]] : []),
             ...(multiCtxCount ? [['multictx', tt('filterMultiCtx'), multiCtxCount]] : []),
           ]
 
@@ -2794,6 +2944,10 @@ window.__ModuleLoader__.load({
                         h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: refreshModels }, tt('refreshModels')),
                         h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: checkCapabilities }, tt('diagnose')),
                         h(Button, { size: 'sm', variant: showConfig ? 'outline' : 'ghost', 'aria-expanded': showConfig, disabled: busy, onClick: () => setShowConfig(v => !v) }, tt(showConfig ? 'hideConfig' : 'providerConfig')))),
+                    (tier?.name || authText || saved.advertised?.meta?.steering) ? h('div', { className: 'aw-pills' },
+                      tier?.name ? h('span', { className: 'aw-pill', 'data-tone': 'accent' }, tier.name) : null,
+                      authText ? h('span', { className: 'aw-pill' }, `${tt('authLabel')}: ${authText}`) : null,
+                      saved.advertised?.meta?.steering ? h('span', { className: 'aw-pill' }, tt('cap.steering')) : null) : null,
                     modes.length ? h('div', { className: 'aw-pills' },
                       h('span', { className: 'aw-note' }, `${tt('modesLabel')}:`),
                       modes.map(mode => h('span', { key: mode.value, className: 'aw-pill' }, mode.name ?? mode.value))) : null,
@@ -2868,6 +3022,7 @@ window.__ModuleLoader__.load({
               : h(ProviderWorkbench, {
                 providers: view.data.providers,
                 activeByProvider: view.data.activeByProvider,
+                authByProvider: view.data.authByProvider,
                 defaultCwd: view.data.defaultCwd,
                 run, busy, creating, setCreating,
               })),

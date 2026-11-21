@@ -16,6 +16,32 @@ import {
   wireModelId,
 } from './models.js'
 import { hasToolInput, isToolTerminal, makeCallId, mapPlanTodos, mapToolCall, mapToolResult } from './native-tools.js'
+import { booleanSelectValues, isInteractivePermission } from './adapters.js'
+
+function coerceOptionValue(option, value) {
+  if (!option || value === undefined) return undefined
+  if (option.type === 'boolean') {
+    if (typeof value === 'boolean') return value
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase()
+      if (lower === 'true' || lower === 'on') return true
+      if (lower === 'false' || lower === 'off') return false
+    }
+    return undefined
+  }
+  if (option.type !== 'select') return undefined
+  const choices = (option.options ?? option.choices ?? []).flatMap(group => group.options ?? [group])
+  if (typeof value === 'string' && choices.some(item => (item.value ?? item.id) === value)) return value
+  const pair = booleanSelectValues(choices)
+  if (!pair) return undefined
+  if (typeof value === 'boolean') return value ? pair.on : pair.off
+  if (typeof value === 'string') {
+    const lower = value.toLowerCase()
+    if (lower === 'true' || lower === 'on') return pair.on
+    if (lower === 'false' || lower === 'off') return pair.off
+  }
+  return undefined
+}
 
 export const ACP_ROUTE_PREFIX = 'acp-'
 const MAX_HANDOFF = 200_000
@@ -350,6 +376,12 @@ class AcpTurn {
       this.wake()
       return
     }
+    if (plan?.type === 'markdown' && typeof plan.content === 'string' && plan.content.trim()) {
+      const header = typeof plan.path === 'string' && plan.path.trim() ? `**Plan** (\`${plan.path.trim()}\`)\n\n` : ''
+      this.queue.push({ kind: 'text', text: `\n\n${header}${plan.content.trim()}\n` })
+      this.wake()
+      return
+    }
 
     if (kind === 'plan' && Array.isArray(update.entries)) {
       const todos = mapPlanTodos(update.entries)
@@ -392,7 +424,10 @@ class AcpTurn {
     }
     await this.native.manager.runtimes.get(this.session.id)?.shutdown
     signal.throwIfAborted()
-    if (!this.native.manager.runtimes.has(this.session.id)) await this.native.manager.connect(this.session)
+    if (!this.native.manager.runtimes.has(this.session.id)) {
+      const initialConfigOptions = this.native.initialConfigOptionsFor(this.session, this.model, this.effort)
+      await this.native.manager.connect(this.session, initialConfigOptions.length ? { initialConfigOptions } : undefined)
+    }
     signal.throwIfAborted()
     await this.native.applyModel(this.session, this.model, this.effort)
     signal.throwIfAborted()
@@ -925,6 +960,7 @@ export class NativeAcp {
     const contextWindow = modelContextWindow(facts)
     const contextOpt = facts.options?.find(item => item.id === 'context' && item.type === 'select')
     const hasFast = facts.options?.some(item => item.id === 'fast')
+    const hasUltracode = facts.options?.some(item => item.id === 'ultracode')
     const formatCtx = value => value >= 1_000_000 && value % 1_000_000 === 0
       ? `${value / 1_000_000}M`
       : value % 1000 === 0 ? `${value / 1000}k` : String(value)
@@ -937,9 +973,10 @@ export class NativeAcp {
       contextWindow ? `Context: ${formatCtx(contextWindow)} tokens.` : null,
       facts.maxTokens ? `Maximum output: ${facts.maxTokens} tokens (CLI limit).` : null,
       hasFast ? 'Supports Fast mode.' : null,
+      hasUltracode ? 'Supports Ultracode.' : null,
       inputs?.length ? `Input: ${inputs.join(', ')}.` : null,
     ].filter(Boolean).join(' ')
-    const badge = ['ACP', contextBadge, hasFast ? 'Fast' : null, inputs?.includes('image') ? 'image' : null].filter(Boolean).join(' · ')
+    const badge = ['ACP', contextBadge, hasFast ? 'Fast' : null, hasUltracode ? 'Ultracode' : null, inputs?.includes('image') ? 'image' : null].filter(Boolean).join(' · ')
     return {
       provider,
       id,
@@ -988,6 +1025,7 @@ export class NativeAcp {
     const owner = session.native?.sessionId
     const agent = owner ? this.ctx.agents.get(owner) : null
     if (!agent || !fullAccess(this.ctx, agent.session)) return null
+    if (isInteractivePermission(params)) return null
     const options = params?.options ?? []
     return options.find(option => option.kind === 'allow_once')?.optionId ?? null
   }
@@ -996,11 +1034,12 @@ export class NativeAcp {
     const agent = this.ctx.agents.get(sessionId), selected = agent?.model.current() ?? null, sessions = this.sessions(sessionId)
     const binding = sessions.findLast(s => s.native.sessionId === sessionId && s.native.route === selected?.provider && !s.native.retired)
     const report = binding?.lastContext
+    const runtime = binding ? this.manager.runtimes.get(binding.id) : null
     let controls = null
     if (isRoute(selected?.provider)) {
       const providerRecord = this.manager.store.providers.get(selected.provider.slice(ACP_ROUTE_PREFIX.length))
       const prefs = this.preferencesOf(sessionId, selected.provider, binding)
-      const connected = !!binding && this.manager.runtimes.has(binding.id)
+      const connected = !!binding && !!runtime
       const liveModelOption = binding?.configOptions?.find(item => item?.category === 'model' && item.type !== 'boolean')
       const liveModelId = liveModelOption?.currentValue ?? binding?.models?.currentModelId ?? null
       const selectedFacts = selected.model && selected.model !== DEFAULT_MODEL
@@ -1012,11 +1051,8 @@ export class NativeAcp {
         : selectedFacts?.options ?? []
       const values = {}
       for (const option of options) {
-        const preferred = prefs.options?.[option.id]
-        const validPreferred = option.type === 'boolean'
-          ? typeof preferred === 'boolean'
-          : typeof preferred === 'string' && option.choices?.some(choice => choice.value === preferred)
-        if (validPreferred) {
+        const preferred = coerceOptionValue(option, prefs.options?.[option.id])
+        if (preferred !== undefined) {
           values[option.id] = preferred
           continue
         }
@@ -1037,12 +1073,14 @@ export class NativeAcp {
         mode: validMode ? prefs.mode : modes?.currentModeId ?? null,
         connected,
         hasCatalog: !!(providerRecord?.advertised?.models?.length),
+        tier: binding?.agentMeta?.tier ?? providerRecord?.advertised?.meta?.tier ?? null,
+        canSteer: !!(binding && runtime && !runtime.closing && runtime.turnId && !runtime.canceling && binding.agentMeta?.steering),
       }
     }
     return {
       contextReport: !binding?.archived && report && report.remoteId === binding.remoteId ? { externalId: binding.id, at: report.at, window: report.window } : null,
       commandStamp: binding?.state === 'idle' && !binding.archived ? this.manager.commandReport(binding)?.stamp ?? null : null,
-      noticeFeed: connectionNotices(binding, binding && this.manager.runtimes.get(binding.id)),
+      noticeFeed: connectionNotices(binding, runtime),
       providers: [...this.manager.store.providers.values()].map(p => ({ id: p.id, label: p.label, route: this.route(p.id) })),
       sessions: sessions.map(s => ({ ...this.manager.overview(s), native: { ...s.native, runs: s.native.runs.slice(-128) } })),
       selected,
@@ -1092,6 +1130,18 @@ export class NativeAcp {
     const agent = this.ctx.agents.get(sessionId)
     if (!agent) throw new Error('The native DSH agent is not active')
     await agent.cancel({ kind: 'user' })
+    return this.snapshot(sessionId)
+  }
+
+  async steer(sessionId, text, externalId) {
+    const agent = this.ctx.agents.get(sessionId)
+    const selected = agent?.model.current() ?? null
+    const candidates = this.sessions(sessionId, false)
+    const session = externalId
+      ? candidates.find(s => s.id === externalId && !s.native.retired)
+      : candidates.findLast(s => s.native.route === selected?.provider && !s.native.retired)
+    if (!session) throw new Error('No active external ACP session is bound to this conversation')
+    await this.manager.steer(session, text)
     return this.snapshot(sessionId)
   }
 
@@ -1237,10 +1287,9 @@ export class NativeAcp {
         const liveMatches = !selected || selected.model === DEFAULT_MODEL || (selectedFacts && wireModelId(selectedFacts) === liveModelId)
         if (liveMatches) {
           const liveOpt = binding.configOptions?.find(item => item?.id === configId)
-          const choices = (liveOpt?.options ?? []).flatMap(group => group.options ?? [group])
-          const validLive = liveOpt && (liveOpt.type === 'boolean' ? typeof value === 'boolean' : choices.some(item => item.value === value))
-          if (validLive && liveOpt.currentValue !== value) {
-            await this.maintainConnection(dshSessionId, { configuration: { sessionId: binding.id, configId, value } })
+          const coerced = coerceOptionValue(liveOpt, value)
+          if (coerced !== undefined && liveOpt.currentValue !== coerced) {
+            await this.maintainConnection(dshSessionId, { configuration: { sessionId: binding.id, configId, value: coerced } })
           }
         }
       }
@@ -1342,10 +1391,38 @@ export class NativeAcp {
     return this.manager.store.sessions.get(session.id)
   }
 
+  initialConfigOptionsFor(session, model, effort) {
+    const provider = this.manager.provider(session.providerId)
+    const prefs = this.preferencesOf(session.native?.sessionId, session.native?.route, session)
+    const legacy = model && model !== DEFAULT_MODEL ? extractLegacyOverrides(model, provider) : { baseId: '', effort: undefined, options: {} }
+    const effectiveEffort = effort ?? legacy.effort
+    const mergedOptions = { ...legacy.options, ...prefs.options }
+    const entries = []
+    let facts = null
+    if (model && model !== DEFAULT_MODEL) {
+      facts = modelDetails(provider, model)
+      try {
+        const selection = reasoningSelection(facts, effectiveEffort)
+        if (selection.modelId) entries.push({ configId: 'model', value: selection.modelId })
+        for (const update of selection.updates ?? []) entries.push({ configId: update.configId, value: update.value })
+      } catch {}
+    }
+    if (prefs.mode) {
+      const modeConfigId = provider.advertised?.modes?.configId ?? 'mode'
+      entries.push({ configId: modeConfigId, value: prefs.mode })
+    }
+    for (const [configId, rawValue] of Object.entries(mergedOptions)) {
+      const advertisedOpt = facts?.options?.find(item => item.id === configId)
+      const value = advertisedOpt ? coerceOptionValue(advertisedOpt, rawValue) : rawValue
+      if (value !== undefined) entries.push({ configId, value })
+    }
+    return entries
+  }
+
   async applyModel(session, model, effort) {
     const provider = this.manager.provider(session.providerId)
     const prefs = this.preferencesOf(session.native?.sessionId, session.native?.route, session)
-    const legacy = model && model !== DEFAULT_MODEL ? extractLegacyOverrides(model) : { baseId: '', effort: undefined, options: {} }
+    const legacy = model && model !== DEFAULT_MODEL ? extractLegacyOverrides(model, provider) : { baseId: '', effort: undefined, options: {} }
     const effectiveEffort = effort ?? legacy.effort
     const mergedOptions = { ...legacy.options, ...prefs.options }
 
@@ -1386,20 +1463,19 @@ export class NativeAcp {
       throw new Error('Choose an explicit ACP model to set reasoning effort. No prompt was sent.')
     }
 
-    for (const [configId, value] of Object.entries(mergedOptions)) {
+    for (const [configId, rawValue] of Object.entries(mergedOptions)) {
       const liveOpt = session.configOptions?.find(item => item?.id === configId && item.category !== 'model' && item.category !== 'mode' && item.category !== 'thought_level')
       if (!liveOpt) continue
+      const coerced = coerceOptionValue(liveOpt, rawValue)
+      if (coerced === undefined) continue
       if (liveOpt.type === 'boolean') {
-        if (typeof value === 'boolean' && Boolean(liveOpt.currentValue) !== value) {
-          await this.manager.configure(session, { configId: liveOpt.id, value })
+        if (Boolean(liveOpt.currentValue) !== coerced) {
+          await this.manager.configure(session, { configId: liveOpt.id, value: coerced })
         }
         continue
       }
-      if (liveOpt.type !== 'select' || typeof value !== 'string') continue
-      const list = (liveOpt.options ?? []).flatMap(group => group.options ?? [group])
-      if (!list.some(item => item.value === value)) continue
-      if (liveOpt.currentValue !== value) {
-        await this.manager.configure(session, { configId: liveOpt.id, value })
+      if (liveOpt.currentValue !== coerced) {
+        await this.manager.configure(session, { configId: liveOpt.id, value: coerced })
       }
     }
   }

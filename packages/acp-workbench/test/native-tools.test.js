@@ -268,3 +268,97 @@ test('move patches emit Move to header and structured web_search rawOutput is pr
     truncated: true,
   })
 })
+
+test('maps Antigravity view_file, write_to_file, replace_file_content, multi_replace_file_content, list_dir, and web tools', () => {
+  const viewCall = mapToolCall({
+    name: 'view_file',
+    rawInput: { AbsolutePath: '/repo/app.js', StartLine: 10, EndLine: 25 },
+  })
+  assert.equal(viewCall.name, 'read')
+  assert.deepEqual(viewCall.argumentsObj, { file_path: '/repo/app.js', offset: 10, limit: 16 })
+
+  const writeTool = {
+    name: 'write_to_file',
+    status: 'completed',
+    rawInput: { TargetFile: '/repo/created.js', CodeContent: 'export const ok = true\n' },
+  }
+  const writeCall = mapToolCall(writeTool)
+  assert.equal(writeCall.name, 'write')
+  assert.deepEqual(writeCall.argumentsObj, { file_path: '/repo/created.js', content: 'export const ok = true\n' })
+  assert.deepEqual(mapToolResult(writeCall, writeTool).meta, {
+    path: '/repo/created.js',
+    diffs: [{ path: '/repo/created.js', oldText: null, newText: 'export const ok = true\n' }],
+  })
+
+  const replaceTool = {
+    name: 'replace_file_content',
+    status: 'completed',
+    rawInput: {
+      TargetFile: '/repo/app.js',
+      TargetContent: 'const a = 1',
+      ReplacementContent: 'const a = 2',
+      AllowMultiple: true,
+    },
+  }
+  const replaceCall = mapToolCall(replaceTool)
+  assert.equal(replaceCall.name, 'edit')
+  assert.deepEqual(replaceCall.argumentsObj, {
+    file_path: '/repo/app.js',
+    old_string: 'const a = 1',
+    new_string: 'const a = 2',
+    replace_all: true,
+  })
+  assert.deepEqual(mapToolResult(replaceCall, replaceTool).meta, {
+    path: '/repo/app.js',
+    diffs: [{ path: '/repo/app.js', oldText: 'const a = 1', newText: 'const a = 2' }],
+  })
+
+  const multiReplaceTool = {
+    name: 'multi_replace_file_content',
+    status: 'completed',
+    rawInput: {
+      TargetFile: '/repo/app.js',
+      ReplacementChunks: [
+        { TargetContent: 'foo()', ReplacementContent: 'bar()' },
+        { TargetContent: 'baz()', ReplacementContent: 'qux()' },
+      ],
+    },
+  }
+  const multiCall = mapToolCall(multiReplaceTool)
+  assert.equal(multiCall.name, 'edit')
+  assert.deepEqual(mapToolResult(multiCall, multiReplaceTool).meta, {
+    path: '/repo/app.js',
+    diffs: [
+      { path: '/repo/app.js', oldText: 'foo()', newText: 'bar()' },
+      { path: '/repo/app.js', oldText: 'baz()', newText: 'qux()' },
+    ],
+  })
+
+  const listDirCall = mapToolCall({
+    name: 'list_dir',
+    rawInput: { DirectoryPath: '/repo/src' },
+  })
+  assert.equal(listDirCall.name, 'glob')
+  assert.deepEqual(listDirCall.argumentsObj, { pattern: '*', path: '/repo/src' })
+
+  const grepSearchCall = mapToolCall({
+    name: 'grep_search',
+    rawInput: { Query: 'resolveAdapter', SearchPath: '/repo/lib', Includes: ['*.js'] },
+  })
+  assert.equal(grepSearchCall.name, 'grep')
+  assert.deepEqual(grepSearchCall.argumentsObj, { pattern: 'resolveAdapter', path: '/repo/lib', include: '*.js' })
+
+  const agySearch = mapToolCall({
+    name: 'search_web',
+    rawInput: { query: 'antigravity acp' },
+  })
+  assert.equal(agySearch.name, 'web_search')
+  assert.deepEqual(agySearch.argumentsObj, { queries: ['antigravity acp'] })
+
+  const agyFetch = mapToolCall({
+    name: 'read_url_content',
+    rawInput: { Url: 'https://example.com/spec' },
+  })
+  assert.equal(agyFetch.name, 'web_fetch')
+  assert.deepEqual(agyFetch.argumentsObj, { url: 'https://example.com/spec' })
+})

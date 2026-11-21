@@ -5,7 +5,7 @@ import { NativeAcp } from './native.js'
 export const name = 'acp-workbench'
 export const inject = ['storageDomain', 'subprocess', 'webServer', 'connection', 'llm', 'agents', 'sessions', 'subagents', 'attachments']
 const BASE = '/acp-workbench'
-const USER_ONLY = new Set(['provider-save', 'provider-remove', 'diagnose', 'models', 'discover', 'respond', 'configure', 'native-stop', 'native-reset', 'native-connect', 'native-discover', 'native-adopt', 'native-fork', 'native-command', 'native-set-option'])
+const USER_ONLY = new Set(['provider-save', 'provider-remove', 'diagnose', 'models', 'discover', 'respond', 'configure', 'native-stop', 'native-steer', 'native-reset', 'native-connect', 'native-discover', 'native-adopt', 'native-fork', 'native-command', 'native-set-option'])
 
 function send(res, status, value) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
@@ -96,6 +96,7 @@ export async function apply(ctx) {
           case 'native-connect': result = await native.connect(sessionId, op.externalId, op.route); break
           case 'native-command': result = await native.command(sessionId, op.command, op.arguments, op.externalId, op.commandStamp); break
           case 'native-stop': result = await native.stop(sessionId, op.externalId, op.stopId); break
+          case 'native-steer': result = await native.steer(sessionId, op.text, op.externalId); break
           case 'native-reset': result = await native.reset(op.externalId); break
           case 'native-trace': result = native.trace(op); break
           case 'native-set-option': result = await native.setOption(op); break

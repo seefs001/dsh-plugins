@@ -237,7 +237,7 @@ function createHarness() {
     }
   }
 
-  return { native, manager, agent, session, sessionEvents, toolsService, baseCalls, promptCalls, runTurn }
+  return { native, manager, agent, session, sessionEvents, toolsService, baseCalls, promptCalls, runTurn, ctx }
 }
 
 test('streams interleaved reasoning, text, and tools across ordered native steps', async () => {
@@ -627,6 +627,153 @@ test('setOption stores draft preferences before connecting and applyModel sends 
   calls.length = 0
   await h.native.applyModel(acpSession, 'composer-2', undefined)
   assert.deepEqual(calls, [{ configId: 'model', value: 'composer-2' }])
+
+  await h.native.close()
+})
+
+test('autoApprove blocks multi-allow choosers and ExitPlanMode even in full-access', async () => {
+  const h = createHarness()
+  h.ctx.get = key => key === 'permissionPresets'
+    ? { current: () => 'full-access', resolve: () => ({ sandbox: 'danger-full-access', approval: 'never' }) }
+    : undefined
+  await h.native.initialize()
+  const acpSession = { id: 'acp-ext-1', native: { sessionId: 'dsh-1' } }
+
+  assert.equal(h.native.autoApprove(acpSession, {
+    toolCall: { name: 'Bash', kind: 'execute' },
+    options: [
+      { optionId: 'allow', kind: 'allow_once' },
+      { optionId: 'reject', kind: 'reject_once' },
+    ],
+  }), 'allow')
+
+  assert.equal(h.native.autoApprove(acpSession, {
+    toolCall: { name: 'Bash', kind: 'execute' },
+    options: [
+      { optionId: 'allow-once', kind: 'allow_once' },
+      { optionId: 'allow-always', kind: 'allow_always' },
+      { optionId: 'reject', kind: 'reject_once' },
+    ],
+  }), null)
+
+  assert.equal(h.native.autoApprove(acpSession, {
+    toolCall: { _meta: { claudeCode: { toolName: 'ExitPlanMode' } }, kind: 'other' },
+    options: [{ optionId: 'allow', kind: 'allow_once' }],
+  }), null)
+
+  await h.native.close()
+})
+
+test('renders markdown plan_update documents in native stream', async () => {
+  const h = createHarness()
+  await h.native.initialize()
+  const userMessage = { id: 'u1', role: 'user', content: [{ type: 'text', text: 'Draft plan' }] }
+
+  await h.runTurn([userMessage], async p => {
+    p.send({
+      sessionUpdate: 'plan_update',
+      plan: {
+        planId: 'plan-1',
+        type: 'markdown',
+        path: '.claude/plans/fix.md',
+        content: '# Fix Plan\n\n1. Update parser\n2. Add tests',
+      },
+    })
+    p.finish('end_turn')
+  })
+
+  const messages = h.sessionEvents.filter(event => event.type === 'assistant/message')
+  assert.equal(messages.length, 1)
+  const text = messages[0].data.message.content.map(b => b.text).join('')
+  assert.match(text, /\*\*Plan\*\* \(`\.claude\/plans\/fix\.md`\)/u)
+  assert.match(text, /# Fix Plan/u)
+  await h.native.close()
+})
+
+test('coerces boolean and on/off select options, builds initialConfigOptions, and supports active-turn steering', async () => {
+  const h = createHarness()
+  const claudeAdapter = { id: 'claude-code', mapDefaultToAuto: false }
+  const advertised = advertisedModels(null, { promptCapabilities: { image: true } }, {
+    models: [
+      {
+        value: 'opus',
+        name: 'Opus 5.5',
+        configOptions: [
+          { id: 'effort', category: 'thought_level', type: 'select', currentValue: 'high', options: [{ value: 'low', name: 'Low' }, { value: 'high', name: 'High' }] },
+          { id: 'fast', name: 'Fast', category: 'model_config', type: 'boolean', currentValue: false },
+          { id: 'ultracode', name: 'Ultracode', category: 'model_config', type: 'boolean', currentValue: false },
+        ],
+      },
+    ],
+  }, claudeAdapter)
+  h.manager.store.providers.set('claude', {
+    id: 'claude',
+    label: 'Claude Code',
+    models: [],
+    advertised: {
+      models: advertised,
+      modes: { configId: 'mode', currentModeId: 'default', options: [{ value: 'default', name: 'Default' }, { value: 'plan', name: 'Plan' }] },
+    },
+  })
+  h.agent.status = 'idle'
+  h.agent.model = { current: () => ({ provider: 'acp-claude', model: 'opus' }) }
+
+  const calls = []
+  h.manager.configure = async (target, op) => {
+    calls.push(op)
+    const opt = target.configOptions.find(item => item.id === op.configId)
+    if (opt) opt.currentValue = op.value
+    return target
+  }
+  const steered = []
+  h.manager.steer = async (session, text) => {
+    steered.push({ id: session.id, text })
+    return { steered: true }
+  }
+
+  await h.native.initialize()
+  await h.native.setOption({ dshSessionId: 'dsh-1', route: 'acp-claude', modeId: 'plan' })
+  await h.native.setOption({ dshSessionId: 'dsh-1', route: 'acp-claude', configId: 'fast', value: true })
+  await h.native.setOption({ dshSessionId: 'dsh-1', route: 'acp-claude', configId: 'ultracode', value: 'on' })
+
+  const acpSession = {
+    id: 'acp-ext-claude',
+    providerId: 'claude',
+    cwd: '/repo',
+    state: 'running',
+    agentMeta: { steering: true },
+    configOptions: [
+      { id: 'mode', category: 'mode', type: 'select', currentValue: 'default', options: [{ value: 'default', name: 'Default' }, { value: 'plan', name: 'Plan' }] },
+      { id: 'model', category: 'model', type: 'select', currentValue: 'opus', options: [{ value: 'opus', name: 'Opus 5.5' }] },
+      { id: 'fast', category: 'model_config', type: 'select', currentValue: 'off', options: [{ value: 'off', name: 'Off' }, { value: 'on', name: 'On' }] },
+      { id: 'ultracode', category: 'model_config', type: 'boolean', currentValue: false },
+    ],
+    native: { sessionId: 'dsh-1', route: 'acp-claude', runs: [] },
+  }
+  h.manager.store.sessions.set(acpSession.id, acpSession)
+  h.manager.runtimes.set(acpSession.id, { turnId: 'turn-1', closing: false, canceling: false, interactions: new Map() })
+
+  const initial = h.native.initialConfigOptionsFor(acpSession, 'opus', 'low')
+  assert.deepEqual(initial, [
+    { configId: 'model', value: 'opus' },
+    { configId: 'effort', value: 'low' },
+    { configId: 'mode', value: 'plan' },
+    { configId: 'fast', value: true },
+    { configId: 'ultracode', value: true },
+  ])
+
+  await h.native.applyModel(acpSession, 'opus', undefined)
+  assert.deepEqual(calls, [
+    { configId: 'mode', value: 'plan' },
+    { configId: 'fast', value: 'on' },
+    { configId: 'ultracode', value: true },
+  ])
+
+  const snap = h.native.snapshot('dsh-1')
+  assert.equal(snap.controls.canSteer, true)
+
+  await h.native.steer('dsh-1', 'Focus on parser.js only')
+  assert.deepEqual(steered, [{ id: 'acp-ext-claude', text: 'Focus on parser.js only' }])
 
   await h.native.close()
 })

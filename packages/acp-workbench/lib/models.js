@@ -1,8 +1,11 @@
+import { inferContextWindow, isAutoDefaultModel } from './adapters.js'
+
 const ZERO_WIDTH = /[\u200B-\u200D\uFEFF]/gu
 const PARAMETERIZED_MODEL = /^([^[\]]+)\[([^[\]]*)\]$/u
 const REASONING_KEYS = ['effort', 'reasoning_effort', 'reasoning', 'thinking']
 const BOOLEAN_VALUES = new Set(['true', 'false', 'on', 'off'])
 const EFFORT_ORDER = ['off', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'extra-high', 'max']
+const EFFORT_SET = new Set(EFFORT_ORDER)
 
 export const cleanLabel = value => typeof value === 'string' ? value.replace(ZERO_WIDTH, '').trim() : ''
 const choices = option => (option?.options ?? []).flatMap(group => group.options ?? [group])
@@ -42,16 +45,38 @@ export function parseParameterizedModelId(id) {
   return { baseId: match[1].trim(), params }
 }
 
-export function extractLegacyOverrides(rawModelId) {
+function matchFlatVariant(rawModelId, provider) {
+  if (typeof rawModelId !== 'string') return null
+  const trimmed = rawModelId.trim()
+  const models = provider?.advertised?.models
+  if (!trimmed || !Array.isArray(models) || !models.length) return null
+  if (models.some(model => model.id === trimmed)) return null
+  for (const model of models) {
+    const prefix = `${model.id}-`
+    if (!trimmed.startsWith(prefix)) continue
+    const suffix = trimmed.slice(prefix.length)
+    if (!suffix) continue
+    const match = model.reasoning?.efforts?.find(item => item.id.toLowerCase() === suffix.toLowerCase())
+    if (match) return { model, effort: match.id }
+  }
+  return null
+}
+
+export function extractLegacyOverrides(rawModelId, provider) {
   const { baseId, params } = parseParameterizedModelId(rawModelId)
-  if (!baseId || baseId === rawModelId?.trim()) return { baseId, effort: undefined, options: {} }
-  const effort = params.thinking === 'false'
-    ? 'off'
-    : params.effort ?? params.reasoning_effort ?? params.reasoning ?? params.thinking
-  const options = {}
-  if (params.fast !== undefined) options.fast = params.fast
-  if (params.context !== undefined) options.context = params.context
-  return { baseId, effort, options }
+  if (!baseId) return { baseId, effort: undefined, options: {} }
+  if (baseId !== rawModelId?.trim()) {
+    const effort = params.thinking === 'false'
+      ? 'off'
+      : params.effort ?? params.reasoning_effort ?? params.reasoning ?? params.thinking
+    const options = {}
+    if (params.fast !== undefined) options.fast = params.fast
+    if (params.context !== undefined) options.context = params.context
+    return { baseId, effort, options }
+  }
+  const flat = matchFlatVariant(rawModelId, provider)
+  if (flat) return { baseId: flat.model.id, effort: flat.effort, options: {} }
+  return { baseId, effort: undefined, options: {} }
 }
 
 export function inputModalities(capabilities) {
@@ -261,13 +286,49 @@ export function modelContextWindow(model, optionOverrides) {
   return positive(model?.contextWindow) ? model.contextWindow : undefined
 }
 
-function buildAdvertisedEntry(raw, { configOptions, modalities, hasExplicitAuto }) {
+function deriveSuffixThoughtConfig(baseId, availableModels, sessionConfigOptions) {
+  if (!baseId || !Array.isArray(availableModels) || !availableModels.length) return undefined
+  const prefix = `${baseId}-`
+  const liveThought = (sessionConfigOptions ?? []).find(item => item?.category === 'thought_level' && item.type === 'select')
+  const labelByValue = new Map(choices(liveThought).map(item => [item.value.toLowerCase(), cleanLabel(item.name ?? item.value)]))
+  const seen = new Set()
+  const matched = []
+  for (const item of availableModels) {
+    const candidate = item?.modelId
+    if (typeof candidate !== 'string' || !candidate.startsWith(prefix)) continue
+    const suffix = candidate.slice(prefix.length)
+    const normalized = suffix.toLowerCase()
+    if (!EFFORT_SET.has(normalized) || seen.has(normalized)) continue
+    seen.add(normalized)
+    const fallbackLabel = normalized === 'xhigh' ? 'Extra' : `${suffix[0].toUpperCase()}${suffix.slice(1)}`
+    matched.push({
+      value: suffix,
+      name: labelByValue.get(normalized) || fallbackLabel,
+    })
+  }
+  const hasExact = availableModels.some(item => item?.modelId === baseId)
+  if (matched.length < 2 && (matched.length < 1 || hasExact)) return undefined
+  matched.sort((a, b) => EFFORT_ORDER.indexOf(a.value.toLowerCase()) - EFFORT_ORDER.indexOf(b.value.toLowerCase()))
+  const preferredDefault = matched.find(item => item.value.toLowerCase() === 'high')?.value
+    ?? matched.find(item => item.value.toLowerCase() === 'medium')?.value
+    ?? matched[0].value
+  return [{
+    id: liveThought?.id ?? 'thought_level',
+    name: cleanLabel(liveThought?.name) || 'Thought Level',
+    category: 'thought_level',
+    type: 'select',
+    currentValue: preferredDefault,
+    options: matched,
+  }]
+}
+
+function buildAdvertisedEntry(raw, { configOptions, modalities, hasExplicitAuto, adapter }) {
   const rawId = raw.id
   if (typeof rawId !== 'string' || !rawId) return null
   let id = rawId
   let wireId
   if (rawId === 'default') {
-    if (hasExplicitAuto) return null
+    if (!isAutoDefaultModel(raw, adapter) || hasExplicitAuto) return null
     id = 'auto'
     wireId = 'default'
   }
@@ -277,7 +338,10 @@ function buildAdvertisedEntry(raw, { configOptions, modalities, hasExplicitAuto 
     ? raw.inputModalities.filter(item => (item === 'text' || item === 'image') && (!modalities || modalities.includes(item)))
     : modalities
   const contextOpt = options.find(item => item.id === 'context' && item.type === 'select')
-  const context = raw.contextWindow ?? raw.context?.contextWindow ?? parseContextSize(contextOpt?.defaultValue)
+  const context = raw.contextWindow
+    ?? raw.context?.contextWindow
+    ?? parseContextSize(contextOpt?.defaultValue)
+    ?? inferContextWindow(raw, adapter)
   const name = cleanLabel(raw.name ?? id) || id
   const description = typeof raw.description === 'string' ? cleanLabel(raw.description) : ''
   return {
@@ -293,7 +357,7 @@ function buildAdvertisedEntry(raw, { configOptions, modalities, hasExplicitAuto 
   }
 }
 
-export function advertisedModels(result, capabilities, catalog = null) {
+export function advertisedModels(result, capabilities, catalog = null, adapter = null) {
   const modalities = inputModalities(capabilities)
   if (Array.isArray(catalog?.models) && catalog.models.length > 0) {
     const hasExplicitAuto = catalog.models.some(item => item?.value === 'auto')
@@ -301,23 +365,53 @@ export function advertisedModels(result, capabilities, catalog = null) {
       .filter(item => typeof item?.value === 'string' && item.value)
       .map(item => buildAdvertisedEntry(
         { id: item.value, name: item.name, description: item.description, _meta: item._meta },
-        { configOptions: item.configOptions ?? [], modalities, hasExplicitAuto },
+        { configOptions: item.configOptions ?? [], modalities, hasExplicitAuto, adapter },
       ))
       .filter(Boolean)
   }
 
-  const listed = result?.models?.availableModels
+  const listed = Array.isArray(result?.models?.availableModels) ? result.models.availableModels : []
   const modelOption = (result?.configOptions ?? []).find(item => item.category === 'model' && item.type !== 'boolean')
-  const source = Array.isArray(listed) && listed.length
-    ? listed.filter(model => typeof model?.modelId === 'string').map(model => ({ ...model, id: model.modelId }))
-    : choices(modelOption).map(model => ({ ...model, id: model.value }))
+  const optionModels = choices(modelOption)
   const current = modelOption?.currentValue ?? result?.models?.currentModelId
+
+  if (optionModels.length > 0) {
+    const listedById = new Map(listed.filter(item => typeof item?.modelId === 'string').map(item => [item.modelId, item]))
+    const source = optionModels.map(item => {
+      const extra = listedById.get(item.value)
+      return {
+        ...extra,
+        ...item,
+        id: item.value,
+        description: item.description ?? extra?.description,
+      }
+    })
+    const hasExplicitAuto = source.some(item => item?.id === 'auto')
+    const models = source
+      .map(model => {
+        const configOptions = model.configOptions
+          ?? (model.id === current ? result?.configOptions : deriveSuffixThoughtConfig(model.id, listed, result?.configOptions))
+        return buildAdvertisedEntry(model, {
+          configOptions,
+          modalities,
+          hasExplicitAuto,
+          adapter,
+        })
+      })
+      .filter(Boolean)
+    return variantReasoning(models)
+  }
+
+  const source = listed
+    .filter(model => typeof model?.modelId === 'string')
+    .map(model => ({ ...model, id: model.modelId }))
   const hasExplicitAuto = source.some(item => item?.id === 'auto')
   const models = source
     .map(model => buildAdvertisedEntry(model, {
       configOptions: model.configOptions ?? (model.id === current ? result?.configOptions : undefined),
       modalities,
       hasExplicitAuto,
+      adapter,
     }))
     .filter(Boolean)
   return variantReasoning(models)
@@ -331,6 +425,7 @@ export function visibleModels(provider) {
     if (!model?.id || model.id === 'default' || advertisedIds.has(model.id)) return false
     const { baseId } = parseParameterizedModelId(model.id)
     if (baseId !== model.id && (advertisedIds.has(baseId) || (baseId === 'default' && advertisedIds.has('auto')))) return false
+    if (matchFlatVariant(model.id, provider)) return false
     return true
   })
   return [...advertised, ...extras].filter(model => model.id !== 'default' && !hidden.has(model.id))
@@ -352,6 +447,8 @@ export function modelDetails(provider, id) {
     ? provider?.advertised?.models?.find(model => model.id === resolvedBase)
     : undefined
   if (byBase) return { ...byBase, id: byBase.id }
+  const flat = matchFlatVariant(id, provider)
+  if (flat) return { ...flat.model, id: flat.model.id }
   const selected = provider?.models?.find(model => model.id === id)
   return { ...selected, id }
 }
