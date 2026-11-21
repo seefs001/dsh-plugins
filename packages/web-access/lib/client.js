@@ -2,6 +2,7 @@ window.__ModuleLoader__.load({
   id: 'dsh-web-access',
   factory(require) {
     const React = require('react')
+    const { Switch } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'web-access'
     const KEY = 'dsh-web-access'
@@ -69,24 +70,26 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
-.wa{--wa-line:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);--wa-r:var(--dsw-radius-sm,8px);display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.wa{--wa-line:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);--wa-r:var(--dsw-radius-sm,8px);display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .wa-title{margin:0;font-size:14px;line-height:20px;font-weight:500}
 .wa-hint,.wa-note{color:var(--dsw-alias-label-secondary);line-height:20px}
 .wa-note.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
 .wa-note.err{color:var(--dsw-alias-state-error-primary)}
 .wa-note.ok{color:var(--dsw-alias-state-success-primary)}
-.wa-row{display:grid;grid-template-columns:120px minmax(0,360px);gap:8px;align-items:center}
+.wa-row{display:grid;grid-template-columns:132px minmax(0,380px);gap:8px;align-items:center}
+.wa-row:has([role=switch]){cursor:pointer}
+.wa-row:has([role=switch]:disabled){cursor:default}
 .wa-row>span{color:var(--dsw-alias-label-secondary)}
-.wa select{height:32px;min-width:0;padding:0 8px;border:var(--wa-line);border-radius:var(--wa-r);background:var(--dsw-alias-button-elevated-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer}
+.wa select{height:32px;min-width:0;padding:0 10px;border:var(--wa-line);border-radius:var(--wa-r);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer}
 .wa select:disabled{opacity:.6;cursor:default}
-.wa input[type=checkbox]{justify-self:start;width:16px;height:16px;cursor:pointer}
-.wa select:focus-visible,.wa-btn:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:1px}
-.wa-section{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l1)}
+.wa select:focus-visible,.wa-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.wa-section{display:flex;flex-direction:column;gap:12px;padding-top:14px;border-top:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1)}
 .wa-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.wa-btn{height:30px;padding:0 14px;border:var(--wa-line);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit;transition:background-color .15s}
-.wa-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
-.wa-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-inverted,var(--dsw-alias-bg-base))}
+.wa-btn{height:30px;padding:0 14px;border:var(--wa-line);border-radius:999px;corner-shape:round;background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit;transition:background-color .15s}
+.wa-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}
 .wa-btn:disabled{opacity:.4;cursor:default}
+@media (hover:hover){.wa-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.wa-btn.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
+@media (pointer:coarse){.wa select{font-size:16px}}
 @media (max-width:560px){.wa-row{grid-template-columns:1fr}}
 `
 
@@ -119,6 +122,12 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'remote', 'remote.session'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'web-access: dictionaries')
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'web-access: styles')
         const t = ctx.locale.bind(NS)
 
         // external: dsh built-in web tool view is keyed strictly to web_search
@@ -245,7 +254,7 @@ window.__ModuleLoader__.load({
               h('h4', { className: 'wa-title' }, t(kind === 'grok' ? 'grokTitle' : 'openaiTitle')),
               h('label', { className: 'wa-row' },
                 h('span', null, t('enabled')),
-                h('input', { type: 'checkbox', checked: value.enabled, disabled: busy, onChange: e => patch(kind, { enabled: e.target.checked }) })),
+                h(Switch, { checked: value.enabled, disabled: busy, label: t('enabled'), onChange: enabled => patch(kind, { enabled }) })),
               h('label', { className: 'wa-row' },
                 h('span', null, t('model')),
                 h('select', { value: key, onChange: onModel, disabled: busy || !value.enabled }, options)),
@@ -263,7 +272,6 @@ window.__ModuleLoader__.load({
           }
 
           return h('div', { className: 'wa' },
-            h('style', null, CSS),
             h('h4', { className: 'wa-title' }, t('title')),
             h('div', { className: 'wa-hint' }, t('hint'), ' ', t('onlyResponses')),
             catalog.status === 'loading' ? h('div', { className: 'wa-note' }, t('loading')) : null,

@@ -150,6 +150,13 @@ window.__ModuleLoader__.load({
         ctx.effect(() => installEffortMemory(ModelDirectory), 'model-reference: restore model efforts')
         ctx.effect(() => ctx.locale.register(NS, 'en', { title: 'Reference a model', aria: 'Models' }), 'model-reference: en')
         ctx.effect(() => ctx.locale.register(NS, 'zh', { title: '引用模型', aria: '模型' }), 'model-reference: zh')
+        ctx.effect(() => {
+          if (typeof document === 'undefined') return undefined
+          const style = document.createElement('style')
+          style.textContent = CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'model-reference: styles')
         const t = ctx.locale.bind(NS)
 
         // external: DSH attaches reference codecs through inputTriggers.registerSource('@')
@@ -268,7 +275,6 @@ window.__ModuleLoader__.load({
           }, [visible, index])
 
           return h(React.Fragment, null,
-            h('style', null, CSS),
             h('span', { ref: anchorRef, className: 'mh-anchor' }),
             visible ? h('div', { className: 'mh-menu', role: 'listbox', 'aria-label': t('aria'), 'aria-activedescendant': `mh-opt-${index}` },
               h('div', { className: 'mh-title', role: 'presentation' }, t('title')),

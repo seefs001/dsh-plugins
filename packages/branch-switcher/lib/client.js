@@ -26,28 +26,31 @@ window.__ModuleLoader__.load({
     }
     const CSS = `
 .dbs-root{display:inline-flex;flex:none;align-items:center;gap:2px;min-width:0}
-.dbs-chip,.dbs-toggle{display:inline-flex;align-items:center;gap:6px;min-width:0;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer}
+.dbs-chip,.dbs-toggle{display:inline-flex;align-items:center;gap:6px;min-width:0;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer}
 .dbs-chip{max-width:200px}.dbs-chip svg{width:14px;height:14px;flex:none}.dbs-label{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .dbs-toggle input{width:14px;height:14px;flex:none;margin:0;accent-color:var(--dsw-alias-brand-primary);cursor:inherit}
 .dbs-chip:disabled,.dbs-toggle:has(input:disabled){color:var(--dsw-alias-label-dimmed);cursor:default}
-.dbs-chip:focus-visible,.dbs-toggle:has(input:focus-visible),.dbs-pop button:focus-visible,.dbs-search:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}
+.dbs-chip:focus-visible,.dbs-toggle:has(input:focus-visible),.dbs-pop button:focus-visible,.dbs-search:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .dbs-toggle input:focus-visible{outline:none}
-.dbs-pop{box-sizing:border-box;position:fixed;inset:auto;margin:0;width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:8px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 8px 32px var(--dsw-alias-bg-mask-1);font:inherit;font-size:13px;text-align:left;overflow:auto}
+.dbs-pop{box-sizing:border-box;position:fixed;inset:auto;margin:0;width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:8px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);color:var(--dsw-alias-label-primary);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);font:inherit;font-size:13px;text-align:left;overflow:auto}
 .dbs-pop::backdrop{background:transparent}
 .dbs-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 4px 8px;font-weight:500}
-.dbs-search{box-sizing:border-box;width:100%;height:34px;margin:0 0 6px;padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit}
+.dbs-search{box-sizing:border-box;width:100%;height:32px;margin:0 0 6px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:inherit;font:inherit}
 .dbs-list{max-height:240px;overflow:auto;overscroll-behavior:contain}
-.dbs-row{display:flex;align-items:center;gap:8px;width:100%;min-height:34px;padding:7px 10px;border:0;border-radius:7px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.dbs-row{display:flex;align-items:center;gap:8px;width:100%;min-height:32px;padding:6px 10px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .dbs-row[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active)}
-.dbs-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;font-size:12px}
+.dbs-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px}
 .dbs-note{flex:none;color:var(--dsw-alias-label-tertiary);font-size:12px}.dbs-hint{margin:8px 4px 4px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.6;overflow-wrap:anywhere;white-space:normal}
 .dbs-small{color:var(--dsw-alias-label-tertiary);font-size:11px}
 .dbs-error{margin:8px 4px;color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
-.dbs-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid var(--dsw-alias-border-l1)}
-.dbs-btn{min-height:32px;padding:4px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.dbs-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px;padding-top:8px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.dbs-btn{display:inline-flex;align-items:center;justify-content:center;height:30px;padding:0 12px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;font-size:13px;cursor:pointer}
+.dbs-btn:not(.dbs-close){border-radius:999px;corner-shape:round}
+.dbs-close{width:26px;height:26px;padding:0;border:0;color:var(--dsw-alias-label-secondary)}
 .dbs-primary{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);border-color:transparent}.dbs-btn:disabled{opacity:.45;cursor:default}
 .dbs-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 @media(hover:hover){.dbs-chip:hover:not(:disabled),.dbs-toggle:hover:not(:has(input:disabled)),.dbs-row:hover:not(:disabled),.dbs-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dbs-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
+@media(pointer:coarse){.dbs-search{font-size:16px}}
 @media(max-width:600px){.dbs-root{flex-direction:column;align-items:flex-end;gap:0}.dbs-chip{max-width:120px}}
 `
     function BranchIcon() {
@@ -55,11 +58,25 @@ window.__ModuleLoader__.load({
         h('circle', { cx: 4, cy: 3, r: 1.5 }), h('circle', { cx: 4, cy: 13, r: 1.5 }),
         h('circle', { cx: 12, cy: 4, r: 1.5 }), h('path', { d: 'M4 4.5v7M12 5.5C12 10 4 7 4 11.5' }))
     }
+    function ChevronDownIcon() {
+      return h('svg', { viewBox: '0 0 14 14', width: 12, height: 12, fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+        h('path', { d: 'M3.5 5.25 7 8.75l3.5-3.5' }))
+    }
+    function CloseIcon() {
+      return h('svg', { viewBox: '0 0 14 14', width: 14, height: 14, fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', 'aria-hidden': true },
+        h('path', { d: 'M3.5 3.5 10.5 10.5M10.5 3.5 3.5 10.5' }))
+    }
     return {
       inject: ['slots', 'locale', 'remote', 'remote.commands', 'remote.forgePanel'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, 'en', EN))
         ctx.effect(() => ctx.locale.register(NS, 'zh', ZH))
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS
+          document.head.append(style)
+          return () => style.remove()
+        })
         const t = ctx.locale.bind(NS)
         const tf = (key, branch) => t(key).replace('{branch}', () => branch)
         async function request(sessionId, args) {
@@ -145,15 +162,14 @@ window.__ModuleLoader__.load({
           if (!panel?.worktree.editable || panel.worktree.blocker === 'not-git' || state?.state !== 'ready') return null
           const worktreeBlocked = panel.worktree.blocker !== null
           return h('span', { className: 'dbs-root', 'data-branch-switcher': '' },
-            h('style', null, CSS),
             h('button', { ref: button, type: 'button', className: 'dbs-chip', disabled: pending || readonly,
               'aria-label': `${t('switch')}: ${label}`, title: readonly ? t('readonly') : `${t('switch')}: ${label}`, 'aria-haspopup': 'dialog', onClick: show },
-            h(BranchIcon), h('span', { className: 'dbs-label' }, label), h('span', { 'aria-hidden': true }, '⌄')),
+            h(BranchIcon), h('span', { className: 'dbs-label' }, label), h(ChevronDownIcon)),
             h('label', { className: 'dbs-toggle', title: worktreeBlocked ? props.t(`worktree.blocked.${panel.worktree.blocker}`) : t('worktreeHint') },
               h('input', { type: 'checkbox', checked: false, disabled: pending || worktreeBlocked, onChange: () => void worktree() }), t('worktree')),
             h('span', { role: 'status', className: 'dbs-status' }, message),
             h('div', { ref: popup, popover: 'auto', role: 'dialog', 'aria-label': t('switch'), className: 'dbs-pop', onKeyDown: keys },
-              h('div', { className: 'dbs-heading' }, t('switch'), h('button', { type: 'button', className: 'dbs-btn', 'aria-label': t('close'), onClick: close }, '×')),
+              h('div', { className: 'dbs-heading' }, t('switch'), h('button', { type: 'button', className: 'dbs-btn dbs-close', 'aria-label': t('close'), onClick: close }, h(CloseIcon))),
               h('input', { ref: search, type: 'search', className: 'dbs-search', placeholder: t('search'), 'aria-label': t('search'), value: query, disabled: pending,
                 onChange: event => { setQuery(event.target.value); setCandidate(null) },
                 onKeyDown: event => { if (!event.nativeEvent.isComposing && event.keyCode !== 229 && event.key === 'Enter' && rows[0]) { event.preventDefault(); setCandidate(rows[0]) } } }),

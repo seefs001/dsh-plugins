@@ -2,6 +2,7 @@ window.__ModuleLoader__.load({
   id: 'dsh-roles',
   factory(require) {
     const React = require('react')
+    const { Button, Modal } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'roles'
     const KEY = 'dsh-roles'
@@ -81,6 +82,7 @@ window.__ModuleLoader__.load({
       moveDown: 'Move down',
       reset: 'Reset to built-in',
       resetConfirm: 'Reset "{name}" to its built-in content? Your edits will be lost.',
+      cancel: 'Cancel',
       delete: 'Delete',
       deleteConfirm: 'Delete role "{name}"?',
       deleteConfirmUsed: 'Delete role "{name}"? {n} sessions using it will switch to None.',
@@ -175,6 +177,7 @@ window.__ModuleLoader__.load({
       moveDown: '下移',
       reset: '恢复内置内容',
       resetConfirm: '将“{name}”恢复为内置内容？当前修改会丢失。',
+      cancel: '取消',
       delete: '删除',
       deleteConfirm: '删除角色“{name}”？',
       deleteConfirmUsed: '删除角色“{name}”？正在使用它的 {n} 个会话将回到无角色。',
@@ -276,16 +279,17 @@ window.__ModuleLoader__.load({
 .rl-opt-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rl-check{flex:0 0 auto;width:14px;height:14px;color:var(--dsw-alias-label-primary)}
 .rl-manage{color:var(--dsw-alias-label-secondary)}
-.rl-chip{display:inline-flex;align-items:center;gap:4px;max-width:200px;height:24px;padding:0 8px;border:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:22px;white-space:nowrap;cursor:pointer;transition:background-color .15s}
-.rl-chip:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
-.rl-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:1px}
+.rl-chip{display:inline-flex;align-items:center;gap:5px;max-width:200px;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .15s,color .15s}
+@media (hover:hover){.rl-chip:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}}
+.rl-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .rl-chip b{font-weight:500;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis}
 `
 
     const PAGE_CSS = `
-.rlp{--rlp-line:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);--rlp-soft:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l1);--rlp-mono:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;display:flex;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.rlp{--rlp-line:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l2);--rlp-soft:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1);--rlp-mono:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);display:flex;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .rlp :where(button){font:inherit}
-.rlp :focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:1px}
+.rlp :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.rlp-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
 .rlp-side{display:flex;flex-direction:column;flex:0 0 288px;min-width:0;min-height:0;border-right:var(--rlp-soft)}
 .rlp-side-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:28px 16px 12px 20px}
 [data-platform=darwin] .rlp-side-head,[data-platform=darwin] .rlp-ed-head{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
@@ -304,8 +308,8 @@ window.__ModuleLoader__.load({
 .rlp-item-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 .rlp-item-desc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
 .rlp-item-meta{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rlp-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-warn-primary)}
-.rlp-live{flex:none;width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-success-primary)}
+.rlp-dot{flex:none;width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-warn-primary)}
+.rlp-live{flex:none;width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-success-primary)}
 .rlp-side-foot{padding:8px 16px 16px;border-top:var(--rlp-soft)}
 .rlp-empty{padding:16px 12px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
 .rlp-main{position:relative;display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
@@ -332,7 +336,7 @@ window.__ModuleLoader__.load({
 .rlp-title-input[aria-invalid=true]{border-color:var(--dsw-alias-state-error-primary)}
 .rlp-title-input::placeholder,.rlp-desc-input::placeholder,.rlp textarea::placeholder,.rlp-field input::placeholder{color:var(--dsw-alias-label-tertiary)}
 .rlp-badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;color:var(--dsw-alias-label-tertiary);font-size:12px}
-.rlp-tag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:20px;white-space:nowrap}
+.rlp-tag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px;border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:20px;white-space:nowrap}
 .rlp-tag.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
 .rlp-head-actions{flex:none;display:flex;align-items:center;gap:8px;padding-top:2px}
 .rlp-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border:var(--rlp-line);border-radius:16px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;white-space:nowrap;cursor:pointer;transition:background-color .15s}
@@ -345,7 +349,7 @@ window.__ModuleLoader__.load({
 .rlp-btn.danger{color:var(--dsw-alias-state-error-primary)}
 .rlp-btn:disabled{opacity:.4;cursor:default}
 .rlp-pop-anchor{position:relative}
-.rlp-pop{position:absolute;z-index:20;top:calc(100% + 6px);min-width:180px;padding:4px;border:var(--rlp-line);border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-bg-layer-1);box-shadow:var(--dsw-shadow-lv2)}
+.rlp-pop{position:absolute;z-index:20;top:calc(100% + 6px);min-width:180px;padding:4px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent)}
 .rlp-pop.right{right:0}
 .rlp-pop.left{left:0}
 .rlp-menu-item{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-primary);text-align:left;cursor:pointer;white-space:nowrap}
@@ -367,7 +371,7 @@ window.__ModuleLoader__.load({
 .rlp-tab[aria-selected=true]{color:var(--dsw-alias-label-primary)}
 .rlp-tab[aria-selected=true]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:1px;background:var(--dsw-alias-brand-primary)}
 .rlp-count{min-width:16px;height:16px;padding:0 5px;border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;text-align:center}
-.rlp-err-dot{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-error-primary)}
+.rlp-err-dot{width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-error-primary)}
 .rlp-hint{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
 .rlp-err{margin:0;color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}
 .rlp-meter{display:flex;justify-content:space-between;gap:12px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
@@ -413,9 +417,10 @@ window.__ModuleLoader__.load({
 .rlp-blank>div{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:360px}
 .rlp-blank-icon{font-size:40px;line-height:1}
 @media (max-width:760px){.rlp{flex-direction:column;overflow:auto}.rlp-side{flex:none;max-height:45%;border-right:0;border-bottom:var(--rlp-soft)}.rlp-main{flex:none;min-height:70vh}}
+@media (pointer:coarse){.rlp-search input,.rlp-field input,.rlp textarea,.rlp-title-input,.rlp-desc-input{font-size:16px}}
 .rlc{display:flex;flex-direction:column;align-items:flex-start;gap:10px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}
 .rlc p{margin:0}
-.rlc .rlp-btn{height:30px}
+.rlc .rlp-btn{height:30px;border-radius:999px;corner-shape:round}
 `
 
     function Chevron({ open, className = 'rl-chev' }) {
@@ -451,6 +456,12 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'layout'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'roles: dictionaries')
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = MENU_CSS + PAGE_CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'roles: styles')
         const t = ctx.locale.bind(NS)
         const useLocale = () => React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
         const nav = { roleId: null, seq: 0, listeners: new Set() }
@@ -488,7 +499,6 @@ window.__ModuleLoader__.load({
           }
           const busy = locked || pending !== null
           return h(React.Fragment, null,
-            h('style', null, MENU_CSS),
             h('button', {
               type: 'button', role: 'menuitem', className: 'rl-cell', 'aria-expanded': open,
               onClick: () => setOpen(!open),
@@ -534,7 +544,6 @@ window.__ModuleLoader__.load({
           if (!role) return null
           const title = t('chipTitle', { name: role.name })
           return h('button', { type: 'button', className: 'rl-chip', title, 'aria-label': title, onClick: () => openManager(role.id) },
-            h('style', null, MENU_CSS),
             role.icon ? h('span', { 'aria-hidden': true }, role.icon) : null,
             h('b', null, role.name))
         }
@@ -884,6 +893,7 @@ window.__ModuleLoader__.load({
             return () => document.removeEventListener('keydown', key)
           }, [])
 
+          const [confirmState, setConfirmState] = React.useState(null)
           const index = stored ? roles.indexOf(stored) : -1
           const used = stored ? Object.values(sessions).filter(id => id === stored.id).length : 0
           const modified = stored?.builtin && builtinModified.includes(stored.id)
@@ -899,13 +909,24 @@ window.__ModuleLoader__.load({
               { label: t('moveDown'), disabled: busy || index >= roles.length - 1, onClick: () => run({ action: 'move', roleId: stored.id, beforeRoleId: roles[index + 2]?.id }) },
             ]),
             ...(stored?.builtin ? [{ label: t('reset'), disabled: busy || (!modified && !dirty),
-              onClick: () => window.confirm(t('resetConfirm', { name: stored.name })) && run({ action: 'reset', roleId: stored.id }, () => ui.setDraft(roleKey, undefined)) }] : []),
+              onClick: () => setConfirmState({
+                title: t('reset'),
+                description: t('resetConfirm', { name: stored.name }),
+                confirmLabel: t('reset'),
+                danger: false,
+                onConfirm: () => run({ action: 'reset', roleId: stored.id }, () => ui.setDraft(roleKey, undefined)),
+              }) }] : []),
             '-',
             isNew
               ? { label: t('discardNew'), danger: true, onClick: discard }
               : { label: t('delete'), danger: true, disabled: busy,
-                onClick: () => window.confirm(used ? t('deleteConfirmUsed', { name: stored.name, n: used }) : t('deleteConfirm', { name: stored.name }))
-                  && run({ action: 'delete', roleId: stored.id }, () => { ui.setDraft(roleKey, undefined); onDeleted(roleKey) }) },
+                onClick: () => setConfirmState({
+                  title: t('delete'),
+                  description: used ? t('deleteConfirmUsed', { name: stored.name, n: used }) : t('deleteConfirm', { name: stored.name }),
+                  confirmLabel: t('delete'),
+                  danger: true,
+                  onConfirm: () => run({ action: 'delete', roleId: stored.id }, () => { ui.setDraft(roleKey, undefined); onDeleted(roleKey) }),
+                }) },
           ]
 
           const toggleSkill = key => setOpenSkills(prev => {
@@ -987,7 +1008,21 @@ window.__ModuleLoader__.load({
               dirty ? h('span', { className: 'rlp-kbd' }, t('saveShortcut')) : null,
               h('button', { type: 'button', className: 'rlp-btn', disabled: busy || !dirty, onClick: discard }, isNew ? t('discardNew') : t('discard')),
               h('button', { type: 'button', className: 'rlp-btn primary', disabled: busy || !dirty, onClick: save },
-                busy ? t('saving') : isNew ? t('create') : t('save'))))
+                busy ? t('saving') : isNew ? t('create') : t('save'))),
+            confirmState ? h(Modal, {
+              open: true,
+              onClose: () => setConfirmState(null),
+              title: confirmState.title,
+              closeLabel: t('cancel'),
+              description: confirmState.description,
+              footer: h(React.Fragment, null,
+                h(Button, { variant: 'outline', 'data-modal-autofocus': true, onClick: () => setConfirmState(null) }, t('cancel')),
+                h(Button, {
+                  variant: 'primary',
+                  className: confirmState.danger ? 'rlp-danger-fill' : undefined,
+                  onClick: () => { const fn = confirmState.onConfirm; setConfirmState(null); void fn() },
+                }, confirmState.confirmLabel)),
+            }) : null)
         }
 
         function RolesPage() {
@@ -1009,9 +1044,9 @@ window.__ModuleLoader__.load({
             if (fallback !== selected) ui.set({ selected: fallback })
           })
 
-          if (status === 'loading') return h('div', { className: 'rlp' }, h('style', null, PAGE_CSS), h('div', { className: 'rlp-blank' }, t('loading')))
+          if (status === 'loading') return h('div', { className: 'rlp' }, h('div', { className: 'rlp-blank' }, t('loading')))
           if (status === 'error') {
-            return h('div', { className: 'rlp' }, h('style', null, PAGE_CSS),
+            return h('div', { className: 'rlp' },
               h('div', { className: 'rlp-blank' }, h('div', null,
                 h('p', { className: 'rlp-err' }, t('loadFailed', { message: error })),
                 h('button', { type: 'button', className: 'rlp-btn', onClick: () => store.reload() }, t('retry')))))
@@ -1087,7 +1122,7 @@ window.__ModuleLoader__.load({
               h('p', { className: 'rlp-hint' }, t('empty')),
               h('button', { type: 'button', className: 'rlp-btn primary', onClick: newRole }, t('newRole')))))
 
-          return h('section', { className: 'rlp', 'aria-label': t('panel') }, h('style', null, PAGE_CSS), side, main)
+          return h('section', { className: 'rlp', 'aria-label': t('panel') }, side, main)
         }
 
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS }, RolesPage))
@@ -1097,7 +1132,7 @@ window.__ModuleLoader__.load({
 
         function ConfigLink() {
           useLocale()
-          return h('div', { className: 'rlc' }, h('style', null, PAGE_CSS),
+          return h('div', { className: 'rlc' },
             h('p', null, t('configHint')),
             h('button', { type: 'button', className: 'rlp-btn', onClick: () => openManager() }, t('openManager')))
         }

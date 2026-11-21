@@ -17,9 +17,9 @@ window.__ModuleLoader__.load({
   background:0 0;color:var(--dsw-alias-label-tertiary);font:inherit;font-variant-numeric:tabular-nums;line-height:inherit;white-space:nowrap;cursor:pointer}
 .dgc-pill svg{flex:none;width:14px;height:14px}
 @media (hover:hover){.dgc-pill:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}}
-.dgc-pill:focus-visible{outline:1.5px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+.dgc-pill:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .dgc-branch{min-width:0;max-width:160px;overflow:hidden;text-overflow:ellipsis}
-.dgc-sep{color:var(--dsw-alias-separator-primary,var(--dsw-alias-label-caption))}
+.dgc-sep{color:var(--dsw-alias-label-caption)}
 .dgc-add{color:var(--dsw-alias-state-success-primary)}
 .dgc-del{color:var(--dsw-alias-state-error-primary)}
 `

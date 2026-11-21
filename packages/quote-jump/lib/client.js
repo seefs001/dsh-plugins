@@ -20,7 +20,7 @@ window.__ModuleLoader__.load({
 .dqj-hint{display:block;margin-top:2px;font-size:12px;color:var(--dsw-alias-state-error-primary)}
 .dqj-quote[data-state=missing]::before{background:var(--dsw-alias-state-error-primary)}
 @media (hover:hover){.dqj-quote:hover{background:color-mix(in srgb,var(--dsw-alias-label-primary) 9%,transparent)}}
-.dqj-quote:focus-visible{outline:1.5px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+.dqj-quote:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .dqj-inline{color:var(--dsw-alias-label-secondary)}
 ::highlight(${HIGHLIGHT}){background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 30%,transparent)}
 [data-dqj-flash]{border-radius:6px;animation:dqj-flash ${HIGHLIGHT_MS}ms ease-out forwards}

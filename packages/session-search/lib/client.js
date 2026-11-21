@@ -20,32 +20,33 @@ window.__ModuleLoader__.load({
       },
     }
     const css = `
-      .dsss-actions { display:grid; gap:4px; width:100%; min-width:0 }
-      .dsss-trigger { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:34px; padding:4px; border:1px solid var(--dsw-alias-border-l1); border-radius:10px; background:var(--dsw-alias-bg-layer-1); color:var(--dsw-alias-label-primary); font:inherit; font-size:14px; cursor:pointer }
-      .dsss-trigger:hover,.dsss-close:hover { background:var(--dsw-alias-bg-layer-2) }
-      .dsss-trigger:focus-visible,.dsss-close:focus-visible { outline:2px solid var(--dsw-alias-brand-primary); outline-offset:-2px }
-      .dsss-dialog { box-sizing:border-box; width:min(680px,calc(100vw - 24px)); height:min(490px,80dvh); max-width:none; max-height:none; padding:0; position:fixed; inset:0; margin:auto; border:1px solid var(--dsw-alias-border-l2); border-radius:16px; background:var(--dsw-alias-bg-overlay); color:var(--dsw-alias-label-primary); font:inherit; pointer-events:auto; box-shadow:0 18px 70px color-mix(in srgb,var(--dsw-alias-label-primary) 17%,transparent); overflow:hidden }
+      .dsss-actions { display:grid; gap:2px; width:100%; min-width:0 }
+      .dsss-trigger { box-sizing:border-box; display:flex; align-items:center; justify-content:center; gap:var(--dsh-sidebar-label-gap,8px); width:100%; height:32px; padding:0 8px; border:0; border-radius:var(--dsw-radius-md,8px); background:transparent; color:var(--dsw-alias-label-secondary); font:inherit; font-size:14px; line-height:20px; cursor:pointer }
+      .dsss-trigger[data-wide=true] { justify-content:flex-start; padding:0 var(--dsh-sidebar-row-padding,12px) }
+      @media (hover:hover) { .dsss-trigger:hover,.dsss-close:hover { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary) } .dsss-row:hover { background:var(--dsw-alias-interactive-bg-hover) } }
+      .dsss-trigger:focus-visible,.dsss-close:focus-visible { outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary)); outline-offset:-2px }
+      .dsss-dialog { box-sizing:border-box; width:min(680px,calc(100vw - 24px)); height:min(490px,80dvh); max-width:none; max-height:none; padding:0; position:fixed; inset:0; margin:auto; border:0; border-radius:var(--dsw-radius-lg,16px); background:var(--dsw-alias-bg-layer-2); color:var(--dsw-alias-label-primary); font:inherit; pointer-events:auto; --dsw-elevation-stroke-color:var(--dsw-alias-border-l2); box-shadow:var(--dsw-elevation-prominent); overflow:hidden }
       .dsss-dialog[open] { display:flex; flex-direction:column }
-      .dsss-dialog::backdrop { background:color-mix(in srgb,var(--dsw-alias-label-secondary) 35%,transparent) }
-      .dsss-head { display:flex; align-items:center; gap:12px; padding:18px; border-bottom:1px solid var(--dsw-alias-border-l1) }
-      .dsss-head input { flex:1; min-width:0; border:0; padding:3px 0; outline:none; font:inherit; font-size:18px; background:transparent; color:inherit }
+      .dsss-dialog::backdrop { background:var(--dsw-alias-bg-mask-1) }
+      .dsss-head { display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:.5px solid var(--dsw-alias-border-l1) }
+      .dsss-head input { flex:1; min-width:0; border:0; padding:3px 0; outline:none; font:inherit; font-size:15px; line-height:22px; background:transparent; color:inherit }
       .dsss-head input::placeholder,.dsss-meta,.dsss-snippet,.dsss-caption,.dsss-footer,.dsss-status { color:var(--dsw-alias-label-secondary) }
-      .dsss-close { font:inherit; font-size:12px; color:var(--dsw-alias-label-secondary); background:transparent; border:1px solid var(--dsw-alias-border-l2); border-radius:6px; padding:4px 7px; cursor:pointer }
-      .dsss-caption { margin:0; padding:12px 18px 6px; font-size:12px; font-weight:600 }
+      .dsss-close { font:inherit; font-size:12px; color:var(--dsw-alias-label-secondary); background:transparent; border:.5px solid var(--dsw-alias-border-l3); border-radius:var(--dsw-radius-xs,4px); padding:3px 7px; cursor:pointer }
+      .dsss-caption { margin:0; padding:10px 18px 6px; font-size:12px; font-weight:500 }
       .dsss-list { flex:1; min-height:0; overflow:auto; padding:0 8px 8px; overscroll-behavior:contain }
-      .dsss-row { border-radius:9px; padding:10px; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:3px 12px; cursor:pointer }
-      .dsss-row:hover { background:var(--dsw-alias-bg-layer-2) }
-      .dsss-row[aria-selected=true] { background:color-mix(in srgb,var(--dsw-alias-brand-primary) 12%,var(--dsw-alias-bg-overlay)) }
+      .dsss-row { border-radius:var(--dsw-radius-sm,8px); padding:8px 10px; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:2px 12px; cursor:pointer }
+      .dsss-row[aria-selected=true] { background:var(--dsw-alias-interactive-bg-active) }
       .dsss-row strong,.dsss-meta,.dsss-snippet { overflow:hidden; white-space:nowrap; text-overflow:ellipsis }
-      .dsss-row strong { font-size:14px; font-weight:600 }
-      .dsss-meta,.dsss-snippet { font-size:12px }
+      .dsss-row strong { font-size:14px; line-height:20px; font-weight:500 }
+      .dsss-meta,.dsss-snippet { font-size:12px; line-height:18px }
       .dsss-snippet { grid-column:1/-1 }
       .dsss-status { margin:0; padding:6px 18px; font-size:13px }
       .dsss-status:empty { display:none }
       .dsss-list:empty { flex:0; padding:0 }
       .dsss-list:empty + .dsss-status { flex:1; display:grid; place-items:center; text-align:center }
-      .dsss-footer { padding:9px 18px; border-top:1px solid var(--dsw-alias-border-l1); text-align:end; font-size:12px }
+      .dsss-footer { padding:9px 18px; border-top:.5px solid var(--dsw-alias-border-l1); text-align:end; font-size:12px }
       .dsss-footer kbd { font-family:inherit; color:var(--dsw-alias-label-primary) }
+      @media (pointer:coarse) { .dsss-head input { font-size:16px } }
     `
     function SearchIcon({ size }) {
       return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, 'aria-hidden': true },
@@ -163,13 +164,19 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'sessions', 'uiWorkspace'],
       apply(ctx) {
         for (const [lang, dict] of Object.entries(dictionaries)) ctx.effect(() => ctx.locale.register(NS, lang, dict))
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = css
+          document.head.append(style)
+          return () => style.remove()
+        })
         const search = (query, signal) => ctx.sessions.search(query, signal)
         const openSession = id => ctx.uiWorkspace.openSession(id)
         function Launcher(props) {
           const [opened, setOpened] = React.useState(false)
           const { t } = props
-          return h('div', { className: 'dsss-actions' }, h('style', null, css), props.children,
-            h('button', { className: 'dsss-trigger', type: 'button', 'aria-label': t('title'), 'aria-haspopup': 'dialog', title: t('title'), onClick: () => setOpened(true) },
+          return h('div', { className: 'dsss-actions' }, props.children,
+            h('button', { className: 'dsss-trigger', 'data-wide': props.wide ? 'true' : undefined, type: 'button', 'aria-label': t('title'), 'aria-haspopup': 'dialog', title: t('title'), onClick: () => setOpened(true) },
               h(SearchIcon, { size: 16 }), props.wide && t('title')),
             opened && h(Palette, { ...props, locale: ctx.locale.getLocale().active, search, openSession, dismiss: () => setOpened(false) }))
         }

@@ -2,6 +2,7 @@ window.__ModuleLoader__.load({
   id: 'dsh-bark-notify',
   factory(require) {
     const React = require('react')
+    const { Switch } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'bark-notify'
     const KEY = 'dsh-bark-notify'
@@ -91,28 +92,29 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
-.bn{--bn-line:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);--bn-r:var(--dsw-radius-sm,8px);display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.bn{--bn-line:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);--bn-r:var(--dsw-radius-sm,8px);display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .bn-title{margin:0;font-size:14px;line-height:20px;font-weight:500}
 .bn-hint,.bn-note{color:var(--dsw-alias-label-secondary);line-height:20px}
 .bn-note.ok{color:var(--dsw-alias-state-success-primary)}
 .bn-note.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
 .bn-note.err{color:var(--dsw-alias-state-error-primary)}
-.bn-row{display:grid;grid-template-columns:150px minmax(0,380px);gap:8px;align-items:center}
+.bn-row{display:grid;grid-template-columns:132px minmax(0,380px);gap:8px;align-items:center}
 .bn-row>span{color:var(--dsw-alias-label-secondary)}
-.bn input[type=text],.bn input[type=password],.bn input[type=number],.bn input[type=url],.bn select{height:32px;min-width:0;padding:0 10px;border:var(--bn-line);border-radius:var(--bn-r);background:var(--dsw-alias-button-elevated-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:inherit}
+.bn input[type=text],.bn input[type=password],.bn input[type=number],.bn input[type=url],.bn select{height:32px;min-width:0;padding:0 10px;border:var(--bn-line);border-radius:var(--bn-r);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit}
 .bn input:disabled,.bn select:disabled{opacity:.6;cursor:default}
-.bn input[type=checkbox]{justify-self:start;width:16px;height:16px;cursor:pointer}
-.bn-check{display:flex;align-items:center;gap:8px;cursor:pointer}
-.bn-check input[type=checkbox]{width:16px;height:16px;margin:0;flex:none}
-.bn-import{display:flex;gap:8px;align-items:center;max-width:538px}
+.bn-switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:520px;min-height:28px;cursor:pointer}
+.bn-row:has([role=switch]){cursor:pointer}
+.bn-switch-row:has([role=switch]:disabled),.bn-row:has([role=switch]:disabled){cursor:default}
+.bn-import{display:flex;gap:8px;align-items:center;max-width:520px}
 .bn-import input{flex:1;min-width:0}
-.bn-section{display:flex;flex-direction:column;gap:10px;padding-top:14px;border-top:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l1)}
+.bn-section{display:flex;flex-direction:column;gap:10px;padding-top:14px;border-top:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1)}
 .bn-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.bn-btn{height:30px;padding:0 14px;border:var(--bn-line);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit;transition:background-color .15s}
-.bn-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
-.bn-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-inverted,var(--dsw-alias-bg-base))}
+.bn-btn{height:30px;padding:0 14px;border:var(--bn-line);border-radius:999px;corner-shape:round;background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit;transition:background-color .15s}
+.bn-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}
 .bn-btn:disabled{opacity:.4;cursor:default}
-.bn input:focus-visible,.bn select:focus-visible,.bn-btn:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:1px}
+.bn input:focus-visible,.bn select:focus-visible,.bn-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+@media (hover:hover){.bn-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.bn-btn.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
+@media (pointer:coarse){.bn input[type=text],.bn input[type=password],.bn input[type=number],.bn input[type=url],.bn select{font-size:16px}}
 @media (max-width:580px){.bn-row{grid-template-columns:1fr}.bn-import{flex-direction:column;align-items:stretch}}
 `
 
@@ -182,6 +184,12 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'bark-notify: dictionaries')
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'bark-notify: styles')
         const t = ctx.locale.bind(NS)
 
         function Settings() {
@@ -270,7 +278,6 @@ window.__ModuleLoader__.load({
               : t('keyStatusNone')
 
           return h('div', { className: 'bn' },
-            h('style', null, CSS),
             h('h4', { className: 'bn-title' }, t('title')),
             h('div', { className: 'bn-hint' }, t('hint')),
 
@@ -289,7 +296,7 @@ window.__ModuleLoader__.load({
             h('div', { className: 'bn-section' },
               h('label', { className: 'bn-row' },
                 h('span', null, t('enabled')),
-                h('input', { type: 'checkbox', checked: val.enabled, disabled: busy, onChange: e => patch({ enabled: e.target.checked }) })),
+                h(Switch, { checked: val.enabled, disabled: busy, label: t('enabled'), onChange: enabled => patch({ enabled }) })),
               h('label', { className: 'bn-row' },
                 h('span', null, t('serverUrl')),
                 h('input', { type: 'url', value: val.serverUrl, disabled: busy, onChange: e => patch({ serverUrl: e.target.value }) })),
@@ -314,15 +321,15 @@ window.__ModuleLoader__.load({
 
             h('div', { className: 'bn-section' },
               h('div', { className: 'bn-hint' }, t('triggersTitle')),
-              h('label', { className: 'bn-check' },
-                h('input', { type: 'checkbox', checked: val.notifyQuestions, disabled: busy, onChange: e => patch({ notifyQuestions: e.target.checked }) }),
-                h('span', null, t('notifyQuestions'))),
-              h('label', { className: 'bn-check' },
-                h('input', { type: 'checkbox', checked: val.notifyApprovals, disabled: busy, onChange: e => patch({ notifyApprovals: e.target.checked }) }),
-                h('span', null, t('notifyApprovals'))),
-              h('label', { className: 'bn-check' },
-                h('input', { type: 'checkbox', checked: val.includeContent, disabled: busy, onChange: e => patch({ includeContent: e.target.checked }) }),
-                h('span', null, t('includeContent'))),
+              h('label', { className: 'bn-switch-row' },
+                h('span', null, t('notifyQuestions')),
+                h(Switch, { checked: val.notifyQuestions, disabled: busy, label: t('notifyQuestions'), onChange: notifyQuestions => patch({ notifyQuestions }) })),
+              h('label', { className: 'bn-switch-row' },
+                h('span', null, t('notifyApprovals')),
+                h(Switch, { checked: val.notifyApprovals, disabled: busy, label: t('notifyApprovals'), onChange: notifyApprovals => patch({ notifyApprovals }) })),
+              h('label', { className: 'bn-switch-row' },
+                h('span', null, t('includeContent')),
+                h(Switch, { checked: val.includeContent, disabled: busy, label: t('includeContent'), onChange: includeContent => patch({ includeContent }) })),
               h('label', { className: 'bn-row' },
                 h('span', null, t('delayMs')),
                 h('input', {

@@ -29,19 +29,22 @@ window.__ModuleLoader__.load({
       },
     }
     const CSS = `
-.dsh-title-model{display:flex;flex-direction:column;gap:12px;min-width:0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.dsh-title-model{display:flex;flex-direction:column;gap:12px;min-width:0;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .dsh-title-model h4{margin:0;font-size:14px;line-height:20px;font-weight:500}
 .dsh-title-model p{margin:0;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
-.dsh-title-model__form{display:flex;flex-direction:column;gap:12px;padding:12px 0;border-top:1px solid var(--dsw-alias-border-l1)}
-.dsh-title-model label{display:grid;grid-template-columns:120px minmax(0,360px);gap:8px;align-items:center}
-.dsh-title-model select{width:100%;height:32px;min-width:0;padding:0 8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit}
-.dsh-title-model button{height:30px;padding:0 14px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:inherit;font:inherit;cursor:pointer}
-.dsh-title-model button:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2)}
-.dsh-title-model :is(button,select):disabled{opacity:.5;cursor:default}
-.dsh-title-model :is(button,select):focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.dsh-title-model__form{display:flex;flex-direction:column;gap:12px;padding-top:14px;border-top:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1)}
+.dsh-title-model label{display:grid;grid-template-columns:132px minmax(0,380px);gap:8px;align-items:center}
+.dsh-title-model label>span{color:var(--dsw-alias-label-secondary)}
+.dsh-title-model select{width:100%;height:32px;min-width:0;padding:0 10px;border:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:inherit;font:inherit;cursor:pointer}
+.dsh-title-model button{height:30px;padding:0 14px;border:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:transparent;color:inherit;font:inherit;cursor:pointer;transition:background-color .15s}
+.dsh-title-model button.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}
+.dsh-title-model :is(button,select):disabled{opacity:.4;cursor:default}
+.dsh-title-model :is(button,select):focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .dsh-title-model__actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 .dsh-title-model .error{color:var(--dsw-alias-state-error-primary)}
 .dsh-title-model .success{color:var(--dsw-alias-state-success-primary)}
+@media(hover:hover){.dsh-title-model button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dsh-title-model button.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
+@media(pointer:coarse){.dsh-title-model select{font-size:16px}}
 @media(max-width:560px){.dsh-title-model label{grid-template-columns:1fr}}
 `
     const routeKey = (provider, model) => provider === '' ? '' : JSON.stringify([provider, model])
@@ -61,6 +64,12 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'remote', 'remote.session'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, DICTS))
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'title-model: styles')
         const t = ctx.locale.bind(NS)
         const subscribeLocale = listener => ctx.locale.subscribe(listener)
         const localeSnapshot = () => ctx.locale.getSnapshot()
@@ -103,7 +112,7 @@ window.__ModuleLoader__.load({
             h('label', null, h('span', null, t('model')),
               h('select', { value, disabled: busy, onChange: event => { setValue(event.target.value); setStatus({ kind: 'idle' }) } }, options)),
             h('div', { className: 'dsh-title-model__actions' },
-              h('button', { type: 'button', disabled: saving || !dirty || !known(value), onClick: save }, t(busy ? 'saving' : 'save')),
+              h('button', { type: 'button', className: 'primary', disabled: saving || !dirty || !known(value), onClick: save }, t(busy ? 'saving' : 'save')),
               h('span', { role: status.kind === 'error' ? 'alert' : 'status', className: status.kind === 'error' ? 'error' : 'success' },
                 status.kind === 'ok' ? t('saved') : status.kind === 'error' ? `${t('saveFailed')}${status.message}` : '')))
         }
@@ -140,7 +149,6 @@ window.__ModuleLoader__.load({
           }, [epoch])
 
           return h('div', { className: 'dsh-title-model' },
-            h('style', null, CSS),
             h('h4', null, t('title')), h('p', null, t('hint')),
             h('div', { className: 'dsh-title-model__actions' },
               h('button', { type: 'button', disabled: busy || state.status === 'loading', onClick: () => setEpoch(current => current + 1) },

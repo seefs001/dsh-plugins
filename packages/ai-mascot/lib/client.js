@@ -123,17 +123,17 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
-.dsh-mascot{position:fixed;right:var(--mascot-right);bottom:max(22px,env(safe-area-inset-bottom));width:156px;z-index:20;pointer-events:none;font-family:inherit;color:var(--dsw-alias-label-primary,#302b39);--mascot-accent:#9580be;--mascot-scale:1;--mascot-right:max(20px,env(safe-area-inset-right))}
+.dsh-mascot{position:fixed;right:var(--mascot-right);bottom:max(22px,env(safe-area-inset-bottom));width:156px;z-index:20;pointer-events:none;font-family:inherit;color:var(--dsw-alias-label-primary);--mascot-accent:#9580be;--mascot-scale:1;--mascot-right:max(20px,env(safe-area-inset-right))}
 .dsh-mascot[data-compact=true][data-size]{width:40px}
 .dsh-mascot[data-dragging=true] .dsh-mascot-stage,.dsh-mascot[data-dragging=true] .dsh-mascot-mini{cursor:grabbing}
 .dsh-mascot-stage,.dsh-mascot .dsh-mascot-mini{touch-action:none;user-select:none;cursor:grab}
-.dsh-mascot-stage:focus-visible{outline:2px solid var(--mascot-accent);outline-offset:3px;border-radius:8px}
+.dsh-mascot-stage:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:3px;border-radius:var(--dsw-radius-sm,8px)}
 .dsh-mascot[data-character=claude]{--mascot-accent:#ca7853}
 .dsh-mascot[data-size=small]{--mascot-scale:.78;width:130px}
 .dsh-mascot button,.dsh-mascot a,.dsh-mascot input{font:inherit}
 .dsh-mascot button{cursor:pointer}
-.dsh-mascot button:focus-visible,.dsh-mascot a:focus-visible,.dsh-mascot input:focus-visible{outline:2px solid var(--mascot-accent);outline-offset:3px}
-.dsh-mascot-bubble{margin:0 auto 10px;padding:8px 12px;border:1px solid color-mix(in srgb,var(--mascot-accent) 24%,transparent);border-radius:14px 14px 3px 14px;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:0 3px 15px #00000009;font-size:12px;line-height:1.4;text-align:center;width:fit-content;max-width:156px;position:relative}
+.dsh-mascot button:focus-visible,.dsh-mascot a:focus-visible,.dsh-mascot input:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}
+.dsh-mascot-bubble{margin:0 auto 10px;padding:7px 12px;border:0;border-radius:14px 14px 4px 14px;background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-panel);font-size:12px;line-height:18px;text-align:center;width:fit-content;max-width:156px;position:relative}
 .dsh-mascot-stage{position:relative;height:calc(168px * var(--mascot-scale));display:flex;justify-content:center;align-items:flex-end;pointer-events:auto}
 .dsh-mascot-sticker{position:relative;width:136px;height:168px;flex:none;transform:scale(var(--mascot-scale));transform-origin:bottom center}
 .dsh-mascot-portrait{position:absolute;inset:0;transform-origin:50% 90%}
@@ -151,18 +151,19 @@ window.__ModuleLoader__.load({
 .dsh-mascot[data-activity=waiting] .dsh-mascot-sign{background:#b48235}
 .dsh-mascot[data-activity=error] .dsh-mascot-sign{background:#bd5a62}
 .dsh-mascot-controls{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:8px;pointer-events:auto}
-.dsh-mascot-control{display:grid;place-items:center;width:24px;height:24px;border:1px solid #8882;border-radius:50%;color:inherit;background:var(--dsw-alias-bg-layer-1,#fff);font-size:13px;opacity:.65}
-.dsh-mascot-control:hover{opacity:1}
-.dsh-mascot-panel{pointer-events:auto;position:absolute;bottom:34px;right:min(0px,calc(100vw - var(--mascot-right) - min(280px,100vw - 16px) - 8px));box-sizing:border-box;width:min(280px,calc(100vw - 16px));max-height:calc(100vh - var(--mascot-bottom,max(22px,env(safe-area-inset-bottom))) - 42px);overflow-y:auto;padding:14px;border:1px solid #8883;border-radius:14px;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:0 8px 30px #0002;font-size:12px}
-.dsh-mascot-panel header{display:flex;justify-content:space-between;align-items:center;font-weight:600;margin-bottom:12px}
+.dsh-mascot-control{display:grid;place-items:center;width:24px;height:24px;border:.5px solid var(--dsw-alias-border-l3);border-radius:50%;corner-shape:round;color:var(--dsw-alias-label-secondary);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);font-size:13px;opacity:.75;transition:opacity .15s,background-color .15s}
+@media(hover:hover){.dsh-mascot-control:hover{opacity:1;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
+.dsh-mascot-panel{pointer-events:auto;position:absolute;bottom:34px;right:min(0px,calc(100vw - var(--mascot-right) - min(280px,100vw - 16px) - 8px));box-sizing:border-box;width:min(280px,calc(100vw - 16px));max-height:calc(100vh - var(--mascot-bottom,max(22px,env(safe-area-inset-bottom))) - 42px);overflow-y:auto;padding:14px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);font-size:12px}
+.dsh-mascot-panel header{display:flex;justify-content:space-between;align-items:center;font-weight:500;font-size:13px;margin-bottom:12px}
 .dsh-mascot-panel label{display:flex;align-items:center;gap:8px;margin:10px 0}
-.dsh-mascot-sizes{display:flex;align-items:center;gap:8px}
-.dsh-mascot-sizes button{border:1px solid #8883;border-radius:7px;padding:4px 9px;background:transparent;color:inherit}
-.dsh-mascot-sizes button[aria-pressed=true]{background:var(--mascot-accent);color:#fff}
-.dsh-mascot-panel p{opacity:.65;font-size:10px;line-height:1.6;margin:12px 0 5px}
-.dsh-mascot-panel a{color:var(--mascot-accent);font-size:11px}
-.dsh-mascot-mini{pointer-events:auto;margin-left:auto;width:40px;height:40px;border:1px solid #8883;border-radius:50%;background:var(--dsw-alias-bg-layer-1,#fff);color:var(--mascot-accent);box-shadow:0 3px 12px #0001;font:600 14px ui-monospace,monospace}
-.dsh-mascot-fallback{position:absolute;inset:0;display:grid;place-items:center;background:#f5f2fa;color:#6e5b8d;font-size:14px}
+.dsh-mascot-sizes{display:flex;align-items:center;gap:6px}
+.dsh-mascot-sizes button{border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);padding:4px 10px;background:transparent;color:var(--dsw-alias-label-secondary)}
+.dsh-mascot-sizes button[aria-pressed=true]{border-color:transparent;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);font-weight:500}
+@media(hover:hover){.dsh-mascot-sizes button:hover:not([aria-pressed=true]){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.dsh-mascot-panel p{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:1.55;margin:12px 0 6px}
+.dsh-mascot-panel a{color:var(--dsw-alias-link,var(--dsw-alias-brand-primary));font-size:11px}
+.dsh-mascot-mini{pointer-events:auto;margin-left:auto;width:40px;height:40px;border:0;border-radius:50%;corner-shape:round;background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);color:var(--mascot-accent);--dsw-elevation-stroke-color:var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-panel);font:600 14px var(--ds-font-family-code,ui-monospace,monospace)}
+.dsh-mascot-fallback{position:absolute;inset:0;display:grid;place-items:center;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);font-size:13px}
 .dsh-mascot[data-motion=on] .dsh-mascot-portrait{animation:dsh-mascot-breathe 4s ease-in-out infinite}
 .dsh-mascot[data-motion=on][data-activity=thinking] .dsh-mascot-portrait{animation:dsh-mascot-think 3.2s ease-in-out infinite}
 .dsh-mascot[data-motion=on][data-activity=thinking] .dsh-mascot-sign{animation:dsh-mascot-dots 2s ease-in-out infinite}

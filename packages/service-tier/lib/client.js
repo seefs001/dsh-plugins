@@ -40,17 +40,21 @@ window.__ModuleLoader__.load({
 
     const CSS = `
 .st-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;transition:background-color .15s,color .15s}
-.st-btn:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}
 .st-btn:disabled{opacity:.6;cursor:wait}
 .st-error{max-width:22em;font-size:12px;overflow-wrap:anywhere;color:var(--dsw-alias-state-error-primary)}
-.st-btn:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:-2px}
+.st-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .st-btn[data-active=true]{color:var(--dsw-alias-state-warn-primary)}
-.st-pop{position:fixed;inset:auto;margin:0;box-sizing:border-box;width:min(156px,calc(100vw - 16px));padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-elevation-prominent);font-size:13px;overflow:auto}
-.st-option{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:30px;padding:4px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.st-pop{position:fixed;inset:auto;margin:0;box-sizing:border-box;width:min(168px,calc(100vw - 16px));padding:4px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);color:var(--dsw-alias-label-primary);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);font-size:13px;overflow:auto}
+.st-option{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:32px;padding:4px 10px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .st-option[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active)}
-.st-option:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.st-option:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:-2px}
+.st-option:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+@media (hover:hover){.st-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.st-option:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 `
+
+    function CheckIcon() {
+      return h('svg', { width: 14, height: 14, viewBox: '0 0 14 14', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+        h('path', { d: 'M3 7.2 5.8 10 11 4' }))
+    }
 
     function Bolt({ on, double = false }) {
       const width = double ? 28 : 16
@@ -100,7 +104,7 @@ window.__ModuleLoader__.load({
                 button.current.focus()
                 if (!active) setTier(value)
               },
-            }, t(key), active ? h('span', { 'aria-hidden': true }, '✓') : null)
+            }, t(key), active ? h(CheckIcon) : null)
           })))
     }
 
@@ -109,6 +113,12 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, 'en', { label: 'Fast', speed: 'Service tier', default: 'Default speed', ultrafast: 'Ultrafast', saving: 'Saving service tier…', failed: 'Could not save service tier: ' }), 'service-tier: en')
         ctx.effect(() => ctx.locale.register(NS, 'zh', { label: '快速', speed: '服务档位', default: '默认速度', ultrafast: '超快', saving: '正在保存服务档位…', failed: '服务档位保存失败：' }), 'service-tier: zh')
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'service-tier: styles')
         const t = ctx.locale.bind(NS)
 
         function FastToggle({ directory }) {
@@ -123,7 +133,6 @@ window.__ModuleLoader__.load({
           const on = tier !== undefined
           const setTier = value => store.setTier(current.provider, current.model, value)
           return h(React.Fragment, null,
-            h('style', null, CSS),
             ultrafastModels.includes(current.model)
               ? h(TierPicker, { key: route, tier, saving, setTier, t })
               : h('button', {

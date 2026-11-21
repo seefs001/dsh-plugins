@@ -3,6 +3,7 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const ReactDOM = require('react-dom')
+    const { Button, Modal } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'session-groups'
     const PANEL_ID = 'session-groups'
@@ -26,6 +27,7 @@ window.__ModuleLoader__.load({
       hintClose: 'Close',
       rename: 'Rename',
       delete: 'Delete group',
+      cancel: 'Cancel',
       deleteConfirm: 'Delete group "{name}"? Sessions are kept.',
       moveUp: 'Move up',
       moveDown: 'Move down',
@@ -65,6 +67,7 @@ window.__ModuleLoader__.load({
       hintClose: '关闭',
       rename: '重命名',
       delete: '删除分组',
+      cancel: '取消',
       deleteConfirm: '删除分组“{name}”？会话会保留。',
       moveUp: '上移',
       moveDown: '下移',
@@ -96,7 +99,7 @@ window.__ModuleLoader__.load({
 
     function createStore() {
       let state = { groups: [], status: 'loading' }
-      let view = { collapsed: readCollapsed(), editing: null }
+      let view = { collapsed: readCollapsed(), editing: null, pendingDelete: null }
       const listeners = new Set()
       const emit = () => listeners.forEach(fn => fn())
       return {
@@ -181,24 +184,23 @@ window.__ModuleLoader__.load({
     const IconTrash = ({ size = 14 }) => svg(size, h('path', { d: 'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5' }))
 
     const CSS = `
-.sg-page{--sg-hover:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));--sg-tertiary:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));--sg-caption:var(--dsw-alias-label-caption,var(--sg-tertiary));--sg-border:var(--dsw-alias-border-l4,var(--dsw-alias-border-l2));--sg-ease:var(--ds-ease-in-out,ease);--sg-r-xs:var(--dsw-radius-xs,4px);--sg-r-sm:var(--dsw-radius-sm,6px);--sg-r-md:var(--dsw-radius-md,8px);--sg-r-lg:var(--dsw-radius-lg,12px);--sg-focus:var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary));height:100%;overflow:auto;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}
-.sg-page button:focus-visible{outline:2px solid var(--sg-focus);outline-offset:-2px}
-.sg-inner{max-width:1008px;margin:0 auto;padding:30px 24px 64px}
+.sg-page{--sg-hover:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));--sg-tertiary:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));--sg-caption:var(--dsw-alias-label-caption,var(--sg-tertiary));--sg-border:var(--dsw-alias-border-l4,var(--dsw-alias-border-l2));--sg-ease:var(--ds-ease-in-out,ease);--sg-r-xs:var(--dsw-radius-xs,4px);--sg-r-sm:var(--dsw-radius-sm,6px);--sg-r-md:var(--dsw-radius-md,8px);--sg-r-lg:var(--dsw-radius-lg,12px);--sg-focus:var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));height:100%;overflow:auto;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}
+.sg-page button:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--sg-focus);outline-offset:-2px}
+.sg-inner{max-width:960px;margin:0 auto;padding:28px clamp(24px,4vw,48px) 64px}
+[data-platform=darwin] .sg-inner{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
+@media (max-width:767px){.sg-inner{padding:24px 20px 48px}[data-platform=darwin] .sg-inner{padding-top:calc(24px + var(--dsh-frame-top-clearance,0px))}}
 .sg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
 .sg-title{margin:0;font-size:20px;line-height:28px;font-weight:500}
 .sg-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 10px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:18px;cursor:pointer;transition:background-color .15s var(--sg-ease)}
-.sg-btn:hover{background:var(--sg-hover)}
-.sg-btn.sg-primary{padding:0 14px 0 12px;border:0;border-radius:999px;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-inverted,var(--dsw-alias-bg-base))}
-.sg-btn.sg-primary:hover{background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary)))}
+.sg-btn.sg-primary{padding:0 14px 0 12px;border:0;border-radius:999px;corner-shape:round;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground,var(--dsw-alias-bg-base))}
+.sg-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
 .sg-page .sg-btn.sg-primary:focus-visible{outline-offset:2px}
 .sg-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--sg-tertiary);cursor:pointer;flex:none;transition:background-color .15s var(--sg-ease),color .15s var(--sg-ease)}
-.sg-icon:hover:not(:disabled){background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
 .sg-icon:disabled{opacity:.35;cursor:default}
 .sg-icon[aria-pressed=true]{background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
-.sg-icon.sg-danger:hover{color:var(--dsw-alias-state-error-primary)}
 .sg-emptystate{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:96px;padding:0 24px;text-align:center;color:var(--sg-tertiary);font-size:13px;line-height:20px}
 .sg-emptystate>svg{color:var(--sg-caption);margin-bottom:4px}
-.sg-link{padding:0;border:0;background:none;color:var(--dsw-alias-link,var(--dsw-alias-brand-primary));font:inherit;cursor:pointer}
+.sg-link{padding:0;border:0;background:none;color:var(--dsw-alias-link,var(--dsw-alias-state-business-primary));font:inherit;cursor:pointer}
 .sg-error{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 8px 8px 14px;margin-bottom:16px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-md);color:var(--dsw-alias-state-error-primary);font-size:13px;line-height:18px}
 .sg-group{padding:4px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-lg)}
 .sg-group+.sg-group{margin-top:12px}
@@ -207,19 +209,19 @@ window.__ModuleLoader__.load({
 .sg-gname b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px;font-weight:500}
 .sg-count{flex:none;font-size:12px;line-height:20px;color:var(--sg-tertiary)}
 .sg-gactions{display:flex;gap:2px;opacity:0;transition:opacity .12s var(--sg-ease)}
-.sg-ghead:hover .sg-gactions,.sg-ghead:focus-within .sg-gactions,.sg-gactions:has([aria-pressed=true]){opacity:1}
+.sg-ghead:focus-within .sg-gactions,.sg-gactions:has([aria-pressed=true]){opacity:1}
 .sg-rename{flex:1;min-width:0;height:28px;padding:0 6px;border:.5px solid var(--sg-focus);border-radius:var(--sg-r-sm);background:var(--dsw-alias-button-elevated-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:20px;font-weight:500;outline:none}
 .sg-list>*+*{margin-top:2px}
 .sg-row{display:flex;align-items:center;gap:8px;height:32px;padding:0 6px 0 10px;border-radius:var(--sg-r-md);cursor:pointer;transition:background-color .12s var(--sg-ease)}
-.sg-row:hover,.sg-row:focus-visible{background:var(--sg-hover);outline:none}
+.sg-row:focus-visible{background:var(--sg-hover);outline:none}
 .sg-lead{display:inline-flex;align-items:center;justify-content:center;width:16px;flex:none;color:var(--sg-caption)}
 .sg-rtitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px}
 .sg-rtitle.sg-missing{color:var(--sg-caption)}
 .sg-time{flex:none;font-size:10px;line-height:16px;color:var(--sg-tertiary)}
 .sg-ractions{display:none;gap:2px;margin-right:-2px}
 .sg-ractions .sg-icon{width:24px;height:24px}
-.sg-row:hover .sg-ractions,.sg-row:focus-within .sg-ractions{display:flex}
-.sg-row:hover .sg-time,.sg-row:focus-within .sg-time{display:none}
+.sg-row:focus-within .sg-ractions{display:flex}
+.sg-row:focus-within .sg-time{display:none}
 .sg-gempty{padding:6px 10px 10px 34px;font-size:12px;line-height:18px;color:var(--sg-tertiary)}
 .sg-sp{margin:2px 0 6px;padding:6px;border-radius:var(--sg-r-lg);background:var(--dsw-alias-bg-layer-1);box-shadow:inset 0 0 0 .5px var(--sg-border);animation:sg-in .16s var(--sg-ease)}
 @keyframes sg-in{from{opacity:0;transform:translateY(-3px)}}
@@ -230,7 +232,6 @@ window.__ModuleLoader__.load({
 .sg-search-input::placeholder{color:var(--sg-tertiary)}
 .sg-search-input::-webkit-search-cancel-button{display:none}
 .sg-clear{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none}
-.sg-clear:hover{background:var(--sg-hover)}
 .sg-results{max-height:288px;overflow-y:auto;margin-top:4px;scrollbar-width:thin}
 .sg-results>*+*{margin-top:2px}
 .sg-result{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 6px 0 10px;border:0;border-radius:var(--sg-r-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;cursor:pointer}
@@ -246,12 +247,12 @@ window.__ModuleLoader__.load({
 .sg-hint{display:flex;gap:12px;font-size:11px;line-height:16px;color:var(--sg-tertiary);white-space:nowrap;overflow:hidden}
 .sg-hint kbd{display:inline-block;min-width:16px;margin-right:4px;padding:0 3px;border:.5px solid var(--sg-border);border-radius:var(--sg-r-xs);font:inherit;font-size:10px;line-height:14px;text-align:center;color:var(--dsw-alias-label-secondary)}
 .sg-textbtn{flex:none;height:24px;padding:0 10px;border:0;border-radius:var(--sg-r-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}
-.sg-textbtn:hover{background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
 .sg-group{transition:box-shadow .12s var(--sg-ease),background-color .12s var(--sg-ease)}
 .sg-group.sg-dropping{background:var(--sg-hover);box-shadow:inset 0 0 0 1.5px var(--sg-focus)}
 .sg-row[draggable=true]{cursor:grab}
 .sg-dropzone{display:flex;align-items:center;justify-content:center;gap:8px;height:56px;margin-top:12px;border:1px dashed var(--sg-border);border-radius:var(--sg-r-lg);color:var(--sg-tertiary);font-size:13px;line-height:18px;transition:border-color .12s var(--sg-ease),background-color .12s var(--sg-ease),color .12s var(--sg-ease)}
 .sg-dropzone.sg-dropping{border-color:var(--sg-focus);background:var(--sg-hover);color:var(--dsw-alias-label-primary)}
+@media (hover:hover){.sg-btn:hover,.sg-clear:hover,.sg-row:hover{background:var(--sg-hover)}.sg-btn.sg-primary:hover{background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-button-primary-fill))}.sg-icon:hover:not(:disabled){background:var(--sg-hover);color:var(--dsw-alias-label-primary)}.sg-icon.sg-danger:hover{color:var(--dsw-alias-state-error-primary)}.sg-ghead:hover .sg-gactions{opacity:1}.sg-row:hover .sg-ractions{display:flex}.sg-row:hover .sg-time{display:none}.sg-textbtn:hover{background:var(--sg-hover);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.sg-gactions{opacity:1}.sg-ractions{display:flex}.sg-time,.sg-hint{display:none}}
 @media (pointer:coarse){.sg-search-input,.sg-rename{font-size:16px}}
 @media (prefers-reduced-motion:reduce){.sg-sp{animation:none}.sg-page *{transition:none!important}}
@@ -264,7 +265,7 @@ window.__ModuleLoader__.load({
 .sgs-folder{border-radius:var(--dsw-radius-md,8px);transition:box-shadow .12s var(--ds-ease-in-out,ease)}
 .sgs-folder.sgs-dropping{box-shadow:inset 0 0 0 1.5px var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary))}
 .sgs-row{position:relative;display:flex;align-items:center;height:32px;border-radius:var(--dsw-radius-md,8px);border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;background-clip:padding-box;box-sizing:border-box;padding:0 8px 0 calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));cursor:pointer;user-select:none;-webkit-user-select:none;color:var(--dsw-alias-label-primary);outline:none}
-.sgs-row:focus-visible{box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary))}
+.sgs-row:focus-visible{box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 .sgs-row.sgs-selected{background-color:var(--dsw-alias-interactive-bg-hover)}
 @media (hover:hover){.sgs-row:hover{background-color:var(--dsw-alias-interactive-bg-hover)}}
 .sgs-slot{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:20px;color:var(--dsw-alias-label-tertiary)}
@@ -282,12 +283,11 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.sgs-row:hover .sgs-actions,.sgs-row:focus-within .sgs-actions{display:inline-flex}.sgs-row:hover .sgs-rest,.sgs-row:focus-within .sgs-rest{display:none}}
 @media (hover:none){.sgs-head .sgs-actions{display:inline-flex}.sgs-head .sgs-rest{display:none}}
 .sgs-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
-.sgs-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.12))}
+@media (hover:hover){.sgs-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}.sgs-btn.sgs-danger:hover{color:var(--dsw-alias-state-error-primary)}}
 .sgs-btn[aria-pressed=true]{color:var(--dsw-alias-label-primary)}
-.sgs-btn.sgs-danger:hover{color:var(--dsw-alias-state-error-primary)}
-.sgs-running{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));animation:sgs-pulse 1.4s ease-in-out infinite}
+.sgs-running{width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));animation:sgs-pulse 1.4s ease-in-out infinite}
 @keyframes sgs-pulse{50%{opacity:.35}}
-.sgs-rename{flex:1;min-width:0;height:24px;margin:0 0 0 var(--dsh-sidebar-label-gap,6px);padding:0 6px;border:.5px solid var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary));border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:20px;outline:none}
+.sgs-rename{flex:1;min-width:0;height:24px;margin:0 0 0 var(--dsh-sidebar-label-gap,6px);padding:0 6px;border:.5px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:20px;outline:none}
 .sgs-hint{height:28px;padding-inline-start:calc(var(--dsh-sidebar-row-padding,12px) + 16px + var(--dsh-sidebar-label-gap,6px));font-size:12px;line-height:28px;color:var(--dsw-alias-label-tertiary)}
 .sgs-dropnew{border:1px dashed var(--dsw-alias-border-l4,var(--dsw-alias-border-l2));color:var(--dsw-alias-label-tertiary)}
 .sgs-dropnew .sgs-title{color:inherit;font-size:13px}
@@ -301,6 +301,12 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, 'en', EN), 'session-groups: en')
         ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'session-groups: zh')
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS + SIDEBAR_CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'session-groups: styles')
         const t = ctx.locale.bind(NS)
         const tf = (key, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{${k}}`, () => String(v)), t(key))
 
@@ -611,7 +617,7 @@ window.__ModuleLoader__.load({
                 iconBtn(t('moveUp'), h(IconUp), () => void op({ action: 'move_group', groupId: group.id, beforeGroupId: groups[index - 1]?.id }).catch(() => {}), { disabled: index === 0 }),
                 iconBtn(t('moveDown'), h(IconDown), () => void op({ action: 'move_group', groupId: group.id, beforeGroupId: groups[index + 2]?.id }).catch(() => {}), { disabled: index === count - 1 }),
                 iconBtn(t('delete'), h(IconTrash), () => {
-                  if (window.confirm(tf('deleteConfirm', { name: group.name }))) void op({ action: 'delete', groupId: group.id }).catch(() => {})
+                  store.setView({ pendingDelete: group })
                 }, { danger: true }))),
             collapsed ? null : h('div', { className: 'sg-list' },
               picking ? h(Picker, { group, groups, list, onClose: () => setPicking(false) }) : null,
@@ -635,7 +641,6 @@ window.__ModuleLoader__.load({
           const dragging = useDocumentDragging()
           const newDrop = useSessionDrop(list, sessionId => void create(sessionId))
           return h('div', { className: 'sg-page' },
-            h('style', null, CSS),
             h('div', { className: 'sg-inner' },
               h('div', { className: 'sg-head' },
                 h('h1', { className: 'sg-title' }, t('panel')),
@@ -801,7 +806,7 @@ window.__ModuleLoader__.load({
               h('button', {
                 type: 'button', className: 'sgs-btn sgs-danger', tabIndex: -1, title: t('delete'), 'aria-label': t('delete'),
                 onClick: stop(() => {
-                  if (window.confirm(tf('deleteConfirm', { name: group.name }))) void op({ action: 'delete', groupId: group.id }).catch(() => {})
+                  store.setView({ pendingDelete: group })
                 }),
               }, h(IconTrash, { size: 14 })))),
             collapsed ? null : members.length === 0
@@ -849,7 +854,24 @@ window.__ModuleLoader__.load({
               .then(({ groupId }) => store.setView({ editing: `sidebar:${groupId}` }))
               .catch(() => {})
           })
-          if (!area) return null
+          const confirmModal = view.pendingDelete ? h(Modal, {
+            open: true,
+            onClose: () => store.setView({ pendingDelete: null }),
+            title: t('delete'),
+            closeLabel: t('cancel'),
+            description: tf('deleteConfirm', { name: view.pendingDelete.name }),
+            footer: h(React.Fragment, null,
+              h(Button, { variant: 'outline', 'data-modal-autofocus': true, onClick: () => store.setView({ pendingDelete: null }) }, t('cancel')),
+              h(Button, {
+                variant: 'primary', className: 'sg-danger-fill',
+                onClick: () => {
+                  const target = view.pendingDelete
+                  store.setView({ pendingDelete: null })
+                  if (target) void op({ action: 'delete', groupId: target.id }).catch(() => {})
+                },
+              }, t('delete'))),
+          }) : null
+          if (!area) return confirmModal
           const currentId = panel.activePanelId == null
             ? Object.values(list.byId).find(s => (s.retainedBy?.mainView ?? 0) > 0)?.id
             : undefined
@@ -857,17 +879,19 @@ window.__ModuleLoader__.load({
           const hideCss = hidden.length === 0 ? ''
             : `${hidden.map(id => `[data-sidebar-list-area] [data-row-key="session:${id}"]`).join(',')}{display:none!important}`
           const showDropNew = !searching && (dragging || newDrop.over)
-          return ReactDOM.createPortal(h(React.Fragment, null,
-            h('style', null, SIDEBAR_CSS + hideCss),
-            searching || (groups.length === 0 && !showDropNew) ? null : h('div', {
-              className: 'sgs-root', role: 'tree', 'aria-label': t('panel'),
-            },
-            groups.map((group, index) => h(SidebarFolder, {
-              key: group.id, group, index, groups, list, view, currentId, locale: loc.active,
-            })),
-            showDropNew ? h('div', { className: `sgs-row sgs-dropnew${newDrop.over ? ' sgs-dropping' : ''}`, ...newDrop.props },
-              h('span', { className: 'sgs-slot' }, h(IconPlus, { size: 14 })),
-              h('span', { className: 'sgs-title' }, t('dropNew'))) : null)), host)
+          return h(React.Fragment, null,
+            ReactDOM.createPortal(h(React.Fragment, null,
+              hideCss && h('style', null, hideCss),
+              searching || (groups.length === 0 && !showDropNew) ? null : h('div', {
+                className: 'sgs-root', role: 'tree', 'aria-label': t('panel'),
+              },
+              groups.map((group, index) => h(SidebarFolder, {
+                key: group.id, group, index, groups, list, view, currentId, locale: loc.active,
+              })),
+              showDropNew ? h('div', { className: `sgs-row sgs-dropnew${newDrop.over ? ' sgs-dropping' : ''}`, ...newDrop.props },
+                h('span', { className: 'sgs-slot' }, h(IconPlus, { size: 14 })),
+                h('span', { className: 'sgs-title' }, t('dropNew'))) : null)), host),
+            confirmModal)
         }
 
         ctx.slots.inject('shell.overlay', () => ctx.slots.register({

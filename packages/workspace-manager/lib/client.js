@@ -2,6 +2,7 @@ window.__ModuleLoader__.load({
   id: 'dsh-workspace-manager',
   factory(require) {
     const React = require('react')
+    const { Button, Modal } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'workspace-manager'
     const EN = {
@@ -16,6 +17,9 @@ window.__ModuleLoader__.load({
       noMatches: 'No matching workspaces.',
       loading: 'Loading workspaces…',
       remove: 'Remove',
+      cancel: 'Cancel',
+      confirmTitle: 'Remove workspace?',
+      confirmManyTitle: 'Remove invalid workspaces?',
       directory: 'Directory exists',
       missing: 'Directory missing',
       'not-directory': 'Not a directory',
@@ -43,6 +47,9 @@ window.__ModuleLoader__.load({
       noMatches: '没有匹配的工作区。',
       loading: '正在加载工作区…',
       remove: '移除',
+      cancel: '取消',
+      confirmTitle: '移除工作区？',
+      confirmManyTitle: '移除失效工作区？',
       directory: '目录存在',
       missing: '目录不存在',
       'not-directory': '不是目录',
@@ -70,25 +77,29 @@ window.__ModuleLoader__.load({
 
     const CSS = `
 .wm-page{height:100%;overflow:auto;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}
-.wm-inner{max-width:960px;margin:auto;padding:30px 24px 64px}
-.wm-title{margin:0 0 12px;font-size:20px;font-weight:500}
-.wm-hint{color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1.6}
+.wm-inner{max-width:960px;margin:0 auto;padding:28px clamp(24px,4vw,48px) 64px}
+[data-platform=darwin] .wm-inner{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
+.wm-title{margin:0 0 8px;font-size:20px;line-height:28px;font-weight:500}
+.wm-hint{color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}
 .wm-actions{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 12px}
-.wm-btn{padding:6px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:inherit;font:inherit;font-size:13px;cursor:pointer}
-.wm-btn:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2)}
+.wm-btn{display:inline-flex;align-items:center;justify-content:center;height:30px;padding:0 12px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;font-size:13px;line-height:20px;cursor:pointer}
+@media (hover:hover){.wm-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
 .wm-btn:disabled{opacity:.45;cursor:default}
-.wm-danger{color:var(--dsw-alias-state-error-primary,#d44)}
-.wm-page button:focus-visible,.wm-search:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
-.wm-search{box-sizing:border-box;width:100%;margin:8px 0 16px;padding:9px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit;font-size:13px}
-.wm-list{list-style:none;margin:0;padding:0;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;overflow:hidden}
+.wm-danger{color:var(--dsw-alias-state-error-primary)}
+.wm-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
+.wm-confirm-body{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);max-height:50vh;overflow:auto}
+.wm-page button:focus-visible,.wm-search:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}
+.wm-search{box-sizing:border-box;width:100%;height:34px;margin:8px 0 16px;padding:0 12px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit;font-size:13px}
+.wm-list{list-style:none;margin:0;padding:0;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);overflow:hidden}
 .wm-row{display:flex;align-items:center;gap:12px;padding:14px 16px}
-.wm-row+.wm-row{border-top:1px solid var(--dsw-alias-border-l2)}
+.wm-row+.wm-row{border-top:.5px solid var(--dsw-alias-border-l1)}
 .wm-details{flex:1;min-width:0}
-.wm-name{font-size:14px;font-weight:500;overflow-wrap:anywhere}
-.wm-path{margin:5px 0;font-family:monospace;font-size:12px;overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}
-.wm-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--dsw-alias-label-secondary)}
-.wm-notice{font-size:13px;line-height:1.6;overflow-wrap:anywhere}
-@media(max-width:520px){.wm-inner{padding:20px 12px}.wm-row{padding:12px;gap:8px}}
+.wm-name{font-size:14px;line-height:20px;font-weight:500;overflow-wrap:anywhere}
+.wm-path{margin:4px 0;font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:18px;overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}
+.wm-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.wm-notice{font-size:13px;line-height:20px;overflow-wrap:anywhere}
+@media (pointer:coarse){.wm-search{font-size:16px}}
+@media (max-width:767px){.wm-inner{padding:24px 20px 48px}[data-platform=darwin] .wm-inner{padding-top:calc(24px + var(--dsh-frame-top-clearance,0px))}.wm-row{padding:12px;gap:8px}}
 `
 
     return {
@@ -96,11 +107,17 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, 'en', EN), 'workspace-manager: en')
         ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'workspace-manager: zh')
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'workspace-manager: styles')
         const t = ctx.locale.bind(NS)
         const tf = (key, vars) => t(key).replace(/\{(\w+)\}/g, (match, field) => String(vars[field] ?? match))
         const controller = new AbortController()
         let closed = false
-        let state = { checks: new Map(), busy: false, scanning: false, error: null, message: null }
+        let state = { checks: new Map(), busy: false, scanning: false, error: null, message: null, confirm: null }
         const listeners = new Set()
         const store = {
           getSnapshot: () => state,
@@ -111,7 +128,19 @@ window.__ModuleLoader__.load({
           state = { ...state, ...patch }
           listeners.forEach(fn => fn())
         }
-        ctx.effect(() => () => { closed = true; controller.abort(); listeners.clear() }, 'workspace-manager: close')
+        let pendingResolve = null
+        const askConfirm = (title, body) => new Promise(resolve => {
+          pendingResolve?.(false)
+          pendingResolve = resolve
+          update({ confirm: { title, body } })
+        })
+        const finishConfirm = ok => {
+          const resolve = pendingResolve
+          pendingResolve = null
+          update({ confirm: null })
+          resolve?.(ok)
+        }
+        ctx.effect(() => () => { closed = true; finishConfirm(false); controller.abort(); listeners.clear() }, 'workspace-manager: close')
 
         async function scan() {
           update({ scanning: true, checks: new Map() })
@@ -155,10 +184,11 @@ window.__ModuleLoader__.load({
               }
             }
             stage = 'remove'
+            const title = action === 'remove' ? t('confirmTitle') : t('confirmManyTitle')
             const question = action === 'remove'
               ? tf('confirmOne', { title: workspace.title, path: workspace.path })
               : `${tf('confirmMany', { n: candidates.length })}\n\n${candidates.map(row => row.path).join('\n')}`
-            if (!window.confirm(question)) return
+            if (!await askConfirm(title, question)) return
             for (const row of candidates) {
               if (closed) return
               const current = ctx.workspaces.list.getSnapshot().items.find(item => item.workspaceId === row.workspaceId)
@@ -183,12 +213,14 @@ window.__ModuleLoader__.load({
           const list = useSource(ctx.workspaces.list)
           const view = useSource(store)
           const [query, setQuery] = React.useState('')
-          React.useEffect(() => { void run('scan') }, [])
+          React.useEffect(() => {
+            void run('scan')
+            return () => finishConfirm(false)
+          }, [])
           const search = query.trim().toLocaleLowerCase()
           const rows = list.items.filter(row => `${row.title}\n${row.path}`.toLocaleLowerCase().includes(search))
           const disabled = view.busy || list.phase !== 'ready' || list.state !== 'idle'
           return h('section', { className: 'wm-page', 'aria-label': t('panel') },
-            h('style', null, CSS),
             h('div', { className: 'wm-inner' },
               h('h1', { className: 'wm-title' }, t('panel')),
               h('p', { className: 'wm-hint' }, t('description')),
@@ -212,7 +244,16 @@ window.__ModuleLoader__.load({
                         h('span', { className: status === 'missing' || status === 'not-directory' ? 'wm-danger' : undefined }, t(status), status === 'unavailable' && check.code ? ` (${check.code})` : ''),
                         h('span', null, tf('sessions', { n: row.sessionIds.length })))),
                     h('button', { type: 'button', className: 'wm-btn wm-danger', disabled, 'aria-label': `${t('remove')} ${row.title}`, onClick: () => void run('remove', row) }, t('remove')))
-                }))))
+                }))),
+            view.confirm ? h(Modal, {
+              open: true,
+              onClose: () => finishConfirm(false),
+              title: view.confirm.title,
+              closeLabel: t('cancel'),
+              footer: h(React.Fragment, null,
+                h(Button, { variant: 'outline', 'data-modal-autofocus': true, onClick: () => finishConfirm(false) }, t('cancel')),
+                h(Button, { variant: 'primary', className: 'wm-danger-fill', onClick: () => finishConfirm(true) }, t('remove'))),
+            }, h('p', { className: 'wm-confirm-body' }, view.confirm.body)) : null)
         }
 
         ctx.slots.inject('main', () => ctx.slots.register({

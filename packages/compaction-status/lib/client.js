@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
   flex:none;display:flex;align-items:center;gap:8px;min-width:0;margin:0 auto;padding:4px 12px;
   color:var(--dsw-alias-label-secondary);font-size:13px;line-height:24px;
 }
-.dsh-compaction-status__spinner{box-sizing:border-box;width:12px;height:12px;flex:none;border:1.5px solid var(--dsw-alias-border-l2);border-top-color:currentColor;border-radius:50%;animation:dsh-compaction-status-spin 1s linear infinite}
+.dsh-compaction-status__spinner{box-sizing:border-box;width:12px;height:12px;flex:none;border:1.5px solid var(--dsw-alias-border-l2);border-top-color:currentColor;border-radius:50%;corner-shape:round;animation:dsh-compaction-status-spin 1s linear infinite}
 .dsh-compaction-status__title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dsh-compaction-status__elapsed{flex:none;margin-left:auto;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
 @keyframes dsh-compaction-status-spin{to{transform:rotate(360deg)}}
@@ -37,6 +37,12 @@ window.__ModuleLoader__.load({
         for (const [lang, dictionary] of Object.entries(DICTS)) {
           ctx.effect(() => ctx.locale.register(NS, lang, dictionary))
         }
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'compaction-status: styles')
         const t = ctx.locale.bind(NS)
         const subscribeLocale = fn => ctx.locale.subscribe(fn)
         const localeSnapshot = () => ctx.locale.getSnapshot()
@@ -49,12 +55,10 @@ window.__ModuleLoader__.load({
           }, [])
           const seconds = Math.max(0, Math.floor((now - startedAt) / 1000))
           const duration = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
-          return h(React.Fragment, null,
-            h('style', null, CSS),
-            h('aside', { className: 'dsh-compaction-status', title: t('hint') },
-              h('span', { className: 'dsh-compaction-status__spinner', 'aria-hidden': true }),
-              h('span', { className: 'dsh-compaction-status__title', role: 'status', 'aria-live': 'polite' }, t('title')),
-              h('span', { className: 'dsh-compaction-status__elapsed', 'aria-live': 'off' }, t('elapsed', { duration }))))
+          return h('aside', { className: 'dsh-compaction-status', title: t('hint') },
+            h('span', { className: 'dsh-compaction-status__spinner', 'aria-hidden': true }),
+            h('span', { className: 'dsh-compaction-status__title', role: 'status', 'aria-live': 'polite' }, t('title')),
+            h('span', { className: 'dsh-compaction-status__elapsed', 'aria-live': 'off' }, t('elapsed', { duration })))
         }
 
         function CompactionStatus({ sessionId, useProjection }) {

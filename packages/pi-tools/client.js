@@ -67,15 +67,16 @@ window.__ModuleLoader__.load({
 [data-chat-call-id] > :not([data-subcalls]):has([data-pi-fold-steps][aria-expanded="false"]) ~ [data-subcalls]{display:none}
 .pi-tools-head{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 .pi-tools-card button{font:inherit;color:inherit;border:0;background:transparent;padding:0;cursor:pointer;text-align:left}
-.pi-tools-card button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px;border-radius:3px}
+.pi-tools-card button:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px;border-radius:var(--dsw-radius-xs,4px)}
 .pi-tools-toggle{display:flex;align-items:center;gap:6px;flex:none}
-.pi-tools-toggle span:first-child{width:14px;text-align:center}
+.pi-tools-toggle-chevron{flex:none;color:var(--dsw-alias-label-tertiary);transition:transform var(--ds-transition-duration,150ms) var(--ds-ease-in-out,ease)}
+.pi-tools-toggle[aria-expanded=true] .pi-tools-toggle-chevron{transform:rotate(90deg)}
 .pi-tools-file{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
 .pi-tools-summary{min-width:0;overflow-wrap:anywhere}
 .pi-tools-input-preview{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .pi-tools-badge{font-size:11px;color:var(--dsw-alias-label-secondary);margin-left:auto}
 .pi-tools-body{margin:6px 0 8px 20px;min-width:0;color:var(--dsw-alias-label-primary)}
-.pi-tools-body pre{margin:4px 0 8px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-1);font:calc(var(--dsh-content-font-size-secondary,13px) - 1px)/1.6 var(--ds-font-family-code,monospace);white-space:pre;overflow:auto;max-height:420px}
+.pi-tools-body pre{margin:4px 0 8px;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-1);font:calc(var(--dsh-content-font-size-secondary,13px) - 1px)/1.6 var(--ds-font-family-code,monospace);white-space:pre;overflow:auto;max-height:420px}
 .pi-tools-line{display:block;min-height:1.6em}
 .pi-tools-plus{color:var(--dsw-alias-state-success-primary)}
 .pi-tools-minus,.pi-tools-error{color:var(--dsw-alias-state-error-primary)}
@@ -108,7 +109,6 @@ window.__ModuleLoader__.load({
 .pi-tools-section-count{margin-left:auto;flex:none;font-size:12px;font-weight:400;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
 .pi-tools-simple-row{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;cursor:pointer;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .pi-tools-simple-row+.pi-tools-simple-row{border-top:0.5px solid var(--dsw-alias-border-l3)}
-.pi-tools-simple-row:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .pi-tools-simple-hint{margin:0 0 10px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
 .pi-tools-section-list{list-style:none;margin:0;padding:0 0 6px}
 .pi-tools-option-label{display:flex;gap:10px;align-items:flex-start;padding:6px 12px 6px 36px;cursor:pointer}
@@ -116,10 +116,10 @@ window.__ModuleLoader__.load({
 .pi-tools-option-label:has(.pi-tools-check:disabled){cursor:default}
 .pi-tools-option-text{min-width:0;display:flex;flex-direction:column;gap:2px}
 .pi-tools-option-name{display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:var(--dsw-alias-label-primary);font:13px/20px var(--ds-font-family-code,monospace);overflow-wrap:anywhere}
-.pi-tools-option-tag{padding:0 5px;border:0.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-xs,4px);color:var(--dsw-alias-label-tertiary);font:11px/16px var(--ds-font-family,inherit)}
+.pi-tools-option-tag{padding:0 5px;border:0.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-xs,4px);color:var(--dsw-alias-label-tertiary);font:11px/16px var(--dsw-font-family,inherit)}
 .pi-tools-option-description{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-@media(hover:hover){.pi-tools-option-label:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-@media(prefers-reduced-motion:reduce){.pi-tools-section-chevron{transition:none}}
+@media(hover:hover){.pi-tools-simple-row:hover,.pi-tools-option-label:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+@media(prefers-reduced-motion:reduce){.pi-tools-section-chevron,.pi-tools-toggle-chevron{transition:none}}
 @media(max-width:560px){.pi-tools-options-count{margin-left:0;flex-basis:100%}.pi-tools-option-label{padding-left:12px}.pi-tools-section-family{display:none}.pi-tools-options-list{max-height:min(46vh,520px)}}
 @media(max-width:520px){.pi-tools-body{margin-left:0}.pi-tools-badge{margin-left:0}.pi-tools-file{flex-basis:100%}}
 `
@@ -161,7 +161,7 @@ window.__ModuleLoader__.load({
     function disclosureButton(toolName, expanded, toggle, bodyId, t) {
       return h('button', { type: 'button', className: 'pi-tools-toggle', onClick: toggle, 'aria-expanded': expanded,
         'aria-controls': bodyId, 'data-pi-fold-steps': toolName === 'codemode' ? '' : undefined },
-      h('span', { 'aria-hidden': true }, expanded ? '▾' : '▸'), h('span', null, t(toolName === 'edit' ? 'editDiff' : toolName)))
+      h(IconChevronRightOutlineRegular, { size: 14, className: 'pi-tools-toggle-chevron', 'aria-hidden': true }), h('span', null, t(toolName === 'edit' ? 'editDiff' : toolName)))
     }
 
     function stepStatus(children, running, t) {

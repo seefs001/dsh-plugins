@@ -3,6 +3,7 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const ReactDOM = require('react-dom')
+    const { Button, Modal } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const MAX_LOG = 200
     const PAGE_SIZE = 20
@@ -51,6 +52,7 @@ window.__ModuleLoader__.load({
       logSettings: 'Review settings',
       logClear: 'Clear',
       logClearConfirm: 'Delete the stored review records of this session?',
+      cancel: 'Cancel',
       logLoading: 'Loading…',
       logEmpty: 'No reviews yet.',
       logUnavailable: 'Review log unavailable.',
@@ -109,6 +111,7 @@ window.__ModuleLoader__.load({
       logSettings: '审查设置',
       logClear: '清空',
       logClearConfirm: '删除本会话已保存的审查记录？',
+      cancel: '取消',
       logLoading: '加载中…',
       logEmpty: '暂无审查记录。',
       logUnavailable: '暂时无法读取审查记录。',
@@ -130,25 +133,26 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
-.arm{--arm-line:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);--arm-r:var(--dsw-radius-sm,8px);display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.arm{--arm-line:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);--arm-r:var(--dsw-radius-sm,8px);display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .arm-title{margin:0;font-size:14px;line-height:20px;font-weight:500}
 .arm-hint,.arm-note{color:var(--dsw-alias-label-secondary);line-height:20px}
 .arm-note.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
 .arm-note.err{color:var(--dsw-alias-state-error-primary)}
 .arm-note.ok{color:var(--dsw-alias-state-success-primary)}
-.arm-row{display:grid;grid-template-columns:120px minmax(0,360px);gap:8px;align-items:center}
+.arm-row{display:grid;grid-template-columns:132px minmax(0,360px);gap:8px;align-items:center}
 .arm-row>span{color:var(--dsw-alias-label-secondary)}
-.arm select{height:32px;min-width:0;padding:0 8px;border:var(--arm-line);border-radius:var(--arm-r);background:var(--dsw-alias-button-elevated-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer}
+.arm select{height:32px;min-width:0;padding:0 10px;border:var(--arm-line);border-radius:var(--arm-r);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer}
 .arm select:disabled,.arm textarea:disabled{opacity:.6;cursor:default}
-.arm textarea{min-height:160px;padding:8px 10px;border:var(--arm-line);border-radius:var(--arm-r);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:12px/1.6 "SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;resize:vertical}
-.arm select:focus-visible,.arm textarea:focus-visible,.arm-btn:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:1px}
-.arm-section{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l1)}
+.arm textarea{min-height:160px;padding:8px 10px;border:var(--arm-line);border-radius:var(--arm-r);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:12px/1.6 var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);resize:vertical}
+.arm select:focus-visible,.arm textarea:focus-visible,.arm-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.arm-section{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1)}
 .arm-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.arm-btn{height:30px;padding:0 14px;border:var(--arm-line);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit;transition:background-color .15s}
-.arm-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
-.arm-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-inverted,var(--dsw-alias-bg-base))}
-.arm-btn.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary)))}
+.arm-btn{height:30px;padding:0 14px;border:var(--arm-line);border-radius:999px;corner-shape:round;background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit;transition:background-color .15s}
+.arm-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground)}
+.arm-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
 .arm-btn:disabled{opacity:.4;cursor:default}
+@media (hover:hover){.arm-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.arm-btn.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-button-primary-fill))}}
+@media (pointer:coarse){.arm select,.arm textarea{font-size:16px}}
 @media (max-width:560px){.arm-row{grid-template-columns:1fr}}
 `
 
@@ -174,40 +178,37 @@ window.__ModuleLoader__.load({
     }
 
     const CHIP_CSS = `
-.arm-chip{display:inline-flex;align-items:center;gap:4px;max-width:220px;height:24px;padding:0 8px;border:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);border-radius:999px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:22px;white-space:nowrap;cursor:default;user-select:none}
-button.arm-chip{background:transparent;font:inherit;font-size:12px;cursor:pointer;transition:background-color .15s}
-button.arm-chip:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
-button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:1px}
+.arm-chip{display:inline-flex;align-items:center;gap:5px;max-width:220px;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;cursor:default;user-select:none}
+button.arm-chip{background:transparent;font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background-color .15s,color .15s}
+button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .arm-chip b{font-weight:500;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis}
-.arm-chip.warn{border-color:var(--dsw-alias-state-warn-primary);color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.arm-chip.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
 .arm-chip.warn b{color:inherit}
-.arm-chip-count{min-width:16px;padding:0 5px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.15));font-size:11px;line-height:16px;text-align:center}
-.arm-chip-count.err{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-label-primary-inverted,#fff)}
-.arm-pop{position:fixed;z-index:1000;display:flex;flex-direction:column;border:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-elevated,var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base)));box-shadow:0 8px 28px rgba(0,0,0,.18);color:var(--dsw-alias-label-primary);font-size:12px;line-height:18px;overflow:hidden}
-.arm-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 12px;border-bottom:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l1)}
+.arm-chip-count{min-width:16px;padding:0 5px;border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.15));font-size:11px;line-height:16px;text-align:center}
+.arm-chip-count.err{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-label-on-color,#fff)}
+.arm-pop{position:fixed;z-index:200;display:flex;flex-direction:column;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-primary);font-size:12px;line-height:18px;overflow:hidden}
+.arm-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 12px;border-bottom:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1)}
 .arm-pop-title{font-size:13px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arm-pop-actions{display:flex;gap:4px;flex:none}
-.arm-pop-btn{height:24px;padding:0 10px;border:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}
-.arm-pop-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
+.arm-pop-btn{height:24px;padding:0 10px;border:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}
+.arm-pop-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .arm-pop-btn:disabled{opacity:.4;cursor:default}
 .arm-pop-empty{padding:16px 12px;color:var(--dsw-alias-label-secondary)}
-.arm-pop-foot{padding:6px 12px;border-top:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));font-size:11px}
+.arm-pop-foot{padding:6px 12px;border-top:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));font-size:11px}
 .arm-log{margin:0;padding:4px 0;list-style:none;overflow-y:auto;min-height:0;flex:1}
 .arm-log-row{padding:0 4px}
 .arm-log-line{display:flex;align-items:center;gap:2px}
 .arm-log-more{display:flex;justify-content:center;padding:6px 0 4px}
 .arm-log-detail .arm-log-args{max-height:96px}
 .arm-log-line>.arm-log-head{flex:1;min-width:0}
-.arm-log-jump{flex:none;width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer}
-.arm-log-jump:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}
-.arm-log-jump:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary))}
+.arm-log-jump{flex:none;width:24px;height:24px;border:0;border-radius:var(--dsw-radius-xs,4px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer}
+.arm-log-jump:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 .arm-log-reason.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
 [data-arm-flash]{border-radius:8px;animation:arm-flash 1600ms ease-out forwards}
-@keyframes arm-flash{0%,40%{box-shadow:0 0 0 2px var(--dsw-alias-link,var(--dsw-alias-brand-primary))}100%{box-shadow:0 0 0 2px transparent}}
-.arm-log-head{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:5px 8px;border:0;border-radius:6px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
-.arm-log-head:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
+@keyframes arm-flash{0%,40%{box-shadow:0 0 0 2px var(--dsw-alias-state-business-primary)}100%{box-shadow:0 0 0 2px transparent}}
+.arm-log-head{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:5px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .arm-log-time,.arm-log-dim{color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
-.arm-log-tool{font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arm-log-tool{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arm-log-verdict{white-space:nowrap}
 .arm-log-verdict.ok{color:var(--dsw-alias-state-success-primary)}
 .arm-log-verdict.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
@@ -216,13 +217,20 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
 .arm-log-reason.full{padding:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .arm-log-detail{display:flex;flex-direction:column;gap:4px;padding:2px 8px 8px 74px}
 .arm-log-meta{color:var(--dsw-alias-label-secondary)}
-.arm-log-args{margin:0;max-height:160px;overflow:auto;padding:6px 8px;border-radius:6px;background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-layer-2));font:11px/1.5 "SF Mono","JetBrains Mono",ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.arm-log-args{margin:0;max-height:160px;overflow:auto;padding:6px 8px;border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-layer-2));font:11px/1.5 var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);white-space:pre-wrap;overflow-wrap:anywhere}
+@media (hover:hover){button.arm-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.arm-pop-btn:hover:not(:disabled),.arm-log-head:hover{background:var(--dsw-alias-interactive-bg-hover)}.arm-log-jump:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 `
 
     return {
       inject: ['slots', 'locale', 'remote', 'remote.session'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'auto-review-model: dictionaries')
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS + CHIP_CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'auto-review-model: styles')
         const t = ctx.locale.bind(NS)
 
         let shared = { config: null, groups: [] }
@@ -364,6 +372,7 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
           const ref = React.useRef(null)
           const [pos, setPos] = React.useState(null)
           const [clearing, setClearing] = React.useState(false)
+          const [confirmClear, setConfirmClear] = React.useState(false)
           const [clearError, setClearError] = React.useState('')
           React.useLayoutEffect(() => {
             const place = () => {
@@ -377,6 +386,7 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
             return () => window.removeEventListener('resize', place)
           }, [anchor])
           React.useEffect(() => {
+            if (confirmClear) return undefined
             const onDown = e => {
               if (ref.current?.contains(e.target) || anchor.current?.contains(e.target)) return
               onClose()
@@ -385,7 +395,7 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
             document.addEventListener('pointerdown', onDown, true)
             document.addEventListener('keydown', onKey)
             return () => { document.removeEventListener('pointerdown', onDown, true); document.removeEventListener('keydown', onKey) }
-          }, [anchor, onClose])
+          }, [anchor, onClose, confirmClear])
           const nav = ctx.get('pluginNavigation')
           const [shown, setShown] = React.useState(PAGE_SIZE)
           const entries = log.entries.toReversed()
@@ -397,25 +407,24 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
             else if (e.decision === 'allow') counts.allow++
             else counts.deny++
           }
-          const clear = async () => {
-            if (!window.confirm(t('logClearConfirm'))) return
+          const runClear = async () => {
+            setConfirmClear(false)
             setClearing(true); setClearError('')
             try { await getJson(`auto-review-model/log/clear?session=${encodeURIComponent(sessionId)}`, { method: 'POST', body: '{}' }) }
             catch (error) { setClearError(error.message) }
             finally { setClearing(false) }
           }
           if (pos === null) return null
-          return ReactDOM.createPortal(h('div', {
+          return h(React.Fragment, null, ReactDOM.createPortal(h('div', {
             ref, className: 'arm-pop', role: 'dialog', 'aria-label': t('logTitle'),
             style: { left: pos.left, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight },
           },
-            h('style', null, CHIP_CSS),
             h('div', { className: 'arm-pop-head' },
               h('div', { className: 'arm-pop-title' }, t('logTitle'),
                 log.status === 'ready' ? h('span', { className: 'arm-log-dim' }, ` ${t('logSummary', { allow: counts.allow, deny: counts.deny, fail: counts.fail })}`) : null),
               h('div', { className: 'arm-pop-actions' },
                 nav === undefined ? null : h('button', { type: 'button', className: 'arm-pop-btn', onClick: () => { onClose(); nav.openBundle(PACKAGE) } }, t('logSettings')),
-                entries.length === 0 ? null : h('button', { type: 'button', className: 'arm-pop-btn', disabled: clearing, onClick: clear }, t('logClear')))),
+                entries.length === 0 ? null : h('button', { type: 'button', className: 'arm-pop-btn', disabled: clearing, onClick: () => setConfirmClear(true) }, t('logClear')))),
             clearError ? h('div', { className: 'arm-pop-empty', role: 'alert' }, t('logClearFailed') + clearError) : null,
             log.status === 'unavailable' ? h('div', { className: 'arm-pop-empty', role: 'status' }, t('logUnavailable')) : null,
             log.status === 'loading' ? h('div', { className: 'arm-pop-empty' }, t('logLoading'))
@@ -424,7 +433,17 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
                 visible.map(e => h(ReviewRow, { key: e.id, entry: e, onJump: id => { const ok = jumpToCall(id); if (ok) onClose(); return ok } })),
                 hidden === 0 ? null : h('li', { className: 'arm-log-more' },
                   h('button', { type: 'button', className: 'arm-pop-btn', onClick: () => setShown(n => n + PAGE_SIZE) }, t('logMore', { n: hidden })))),
-            h('div', { className: 'arm-pop-foot' }, t('logLimit', { n: MAX_LOG }))), document.body)
+            h('div', { className: 'arm-pop-foot' }, t('logLimit', { n: MAX_LOG }))), document.body),
+          confirmClear ? h(Modal, {
+            open: true,
+            onClose: () => setConfirmClear(false),
+            title: t('logClear'),
+            closeLabel: t('cancel'),
+            description: t('logClearConfirm'),
+            footer: h(React.Fragment, null,
+              h(Button, { variant: 'outline', 'data-modal-autofocus': true, onClick: () => setConfirmClear(false) }, t('cancel')),
+              h(Button, { variant: 'primary', className: 'arm-danger-fill', onClick: () => void runClear() }, t('logClear'))),
+          }) : null)
         }
 
         function ReviewChip({ useProjection, sessionId }) {
@@ -453,7 +472,6 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
               ref: anchor, type: 'button', onClick: () => setOpen(!open), 'aria-expanded': open, 'aria-haspopup': 'dialog',
               className: missing ? 'arm-chip warn' : 'arm-chip', title: lines.join('\n'), 'aria-label': lines.join(' '),
             },
-              h('style', null, CHIP_CSS),
               h('span', null, t('chipPrefix')),
               h('b', null, name),
               total === 0 ? null : h('span', { className: denied > 0 ? 'arm-chip-count err' : 'arm-chip-count' }, denied > 0 ? `${denied}/${total}` : String(total))),
@@ -563,7 +581,6 @@ button.arm-chip:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-a
 
           const busy = status.kind === 'saving' || saved === null
           return h('div', { className: 'arm' },
-            h('style', null, CSS),
             h('h4', { className: 'arm-title' }, t('title')),
             h('div', { className: 'arm-hint' }, t('hint')),
             h('label', { className: 'arm-row' },

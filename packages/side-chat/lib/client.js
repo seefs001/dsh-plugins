@@ -45,7 +45,7 @@ window.__ModuleLoader__.load({
 .sc-selection svg{flex:none;color:var(--dsw-alias-label-secondary)}
 @media (hover:hover){.sc-selection:hover{background:var(--dsw-alias-button-floating-hover,var(--dsw-alias-interactive-bg-hover))}}
 .sc-tab-icon{flex:none;color:var(--dsw-alias-label-tertiary)}
-.sc-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-business-primary);animation:sc-pulse 1.4s ease-in-out infinite}
+.sc-dot{flex:none;width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-business-primary);animation:sc-pulse 1.4s ease-in-out infinite}
 @keyframes sc-pulse{50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.sc-dot{animation:none}}
 .sc-count{color:var(--dsw-alias-label-tertiary);font-size:11px;font-weight:400;font-variant-numeric:tabular-nums}
@@ -65,12 +65,12 @@ window.__ModuleLoader__.load({
   background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:18px;white-space:nowrap;cursor:pointer}
 .sc-btn svg,.sc-icon-btn svg{flex:none}
 .sc-btn[data-variant=outline]{box-shadow:inset 0 0 0 .5px var(--dsw-alias-border-l3);color:var(--dsw-alias-label-primary)}
-.sc-btn[data-variant=primary]{height:28px;padding:0 12px;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));
-  color:var(--dsw-alias-label-primary-foreground,#fff);font-weight:500}
+.sc-btn[data-variant=primary]{height:28px;padding:0 12px;border-radius:999px;corner-shape:round;background:var(--dsw-alias-button-primary-fill);
+  color:var(--dsw-alias-label-primary-foreground);font-weight:500}
 .sc-icon-btn{width:26px;padding:0;color:var(--dsw-alias-label-tertiary)}
 @media (hover:hover){
   .sc-btn:hover:not(:disabled),.sc-icon-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
-  .sc-btn[data-variant=primary]:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground,#fff)}
+  .sc-btn[data-variant=primary]:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover);color:var(--dsw-alias-label-primary-foreground)}
   .sc-icon-btn[data-danger]:hover:not(:disabled){color:var(--dsw-alias-state-error-primary)}
 }
 .sc-btn:disabled,.sc-icon-btn:disabled{opacity:.4;cursor:default}

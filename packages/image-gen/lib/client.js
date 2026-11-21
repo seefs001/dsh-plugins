@@ -2,6 +2,7 @@ window.__ModuleLoader__.load({
   id: 'dsh-image-gen',
   factory(require) {
     const React = require('react')
+    const { Switch } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'image-gen'
     const KEY = 'dsh-image-gen'
@@ -57,25 +58,27 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
-.ig{--ig-line:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l2);--ig-r:var(--dsw-radius-sm,8px);display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.ig{--ig-line:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);--ig-r:var(--dsw-radius-sm,8px);display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .ig-title{margin:0;font-size:14px;line-height:20px;font-weight:500}
 .ig-hint,.ig-note{color:var(--dsw-alias-label-secondary);line-height:20px}
 .ig-note.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
 .ig-note.err{color:var(--dsw-alias-state-error-primary)}
 .ig-note.ok{color:var(--dsw-alias-state-success-primary)}
-.ig-row{display:grid;grid-template-columns:120px minmax(0,360px);gap:8px;align-items:center}
+.ig-row{display:grid;grid-template-columns:132px minmax(0,380px);gap:8px;align-items:center}
+.ig-row:has([role=switch]){cursor:pointer}
+.ig-row:has([role=switch]:disabled){cursor:default}
 .ig-row>span{color:var(--dsw-alias-label-secondary)}
-.ig select,.ig input[type=text]{height:32px;min-width:0;padding:0 8px;border:var(--ig-line);border-radius:var(--ig-r);background:var(--dsw-alias-button-elevated-fill,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);font:inherit}
+.ig select,.ig input[type=text]{height:32px;min-width:0;padding:0 10px;border:var(--ig-line);border-radius:var(--ig-r);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit}
 .ig select{cursor:pointer}
 .ig select:disabled,.ig input:disabled{opacity:.6;cursor:default}
-.ig input[type=checkbox]{justify-self:start;width:16px;height:16px;cursor:pointer}
-.ig select:focus-visible,.ig input:focus-visible,.ig-btn:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:1px}
-.ig-section{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:var(--dsh-hairline-width,1px) solid var(--dsw-alias-border-l1)}
+.ig select:focus-visible,.ig input:focus-visible,.ig-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.ig-section{display:flex;flex-direction:column;gap:12px;padding-top:14px;border-top:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1)}
 .ig-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.ig-btn{height:30px;padding:0 14px;border:var(--ig-line);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit;transition:background-color .15s}
-.ig-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}
-.ig-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-inverted,var(--dsw-alias-bg-base))}
+.ig-btn{height:30px;padding:0 14px;border:var(--ig-line);border-radius:999px;corner-shape:round;background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit;transition:background-color .15s}
+.ig-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}
 .ig-btn:disabled{opacity:.4;cursor:default}
+@media (hover:hover){.ig-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.ig-btn.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
+@media (pointer:coarse){.ig select,.ig input[type=text]{font-size:16px}}
 @media (max-width:560px){.ig-row{grid-template-columns:1fr}}
 `
 
@@ -128,6 +131,12 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'remote', 'remote.session'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'image-gen: dictionaries')
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'image-gen: styles')
         const t = ctx.locale.bind(NS)
 
         // external: dsh built-in read_image view is keyed strictly to read_image and reads images from content + tool.call.images
@@ -256,7 +265,7 @@ window.__ModuleLoader__.load({
               h('h4', { className: 'ig-title' }, t(kind === 'grok' ? 'grokTitle' : 'openaiTitle')),
               h('label', { className: 'ig-row' },
                 h('span', null, t('enabled')),
-                h('input', { type: 'checkbox', checked: value.enabled, disabled: busy, onChange: e => patchKind(kind, { enabled: e.target.checked }) })),
+                h(Switch, { checked: value.enabled, disabled: busy, label: t('enabled'), onChange: enabled => patchKind(kind, { enabled }) })),
               h('label', { className: 'ig-row' },
                 h('span', null, t('model')),
                 h('select', { value: key, disabled: busy || !value.enabled, onChange: onModel }, options)),
@@ -266,7 +275,6 @@ window.__ModuleLoader__.load({
           }
 
           return h('div', { className: 'ig' },
-            h('style', null, CSS),
             h('h4', { className: 'ig-title' }, t('title')),
             h('div', { className: 'ig-hint' }, t('hint'), ' ', t('onlyResponses')),
             catalog.status === 'loading' ? h('div', { className: 'ig-note' }, t('loading')) : null,

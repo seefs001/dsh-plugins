@@ -40,6 +40,12 @@ window.__ModuleLoader__.load({
         for (const [lang, dictionary] of Object.entries(DICTS)) {
           ctx.effect(() => ctx.locale.register(NS, lang, dictionary))
         }
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'subagent-model: styles')
         const t = ctx.locale.bind(NS)
         const subscribeLocale = listener => ctx.locale.subscribe(listener)
         const localeSnapshot = () => ctx.locale.getSnapshot()
@@ -66,15 +72,13 @@ window.__ModuleLoader__.load({
           const route = selection ? `${selection.provider}/${selection.model}` : ''
           const title = [text, route, t('readOnly')].filter(Boolean).join('\n')
 
-          return h(React.Fragment, null,
-            h('style', null, CSS),
-            h('span', {
-              className: 'dsh-subagent-model', title,
-              role: 'status', 'aria-label': `${t('label')}: ${text}. ${t('readOnly')}`,
-            }, h(ModelIcon),
-            h('span', { className: 'dsh-subagent-model__name' }, modelName),
-            effortLabel === undefined ? null
-              : h('span', { className: 'dsh-subagent-model__effort' }, effortLabel)))
+          return h('span', {
+            className: 'dsh-subagent-model', title,
+            role: 'status', 'aria-label': `${t('label')}: ${text}. ${t('readOnly')}`,
+          }, h(ModelIcon),
+          h('span', { className: 'dsh-subagent-model__name' }, modelName),
+          effortLabel === undefined ? null
+            : h('span', { className: 'dsh-subagent-model__effort' }, effortLabel))
         }
 
         function SubagentModel(props) {

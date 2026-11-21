@@ -260,24 +260,26 @@ window.__ModuleLoader__.load({
 .sl-bottom{margin-top:10px;padding-top:6px;border-top:.5px solid var(--dsw-alias-border-l1,transparent)}
 .sl-section+.sl-section{margin-top:4px}
 .sl-row{position:relative;display:flex;align-items:center;height:32px;border-radius:var(--dsw-radius-md,8px);border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;background-clip:padding-box;box-sizing:border-box;padding:0 8px 0 calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));cursor:pointer;user-select:none;color:var(--dsw-alias-label-secondary)}
-.sl-row:focus-visible{outline:none;box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary))}
+.sl-row:focus-visible{outline:none;box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 .sl-row.sl-selected{background-color:var(--dsw-alias-interactive-bg-hover)}
 @media (hover:hover){.sl-row:hover{background-color:var(--dsw-alias-interactive-bg-hover)}}
 .sl-head{font-size:12px;color:var(--dsw-alias-label-tertiary)}
 .sl-head .sl-title{font-size:12px;font-weight:500;color:var(--dsw-alias-label-secondary)}
-.sl-attn .sl-head .sl-title{color:var(--dsw-alias-state-warning-primary,var(--dsw-alias-label-primary))}
+.sl-attn .sl-head .sl-title{color:var(--dsw-alias-state-warn-primary,var(--dsw-alias-label-primary))}
 .sl-slot{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:20px;color:var(--dsw-alias-label-tertiary)}
 .sl-title{flex:1;min-width:0;margin:0 6px 0 var(--dsh-sidebar-label-gap,6px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px}
 .sl-member .sl-title{color:var(--dsw-alias-label-primary)}
 .sl-note{flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
-.sl-attn .sl-note{color:var(--dsw-alias-state-warning-primary,var(--dsw-alias-label-tertiary))}
+.sl-attn .sl-note{color:var(--dsw-alias-state-warn-primary,var(--dsw-alias-label-tertiary))}
 .sl-count{font-size:12px;color:var(--dsw-alias-label-tertiary)}
 .sl-actions{flex:none;display:none;align-items:center;gap:2px;margin-right:-4px}
 @media (hover:hover){.sl-member:hover .sl-actions,.sl-member:focus-within .sl-actions{display:inline-flex}.sl-member:hover .sl-note,.sl-member:focus-within .sl-note{display:none}}
 .sl-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
-.sl-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.12))}
-.sl-running{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));animation:sl-pulse 1.4s ease-in-out infinite}
-.sl-dot{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-warning-primary,#d9822b)}
+.sl-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+@media (hover:hover){.sl-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
+.sl-running{width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));animation:sl-pulse 1.4s ease-in-out infinite}
+.sl-dot{width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-warn-primary)}
+.sl-badge{position:absolute;inset-inline-start:65%;top:-.55em;font-size:10px;font-weight:600;padding:0 4px;border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-brand-primary)}
 @keyframes sl-pulse{50%{opacity:.35}}
 .sl-more{font:inherit;font-size:12px;width:100%;border:0;background:none;text-align:start}
 @media (prefers-reduced-motion:reduce){.sl-running{animation:none}}
@@ -287,12 +289,13 @@ window.__ModuleLoader__.load({
 .sl-page{height:100%;min-width:0;box-sizing:border-box;overflow:auto;container-type:inline-size;font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base)}
 .sl-page *{box-sizing:border-box}
 .sl-body{max-width:960px;margin:auto;padding:28px clamp(24px,4vw,48px) 64px}
+[data-platform=darwin] .sl-body{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
 .sl-page header,.sl-phead,.sl-pactions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .sl-page header,.sl-phead{justify-content:space-between}
 .sl-page h1{margin:0;font-size:20px;line-height:28px;font-weight:500}
-.sl-page h2,.sl-page summary{font-size:14px;line-height:22px;font-weight:550}
+.sl-page h2,.sl-page summary{font-size:14px;line-height:22px;font-weight:500}
 .sl-page h2,.sl-page ul{margin:0}
-.sl-page h3{margin:24px 0 4px;font-size:14px;font-weight:550}
+.sl-page h3{margin:24px 0 4px;font-size:14px;font-weight:500}
 .sl-page p{line-height:1.55;margin:5px 0}
 .sl-page .muted,.sl-page small,.sl-page footer{color:var(--dsw-alias-label-secondary);font-size:12px}
 .sl-page small{display:block;overflow-wrap:anywhere}
@@ -302,24 +305,31 @@ window.__ModuleLoader__.load({
 .sl-page li>.symbol{color:var(--dsw-alias-label-tertiary);text-align:center;line-height:22px}
 .sl-page li strong{display:block;font-weight:500;line-height:22px;overflow-wrap:anywhere}
 .sl-page .count{margin-inline-start:6px;color:var(--dsw-alias-label-tertiary);font-weight:400}
-.sl-page button,.sl-page select{font:inherit;font-size:13px;min-height:30px;padding:0 10px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);cursor:pointer}
+.sl-page button,.sl-page select{font:inherit;font-size:13px;min-height:30px;padding:0 10px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);cursor:pointer}
+.sl-page :is(button,select,summary):focus-visible,.sl-back:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}
 .sl-page button:disabled{opacity:.5;cursor:default}
-.sl-page button.primary{background:var(--dsw-alias-brand-primary);border-color:transparent;color:#fff}
+.sl-page button.primary{background:var(--dsw-alias-button-primary-fill);border-color:transparent;color:var(--dsw-alias-label-primary-foreground)}
 .sl-page button.quiet{border-color:transparent;background:transparent;color:var(--dsw-alias-label-secondary)}
-.sl-page button.quiet:hover{background:var(--dsw-alias-bg-layer-1)}
+@media (hover:hover){.sl-page button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.sl-page button.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}.sl-page button.quiet:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.sl-back:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 .sl-page label{display:block;margin:14px 0 4px;font-size:13px;color:var(--dsw-alias-label-secondary)}
 .sl-page select{width:100%;max-width:520px}
 .sl-page blockquote{margin:8px 0;padding-inline-start:12px;border-inline-start:2px solid var(--dsw-alias-border-l2);white-space:pre-wrap;overflow-wrap:anywhere}
 .sl-page [role=status]:empty{display:none}
-.sl-back{font:inherit;font-size:12px;color:var(--dsw-alias-label-secondary);background:transparent;border:0;border-radius:6px;padding:4px 8px;cursor:pointer}
-.sl-back:hover{background:var(--dsw-alias-bg-layer-1)}
-@container(max-width:620px){.sl-body{padding:20px 20px 48px}.sl-page li{grid-template-columns:20px minmax(0,1fr)}.sl-page li>.sl-pactions{grid-column:2;justify-content:flex-start}}
+.sl-back{font:inherit;font-size:12px;color:var(--dsw-alias-label-secondary);background:transparent;border:0;border-radius:var(--dsw-radius-sm,8px);padding:4px 8px;cursor:pointer}
+@media (pointer:coarse){.sl-page select{font-size:16px}}
+@container(max-width:620px){.sl-body{padding:20px 20px 48px}[data-platform=darwin] .sl-body{padding-top:calc(20px + var(--dsh-frame-top-clearance,0px))}.sl-page li{grid-template-columns:20px minmax(0,1fr)}.sl-page li>.sl-pactions{grid-column:2;justify-content:flex-start}}
 `
 
     return {
       inject: ['slots', 'locale', 'sessions', 'layout', 'uiWorkspace', 'uiSession', 'workspaces', 'contextMenus'],
       apply(ctx) {
         for (const [lang, messages] of Object.entries(copy)) ctx.effect(() => ctx.locale.register(NS, lang, messages), `${NS}: ${lang}`)
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = SIDEBAR_CSS + PAGE_CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, `${NS}: styles`)
         const t = ctx.locale.bind(NS)
         const tf = (key, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{${k}}`, () => String(v)), t(key))
         const fmt = ms => new Intl.DateTimeFormat(ctx.locale.getSnapshot().active, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(ms)
@@ -613,7 +623,7 @@ window.__ModuleLoader__.load({
           const attention = board.attention.filter(g => !g.pinned)
           const working = foldWorking ? board.working.filter(g => !g.pinned && !g.current) : []
           return h(React.Fragment, null,
-            h('style', null, SIDEBAR_CSS + hideCss),
+            hideCss && h('style', null, hideCss),
             ReactDOM.createPortal(h(React.Fragment, null,
               h(SidebarSection, { section: 'attention', items: attention, selectedId }),
               h(SidebarSection, { section: 'working', items: working, selectedId }),
@@ -634,7 +644,7 @@ window.__ModuleLoader__.load({
           const { board, ready } = useBoard()
           const count = ready ? board.attention.length : 0
           return h('span', { style: { position: 'relative', display: 'inline-flex' } }, h(IconShelves, { size }),
-            count > 0 && h('span', { title: `${t('attention')}: ${count}`, style: { position: 'absolute', insetInlineStart: '65%', top: '-.55em', fontSize: 10, fontWeight: 650, padding: '0 3px', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-brand-primary)' } }, count > 99 ? '99+' : count))
+            count > 0 && h('span', { className: 'sl-badge', title: `${t('attention')}: ${count}` }, count > 99 ? '99+' : count))
         }
 
         function LifecycleSettings({ life }) {
@@ -693,7 +703,7 @@ window.__ModuleLoader__.load({
           const openFile = () => { if (origin !== here || !here?.file) return; try { ctx.get('sidebarRight').openResource(fileAddress(props.sessionId, here.file.path)); here.file = null; setError('') } catch (e) { setError(e.message) } }
           React.useEffect(() => { if (here?.file && !here.attempted) { here.attempted = true; openFile() } }, [here])
           if (!here) return null
-          return h(React.Fragment, null, h('style', null, '.sl-back{font:inherit;font-size:12px;color:var(--dsw-alias-label-secondary);background:transparent;border:0;border-radius:6px;padding:4px 8px;cursor:pointer}.sl-back:hover{background:var(--dsw-alias-bg-layer-1)}'),
+          return h(React.Fragment, null,
             button(t('back'), () => { if (origin === here) ctx.layout.selectPanel(NS) }, 'sl-back'), error && here.file && button(t('file'), openFile, 'sl-back', { title: error }))
         }
 
@@ -800,7 +810,7 @@ window.__ModuleLoader__.load({
           const rows = (items, section) => h(Rows, { items, section, owner, editable, cache, go, noPreview, limit: limits[section], more: () => setLimits(l => ({ ...l, [section]: l[section] + 24 })) })
           const count = (section, n) => h(React.Fragment, null, t(section), h('span', { className: 'count' }, n))
           const shownUpdates = board.updates.slice(0, limits.updates)
-          return h('main', { className: 'sl-page', ref: scroller }, h('style', null, PAGE_CSS), h('div', { className: 'sl-body' },
+          return h('main', { className: 'sl-page', ref: scroller }, h('div', { className: 'sl-body' },
             view === 'settings' ? h(React.Fragment, null,
               h('header', null, h('h1', null, t('settings')), button(t('back'), () => setView('board'), 'quiet')),
               editable && h(LifecycleSettings, { life }),

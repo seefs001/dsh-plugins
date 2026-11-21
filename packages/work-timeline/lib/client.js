@@ -133,7 +133,7 @@ window.__ModuleLoader__.load({
 .wt-outcome-text{white-space:pre-wrap;overflow-wrap:anywhere}
 .wt-outcome-text[data-clamped=true]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .wt-eyebrow{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
-.wt-pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px 0 6px;border-radius:11px;font-weight:500;
+.wt-pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px 0 6px;border-radius:999px;corner-shape:round;font-weight:500;
   color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-card-fill,var(--dsw-alias-bg-layer-1))}
 .wt-pill .wt-glyph{width:14px;height:14px}
 .wt-pill[data-tone=active]{color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-state-business-tertiary,var(--dsw-alias-bg-layer-1))}
@@ -197,7 +197,7 @@ window.__ModuleLoader__.load({
 .wt-revs{display:flex;flex-direction:column}
 .wt-rev{position:relative;display:grid;grid-template-columns:16px minmax(0,1fr);column-gap:12px;padding-bottom:18px}
 .wt-rev:not(:last-child)::before{content:'';position:absolute;left:7.5px;top:14px;bottom:-2px;width:1px;background:var(--dsw-alias-border-l2)}
-.wt-rev-dot{width:9px;height:9px;margin:6px auto 0;border-radius:50%;border:1.5px solid var(--dsw-alias-label-tertiary);background:var(--dsw-alias-bg-base)}
+.wt-rev-dot{width:9px;height:9px;margin:6px auto 0;border-radius:50%;corner-shape:round;border:1.5px solid var(--dsw-alias-label-tertiary);background:var(--dsw-alias-bg-base)}
 .wt-rev[data-latest=true] .wt-rev-dot{border-color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-state-business-primary)}
 .wt-rev-main{display:flex;flex-direction:column;gap:6px;min-width:0}
 .wt-rev-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px}
@@ -303,7 +303,12 @@ window.__ModuleLoader__.load({
           try { return new Intl.DateTimeFormat(getLocale().active, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(time)) }
           catch { return new Date(time).toLocaleString() }
         }
-        const style = h('style', null, CSS)
+        ctx.effect(() => {
+          const el = document.createElement('style')
+          el.textContent = CSS
+          document.head.append(el)
+          return () => el.remove()
+        }, 'work-timeline: styles')
 
         function Dock({ useProjection }) {
           const t = useLocale()
@@ -321,7 +326,7 @@ window.__ModuleLoader__.load({
           const open = () => {
             try { ctx.sidebarRight.openTab(KEY); setError('') } catch (failure) { setError(failure.message) }
           }
-          return h('div', { className: 'wt wt-dock' }, style,
+          return h('div', { className: 'wt wt-dock' },
             h('div', { className: 'wt-card' },
               h('button', {
                 type: 'button', className: 'wt-dock-main', onClick: open, title: t('open'),
@@ -540,7 +545,7 @@ window.__ModuleLoader__.load({
           const counts = { plan: snapshot.steps.length, process: state.current.revision, artifacts: snapshot.artifacts.length }
           const selected = target?.split(':').slice(1).join(':')
           const openAll = () => { setFilter(''); select('artifacts') }
-          return h('section', { className: 'wt wt-page', 'aria-label': t('title') }, style,
+          return h('section', { className: 'wt wt-page', 'aria-label': t('title') },
             h(Overview, { state, details, setDetails, showStep, preview, openAll, prefix, t }),
             error && h('p', { role: 'alert', className: 'wt-error wt-page-error' }, t('error', { message: error })),
             h('div', { className: 'wt-tabs', ref: strip, role: 'tablist', 'aria-label': t('views'), onKeyDown }, VIEWS.map((name, index) => h('button', {
@@ -559,7 +564,7 @@ window.__ModuleLoader__.load({
           const state = useProjection(KEY)
           const { tab } = useTabInfo()
           if (!state?.current) {
-            return h('section', { className: 'wt wt-page', 'aria-label': t('title') }, style,
+            return h('section', { className: 'wt wt-page', 'aria-label': t('title') },
               h('div', { className: 'wt-empty' }, h(WorkGlyph, { size: 32 }), h('h2', null, t('emptyTitle')), h('p', null, t('emptyBody'))))
           }
           return h(WorkBody, { key: `${sessionId}:${state.current.id}`, state, sessionId, actions: tab.actions })
