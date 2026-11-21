@@ -2,30 +2,27 @@ window.__ModuleLoader__.load({
   id: 'dsh-tool-lens',
   factory(require) {
     const React = require('react')
+    const {
+      DisclosureRow,
+      FileTypeIcon,
+      IconGlobeOutlineRegular,
+      IconInspectOutlineRegular,
+      IconSkillOutlineRegular,
+      TextShimmer,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'toolLens'
     const PRIORITY = -10
+    const AUGMENT_PRIORITY = -20
     const MISSING_MS = 2400
 
     const CSS_TEXT = `
 .dtl-card{display:flex;flex-direction:column}
-.dtl-row{position:relative;display:flex;align-items:center;min-width:0;height:calc(24px + var(--dsh-content-font-delta,0px));
-  overflow:hidden;color:var(--dsw-alias-label-tertiary);transition:color .1s}
-@media (hover:hover){.dtl-row:hover{color:var(--dsw-alias-label-secondary)}}
-.dtl-row[data-expandable]{cursor:pointer}
+.dtl-row{min-width:0}
 .dtl-btn{display:inline-flex;align-items:center;min-width:0;margin:0;padding:0;border:0;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left}
 .dtl-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px;border-radius:4px}
-.dtl-leading{position:relative;display:inline-flex;flex:none;align-items:center;justify-content:center;margin-right:6px;
-  width:calc(16px + var(--dsh-content-font-delta,0px));height:calc(16px + var(--dsh-content-font-delta,0px));color:inherit}
-.dtl-leading svg{width:calc(14px + var(--dsh-content-font-delta,0px));height:calc(14px + var(--dsh-content-font-delta,0px))}
-.dtl-icon-idle{display:inline-flex;opacity:1;transition:opacity .1s}
-.dtl-chevron{position:absolute;inset:0;margin:auto;opacity:0;transition:opacity .1s}
-.dtl-leading[data-open] .dtl-chevron{position:static;opacity:1}
-@media (hover:hover){.dtl-row[data-expandable]:hover .dtl-icon-idle{opacity:0}.dtl-row[data-expandable]:hover .dtl-chevron{opacity:1}}
-.dtl-title,.dtl-summary{font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
-.dtl-title{flex:none}
 .dtl-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
-.dtl-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.dtl-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .dtl-error{color:var(--dsw-alias-state-error-primary)}
 .dtl-stopped{color:var(--dsw-alias-state-warn-label)}
 .dtl-link{gap:4px;flex:0 1 auto;min-width:0;border-radius:4px}
@@ -58,8 +55,6 @@ window.__ModuleLoader__.load({
 .dtl-inspect:focus-visible{opacity:1}
 @media (hover:hover){.dtl-card:hover .dtl-inspect{opacity:1}.dtl-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.dtl-inspect{opacity:1}}
-.dtl-shimmer{animation:dtl-pulse 1.6s ease-in-out infinite}
-@keyframes dtl-pulse{0%,100%{opacity:1}50%{opacity:.45}}
 .dtl-wrap{position:relative}
 .dtl-float{position:absolute;top:0;right:0;display:flex;align-items:center;gap:4px;height:calc(24px + var(--dsh-content-font-delta,0px));
   padding-left:20px;background:linear-gradient(to right,transparent,var(--dsw-alias-bg-base) 18px);opacity:0;transition:opacity .1s}
@@ -74,24 +69,21 @@ window.__ModuleLoader__.load({
 .dtl-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .dtl-list{display:flex;flex-direction:column;max-height:240px;margin:4px 0 4px 4px;padding:4px;overflow:auto;list-style:none;
   border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block)}
-.dtl-item{display:flex;align-items:baseline;gap:8px;width:100%;padding:3px 8px;border-radius:6px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
-@media (hover:hover){.dtl-item:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+.dtl-item-row{display:flex;align-items:center;gap:6px;width:100%;padding:2px 6px;border-radius:6px}
+@media (hover:hover){.dtl-item-row:hover{background:var(--dsw-alias-interactive-bg-hover-solid)}}
+.dtl-item{display:flex;flex:1 1 auto;align-items:center;gap:6px;min-width:0;padding:2px 2px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+@media (hover:hover){.dtl-item-row:hover .dtl-item{color:var(--dsw-alias-label-primary)}}
 .dtl-item-primary{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .dtl-item-secondary{flex:none;max-width:40%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--dsw-alias-label-caption);font-size:11px}
+.dtl-lines{display:inline-flex;flex:none;align-items:center;gap:3px;flex-wrap:nowrap}
+.dtl-line-btn{padding:0 5px;height:18px;border:.5px solid var(--dsw-alias-border-l3);border-radius:4px;background:var(--dsw-alias-bg-base);
+  color:var(--dsw-alias-label-tertiary);font:11px/16px var(--ds-font-family-code,monospace);cursor:pointer}
+@media (hover:hover){.dtl-line-btn:hover{border-color:var(--dsw-alias-border-l4);color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
 .dtl-item-more{padding:3px 8px;color:var(--dsw-alias-label-caption);font-size:11px}
-@media (prefers-reduced-motion:reduce){.dtl-float{transition:none}}
-.dtl-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-@media (prefers-reduced-motion:reduce){.dtl-row,.dtl-icon-idle,.dtl-chevron,.dtl-link-icon,.dtl-inspect{transition:none}.dtl-shimmer{animation:none}}
+@media (prefers-reduced-motion:reduce){.dtl-float,.dtl-link-icon,.dtl-inspect{transition:none}}
 `
 
     const svg = (viewBox, children, extra) => h('svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox, fill: 'none', strokeWidth: 1, 'aria-hidden': true, ...extra }, ...children)
-    const IconSkill = () => svg('0 0 17 17', [
-      h('path', { key: 1, d: 'M4.57788 5.77124H10.7029', stroke: 'currentColor' }),
-      h('path', { key: 2, d: 'M4.57788 8.89819H7.91879', stroke: 'currentColor' }),
-      h('path', { key: 3, fill: 'currentColor', d: 'M12.1404 1.19446C12.9442 1.19446 13.6404 1.81999 13.6404 2.64465V8.89856H12.6404V2.64465C12.6404 2.42015 12.4411 2.19446 12.1404 2.19446H3.14038C2.83968 2.19446 2.64038 2.42015 2.64038 2.64465V13.0929C2.64082 13.3172 2.84001 13.5421 3.14038 13.5421H8.88159V14.5421H3.14038C2.33675 14.5421 1.6408 13.9172 1.64038 13.0929V2.64465C1.64038 1.81999 2.33651 1.19446 3.14038 1.19446H12.1404Z' }),
-      h('path', { key: 4, d: 'M12.0051 15.1056C12.0051 13.6395 10.8166 12.451 9.35059 12.451C10.8166 12.451 12.0051 11.2626 12.0051 9.79651C12.0051 11.2626 13.1936 12.451 14.6597 12.451C13.1936 12.451 12.0051 13.6395 12.0051 15.1056Z', stroke: 'currentColor' }),
-    ])
-    const IconChevron = () => svg('0 0 16 16', [h('path', { key: 1, d: 'M4 6L7.29289 9.29289C7.68342 9.68342 8.31658 9.68342 8.70711 9.29289L12 6', stroke: 'currentColor' })], { width: 14, height: 14 })
     const IconSidePanel = () => svg('0 0 16 16', [
       h('rect', { key: 1, x: 2, y: 3, width: 12, height: 10, rx: 2, stroke: 'currentColor', strokeWidth: 1.2 }),
       h('path', { key: 2, d: 'M10 3.6V12.4', stroke: 'currentColor', strokeWidth: 1.2 }),
@@ -122,13 +114,6 @@ window.__ModuleLoader__.load({
       return { raw, args: null }
     }
 
-    function Leading({ icon, open, expandable }) {
-      if (!expandable) return h('span', { className: 'dtl-leading' }, icon)
-      return h('span', { className: 'dtl-leading', 'data-open': open || undefined },
-        open ? null : h('span', { className: 'dtl-icon-idle' }, icon),
-        h('span', { className: 'dtl-chevron' }, h(IconChevron)))
-    }
-
     const decodeEntities = text => text.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&')
 
     function baseDirectory(output) {
@@ -137,23 +122,9 @@ window.__ModuleLoader__.load({
     }
 
     function SkillRow(props) {
-      const { t } = props
-      if (props.phase === 'preparing') {
-        return h('div', { className: 'dtl-card', 'data-tool': 'skill', 'data-state': 'preparing' },
-          h('div', { className: 'dtl-row' },
-            h(Leading, { icon: h(IconSkill) }),
-            h('span', { className: 'dtl-sr' }, t('skill.preparing')),
-            h('span', { className: 'dtl-title dtl-shimmer' }, t('skill.title'))))
-      }
-      return h(StartedSkillRow, props)
-    }
-
-    function StartedSkillRow({ block, inspect, t, openSkill }) {
-      const state = callState(block)
-      const { raw, args } = parseArgs(block)
-      const name = typeof args?.name === 'string' && args.name !== '' ? firstLine(args.name) : (raw === '' ? block.callId : firstLine(raw))
-      const output = resultText(block)
-      const [expanded, setExpanded] = React.useState(false)
+      const { phase, block, inspect, sessionId, t, openSkill, useDisclosure, useContextMenu } = props
+      const { expanded, toggle } = useDisclosure()
+      const { getTriggerProps } = useContextMenu()
       const [missing, setMissing] = React.useState(false)
       React.useEffect(() => {
         if (!missing) return undefined
@@ -161,54 +132,71 @@ window.__ModuleLoader__.load({
         return () => clearTimeout(timer)
       }, [missing])
 
+      if (phase === 'preparing') {
+        return h('div', { className: 'dtl-card', 'data-tool': 'skill', 'data-state': 'preparing' },
+          h(DisclosureRow, {
+            rowClassName: 'dtl-row',
+            icon: h(IconSkillOutlineRegular, { size: 14 }),
+            title: t('skill.title'),
+            running: true,
+            open: false,
+            expandable: false,
+          }))
+      }
+
+      const state = callState(block)
+      const { raw, args } = parseArgs(block)
+      const name = typeof args?.name === 'string' && args.name !== '' ? firstLine(args.name) : (raw === '' ? block.callId : firstLine(raw))
+      const output = resultText(block)
+      const baseDir = baseDirectory(output)
+      const skillFilePath = baseDir ? `${baseDir.replace(/[\\/]+$/, '')}/SKILL.md` : undefined
       const expandable = output !== null
       const open = expanded && expandable
       const running = state === 'running'
       const canOpen = state !== 'error' && typeof args?.name === 'string' && args.name !== ''
-      const toggle = () => { if (expandable) setExpanded(value => !value) }
       const openFile = event => {
         event.stopPropagation()
-        openSkill(args.name, baseDirectory(output)).then(ok => { if (!ok) setMissing(true) })
+        openSkill(args.name, baseDir).then(ok => { if (!ok) setMissing(true) })
       }
+      const contextProps = skillFilePath
+        ? getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: skillFilePath } }))
+        : {}
 
       let summary
       if (state === 'stopped') summary = h('span', { className: 'dtl-summary dtl-stopped' }, t('skill.stopped'))
       else if (state === 'error' && output !== null) summary = h('span', { className: 'dtl-summary dtl-error' }, firstLine(output))
       else if (canOpen) {
-        summary = h('button', { type: 'button', className: 'dtl-btn dtl-link', title: t('skill.open'), onClick: openFile },
-          h('span', { className: `dtl-summary${running ? ' dtl-shimmer' : ''}` }, name),
+        summary = h('button', { type: 'button', className: 'dtl-btn dtl-link', title: t('skill.open'), ...contextProps, onClick: openFile },
+          h('span', { className: 'dtl-summary' }, h(TextShimmer, null, name)),
           h('span', { className: 'dtl-link-icon' }, h(IconSidePanel)))
-      } else summary = h('span', { className: `dtl-summary${running ? ' dtl-shimmer' : ''}` }, name)
+      } else {
+        summary = h('span', { className: 'dtl-summary' }, h(TextShimmer, null, name))
+      }
 
-      const status = running ? t('skill.running') : state === 'error' ? t('skill.failed') : null
       return h('div', { className: 'dtl-card', 'data-tool': 'skill', 'data-state': state },
-        h('div', {
-          className: 'dtl-row',
-          'data-expandable': expandable || undefined,
-          onClick: toggle,
+        h(DisclosureRow, {
+          rowClassName: 'dtl-row',
+          icon: h(IconSkillOutlineRegular, { size: 14 }),
+          title: t('skill.title'),
+          running,
+          open,
+          expandable,
+          expandOnRowClick: true,
+          keepContentWhenOpen: true,
+          onToggle: toggle,
+          collapsedContent: h(React.Fragment, null,
+            h('span', { className: 'dtl-sep', 'aria-hidden': true }),
+            summary,
+            missing ? h('span', { className: 'dtl-hint', role: 'status' }, t('skill.notFound')) : null),
         },
-        h('button', {
-          type: 'button',
-          className: 'dtl-btn',
-          'aria-expanded': expandable ? open : undefined,
-          disabled: !expandable,
-          style: expandable ? undefined : { cursor: 'default' },
-          onClick: event => { event.stopPropagation(); toggle() },
-        },
-        h(Leading, { icon: h(IconSkill), open, expandable }),
-        status === null ? null : h('span', { className: 'dtl-sr' }, status),
-        h('span', { className: `dtl-title${running ? ' dtl-shimmer' : ''}` }, t('skill.title'))),
-        h('span', { className: 'dtl-sep', 'aria-hidden': true }),
-        summary,
-        missing ? h('span', { className: 'dtl-hint', role: 'status' }, t('skill.notFound')) : null),
         open ? h('div', { className: 'dtl-body' },
           h('section', { className: 'dtl-panel', 'aria-label': t('skill.instructions') },
             h('div', { className: 'dtl-panel-head' },
               h('span', { className: 'dtl-panel-label' }, t('skill.instructions')),
-              canOpen ? h('button', { type: 'button', className: 'dtl-btn dtl-panel-action', onClick: openFile }, h(IconSidePanel), t('skill.openShort')) : null),
+              canOpen ? h('button', { type: 'button', className: 'dtl-btn dtl-panel-action', ...contextProps, onClick: openFile }, h(IconSidePanel), t('skill.openShort')) : null),
             h('pre', { className: 'dtl-pre', 'data-error': state === 'error' || undefined }, output)),
-          inspect === undefined ? null : h('button', { type: 'button', className: 'dtl-inspect', onClick: inspect }, t('skill.inspect')))
-          : null)
+          inspect === undefined ? null : h('button', { type: 'button', className: 'dtl-inspect', onClick: inspect },
+            h(IconInspectOutlineRegular, { size: 12 }), t('skill.inspect'))) : null))
     }
 
     function createSkillResolver(ctx) {
@@ -231,13 +219,14 @@ window.__ModuleLoader__.load({
     ]
 
     const AUGMENTED = [
-      'bash', 'grep', 'glob', 'web_search', 'web_fetch',
-      'subagent', 'send_message', 'interrupt_agent',
-      'job_output', 'terminal_read', 'workflow', 'lsp',
-      'cordis_inspect_list', 'cordis_inspect_query',
+      'bash', 'pwsh', 'grep', 'glob', 'web_search', 'web_fetch', 'grok_search', 'openai_search',
+      'subagent', 'subagent_fork', 'spawn_teammate', 'wait_agent', 'send_message', 'interrupt_agent',
+      'job_output', 'terminal_read', 'workflow', 'ralph', 'lsp',
+      'cordis_inspect_list', 'cordis_inspect_query', 'cordis_inspect_self',
       'session_event_read', 'session_event_search', 'session_event_trace', 'session_search', 'session_trace',
     ]
     const LIST_CAP = 50
+    const MAX_LINE_JUMPS = 6
     const SPILL_MARK = ' Full formatted result stored at: '
 
     const settledText = block => ('kind' in block ? resultText(block) : null)
@@ -256,12 +245,16 @@ window.__ModuleLoader__.load({
 
     function subagentChild(toolName, block) {
       if (!('kind' in block) || block.isError) return undefined
-      if (toolName === 'subagent') {
-        const reference = metaOf(block)?.name
+      if (toolName === 'subagent' || toolName === 'subagent_fork') {
+        const reference = metaOf(block)?.name ?? parseArgs(block).args?.name
         return typeof reference === 'string' && reference !== '' ? reference : undefined
       }
-      if (toolName !== 'send_message' && toolName !== 'interrupt_agent') return undefined
-      const reference = parseArgs(block).args?.agent
+      if (toolName === 'spawn_teammate') {
+        const reference = metaOf(block)?.name ?? parseArgs(block).args?.name
+        return typeof reference === 'string' && reference !== '' ? reference : undefined
+      }
+      if (toolName !== 'send_message' && toolName !== 'interrupt_agent' && toolName !== 'wait_agent') return undefined
+      const reference = parseArgs(block).args?.agent ?? parseArgs(block).args?.name
       return typeof reference === 'string' && reference !== '' ? reference : undefined
     }
 
@@ -298,9 +291,37 @@ window.__ModuleLoader__.load({
       if (meta?.shape === 'matches' && Array.isArray(meta.files)) {
         return meta.files
           .filter(file => typeof file?.path === 'string')
-          .map(file => ({ path: file.path, line: file.matches?.[0]?.lineNumber, count: file.matches?.length }))
+          .map(file => {
+            const lines = [...new Set((file.matches ?? [])
+              .map(match => match?.lineNumber)
+              .filter(line => Number.isInteger(line) && line > 0))]
+            return { path: file.path, line: lines[0], lines, count: file.matches?.length }
+          })
       }
       return []
+    }
+
+    function lspLocations(block) {
+      if (!('kind' in block) || block.isError) return []
+      const text = settledText(block)
+      if (text === null) return []
+      const byFile = new Map()
+      const pattern = /(?:^|[\s([{"'])((?:\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*|[A-Za-z]:[\\/][A-Za-z0-9._\\/-]+|[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+)\.[A-Za-z0-9]{1,8}):(\d+)(?::\d+)?/g
+      for (const rawLine of text.split('\n')) {
+        let match
+        while ((match = pattern.exec(rawLine)) !== null) {
+          const path = match[1]
+          const line = Number(match[2])
+          if (!Number.isInteger(line) || line <= 0) continue
+          let entry = byFile.get(path)
+          if (!entry) {
+            entry = { path, line, lines: [] }
+            byFile.set(path, entry)
+          }
+          if (!entry.lines.includes(line)) entry.lines.push(line)
+        }
+      }
+      return [...byFile.values()].map(entry => ({ ...entry, count: entry.lines.length }))
     }
 
     function webLinks(toolName, block) {
@@ -311,7 +332,7 @@ window.__ModuleLoader__.load({
         const { protocol } = new URL(url)
         return protocol === 'https:' || protocol === 'http:'
       }
-      if (toolName === 'web_search' && Array.isArray(meta?.sources)) {
+      if ((toolName === 'web_search' || toolName === 'grok_search' || toolName === 'openai_search') && Array.isArray(meta?.sources)) {
         return meta.sources.filter(source => isWebUrl(source?.url)).map(source => ({ url: source.url, title: source.title }))
       }
       if (toolName === 'web_fetch') {
@@ -332,10 +353,7 @@ window.__ModuleLoader__.load({
       h('path', { key: 1, d: 'M5 2.5h5l2.5 2.5v6.5H5z', stroke: 'currentColor', strokeWidth: 1.1, strokeLinejoin: 'round' }),
       h('path', { key: 2, d: 'M3.5 5v8.5h6.5', stroke: 'currentColor', strokeWidth: 1.1, strokeLinejoin: 'round' }),
     ])
-    const IconGlobe = () => svg('0 0 16 16', [
-      h('circle', { key: 1, cx: 8, cy: 8, r: 5.5, stroke: 'currentColor', strokeWidth: 1.1 }),
-      h('path', { key: 2, d: 'M2.5 8h11M8 2.5c1.8 2 1.8 9 0 11M8 2.5c-1.8 2-1.8 9 0 11', stroke: 'currentColor', strokeWidth: 1.1 }),
-    ])
+    const IconGlobe = () => h(IconGlobeOutlineRegular, { size: 12 })
 
     const fill = (text, n) => text.replace('{n}', String(n))
     const tail = path => path.replace(/\\/g, '/').split('/').filter(Boolean).slice(-2).join('/') || path
@@ -375,25 +393,27 @@ window.__ModuleLoader__.load({
         for (const entry of ctx.slots.entries('tool.call.toolview')) {
           if (entry.options?.key !== key || entry.component === self) continue
           const priority = entry.options.priority ?? 0
-          if (priority <= PRIORITY) continue
+          if (priority <= AUGMENT_PRIORITY) continue
           if (best === undefined || priority < (best.options.priority ?? 0)) best = entry
         }
         return best
       }
 
-      function Action({ icon, label, title, pressed, onClick }) {
+      function Action({ icon, label, title, pressed, contextProps, onClick }) {
         return h('button', {
           type: 'button',
           className: 'dtl-chip',
           title,
           'aria-pressed': pressed,
+          ...contextProps,
           onClick: event => { event.stopPropagation(); onClick(event) },
-        }, h(icon), label)
+        }, typeof icon === 'function' ? h(icon) : icon, label)
       }
 
       function AugmentedRow(props) {
         React.useSyncExternalStore(subscribeLocale, localeSnapshot)
-        const { toolName, block, phase, openFile, sessionId } = props
+        const { toolName, block, phase, openFile, sessionId, useContextMenu } = props
+        const { getTriggerProps } = useContextMenu()
         const [list, setList] = React.useState(null)
         const base = baseEntry(toolName, AugmentedRow)
         const inner = base === undefined ? null : h(base.component, props)
@@ -401,34 +421,65 @@ window.__ModuleLoader__.load({
 
         const spill = spillPath(block)
         const child = subagentChild(toolName, block)
-        const files = toolName === 'grep' || toolName === 'glob' ? searchFiles(block) : []
-        const links = toolName === 'web_search' || toolName === 'web_fetch' ? webLinks(toolName, block) : []
+        const files = toolName === 'grep' || toolName === 'glob' ? searchFiles(block)
+          : toolName === 'lsp' ? lspLocations(block) : []
+        const links = toolName === 'web_search' || toolName === 'web_fetch' || toolName === 'grok_search' || toolName === 'openai_search'
+          ? webLinks(toolName, block) : []
         const actions = []
         if (spill !== undefined) {
-          actions.push(h(Action, { key: 'spill', icon: IconOutput, label: tt('lens.spill'), title: tt('lens.spillTitle'), onClick: () => openFile(spill) }))
+          actions.push(h(Action, {
+            key: 'spill',
+            icon: IconOutput,
+            label: tt('lens.spill'),
+            title: tt('lens.spillTitle'),
+            contextProps: getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: spill } })),
+            onClick: () => openFile(spill),
+          }))
         }
         if (child !== undefined && child !== 'lead' && sessionId !== undefined) {
           actions.push(h(Action, { key: 'sub', icon: IconChat, label: tt('lens.subagent'), title: tt('lens.subagentTitle'), onClick: () => openSubagent(sessionId, child) }))
         }
-        if (files.length === 1) {
-          actions.push(h(Action, { key: 'file', icon: IconFiles, label: tail(files[0].path), title: files[0].path, onClick: () => openFile(files[0].path, files[0].line ? { line: files[0].line } : undefined) }))
-        } else if (files.length > 1) {
-          actions.push(h(Action, { key: 'files', icon: IconFiles, label: fill(tt('lens.files'), files.length), title: tt('lens.filesTitle'), pressed: list === 'files', onClick: () => setList(v => (v === 'files' ? null : 'files')) }))
+        if (files.length === 1 && !(files[0].lines?.length > 1)) {
+          const single = files[0]
+          actions.push(h(Action, {
+            key: 'file',
+            icon: h(FileTypeIcon, { path: single.path, size: 12 }),
+            label: single.line ? `${tail(single.path)}:${single.line}` : tail(single.path),
+            title: single.line ? `${single.path}:${single.line}` : single.path,
+            contextProps: getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: single.path, ...(single.line ? { line: single.line } : {}) } })),
+            onClick: () => openFile(single.path, single.line ? { line: single.line } : undefined),
+          }))
+        } else if (files.length > 0) {
+          const label = files.length === 1
+            ? `${tail(files[0].path)} (${files[0].lines.length})`
+            : fill(tt('lens.files'), files.length)
+          actions.push(h(Action, { key: 'files', icon: IconFiles, label, title: tt('lens.filesTitle'), pressed: list === 'files', onClick: () => setList(v => (v === 'files' ? null : 'files')) }))
         }
         if (toolName === 'web_fetch' && links.length === 1) {
-          actions.push(h(Action, { key: 'web', icon: IconGlobe, label: tt('lens.browse'), title: tt('lens.browseTitle'), onClick: event => openUrl(links[0].url, event) }))
+          actions.push(h(Action, {
+            key: 'web',
+            icon: IconGlobe,
+            label: tt('lens.browse'),
+            title: tt('lens.browseTitle'),
+            contextProps: getTriggerProps(() => ({ kind: 'url', value: { sessionId, url: links[0].url } })),
+            onClick: event => openUrl(links[0].url, event),
+          }))
         } else if (links.length > 0) {
           actions.push(h(Action, { key: 'links', icon: IconGlobe, label: fill(tt('lens.sources'), links.length), title: tt('lens.browseTitle'), pressed: list === 'links', onClick: () => setList(v => (v === 'links' ? null : 'links')) }))
         }
         if (actions.length === 0) return inner
 
         let panel = null
-        if (list === 'files' && files.length > 1) {
+        if (list === 'files' && files.length > 0) {
           panel = h(ItemList, {
             items: files.slice(0, LIST_CAP).map(file => ({
               key: file.path,
+              icon: h(FileTypeIcon, { path: file.path, size: 14 }),
               primary: file.path,
-              secondary: file.count ? `${file.count}` : undefined,
+              secondary: file.count && !(file.lines?.length > 1) ? `${file.count}` : undefined,
+              lines: file.lines?.length > 1 ? file.lines : undefined,
+              onLineClick: line => openFile(file.path, { line }),
+              contextProps: getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: file.path, ...(file.line ? { line: file.line } : {}) } })),
               onClick: () => openFile(file.path, file.line ? { line: file.line } : undefined),
             })),
             more: files.length - LIST_CAP,
@@ -437,9 +488,11 @@ window.__ModuleLoader__.load({
           panel = h(ItemList, {
             items: links.slice(0, LIST_CAP).map((link, i) => ({
               key: `${i}:${link.url}`,
+              icon: h(IconGlobeOutlineRegular, { size: 14 }),
               primary: link.title || link.url,
               secondary: hostOf(link.url),
               title: link.url,
+              contextProps: getTriggerProps(() => ({ kind: 'url', value: { sessionId, url: link.url } })),
               onClick: event => openUrl(link.url, event),
             })),
             more: links.length - LIST_CAP,
@@ -454,10 +507,26 @@ window.__ModuleLoader__.load({
 
       function ItemList({ items, more }) {
         return h('ul', { className: 'dtl-list' },
-          ...items.map(item => h('li', { key: item.key },
-            h('button', { type: 'button', className: 'dtl-btn dtl-item', title: item.title ?? item.primary, onClick: item.onClick },
-              h('span', { className: 'dtl-item-primary' }, item.primary),
-              item.secondary ? h('span', { className: 'dtl-item-secondary' }, item.secondary) : null))),
+          ...items.map(item => h('li', { key: item.key, className: 'dtl-item-row' },
+            h('button', {
+              type: 'button',
+              className: 'dtl-btn dtl-item',
+              title: item.title ?? item.primary,
+              ...item.contextProps,
+              onClick: item.onClick,
+            },
+            item.icon,
+            h('span', { className: 'dtl-item-primary' }, item.primary),
+            item.secondary ? h('span', { className: 'dtl-item-secondary' }, item.secondary) : null),
+            item.lines ? h('span', { className: 'dtl-lines' },
+              item.lines.slice(0, MAX_LINE_JUMPS).map(line => h('button', {
+                key: line,
+                type: 'button',
+                className: 'dtl-line-btn',
+                title: `${item.primary}:${line}`,
+                onClick: event => { event.stopPropagation(); item.onLineClick(line) },
+              }, `:${line}`)),
+              item.lines.length > MAX_LINE_JUMPS ? h('span', { className: 'dtl-item-secondary' }, `+${item.lines.length - MAX_LINE_JUMPS}`) : null) : null)),
           more > 0 ? h('li', { key: 'more', className: 'dtl-item-more' }, fill(tt('lens.more'), more)) : null)
       }
 
@@ -530,7 +599,16 @@ window.__ModuleLoader__.load({
 
         const resolver = createSkillResolver(ctx)
         ctx.on('connection/reset', resolver.clear)
-        ctx.effect(() => resolver.clear, 'tool-lens: skill catalog')
+        ctx.effect(() => {
+          const offs = [
+            ctx.remote.$on?.('agent-preset/selected', resolver.clear),
+            ctx.remote.$on?.('plugin-manager/changed', resolver.clear),
+          ]
+          return () => {
+            for (const off of offs) { try { off?.() } catch {} }
+            resolver.clear()
+          }
+        }, 'tool-lens: skill catalog')
 
         const sessionInject = {
           skill: sessionId => ({
@@ -566,12 +644,22 @@ window.__ModuleLoader__.load({
           ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
             name: 'tool.call.toolview',
             key,
-            priority: PRIORITY,
+            priority: AUGMENT_PRIORITY,
             locale: 'conversation',
           }, AugmentedRow))
         }
       },
-      _internal: { baseDirectory, fileAddressFor, spillPath, subagentChild, resolveSubagentAddress, searchFiles, webLinks },
+      _internal: {
+        AUGMENTED,
+        baseDirectory,
+        fileAddressFor,
+        spillPath,
+        subagentChild,
+        resolveSubagentAddress,
+        searchFiles,
+        lspLocations,
+        webLinks,
+      },
     }
 
     function encodeSegment(segment) { return encodeURIComponent(segment).replace(/%3A/gi, ':') }
