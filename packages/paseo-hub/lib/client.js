@@ -3,10 +3,10 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const {
-      Button, CodeBlock, Input, JsonBlock, Modal, PathLabel, SegmentedTabs, StateDot, Switch, Tag,
-      IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconChevronRightOutlineRegular,
-      IconCloseOutlineRegular, IconCopyOutlineRegular, IconEllipsisOutlineRegular,
-      IconPlusOutlineRegular, IconRefreshOutlineRegular, IconRightUpOutlineRegular,
+      Button, CodeBlock, DisclosureRow, Input, JsonBlock, Modal, PathLabel, SegmentedTabs, StateDot, Switch, Tag, TextShimmer,
+      IconApiOutlineRegular, IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconChevronRightOutlineRegular,
+      IconCloseOutlineRegular, IconCopyOutlineRegular, IconEllipsisOutlineRegular, IconInspectOutlineRegular,
+      IconPlayOutlineRegular, IconPlusOutlineRegular, IconRefreshOutlineRegular, IconRightUpOutlineRegular,
       IconSearchOutlineRegular, IconSettingsOutlineRegular, IconWarningTriangleOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
@@ -214,6 +214,10 @@ window.__ModuleLoader__.load({
       never: 'never',
       justNow: 'just now',
       updated: 'Updated {time}',
+      tvRead: 'Paseo Hub',
+      tvWrite: 'Paseo Hub write',
+      tvStopped: 'Stopped',
+      tvInspect: 'Inspect',
     }
 
     const ZH = {
@@ -416,6 +420,10 @@ window.__ModuleLoader__.load({
       never: '从未',
       justNow: '刚刚',
       updated: '{time}更新',
+      tvRead: 'Paseo Hub',
+      tvWrite: 'Paseo Hub 写入',
+      tvStopped: '已中止',
+      tvInspect: '查看',
     }
 
     const CSS = `
@@ -564,6 +572,20 @@ window.__ModuleLoader__.load({
 .ph-mono-input input{font-family:var(--ph-mono);font-size:12.5px}
 @media (max-width:640px){.ph-rowmeta>span:not(:first-child),.ph-rowmeta>.ph-sep,.ph-kbd{display:none}}
 @media (pointer:coarse){.ph-editor,.ph-select{font-size:16px}}
+.ph-tv{display:flex;flex-direction:column}
+.ph-tv-row{min-width:0}
+.ph-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.ph-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.ph-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
+.ph-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.ph-tv-tag{flex:none;margin-left:6px}
+.ph-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
+.ph-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+.ph-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
+.ph-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.ph-tv-inspect:focus-visible{opacity:1}
+@media (hover:hover){.ph-tv:hover .ph-tv-inspect{opacity:1}.ph-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media (hover:none){.ph-tv-inspect{opacity:1}}
 `
 
     const STATE_TONE = { connected: 'success', connecting: 'warning', reconnecting: 'warning', signing_in: 'warning', revoked: 'danger', not_connected: 'outline' }
@@ -1497,6 +1519,85 @@ window.__ModuleLoader__.load({
                 current === 'setup' ? h(SetupTab, { data }) : null) : null,
               toast ? h('div', { className: 'ph-toast', role: 'status' }, toast) : null),
             dialog ? h(ConfirmModal, { ...dialog, onClose: () => setDialog(null) }) : null))
+        }
+
+        function parseHubCall(phase, block) {
+          const settled = phase === 'result' && block && 'kind' in block
+          const call = settled ? block.call : block
+          let args = {}
+          try {
+            const parsed = JSON.parse(call?.argsRaw ?? '{}')
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed
+          } catch {}
+          const text = settled && Array.isArray(block.content)
+            ? block.content.filter(item => item.type === 'text').map(item => item.text).join('\n') : ''
+          let payload = null
+          if (text) { try { payload = JSON.parse(text) } catch {} }
+          const action = typeof args.action === 'string' ? args.action : block?.args?.text?.('action') ?? ''
+          const failed = settled && (block.isError || payload?.ok === false)
+          const state = phase === 'preparing' ? 'preparing'
+            : !settled ? 'running'
+              : block.error?.code === 'interrupted' ? 'stopped'
+                : failed ? 'error' : 'ok'
+          return { state, action, args, payload, text }
+        }
+
+        function hubSummary(parsed) {
+          if (parsed.state === 'error') {
+            return parsed.payload?.message || parsed.payload?.error || parsed.text.split('\n')[0] || ''
+          }
+          const { args, payload } = parsed
+          const parts = []
+          const target = args.trigger || args.name || args.projectSlug || args.query
+          if (typeof target === 'string' && target) parts.push(target)
+          if (payload && typeof payload === 'object') {
+            if (typeof payload.triggerRunId === 'string') parts.push(`run ${payload.triggerRunId.slice(0, 8)}`)
+            else if (typeof payload.total === 'number') parts.push(`${payload.total}`)
+            else if (Array.isArray(payload.items)) parts.push(`${payload.items.length}`)
+            else if (typeof payload.valid === 'boolean') parts.push(payload.valid ? 'valid' : 'invalid')
+            else if (typeof payload.configured === 'boolean') parts.push(payload.configured ? 'configured' : 'unconfigured')
+          }
+          return parts.join(' · ')
+        }
+
+        function HubToolRow({ toolName, phase, block, inspect, useDisclosure }) {
+          const { expanded, toggle } = useDisclosure()
+          const parsed = parseHubCall(phase, block)
+          const running = parsed.state === 'preparing' || parsed.state === 'running'
+          const write = toolName === 'paseo_hub_write'
+          const summary = parsed.state === 'stopped' ? t('tvStopped') : hubSummary(parsed)
+          const expandable = Boolean(parsed.text)
+          const open = expanded && expandable
+          return h('div', { className: 'ph-tv', 'data-tool': toolName, 'data-state': parsed.state },
+            h(DisclosureRow, {
+              rowClassName: 'ph-tv-row',
+              icon: write ? h(IconPlayOutlineRegular, { size: 14 }) : h(IconApiOutlineRegular, { size: 14 }),
+              title: t(write ? 'tvWrite' : 'tvRead'),
+              running,
+              open,
+              expandable,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: parsed.state === 'preparing' ? null : h(React.Fragment, null,
+                parsed.action ? h(Tag, { className: 'ph-tv-tag', tone: parsed.state === 'error' ? 'error' : 'outline' }, parsed.action) : null,
+                summary ? h(React.Fragment, null,
+                  h('span', { className: 'ph-tv-sep', 'aria-hidden': true }),
+                  h('span', { className: `ph-tv-summary${parsed.state === 'error' ? ' is-err' : parsed.state === 'stopped' ? ' is-stop' : ''}` },
+                    h(TextShimmer, null, summary))) : null),
+            },
+            open ? h('div', { className: 'ph-tv-body' },
+              parsed.payload !== null
+                ? h(JsonBlock, { label: t('apiResult'), payload: parsed.payload, defaultOpen: true, truncatedLabel: t('truncated') })
+                : h('pre', { className: 'ph-tv-pre', 'data-error': parsed.state === 'error' || undefined }, parsed.text),
+              inspect ? h('button', { type: 'button', className: 'ph-tv-inspect', onClick: inspect },
+                h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+        }
+
+        for (const key of ['paseo_hub', 'paseo_hub_write']) {
+          ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+            name: 'tool.call.toolview', key, locale: NS, priority: -10,
+          }, HubToolRow))
         }
 
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS }, HubPage))
