@@ -54,6 +54,7 @@ test('read tool maps arguments, content envelope, and line metadata', () => {
       { number: 11, text: 'const b = 2' },
     ],
     totalLines: 11,
+    lang: 'javascript',
   })
 })
 
@@ -236,4 +237,34 @@ test('web_search, web_fetch, mcp, todo_write, and cancellation map properly', ()
   const aborted = mapToolResult(fetchCall, fetchTool, undefined, { aborted: true })
   assert.equal(aborted.isError, true)
   assert.equal(aborted.error.code, 'ABORTED')
+})
+
+test('move patches emit Move to header and structured web_search rawOutput is preserved', () => {
+  const moveCall = mapToolCall({
+    kind: 'move',
+    rawInput: { old_path: '/repo/old.ts', new_path: '/repo/new.ts' },
+  })
+  assert.equal(moveCall.name, 'apply_patch')
+  assert.match(moveCall.argumentsObj.input, /\*\*\* Update File: \/repo\/old\.ts\n\*\*\* Move to: \/repo\/new\.ts/u)
+
+  const structuredSearch = {
+    kind: 'fetch',
+    name: 'WebSearch',
+    status: 'completed',
+    rawInput: { query: 'dsh' },
+    rawOutput: {
+      answer: 'Structured summary',
+      truncated: true,
+      results: [
+        { url: 'https://example.com/a', title: 'Doc A', snippet: 'Quick snippet', published_at: '2026-11-01' },
+      ],
+    },
+  }
+  const searchCall = mapToolCall(structuredSearch)
+  const searchResult = mapToolResult(searchCall, structuredSearch)
+  assert.deepEqual(searchResult.meta, {
+    sources: [{ url: 'https://example.com/a', title: 'Doc A', snippet: 'Quick snippet', publishedAt: '2026-11-01' }],
+    answer: 'Structured summary',
+    truncated: true,
+  })
 })

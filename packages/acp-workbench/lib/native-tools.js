@@ -105,8 +105,84 @@ function diffsFromTool(tool) {
   return blocks.map(block => ({ path: block.path, oldText: block.oldText ?? null, newText: block.newText }))
 }
 
-function buildMinimalPatch(paths, kind) {
+const EXT_LANG = {
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  jsx: 'jsx',
+  ts: 'typescript',
+  mts: 'typescript',
+  cts: 'typescript',
+  tsx: 'tsx',
+  json: 'json',
+  jsonc: 'jsonc',
+  md: 'markdown',
+  mdx: 'mdx',
+  py: 'python',
+  rs: 'rust',
+  go: 'go',
+  sh: 'bash',
+  bash: 'bash',
+  zsh: 'bash',
+  ps1: 'powershell',
+  yml: 'yaml',
+  yaml: 'yaml',
+  toml: 'toml',
+  css: 'css',
+  scss: 'scss',
+  less: 'less',
+  html: 'html',
+  htm: 'html',
+  xml: 'xml',
+  svg: 'xml',
+  sql: 'sql',
+  c: 'c',
+  h: 'c',
+  cc: 'cpp',
+  cpp: 'cpp',
+  cxx: 'cpp',
+  hpp: 'cpp',
+  java: 'java',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  swift: 'swift',
+  rb: 'ruby',
+  php: 'php',
+  lua: 'lua',
+  zig: 'zig',
+  graphql: 'graphql',
+  gql: 'graphql',
+  vue: 'vue',
+  svelte: 'svelte',
+  ini: 'ini',
+  env: 'dotenv',
+}
+
+function languageForFilePath(filePath) {
+  if (typeof filePath !== 'string' || !filePath) return undefined
+  const base = filePath.replace(/\\/gu, '/').split('/').pop()?.toLowerCase() ?? ''
+  if (base === 'dockerfile') return 'dockerfile'
+  if (base === 'makefile') return 'makefile'
+  const dot = base.lastIndexOf('.')
+  if (dot <= 0 || dot === base.length - 1) return undefined
+  return EXT_LANG[base.slice(dot + 1)]
+}
+
+function moveEndpoints(input, paths) {
+  const from = firstText(input.from, input.old_path, input.oldPath, input.source, input.source_path, input.src, paths[0])
+  const to = firstText(input.to, input.new_path, input.newPath, input.destination, input.dest, input.dst, paths.find(item => item !== from))
+  return from && to && from !== to ? { from, to } : null
+}
+
+function buildMinimalPatch(paths, kind, input = {}) {
   const lines = ['*** Begin Patch']
+  if (kind === 'move') {
+    const endpoints = moveEndpoints(input, paths)
+    if (endpoints) {
+      lines.push(`*** Update File: ${endpoints.from}`, `*** Move to: ${endpoints.to}`, '@@', ' ', '*** End Patch')
+      return lines.join('\n')
+    }
+  }
   for (const path of paths) {
     if (kind === 'delete') {
       lines.push(`*** Delete File: ${path}`)
@@ -189,8 +265,10 @@ export function mapToolCall(tool, terminal) {
   if (kind === 'edit' || kind === 'delete' || kind === 'move' || diffs.length > 0 || rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'NotebookEdit') {
     const uniquePaths = [...new Set([...diffs.map(item => item.path), ...(path ? [path] : [])])]
     if (uniquePaths.length > 1 || kind === 'delete' || kind === 'move') {
-      const argsObj = uniquePaths.length > 0
-        ? { input: buildMinimalPatch(uniquePaths, kind) }
+      const moveTargets = kind === 'move' ? moveEndpoints(input, uniquePaths) : null
+      const patchPaths = moveTargets ? [moveTargets.from, moveTargets.to] : uniquePaths
+      const argsObj = patchPaths.length > 0
+        ? { input: buildMinimalPatch(patchPaths, kind, input) }
         : safeObject(input)
       return { name: 'apply_patch', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: kind ?? 'edit' }
     }
@@ -326,6 +404,35 @@ function parseSearchResult(raw, text, input = {}) {
   return { shape: 'matches', files: [...files.values()], total: rows.length, truncated: raw?.truncated === true }
 }
 
+function parseStructuredWebSearch(raw, text) {
+  const list = Array.isArray(raw?.sources) ? raw.sources : Array.isArray(raw?.results) ? raw.results : null
+  if (!list) return null
+  const sources = []
+  const seen = new Set()
+  for (const item of list) {
+    if (!isPlainObject(item)) continue
+    const url = webAddress(firstText(item.url, item.link, item.href))
+    if (!url || seen.has(url)) continue
+    seen.add(url)
+    const title = firstText(item.title, item.name)
+    const snippet = firstText(item.snippet, item.description, item.excerpt)
+    const publishedAt = firstText(item.publishedAt, item.published_at, item.date)
+    sources.push({
+      url,
+      ...(title ? { title } : {}),
+      ...(snippet ? { snippet } : {}),
+      ...(publishedAt ? { publishedAt } : {}),
+    })
+  }
+  const answer = firstText(raw?.answer, raw?.summary, text)
+  if (!sources.length && !answer) return null
+  return {
+    sources,
+    ...(answer ? { answer } : {}),
+    truncated: raw?.truncated === true,
+  }
+}
+
 // external: Claude Code WebSearch emits "Title (url)" lines interleaved with plain text
 function parseWebSearchSources(text) {
   if (!text) return null
@@ -391,6 +498,7 @@ export function mapToolResult(mappedCall, tool, terminal, { cwd, aborted = false
 
   if (name === 'read' && !failed) {
     const filePath = argumentsObj.file_path
+    const lang = languageForFilePath(filePath)
     const offsetArg = positiveInt(argumentsObj.offset) ?? 1
     const lines = parseNumberedRead(text) ?? parsePlainRead(text, offsetArg)
     if (filePath && lines && lines.length > 0) {
@@ -400,13 +508,13 @@ export function mapToolResult(mappedCall, tool, terminal, { cwd, aborted = false
       return {
         content: [{ type: 'text', text: `<path>${filePath}</path>\n<type>file</type>\n<content>\n${body}\n</content>` }],
         isError: false,
-        meta: { path: filePath, offset, lines, totalLines },
+        meta: { path: filePath, offset, lines, totalLines, ...(lang ? { lang } : {}) },
       }
     }
     return {
       content: [{ type: 'text', text: text || '(empty)' }],
       isError: false,
-      ...(filePath ? { meta: { path: filePath } } : {}),
+      ...(filePath ? { meta: { path: filePath, ...(lang ? { lang } : {}) } } : {}),
     }
   }
 
@@ -447,7 +555,7 @@ export function mapToolResult(mappedCall, tool, terminal, { cwd, aborted = false
   }
 
   if (name === 'web_search' && !failed) {
-    const parsed = parseWebSearchSources(text)
+    const parsed = parseStructuredWebSearch(tool?.rawOutput, text) ?? parseWebSearchSources(text)
     if (parsed) {
       return {
         content: [{ type: 'text', text }],
