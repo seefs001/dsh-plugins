@@ -4,10 +4,10 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const {
-      Button, CodeBlock, DiffBlock, DisclosureRow, Input, JsonBlock, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, WebBlock, diffTotals,
+      Button, CodeBlock, DiffBlock, DisclosureRow, Input, JsonBlock, Modal, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, WebBlock, diffTotals,
       IconBranchOutlineRegular, IconBrowseOutlineRegular, IconChecklistOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconPlayOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular,
       IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular,
-      IconStopFillRegular, IconWarningTriangleOutlineRegular,
+      IconWarningTriangleOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const NS = 'acp-workbench'
 
@@ -20,7 +20,7 @@ window.__ModuleLoader__.load({
       cliTasks: 'CLI tasks in this trace', cliTaskCount: '{n} launch calls', cliLaunchStatus: 'Launch call: {status}', cliTask: 'CLI task', cliOnly: 'View task', cliAll: 'Full trace', cliCalls: '{n} direct calls', cliProgress: 'Task update', cliInput: 'Task input', cliMedia: '{type} · see raw events', cliPreview: 'Preview {type}', cliNoMedia: 'The recorded content is unavailable.', cliLimit: 'Excerpt only · see raw events', cliScope: 'Direct CLI task activity (read-only).', cliOrigin: 'From {task}', cliMissing: 'Launch not in this trace: {task}', cliConflict: 'Conflicting task IDs',
       permitRequested: 'Permission requested', permitLive: 'Needs approval', permitAllowed: 'Allowed', permitAutomatic: 'Allowed by preset', permitDenied: 'Denied', permitExpired: 'Request expired', permitAnswered: 'Decision recorded',
       callView: 'Tool call display', compactCalls: 'Overview', detailedCalls: 'Individual calls', exploration: 'Exploration', readCount: 'Reads: {n}', searchCount: 'Searches: {n}', webCount: 'Web: {n}', distinctPaths: 'Distinct read paths: {n}', groupCalls: '{n} calls', 'call.cancelled': 'Cancelled',
-      panel: 'ACP Workbench', panelHint: 'Start agents in a project and follow their work in DSH conversations.',
+      panel: 'ACP Workbench', panelHint: 'Configure local ACP CLI providers, inspect capabilities, and manage models shown in the DSH picker.',
       schedules: 'Scheduled agents', schDescription: 'Delivers instructions to a DSH conversation on schedule. Delivery does not wait for completion.', schNew: 'Create schedule', schName: 'Task name', schPrompt: 'Instructions at delivery', schTarget: 'Destination', schExisting: 'An existing conversation (heartbeat)', schOnce: 'Create a conversation on the first delivery', schFresh: 'A fresh conversation at every delivery', schChoose: 'Choose a conversation', schPreset: 'DSH agent preset', schDefault: 'Host default', schRouteHint: 'Existing conversations keep their engine and directory. New ones use the project directory and DSH preset.', schTiming: 'Repeat', schAfter: 'Once, after a delay', schEvery: 'At a fixed interval', schDaily: 'Daily at a local time', schCron: 'Cron in a time zone', schMinutes: 'Minutes', schZone: 'IANA time zone', schTime: 'Local time', schExpr: 'Cron (5 fields)', schConfirm: 'Arm this schedule? Each delivery triggers an agent turn.', schUnknown: 'No confirmation received. Refresh the list before trying again.', schEmpty: 'No tasks target this project.', schRefresh: 'Refresh schedules', schActive: 'Active', schPaused: 'Paused', schEnded: 'Ended', schNext: 'Next delivery', schDelivered: 'Last delivery', schQueued: 'Queued or running', schManage: 'Manage task', schPause: 'Pause', schResume: 'Resume', schRun: 'Deliver now', schRunConfirm: 'Deliver these instructions now?', schIncomplete: 'Enter a title, instructions, a valid time and an available destination.', schMissing: 'This task was removed or changed. Refresh before retrying.', schFloor: 'Can deliver again after', schBusy: 'Delivery is already queued, or the minimum delivery interval has not elapsed.', schCadence: 'Cadence', schHistory: 'Delivery history', schNoHistory: 'No saved deliveries yet.', schMore: 'Earlier deliveries', schPruned: 'Some older deliveries are unavailable.', schDelete: 'Delete task', schDeleteConfirm: 'Delete this task and its delivery history? Messages already delivered remain in their conversations.',
       termList: 'Session terminals', termRetry: 'Retry terminal list', termScope: 'Terminals retained by DSH for this conversation.', termEmpty: 'No terminal is retained for this conversation.', termAgent: 'Started by agent', termUser: 'Started by user', termAgentControl: 'Agent control', termLost: 'Terminal roster disconnected.', termMissing: 'This terminal cannot be opened in its conversation.',
       scripts: 'Project scripts', scriptsHint: 'Commands in paseo.json run in the session sandbox. Services using $PASEO_PORT can launch with an assigned loopback port and TCP check.', scriptNone: 'No named scripts in this checkout’s paseo.json.', scriptStart: 'Run', scriptStop: 'Stop process', scriptLog: 'Read output', scriptTerminal: 'Open terminal', scriptConfirm: 'Run this command in a new DSH terminal?', stopScriptConfirm: 'Stop this script and close its terminal?', scriptService: 'Service', scriptTask: 'Script', runHere: 'Owner conversation', scriptUnavailable: 'Terminal no longer retained', scriptExited: 'Exited', scriptStopped: 'Stopped', scriptRunning: 'Running', scriptStarting: 'Starting', scriptFailed: 'Failed', scriptOwner: 'Under manual control', noOutput: 'No output retained', scriptRefresh: 'Refresh scripts', scriptLoading: 'Reading scripts…', scriptExit: 'Exit code',
@@ -106,9 +106,21 @@ window.__ModuleLoader__.load({
       diagnose: 'Check capabilities', discover: 'Find CLI sessions', capabilities: 'Capabilities', agent: 'Agent', protocol: 'Protocol',
       refreshModels: 'Refresh models', modelsHint: 'Reads candidate models via an empty ACP session without changing your current selection.',
       modelsLoaded: '{n} candidate models found.', modelPickerHint: 'Choose this conversation’s model in the normal DSH model picker.',
-      visibleModels: 'Models in the picker', modelSelectionHint: 'Check the models you want to show, then save. CLI default is always available.',
-      saveModels: 'Save model selection', modelsSaved: 'Model picker updated.', noModels: 'Refresh models to load the choices.',
-      modelInfoHint: 'Selected models appear in the model picker with CLI-reported metadata and reasoning options.',
+      visibleModels: 'Models in the picker', modelSelectionHint: 'All discovered models appear in the DSH model picker by default. Uncheck models you want to hide, then save.',
+      saveModels: 'Save model visibility', modelsSaved: 'Model picker updated.', noModels: 'Refresh models to load the choices.',
+      modelInfoHint: 'Models appear in the DSH model picker with CLI-reported metadata, reasoning levels, context sizes, and fast mode.',
+      modelSearch: 'Search models by name, ID, or description…', showAllModels: 'Show all', hideAllModels: 'Hide all',
+      modelCountShown: '{shown} / {total} visible', modelFast: 'Fast', modelContextOptions: '{values}',
+      fast: 'Fast', context: 'Context', draftOptionHint: 'Selected options apply automatically on the next message.',
+      providerConfig: 'CLI config', hideConfig: 'Hide config', closeDiag: 'Close',
+      modesLabel: 'Modes', filterAll: 'All', filterVisible: 'Visible', filterHidden: 'Hidden',
+      filterThinking: 'Thinking', filterFast: 'Fast', filterMultiCtx: 'Multi-context',
+      unsavedChanges: '{n} unsaved changes', revertChanges: 'Revert', saveChanges: 'Save changes',
+      activeConnected: '{n} active', activeWorking: '{n} running', activeWaiting: '{n} waiting',
+      noModelsYet: 'No models loaded for this provider yet.', fetchModelsNow: 'Fetch models from CLI',
+      noMatchingModels: 'No models match the current search or filter.', resetFilters: 'Reset filters',
+      probeDirLabel: 'Probe directory (optional)', probeDirHint: 'Defaults automatically to your active workspace or home directory.',
+      modelsBadgeCount: '{shown}/{total} models', modelsNotFetched: 'Not fetched', cancelNew: 'Cancel',
       modelContext: 'Context: {n} tokens', modelOutput: 'Output limit: {n} tokens', modelInput: 'Input: {types}',
       modelEfforts: 'Reasoning: {levels}', modelInfoUnknown: 'No model details advertised', modalityText: 'text', modalityImage: 'image',
       supported: 'Advertised', unsupported: 'Not supported', unreported: 'Not reported', authMethods: 'Sign-in methods', rawResult: 'Raw result', none: 'None advertised',
@@ -123,9 +135,11 @@ window.__ModuleLoader__.load({
       archiveHint: 'Disconnect before archiving. Workspace files and CLI history are kept.',
       nativeReadOnly: 'This record belongs to a DSH conversation. Send messages from that conversation.',
       storageError: 'History could not be saved: {message}',
+      confirmTitle: 'Confirm action', confirmAction: 'Confirm', cancelAction: 'Cancel',
     }
     const zh = {
-      panel: 'ACP 工作台', panelHint: '在项目里启动多个 Agent，回到各自的 DSH 会话继续。',
+      panel: 'ACP 工作台', panelHint: '管理本机 ACP CLI 提供方、检测协议能力，并配置出现在 DSH 模型选择器中的模型。',
+      confirmTitle: '确认操作', confirmAction: '确认', cancelAction: '取消',
       schedules: '定时任务', schDescription: '到点后把指令发进对话（只负责投递，不等待任务完成）。', schNew: '创建定时任务', schName: '任务名称', schPrompt: '到期发送的指令', schTarget: '投递目标', schExisting: '已有会话（定时唤回）', schOnce: '首次到期建一个会话，后续复用', schFresh: '每次到期都新建会话', schChoose: '选择会话', schPreset: 'DSH Agent 预设', schDefault: 'Host 默认预设', schRouteHint: '已有会话沿用原来的引擎和目录；新建会话使用项目目录和 DSH 预设。', schTiming: '触发方式', schAfter: '延时一次', schEvery: '固定间隔', schDaily: '每天定时', schCron: 'Cron 表达式', schMinutes: '分钟', schZone: 'IANA 时区', schTime: '当地时间', schExpr: '五字段 Cron', schConfirm: '启用这个定时任务？每次到点都会触发 Agent 执行。', schUnknown: '未收到操作回执，请刷新列表确认。', schEmpty: '这个项目还没有定时任务。', schRefresh: '刷新任务', schActive: '已启用', schPaused: '已暂停', schEnded: '已结束', schNext: '下次投递', schDelivered: '最近投递', schQueued: '已入队或还在执行', schManage: '管理任务', schPause: '暂停', schResume: '恢复', schRun: '立即投递', schRunConfirm: '立即把这条指令发给 Agent？', schIncomplete: '请填好任务名称、指令、有效时间和投递目标。', schMissing: '任务已被删除或改动，请刷新后再试。', schFloor: '最早再次投递', schBusy: '上次投递还没结束，或还没到最小间隔时间。', schCadence: '触发规则', schHistory: '投递历史', schNoHistory: '暂无投递记录。', schMore: '更早的投递', schPruned: '部分早期记录已不可用。', schDelete: '删除任务', schDeleteConfirm: '删掉这个任务和投递历史？已发进对话的消息保留。',
       termList: '会话终端', termRetry: '重新连接列表', termScope: 'DSH 为本会话保留的终端。', termEmpty: '本会话没有保留的终端。', termAgent: 'Agent 启动', termUser: '用户启动', termAgentControl: 'Agent 控制', termLost: '终端列表已断开。', termMissing: '无法在所属会话中打开这个终端。',
       scripts: '项目脚本', scriptsHint: '运行当前目录 paseo.json 里的脚本（在会话沙箱内执行）。使用 $PASEO_PORT 的服务支持自动分配回环端口并监测 TCP 连通。', scriptNone: '当前目录的 paseo.json 没有定义脚本。', scriptStart: '运行', scriptStop: '停止进程', scriptLog: '查看输出', scriptTerminal: '打开终端', scriptConfirm: '在新的 DSH 终端中运行这条命令？', stopScriptConfirm: '停止此脚本并关闭它的终端？', scriptService: '服务', scriptTask: '脚本', runHere: '打开所属会话', scriptUnavailable: '终端已不再保留', scriptExited: '已退出', scriptStopped: '已停止', scriptRunning: '运行中', scriptStarting: '启动中', scriptFailed: '失败', scriptOwner: '由用户接管', noOutput: '暂无保留的输出', scriptRefresh: '刷新脚本', scriptLoading: '正在读取脚本…', scriptExit: '退出码',
@@ -219,9 +233,21 @@ window.__ModuleLoader__.load({
       diagnose: '检查能力', discover: '查找 CLI 会话', capabilities: '能力', agent: 'Agent', protocol: '协议',
       refreshModels: '刷新模型', modelsHint: '新建空 ACP 会话读取候选模型，不改变当前选择。',
       modelsLoaded: '发现 {n} 个候选模型。', modelPickerHint: '请在原 DSH 模型选择器中选择此会话使用的模型。',
-      visibleModels: '显示在模型选择器中的模型', modelSelectionHint: '勾选需要显示的模型并保存。CLI default 始终保留。',
-      saveModels: '保存模型选择', modelsSaved: '模型列表已更新。', noModels: '请先刷新模型以载入候选项。',
-      modelInfoHint: '勾选的模型会带着 CLI 公布的元信息和思考强度选项出现在模型选择器中。',
+      visibleModels: '显示在模型选择器中的模型', modelSelectionHint: '刷新或连接后默认在 DSH 模型选择器显示全部可用模型。取消勾选不想显示的模型并保存即可。',
+      saveModels: '保存模型显示设置', modelsSaved: '模型列表已更新。', noModels: '请先刷新模型以载入候选项。',
+      modelInfoHint: '模型会带着 CLI 公布的元信息、思考强度、上下文窗口和 Fast 属性出现在模型选择器中。',
+      modelSearch: '搜索模型名称、ID 或说明…', showAllModels: '全部显示', hideAllModels: '全部隐藏',
+      modelCountShown: '已显示 {shown} / {total}', modelFast: 'Fast', modelContextOptions: '{values}',
+      fast: '快速', context: '上下文', draftOptionHint: '所选属性会在发送下一条消息时自动应用。',
+      providerConfig: 'CLI 配置', hideConfig: '收起配置', closeDiag: '关闭',
+      modesLabel: '模式', filterAll: '全部', filterVisible: '已显示', filterHidden: '已隐藏',
+      filterThinking: '思考', filterFast: 'Fast', filterMultiCtx: '多上下文',
+      unsavedChanges: '{n} 项修改未保存', revertChanges: '撤销', saveChanges: '保存更改',
+      activeConnected: '{n} 个已连接', activeWorking: '{n} 个运行中', activeWaiting: '{n} 个待审批',
+      noModelsYet: '还没有为这个提供方拉取模型目录。', fetchModelsNow: '从 CLI 拉取模型列表',
+      noMatchingModels: '没有符合当前搜索或筛选条件的模型。', resetFilters: '重置筛选',
+      probeDirLabel: '探测工作目录（可选）', probeDirHint: '留空时自动使用当前工作区或用户主目录。',
+      modelsBadgeCount: '{shown}/{total} 模型', modelsNotFetched: '未拉取', cancelNew: '取消',
       modelContext: '上下文：{n} tokens', modelOutput: '输出上限：{n} tokens', modelInput: '输入：{types}',
       modelEfforts: '思考强度：{levels}', modelInfoUnknown: 'CLI 未公布模型信息', modalityText: '文本', modalityImage: '图片',
       supported: '已公布', unsupported: '不支持', unreported: '未公布', authMethods: '登录方式', rawResult: '原始结果', none: '未公布',
@@ -257,13 +283,15 @@ window.__ModuleLoader__.load({
 .aw-note{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
 .aw-warn{display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
 .aw-warn>svg{flex:none;margin-top:1px;color:var(--dsw-alias-state-warn-primary)}
-.aw-mono{font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;overflow-wrap:anywhere}
-.aw-select{height:28px;max-width:200px;min-width:0;padding:0 8px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:inherit;font:inherit;font-size:12px;text-overflow:ellipsis}
+.aw-mono{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;overflow-wrap:anywhere}
+.aw-select{height:28px;max-width:200px;min-width:0;padding:0 8px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-base);color:inherit;font:inherit;font-size:12px;text-overflow:ellipsis}
 .aw-select:disabled{opacity:.55}
 .aw-field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .aw-field>span:first-child{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .aw-field .aw-input{width:100%}
-.aw-textarea{width:100%;min-height:60px;resize:vertical;padding:8px 10px;border-radius:10px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:inherit;font-family:var(--dsw-font-mono,ui-monospace,Menlo,monospace);font-size:12px;line-height:18px}
+.aw-textarea{width:100%;min-height:60px;resize:vertical;padding:8px 10px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-base);color:inherit;font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:18px}
+.aw-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
+.aw-confirm-body{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);max-height:50vh;overflow:auto}
 .aw-toggle{display:inline-grid;place-items:center;flex:none;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
 @media (hover:hover){.aw-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 
@@ -279,7 +307,7 @@ window.__ModuleLoader__.load({
 .aw-quiet .aw-label{font-size:12px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}
 .aw-info{display:flex;flex-direction:column;gap:6px;padding:0 4px 6px}
 .aw-pills{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
-.aw-panel{display:flex;flex-direction:column;gap:14px;padding:12px;border-top:1px solid var(--dsw-alias-border-l1);max-height:min(46vh,440px);overflow-y:auto;overscroll-behavior:contain}
+.aw-panel{display:flex;flex-direction:column;gap:14px;padding:12px;border-top:.5px solid var(--dsw-alias-border-l1);max-height:min(46vh,440px);overflow-y:auto;overscroll-behavior:contain}
 .aw-section{display:flex;flex-direction:column;gap:8px;min-width:0}
 .aw-section>h3{font-size:12px;font-weight:500;line-height:18px;color:var(--dsw-alias-label-tertiary)}
 .aw-config{display:flex;flex-wrap:wrap;gap:10px 16px}
@@ -294,7 +322,7 @@ window.__ModuleLoader__.load({
 @container (max-width:560px){.aw-bar .aw-hide-narrow{display:none}}
 
 .aw-ask{display:flex;flex-direction:column;gap:10px;padding:12px 14px;min-width:0}
-.aw-ask-inline{border-radius:10px;border:1px solid var(--dsw-alias-state-warn-primary)}
+.aw-ask-inline{border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-state-warn-primary)}
 .aw-ask-head{display:flex;align-items:center;gap:8px;font-weight:500}
 .aw-ask-head>svg{color:var(--dsw-alias-state-warn-primary);flex:none}
 .aw-ask-body{display:flex;flex-direction:column;gap:8px;min-width:0;max-height:min(40vh,360px);overflow:auto}
@@ -308,7 +336,7 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.aw-option:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .aw-option input{margin:3px 0 0;flex:none}
 
-.aw-child{border-top:1px solid var(--dsw-alias-border-l1)}
+.aw-child{border-top:.5px solid var(--dsw-alias-border-l1)}
 .aw-child-body{padding:0 12px 10px}
 
 .aw-review-patch{overflow:auto;max-width:100%;font:12px/1.55 ui-monospace,monospace}.aw-patch-line{display:grid;grid-template-columns:4em 4em minmax(max-content,1fr);min-width:max-content}.aw-patch-line>span,.aw-patch-line>button{text-align:end;padding:0 6px;color:var(--dsw-alias-label-tertiary)}.aw-patch-line>button{font:inherit;background:none;border:0;cursor:pointer;text-decoration:underline}.aw-patch-line>code{font:inherit;white-space:pre;padding-inline-start:7px}.aw-patch-line[data-side=add]{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 10%,transparent)}.aw-patch-line[data-side=del]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent)}.aw-patch-hunk{color:var(--dsw-alias-label-secondary);white-space:pre;padding:3px 0}.aw-review-preview{border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:10px;min-width:0}
@@ -331,10 +359,11 @@ window.__ModuleLoader__.load({
 .aw-detail{display:flex;flex-direction:column;gap:8px;padding:2px 0 8px 26px;min-width:0}
 .aw-patch-select{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-width:0;font-size:12px}.aw-patch-select select{max-width:100%;min-width:0}
 .aw-locs{display:flex;flex-direction:column;align-items:flex-start;gap:2px;font-size:12px;min-width:0}
-.aw-file-link{padding:2px 0;max-width:100%;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}.aw-file-link:hover{text-decoration:underline}
+.aw-file-link{padding:2px 0;max-width:100%;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+@media (hover:hover){.aw-file-link:hover{text-decoration:underline}}
 .aw-call,.aw-call-detail{min-width:0;max-width:100%}.aw-call-meta{display:inline-flex;align-items:center;gap:7px;min-width:0;max-width:100%;margin-inline-start:7px;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:400}
-.aw-call-view{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.aw-call-run{max-width:100%;min-width:0}.aw-call-run-body{margin-inline-start:8px;padding-inline-start:12px;border-inline-start:1px solid var(--dsw-alias-border-l1);display:grid;gap:3px}.aw-run-summary{display:inline-flex;align-items:baseline;gap:7px;min-width:0;max-width:100%;flex-wrap:wrap;color:var(--dsw-alias-label-secondary);font-size:12px}.aw-run-summary .aw-ellipsis{max-width:22em;min-width:0;color:var(--dsw-alias-label-tertiary)}
-.aw-call-focus{font-family:var(--dsw-font-mono,ui-monospace,monospace)}.aw-call-status,.aw-exit,.aw-count,.aw-diff-totals{flex:none;white-space:nowrap;font-size:11px;font-variant-numeric:tabular-nums}.aw-call-status{display:inline-flex;align-items:center;gap:4px}.aw-call-status[data-quiet=true]{color:var(--dsw-alias-label-tertiary)}
+.aw-call-view{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.aw-call-run{max-width:100%;min-width:0}.aw-call-run-body{margin-inline-start:8px;padding-inline-start:12px;border-inline-start:.5px solid var(--dsw-alias-border-l1);display:grid;gap:3px}.aw-run-summary{display:inline-flex;align-items:baseline;gap:7px;min-width:0;max-width:100%;flex-wrap:wrap;color:var(--dsw-alias-label-secondary);font-size:12px}.aw-run-summary .aw-ellipsis{max-width:22em;min-width:0;color:var(--dsw-alias-label-tertiary)}
+.aw-call-focus{font-family:var(--ds-font-family-code,ui-monospace,monospace)}.aw-call-status,.aw-exit,.aw-count,.aw-diff-totals{flex:none;white-space:nowrap;font-size:11px;font-variant-numeric:tabular-nums}.aw-call-status{display:inline-flex;align-items:center;gap:4px}.aw-call-status[data-quiet=true]{color:var(--dsw-alias-label-tertiary)}
 .aw-call[data-state=failed] :is(.aw-exit,.aw-call-status),.aw-diff-totals span:last-child{color:var(--dsw-alias-state-error-primary)}.aw-diff-totals span:first-child{color:var(--dsw-alias-state-success-primary)}
 .aw-code-window,.aw-output{max-height:18rem;overflow:auto;overscroll-behavior:contain}.aw-tech{font-size:12px;color:var(--dsw-alias-label-secondary)}.aw-tech>summary{cursor:pointer;width:fit-content}.aw-tech[open]>summary{margin-block-end:6px}
 .aw-params:not(:empty){display:grid;gap:3px}.aw-params>div{display:grid;grid-template-columns:minmax(4em,max-content) minmax(0,1fr);gap:8px;font-size:12px}.aw-params dt{color:var(--dsw-alias-label-secondary)}.aw-params dd{white-space:pre-wrap;overflow-wrap:anywhere;max-height:8rem;overflow:auto}.aw-call-detail audio{max-width:100%}
@@ -350,34 +379,67 @@ window.__ModuleLoader__.load({
 .aw-event{display:flex;align-items:center;gap:8px;min-height:24px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);min-width:0;overflow-wrap:anywhere}
 .aw-event[data-tone=error]{color:var(--dsw-alias-state-error-primary)}
 .aw-event>svg{flex:none}
-.aw-log{margin:0;max-height:240px;overflow:auto;padding:8px 10px;border-radius:8px;background:var(--dsw-alias-bg-layer-1);white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--dsw-font-mono,ui-monospace,Menlo,monospace);font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}
+.aw-log{margin:0;max-height:240px;overflow:auto;padding:8px 10px;border-radius:8px;background:var(--dsw-alias-bg-layer-1);white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--ds-font-family-code,ui-monospace,Menlo,monospace);font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}
 .aw-msg{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:10px;background:var(--dsw-alias-bg-layer-1);min-width:0}
 .aw-msg[data-role=user]{background:var(--dsw-alias-bg-layer-2);margin-left:32px}
 .aw-msg-head{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
 .aw-img{max-width:100%;max-height:360px;border-radius:8px}
 
 .aw-page{container-type:inline-size;display:flex;flex-direction:column;height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;background:var(--dsw-alias-bg-base)}
-.aw-page-inner{display:flex;flex-direction:column;gap:16px;width:min(100%,980px);margin:0 auto;padding:20px 24px 40px}
-.aw-head{display:flex;align-items:flex-start;gap:12px}
-.aw-head h1{font-size:18px;line-height:26px;font-weight:600}
-.aw-live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;margin-top:4px}
-.aw-tabs{max-width:340px}
+.aw-page-inner{display:flex;flex-direction:column;gap:20px;width:min(100%,1080px);margin:0 auto;padding:28px clamp(20px,3.5vw,44px) 56px}
+[data-platform=darwin] .aw-page-inner{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
+@media (max-width:767px){.aw-page-inner{padding:20px 16px 48px}[data-platform=darwin] .aw-page-inner{padding-top:calc(20px + var(--dsh-frame-top-clearance,0px))}}
+.aw-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.aw-head h1{font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+.aw-head-actions{display:flex;align-items:center;gap:10px;flex:none}
+.aw-live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}
 .aw-banner{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:var(--dsw-alias-bg-layer-1);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
 .aw-banner[data-tone=error]{color:var(--dsw-alias-state-error-primary)}
 .aw-banner>svg{flex:none;margin-top:1px}
 .aw-banner-text{display:flex;flex-direction:column;gap:4px;min-width:0}
-.aw-split{display:grid;grid-template-columns:minmax(200px,250px) minmax(0,1fr);gap:16px;align-items:start}
-@container (max-width:700px){.aw-split{grid-template-columns:minmax(0,1fr)}}
-.aw-nav{display:flex;flex-direction:column;gap:2px;min-width:0}
-.aw-item{display:flex;flex-direction:column;gap:2px;width:100%;padding:8px 10px;border:0;border-radius:10px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0}
-@media (hover:hover){.aw-item:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-.aw-item[aria-current=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-2))}
-.aw-item-top{display:flex;align-items:center;gap:8px;min-width:0}
-.aw-item-sub{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);min-width:0}
-.aw-stack{display:flex;flex-direction:column;gap:16px;min-width:0}
-.aw-box{display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:12px;border:1px solid var(--dsw-alias-border-l1);min-width:0}
+.aw-hub{display:grid;grid-template-columns:minmax(220px,260px) minmax(0,1fr);gap:20px;align-items:start}
+@container (max-width:740px){.aw-hub{grid-template-columns:minmax(0,1fr)}}
+.aw-rail{display:flex;flex-direction:column;gap:6px;min-width:0;position:sticky;top:16px}
+@container (max-width:740px){.aw-rail{position:static}}
+.aw-prov{display:flex;flex-direction:column;gap:5px;width:100%;padding:10px 12px;border:.5px solid transparent;border-radius:var(--dsw-radius-md,12px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0;transition:background-color .15s,border-color .15s}
+@media (hover:hover){.aw-prov:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.aw-prov[aria-current=true]{background:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-border-l2)}
+.aw-prov-top{display:flex;align-items:center;gap:6px;min-width:0}
+.aw-prov-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.aw-hero{display:flex;flex-direction:column;gap:12px;padding:16px 18px;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);min-width:0}
+.aw-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.aw-hero-title{display:flex;flex-direction:column;gap:4px;min-width:0}
+.aw-hero-title h2{font-size:16px;font-weight:600;line-height:22px}
+.aw-hero-cmd{display:inline-flex;align-items:center;gap:6px;max-width:100%;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.aw-hero-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:none}
+.aw-catalog-head{display:flex;flex-direction:column;gap:10px}
+.aw-catalog-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.aw-catalog-bar .aw-input{flex:1 1 220px}
+.aw-chips{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.aw-chip{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
+@media (hover:hover){.aw-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.aw-chip[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-2));border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font-weight:500}
+.aw-dirty{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 10%,var(--dsw-alias-bg-layer-1));border:.5px solid color-mix(in srgb,var(--dsw-alias-state-warn-primary) 35%,var(--dsw-alias-border-l2));font-size:12px}
+.aw-catalog{display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);overflow:hidden;min-width:0}
+.aw-model-row{display:flex;align-items:flex-start;gap:12px;padding:11px 14px;cursor:pointer;min-width:0;border-top:.5px solid var(--dsw-alias-border-l1);transition:background-color .12s,opacity .12s}
+.aw-model-row:first-child{border-top:0}
+@media (hover:hover){.aw-model-row:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.aw-model-row[data-hidden=true]{opacity:.56}
+.aw-model-row input{margin:4px 0 0;flex:none}
+.aw-model-body{display:flex;flex-direction:column;gap:4px;flex:1 1 auto;min-width:0}
+.aw-model-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}
+.aw-model-name{font-weight:500;color:var(--dsw-alias-label-primary)}
+.aw-model-id{font-size:11px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}
+.aw-model-desc{font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary)}
+.aw-pills{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:2px}
+.aw-pill{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:999px;font-size:11px;line-height:17px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l1);white-space:nowrap}
+.aw-pill[data-tone=fast]{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 10%,transparent);border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 28%,transparent)}
+.aw-pill[data-tone=thought]{color:var(--dsw-alias-label-primary)}
+.aw-empty-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:36px 20px;border:.5px dashed var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);text-align:center;color:var(--dsw-alias-label-secondary)}
+.aw-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.aw-box{display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);min-width:0}
 .aw-box-head{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
-.aw-box-head h2{font-size:14px;font-weight:600;line-height:20px}
+.aw-box-head h2,.aw-box-head h3{font-size:14px;font-weight:500;line-height:20px}
 .aw-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .aw-form .aw-wide{grid-column:1/-1}
 @container (max-width:560px){.aw-form{grid-template-columns:minmax(0,1fr)}}
@@ -402,11 +464,19 @@ window.__ModuleLoader__.load({
 .aw-found li{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:8px;min-width:0}
 @media (hover:hover){.aw-found li:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .aw-empty{padding:24px 12px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px}
-.aw-filter{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.aw-filter .aw-input{flex:1 1 220px}
-.aw-inbox-row{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
-.aw-inbox-row>.aw-item{flex:1 1 180px;min-width:0}
 :is(.aw-dock,.aw-options) details>summary{cursor:pointer;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.aw-tb{display:inline-flex;align-items:center;gap:2px;flex:none}
+.aw-tb-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 7px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:18px;white-space:nowrap;cursor:pointer;transition:background-color .15s,color .15s}
+.aw-tb-btn:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}
+.aw-tb-btn:disabled{opacity:.55;cursor:default}
+.aw-tb-btn:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:-2px}
+.aw-tb-btn[data-active=true]{color:var(--dsw-alias-state-warn-primary)}
+.aw-tb-icon{width:28px;padding:0}
+.aw-tb-pop{position:fixed;inset:auto;margin:0;box-sizing:border-box;min-width:136px;max-width:min(240px,calc(100vw - 16px));padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-elevation-prominent);font-size:13px;overflow:auto}
+.aw-tb-item{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:30px;padding:4px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.aw-tb-item[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-2))}
+.aw-tb-item:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.aw-tb-item:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:-2px}
 `
 
     const ACTIVE_RUN = new Set(['preparing', 'running', 'waiting', 'canceling'])
@@ -863,29 +933,17 @@ window.__ModuleLoader__.load({
       return { kind: 'matches', files: [...files.values()], total: rows.length, truncated: raw?.truncated === true }
     }
 
-    function schedulesInProject(project, tasks) {
-      return tasks.filter(({ target }) => target.kind === 'session' ? project.sessionIds.includes(target.sessionId) : target.create?.cwd === project.path)
-    }
-    function scheduleRequest(project, draft, roots, presets) {
-      const title = draft.title.trim(), prompt = draft.prompt.trim()
-      if (!title || !prompt) return null
-      let target
-      if (draft.target === 'session') {
-        if (!roots.some(r => r.id === draft.sessionId)) return null
-        target = { kind: 'session', sessionId: draft.sessionId }
-      } else {
-        if (!['new_once', 'new'].includes(draft.target) || (draft.preset && !presets.some(p => p.id === draft.preset && !p.broken))) return null
-        target = { kind: draft.target, create: { cwd: project.path, ...(draft.preset ? { agentPreset: draft.preset } : {}) } }
-      }
-      let timing
-      if (draft.cadence === 'after' || draft.cadence === 'every') {
-        const seconds = Number(draft.minutes) * 60
-        if (!Number.isSafeInteger(seconds) || seconds < (draft.cadence === 'every' ? 60 : 1)) return null
-        timing = { kind: draft.cadence, [draft.cadence + '_seconds']: seconds }
-      } else if (draft.cadence === 'daily' && draft.time && draft.zone.trim()) timing = { kind: 'daily', daily: { time: draft.time, time_zone: draft.zone.trim() } }
-      else if (draft.cadence === 'cron' && draft.expr.trim() && draft.zone.trim()) timing = { kind: 'cron', cron: { expression: draft.expr.trim(), time_zone: draft.zone.trim() } }
-      else return null
-      return { title, prompt, timing, target }
+    function providerVisibleModels(provider) {
+      const hidden = new Set(provider?.hiddenModels ?? [])
+      const advertised = provider?.advertised?.models ?? []
+      const advertisedIds = new Set(advertised.map(model => model.id))
+      const extras = (provider?.models ?? []).filter(model => {
+        if (!model?.id || model.id === 'default' || advertisedIds.has(model.id)) return false
+        const base = /^([^[\]]+)\[[^[\]]*\]$/u.exec(model.id)?.[1]?.trim()
+        if (base && (advertisedIds.has(base) || (base === 'default' && advertisedIds.has('auto')))) return false
+        return true
+      })
+      return [...advertised, ...extras].filter(model => model.id !== 'default' && !hidden.has(model.id))
     }
 
     function configEntries(session, t) {
@@ -926,6 +984,41 @@ window.__ModuleLoader__.load({
           document.head.append(style)
           return () => style.remove()
         }, 'acp-workbench: styles')
+
+        const confirmStore = { current: null, resolve: null, listeners: new Set() }
+        const notifyConfirm = () => { for (const fn of confirmStore.listeners) fn() }
+        const askConfirm = (body, opts = {}) => new Promise(resolve => {
+          confirmStore.resolve?.(false)
+          confirmStore.resolve = resolve
+          confirmStore.current = { body, title: opts.title, confirmLabel: opts.confirmLabel, danger: Boolean(opts.danger) }
+          notifyConfirm()
+        })
+        const finishConfirm = ok => {
+          const resolve = confirmStore.resolve
+          confirmStore.resolve = null
+          confirmStore.current = null
+          notifyConfirm()
+          resolve?.(ok)
+        }
+        ctx.effect(() => () => finishConfirm(false), 'acp-workbench: confirm cleanup')
+        function ConfirmModal() {
+          const tt = useT()
+          const item = React.useSyncExternalStore(
+            fn => { confirmStore.listeners.add(fn); return () => confirmStore.listeners.delete(fn) },
+            () => confirmStore.current,
+          )
+          React.useEffect(() => () => finishConfirm(false), [])
+          if (!item) return null
+          return h(Modal, {
+            open: true,
+            onClose: () => finishConfirm(false),
+            title: item.title || tt('confirmTitle'),
+            closeLabel: tt('cancelAction'),
+            footer: h(React.Fragment, null,
+              h(Button, { variant: 'outline', 'data-modal-autofocus': true, onClick: () => finishConfirm(false) }, tt('cancelAction')),
+              h(Button, { variant: 'primary', className: item.danger ? 'aw-danger-fill' : undefined, onClick: () => finishConfirm(true) }, item.confirmLabel || tt('confirmAction'))),
+          }, h('p', { className: 'aw-confirm-body' }, item.body))
+        }
 
         const feed = { listeners: new Set(), watchers: new Set(), online: 'connectingFeed', stream: null }
         const notify = (set, change) => { for (const listener of Array.from(set)) listener(change) }
@@ -1977,12 +2070,6 @@ window.__ModuleLoader__.load({
             : s.sessionId
         }
 
-        function projectConversationTarget(id, row, record) {
-          if (record?.native.parentSessionId) return conversationTarget(record.native)
-          if (row?.origin === 'subagent' && row.parentId) return { parentSessionId: row.parentId, childSessionId: id, mode: 'unknown' }
-          return record ? conversationTarget(record.native) : id
-        }
-
         function OpenConversation({ session }) {
           const tt = useT()
           const [error, setError] = React.useState('')
@@ -2125,6 +2212,21 @@ window.__ModuleLoader__.load({
           }, [binding?.id, revision])
           const blocked = !canWrite || view.busy || view.data.status !== 'idle'
           const enabled = !blocked && binding?.state === 'idle' && !binding.archived
+          const controls = view.data?.controls
+          const draftEntries = !enabled && controls ? [
+            ...(controls.modes?.options?.length > 1 ? [{
+              id: '__draft_mode', label: tt('mode'), category: 'mode', kind: 'select',
+              value: controls.mode ?? controls.modes.options[0].value,
+              options: controls.modes.options.map(item => ({ value: item.value, label: item.name ?? item.value })),
+              op: value => ({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, modeId: value }),
+            }] : []),
+            ...(controls.options ?? []).map(option => option.type === 'boolean'
+              ? { id: `__draft_${option.id}`, label: option.name ?? option.id, category: option.category, kind: 'boolean', value: Boolean(controls.values?.[option.id]),
+                  op: value => ({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: option.id, value }) }
+              : { id: `__draft_${option.id}`, label: option.name ?? option.id, category: option.category, kind: 'select', value: controls.values?.[option.id] ?? option.defaultValue ?? '',
+                  options: (option.choices ?? []).map(item => ({ value: item.value, label: item.name ?? item.value })),
+                  op: value => ({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: option.id, value }) }),
+          ] : []
           const entries = info ? configEntries(info, tt).filter(e => e.category !== 'model' && (e.category !== 'thought_level' || view.data.selected?.model === 'default')) : []
           const title = `${provider.label} · ${tt('cliOptions')}`
           return h(React.Fragment, null, h('div', { style: { anchorName }, 'aria-hidden': true }),
@@ -2138,6 +2240,9 @@ window.__ModuleLoader__.load({
             h(ForkOrigin, { binding }), binding?.native.imported ? h(PreviousMessages, { binding }) : null,
             !binding || !CONNECTED.has(binding.state) ? h(React.Fragment, null,
               h('p', { className: 'aw-note' }, tt(!binding ? 'firstTurn' : binding.archived ? 'archivedHint' : 'noConfig')),
+              draftEntries.length ? h(React.Fragment, null,
+                h('div', { className: 'aw-config' }, draftEntries.map(entry => h(ConfigControl, { key: entry.id, entry, disabled: blocked, onChange: values => view.run(values) }))),
+                h('p', { className: 'aw-note' }, tt('draftOptionHint'))) : null,
               h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'outline', disabled: blocked || binding?.archived, onClick: () => view.run({ action: 'native-connect', dshSessionId: sessionId, externalId: binding?.id, route: provider.route }) }, tt('connectOnly'))),
               !binding ? h(CliHistory, { key: sessionId + ':' + provider.route, sessionId, provider, view, disabled: blocked }) : null) : null,
             binding && !info && !error ? h('p', { className: 'aw-note', role: 'status' }, tt('loading')) : null,
@@ -2151,72 +2256,9 @@ window.__ModuleLoader__.load({
             error || view.error ? h('p', { role: 'alert', className: 'aw-error' }, error || view.error) : null))
         }
 
-        function CheckoutSwitcher({ sessionId, workspaceId, providers }) {
-          const tt = useT(), workspaces = useList(ctx.workspaces.list), catalog = useList(ctx.sessions.list)
-          const [open, toggle] = React.useState(false), [result, show] = React.useState(null), [error, fail] = React.useState(''), [version, refresh] = React.useReducer(n => n + 1, 0)
-          const project = workspaces.items.find(w => w.workspaceId === workspaceId), member = project?.sessionIds.includes(sessionId)
-          const members = open && member ? project.sessionIds.filter(id => !workspaces.archivedSessionIds.includes(id)).join(':') : ''
-          React.useEffect(() => {
-            if (!open || !member) return
-            const controller = new AbortController(); show(null); fail('')
-            api({ action: 'checkout-info', workspaceId, dshSessionId: sessionId }, controller.signal).then(v => { if (!controller.signal.aborted) show(v) }, e => { if (!controller.signal.aborted) fail(e.message) })
-            return () => controller.abort()
-          }, [open, member, members, workspaceId, sessionId, version])
-          if (!member) return null
-          const trees = result?.trees.filter(w => w.inUseHere && w.participants?.includes(sessionId) && w.participants.length > 1)
-          return h('section', { className: 'aw-card' }, h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': open, onClick: () => toggle(!open) }, tt('switchShared')), open ? h(Button, { size: 'sm', variant: 'ghost', onClick: refresh }, tt('schRefresh')) : null),
-            open && (error ? h('p', { role: 'alert', className: 'aw-error' }, error) : !result ? h('p', { className: 'aw-note' }, tt('loading')) : !trees.length ? h('p', { className: 'aw-note' }, tt('noSharedPeers')) : trees.map(tree => h('div', { key: tree.revision, className: 'aw-section' }, h(PathLabel, { path: tree.path }), h(SharedCheckout, { tree, value: result, group: { catalog, providers, related: new Map() } })))) )
-        }
-
-        let arrivingSidebar = null
-        function clearArrival() { const intent = arrivingSidebar; arrivingSidebar = null; intent?.unsubscribe?.() }
-        ctx.effect(() => clearArrival, 'acp-workbench: sidebar navigation')
-        function openInConversation(sessionId, target, kind, open) {
-          const sidebar = ctx.get('sidebarRight'), missing = () => new Error(t(kind === 'terminal' ? 'termMissing' : 'reviewPath'))
-          clearArrival()
-          if (!sidebar || !ctx.get('sidebarRightTabs')?.get(kind)) throw missing()
-          if (sidebar.mounted.getSnapshot() === sessionId) { open(sidebar); return }
-          const intent = { sessionId, kind, open, sidebar }
-          arrivingSidebar = intent
-          try {
-            ctx.uiWorkspace.openSession(target ?? sessionId)
-            if (sidebar.mounted.getSnapshot() !== sessionId) throw missing()
-            if (arrivingSidebar === intent) intent.unsubscribe = sidebar.mounted.subscribe(() => { if (sidebar.mounted.getSnapshot() !== sessionId) clearArrival() })
-          } catch (failure) { clearArrival(); throw failure }
-        }
-        function openReviewResource(sessionId, target, address, line) {
-          openInConversation(sessionId, target, 'text', sidebar => sidebar.openResource(address, { destination: 'sidebar', ...(line ? { params: { line } } : {}) }))
-        }
-        function openRetainedTerminal(sessionId, target, terminalId) {
-          openInConversation(sessionId, target, 'terminal', sidebar => {
-            const terminals = ctx.get('webTerminals')
-            if (!terminals || !terminalId) throw new Error(t('termMissing'))
-            const before = sidebar.tabsIn(sessionId)
-            const existing = before.find(tab => tab.kind === 'terminal' && (terminals.boundTerminal(sessionId, tab.contentId) ?? sidebar.tabDomain.occurrence(sessionId, tab).navigation.getSnapshot().params?.terminalId) === terminalId)
-            if (existing) { if (!sidebar.isExpanded()) sidebar.toggleExpanded(); sidebar.focus(existing.id); return }
-            if (terminals.isRepresented(sessionId, terminalId)) throw new Error(t('termMissing'))
-            sidebar.openTabIn(sessionId, 'terminal', { params: { terminalId } })
-            const opened = sidebar.tabsIn(sessionId).find(tab => tab.kind === 'terminal' && !before.some(prev => prev.id === tab.id) && sidebar.tabDomain.occurrence(sessionId, tab).navigation.getSnapshot().params?.terminalId === terminalId)
-            if (!opened) throw new Error(t('termMissing'))
-            terminals.bind(sessionId, opened.contentId, terminalId)
-          })
-        }
-        function useArrivingSidebar(sessionId, canAttach) {
-          const [failure, setFailure] = React.useState(null)
-          React.useEffect(() => {
-            const intent = arrivingSidebar
-            if (!intent || intent.sessionId !== sessionId || intent.sidebar.mounted.getSnapshot() !== sessionId) return
-            clearArrival()
-            try {
-              if (intent.kind === 'terminal' && !canAttach) throw new Error(t('termMissing'))
-              intent.open(intent.sidebar); setFailure(null)
-            } catch (e) { setFailure({ sessionId, message: e.message }) }
-          })
-          return failure?.sessionId === sessionId ? failure.message : null
-        }
+        const GROUPS = ['attention', 'working', 'review', 'recent', 'history']
 
         function NativeDock(props) {
-          const navigationError = useArrivingSidebar(props.sessionId, props.useAccess('terminal/attach'))
           const tt = useT()
           const canWrite = props.useAccess('session/prompt')
           const view = useNative(props.sessionId)
@@ -2231,25 +2273,18 @@ window.__ModuleLoader__.load({
           const quiet = children.filter(s => s.activity.group === 'recent')
           const contextReport = binding && !binding.archived && data.contextReport?.externalId === binding.id ? data.contextReport : null
           const notices = binding && !binding.archived && data.noticeFeed?.externalId === binding.id && data.noticeFeed.remoteId === binding.remoteId && data.noticeFeed.items.length ? data.noticeFeed : null
-          if (!notices && !contextReport && !own.length && !children.length && !data?.checkoutGroup && !view.error && !navigationError) return null
+          if (!notices && !contextReport && !own.length && !children.length && !view.error) return null
           const childRow = child => h(ChildRow, { key: child.id, child, sessionId: props.sessionId, view, canWrite })
           return h('div', { className: 'acpw aw-dock' },
             own.flatMap(s => s.interactions.map(item => h(InteractionCard, { key: item.id, item, sessionId: s.id, cwd: s.cwd, run: view.run, disabled: view.busy || !canWrite }))),
             notices ? h(ConnectionNotices, { key: 'notice:' + binding.id + ':' + notices.connection, report: notices }) : null,
             contextReport ? h(ContextReport, { key: 'context:' + binding.id, report: contextReport, title: tt('contextRecent') }) : null,
-            data?.checkoutGroup ? h(CheckoutSwitcher, { key: props.sessionId, sessionId: props.sessionId, workspaceId: data.checkoutGroup, providers: data.providers }) : null,
             children.length ? h('section', { className: 'aw-card', 'aria-label': tt('children') },
               h('div', { className: 'aw-bar' }, h('span', { className: 'aw-bar-title' }, tt('children')), h('span', { className: 'aw-muted' }, String(children.length))),
               visible.map(childRow), quiet.length ? h('details', null, h('summary', null, tt('quietChildren', { n: quiet.length })), quiet.map(childRow)) : null) : null,
-            navigationError || view.error ? h('p', { className: 'aw-error', role: 'alert' }, navigationError || view.error) : null)
+            view.error ? h('p', { className: 'aw-error', role: 'alert' }, view.error) : null)
         }
 
-        ctx.uiConversation.events.register({
-          kind: 'acp-route',
-          match: { 'request/context': event => ({ id: String(event.seq), role: 'start' }) },
-          start: (_context, match) => ({ provider: match.event.data.provider }),
-          update: (_context, match) => ({ provider: match.event.data.provider }),
-        })
         const traceMatch = event => ({ id: `${event.data.turn}:${event.data.step}`, role: 'start' })
         const traceState = (event, previous) => {
           const source = event.data.message?.source
@@ -2260,12 +2295,11 @@ window.__ModuleLoader__.load({
         ctx.uiConversation.events.register({
           kind: 'acp-run', target: 'chat',
           match: {
-            'assistant/live-chunk': event => event.data.chunk.type === 'block-start' ? traceMatch(event) : null,
             'assistant/message': event => event.surfaceOp === 'append' ? traceMatch(event) : null,
           },
-          start: (_context, match, reader) => traceState(match.event, reader.previous('acp-route')?.state),
+          start: (_context, match) => traceState(match.event),
           update: (context, match) => ({ ...traceState(match.event, context.state), seq: context.state.seq }),
-          buildViewNode: context => context.state?.provider?.startsWith('acp-') ? { key: context.key, id: context.id, kind: 'acp-run', target: 'chat',
+          buildViewNode: context => context.state?.provider?.startsWith('acp-') && context.state?.reference?.version === 1 ? { key: context.key, id: context.id, kind: 'acp-run', target: 'chat',
             groupTree: 'turn',
             anchorSeq: context.state.seq, location: context.start?.location ?? { kind: 'unresolved' }, visibility: 'visible', data: context.state } : null,
         })
@@ -2311,10 +2345,11 @@ window.__ModuleLoader__.load({
           const matchedSession = acpStep
             ? view.data?.sessions.find(s => s.native?.route === acpStep.finalNode.source.provider)
             : view.data?.sessions.find(s => s.native?.sessionId === sessionId && s.native.runs.some(r => r.turn === turn?.turn))
+          const matchedRun = matchedSession?.native?.runs.findLast(r => r.turn === turn?.turn)
           const route = acpStep?.finalNode?.source?.provider ?? matchedSession?.native?.route
           const visibleBlocks = steps.flatMap(step => (step.blocks ?? EMPTY).filter(block =>
             block.kind !== 'reasoning' && block.kind !== 'tool-call' && (block.kind !== 'text' || block.text.trim() !== '')))
-          const isAcpReply = !!route?.startsWith('acp-') && visibleBlocks.length > 0
+          const isAcpReply = !!route?.startsWith('acp-') && !!matchedRun && !(matchedRun.nativeVersion >= 2) && visibleBlocks.length > 0
           const messageId = acpStep?.finalNode?.messageId ?? steps.at(-1)?.finalNode?.messageId
           const replyKey = `${sessionId}:${turn?.turn ?? 0}:${messageId ?? seq}`
           const collapsed = React.useSyncExternalStore(
@@ -2381,28 +2416,111 @@ window.__ModuleLoader__.load({
             meta ? h('span', { className: 'aw-ellipsis', title: preview || meta }, meta) : null,
             h(IconChevronDownOutlineRegular, { size: 14, className: 'aw-trace-chevron' }))
         }
+        function FastBolt({ on }) {
+          return h('svg', { viewBox: '0 0 16 16', width: 15, height: 15, 'aria-hidden': true },
+            h('path', {
+              d: 'M9.2 1.5 3.5 9h4l-.8 5.5L12.5 7h-4z',
+              fill: on ? 'currentColor' : 'none', stroke: 'currentColor', strokeWidth: 1.3, strokeLinejoin: 'round',
+            }))
+        }
+
+        function ToolbarSelect({ label, value, options, disabled, onSelect }) {
+          const button = React.useRef(null)
+          const popup = React.useRef(null)
+          const id = React.useId()
+          const current = options.find(item => item.value === value) ?? options[0]
+          const display = current?.name ?? value ?? ''
+          const position = event => {
+            const panel = popup.current
+            if (!panel) return
+            const anchor = event.currentTarget.getBoundingClientRect()
+            const width = Math.min(200, window.innerWidth - 16)
+            const above = anchor.top - 14
+            const below = window.innerHeight - anchor.bottom - 14
+            const openAbove = above >= 120 || above >= below
+            panel.style.left = `${Math.max(8, Math.min(anchor.right - width, window.innerWidth - width - 8))}px`
+            panel.style.top = openAbove ? 'auto' : `${anchor.bottom + 6}px`
+            panel.style.bottom = openAbove ? `${window.innerHeight - anchor.top + 6}px` : 'auto'
+            panel.style.maxHeight = `${Math.max(0, openAbove ? above : below)}px`
+          }
+          return h(React.Fragment, null,
+            h('button', {
+              ref: button, type: 'button', className: 'aw-tb-btn', disabled,
+              'aria-label': `${label}: ${display}`, title: `${label}: ${display}`,
+              'aria-haspopup': 'dialog', popovertarget: id, onClick: position,
+            }, h('span', null, display), h(IconChevronDownOutlineRegular, { size: 12, 'aria-hidden': true })),
+            h('div', { ref: popup, id, className: 'aw-tb-pop', popover: 'auto', role: 'dialog', 'aria-label': label },
+              options.map(option => {
+                const active = option.value === value
+                return h('button', {
+                  key: option.value, type: 'button', className: 'aw-tb-item', 'aria-pressed': active, disabled,
+                  onClick: () => {
+                    popup.current?.hidePopover()
+                    button.current?.focus()
+                    if (!active) onSelect(option.value)
+                  },
+                }, h('span', null, option.name ?? option.value), active ? h('span', { 'aria-hidden': true }, '✓') : null)
+              })))
+        }
+
+        function NativeModelControls({ sessionId, useAccess }) {
+          const tt = useT()
+          const view = useNative(sessionId)
+          const canWrite = useAccess('session/prompt')
+          const controls = view.data?.controls
+          if (!controls) return null
+          const disabled = !canWrite || view.busy || view.data.status !== 'idle'
+          const modes = controls.modes?.options?.length > 1 ? controls.modes : null
+          const contextOpt = controls.options?.find(item => item.id === 'context' && item.type === 'select' && item.choices?.length > 1)
+          const fastOpt = controls.options?.find(item => item.id === 'fast')
+          if (!modes && !contextOpt && !fastOpt) return null
+          const fastValue = controls.values?.fast ?? fastOpt?.defaultValue
+          const fastOn = fastOpt?.type === 'boolean' ? Boolean(fastValue) : fastValue === 'true'
+          const toggleFast = () => {
+            if (!fastOpt) return
+            const nextValue = fastOpt.type === 'boolean' ? !fastOn : (fastOn ? 'false' : 'true')
+            view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: fastOpt.id, value: nextValue })
+          }
+          return h('div', { className: 'acpw aw-tb' },
+            modes ? h(ToolbarSelect, {
+              label: tt('mode'),
+              value: controls.mode ?? modes.options[0].value,
+              options: modes.options,
+              disabled,
+              onSelect: modeId => view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, modeId }),
+            }) : null,
+            contextOpt ? h(ToolbarSelect, {
+              label: contextOpt.name || tt('context'),
+              value: controls.values?.context ?? contextOpt.defaultValue ?? contextOpt.choices[0].value,
+              options: contextOpt.choices,
+              disabled,
+              onSelect: value => view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: contextOpt.id, value }),
+            }) : null,
+            fastOpt ? h('button', {
+              type: 'button', className: 'aw-tb-btn aw-tb-icon', disabled,
+              'data-active': fastOn, 'aria-pressed': fastOn,
+              'aria-label': `${fastOpt.name || tt('fast')}: ${fastOn ? 'On' : 'Off'}`,
+              title: `${fastOpt.name || tt('fast')}: ${fastOn ? 'On' : 'Off'}`,
+              onClick: toggleFast,
+            }, h(FastBolt, { on: fastOn })) : null)
+        }
+
         ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, CliMenuOption))
         ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({ name: 'conversation.input.overlay', id: 'acp-settings', order: 40 }, CliSettingsOverlay))
+        ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-model-controls', order: 900 }, NativeModelControls))
         ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'acp-native', order: 40 }, NativeDock))
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, NativeNode))
         ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))
 
-        function useWorkbench(selected) {
-          const [data, setData] = React.useState({ providers: EMPTY, sessions: EMPTY, storageError: null })
+        function useWorkbench() {
+          const [data, setData] = React.useState({ providers: EMPTY, activeByProvider: {}, defaultCwd: '', storageError: null })
           const [ready, setReady] = React.useState(false)
-          const [detail, setDetail] = React.useState(null)
-          const [events, setEvents] = React.useState(EMPTY)
           const [error, setError] = React.useState('')
           const kick = React.useRef(null)
-          const active = React.useRef(null)
           React.useEffect(() => {
             const controller = new AbortController()
-            active.current = controller
-            let cursor = null
             let loading = false
             let again = false
-            setDetail(null)
-            setEvents(EMPTY)
             const refresh = async () => {
               if (loading) { again = true; return }
               loading = true
@@ -2416,19 +2534,6 @@ window.__ModuleLoader__.load({
                     if (controller.signal.aborted) return
                     setData(next)
                     setReady(true)
-                    if (selected) {
-                      const session = await api({ action: 'get', sessionId: selected }, controller.signal)
-                      if (controller.signal.aborted) return
-                      setDetail(session)
-                      if (cursor === null) cursor = Math.max(0, (session.eventSeq ?? 0) - 200)
-                      if (cursor < (session.eventSeq ?? 0)) {
-                        const page = await api({ action: 'events', sessionId: selected, after: cursor, limit: 200 }, controller.signal)
-                        if (controller.signal.aborted) return
-                        cursor = page.next
-                        setEvents(old => uniqueEvents([...old, ...page.events]))
-                        if (page.more) again = true
-                      }
-                    }
                     setError('')
                   } catch (failure) { if (!controller.signal.aborted) setError(failure.message) }
                 } while (again && !controller.signal.aborted)
@@ -2436,20 +2541,19 @@ window.__ModuleLoader__.load({
             }
             kick.current = refresh
             void refresh()
-            const unsubscribe = subscribeLive(change => { if (change?.activityChanged !== false) void refresh() })
+            const unsubscribe = subscribeLive(() => { void refresh() })
             return () => { controller.abort(); unsubscribe(); kick.current = null }
-          }, [selected])
-          const older = async () => {
-            const first = events[0]?.seq ?? 1
-            if (first <= 1) return
-            const signal = active.current?.signal
-            const page = await api({ action: 'events', sessionId: selected, after: Math.max(0, first - 201), limit: Math.min(200, first - 1) }, signal)
-            if (!signal?.aborted) setEvents(old => uniqueEvents([...page.events, ...old]))
-          }
-          return { data, ready, detail: detail?.id === selected ? detail : null, events, error, older, refresh: () => kick.current?.() }
+          }, [])
+          return { data, ready, error, refresh: () => kick.current?.() }
         }
 
         const blankProvider = () => ({ id: '', label: '', command: '', args: '["acp"]' })
+        const formatTokenCount = n => {
+          if (!Number.isFinite(n) || n <= 0) return ''
+          if (n >= 1_000_000) return `${+(n / 1_000_000).toFixed(1)}M`
+          if (n >= 1_000) return `${Math.round(n / 1_000)}K`
+          return String(n)
+        }
         const capabilityTags = info => {
           const agent = info.agentCapabilities ?? {}
           return [
@@ -2459,10 +2563,13 @@ window.__ModuleLoader__.load({
           ].map(([key, value]) => ({ key, status: value == null ? 'unreported' : value === false ? 'unsupported' : 'supported' }))
         }
 
-        function CapabilityReport({ info }) {
+        function CapabilityReport({ info, onClose }) {
           const tt = useT()
           const agentInfo = info.agentInfo ?? info.serverInfo
-          return h('div', { className: 'aw-section' },
+          return h('section', { className: 'aw-box', 'aria-label': tt('capabilities') },
+            h('div', { className: 'aw-box-head' },
+              h('h3', { className: 'aw-grow' }, tt('capabilities')),
+              onClose ? h(Button, { size: 'sm', variant: 'ghost', onClick: onClose }, tt('closeDiag')) : null),
             h('dl', { className: 'aw-facts' },
               agentInfo ? h(React.Fragment, null, h('dt', null, tt('agent')), h('dd', null, [agentInfo.title ?? agentInfo.name, agentInfo.version].filter(Boolean).join(' '))) : null,
               h('dt', null, tt('protocol')), h('dd', null, `ACP v${info.protocolVersion ?? '?'}`),
@@ -2471,1133 +2578,274 @@ window.__ModuleLoader__.load({
             h(Json, { label: tt('rawResult'), payload: info }))
         }
 
-        function ProvidersTab({ providers, run, busy, cwdHint }) {
+        function ProviderForm({ saved, draft, busy, notice, probeCwd, defaultCwd, onChange, onProbeCwd, onSave, onRemove, onCancel }) {
+          const tt = useT()
+          return h('form', { className: 'aw-box', onSubmit: onSave },
+            h('div', { className: 'aw-box-head' },
+              h('h3', { className: 'aw-grow' }, saved ? tt('editProvider') : tt('newProviderTitle')),
+              onCancel ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy, onClick: onCancel }, tt(saved ? 'hideConfig' : 'cancelNew')) : null),
+            h('p', { className: 'aw-note' }, tt('providerHint'), ' ', tt('warning')),
+            h('div', { className: 'aw-form' },
+              h('label', { className: 'aw-field' }, h('span', null, tt('fieldLabel')), h(Input, { className: 'aw-input', value: draft.label, required: true, onChange: onChange('label') })),
+              h('label', { className: 'aw-field' }, h('span', null, tt('fieldId')), h(Input, { className: 'aw-input aw-mono', value: draft.id, required: true, pattern: '[a-z][a-z0-9-]*', disabled: !!saved, onChange: onChange('id') })),
+              h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('fieldCommand')), h(Input, { className: 'aw-input aw-mono', value: draft.command, required: true, onChange: onChange('command') }),
+                h('span', { className: 'aw-note' }, tt('fieldCommandHint'))),
+              h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('fieldArgs')), h('textarea', { className: 'aw-textarea', value: draft.args, rows: 2, required: true, spellCheck: false, onChange: onChange('args') }),
+                h('span', { className: 'aw-note' }, tt('fieldArgsHint'))),
+              saved ? h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('probeDirLabel')),
+                h(Input, { className: 'aw-input aw-mono', value: probeCwd, disabled: busy, placeholder: defaultCwd || tt('cwdPlaceholder'), onChange: event => onProbeCwd(event.target.value) }),
+                h('span', { className: 'aw-note' }, tt('probeDirHint'))) : null),
+            h('div', { className: 'aw-row' },
+              h(Button, { type: 'submit', size: 'sm', variant: 'primary', disabled: busy }, tt('save')),
+              saved ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy, onClick: onRemove }, tt('remove')) : null,
+              notice ? h('span', { className: notice === tt('saved') ? 'aw-note' : 'aw-error', role: 'status' }, notice) : null))
+        }
+
+        function ModelRow({ model, hidden, busy, onToggle }) {
+          const tt = useT()
+          const contextOpt = model.options?.find(opt => opt.id === 'context' && opt.choices?.length)
+          const hasFast = model.options?.some(opt => opt.id === 'fast')
+          const hasImage = model.inputModalities?.includes('image')
+          const contextLabel = contextOpt
+            ? contextOpt.choices.map(c => c.name ?? c.value).join(' / ')
+            : model.contextWindow ? formatTokenCount(model.contextWindow) : ''
+          const outputLabel = model.maxTokens ? formatTokenCount(model.maxTokens) : ''
+          const efforts = model.reasoning?.efforts ?? EMPTY
+          return h('label', { className: 'aw-model-row', 'data-hidden': hidden },
+            h('input', { type: 'checkbox', checked: !hidden, disabled: busy, onChange: event => onToggle(model.id, event.target.checked) }),
+            h('div', { className: 'aw-model-body' },
+              h('div', { className: 'aw-model-head' },
+                h('span', { className: 'aw-model-name' }, model.name ?? model.id),
+                model.name && model.name !== model.id ? h('span', { className: 'aw-model-id aw-mono' }, model.id) : null),
+              model.description ? h('span', { className: 'aw-model-desc' }, model.description) : null,
+              efforts.length || contextLabel || hasFast || hasImage || outputLabel ? h('div', { className: 'aw-pills' },
+                efforts.length ? h('span', { className: 'aw-pill', 'data-tone': 'thought' }, tt('modelEfforts', { levels: efforts.map(e => e.name ?? e.id).join(' · ') })) : null,
+                contextLabel ? h('span', { className: 'aw-pill' }, `${tt('context')}: ${contextLabel}`) : null,
+                hasFast ? h('span', { className: 'aw-pill', 'data-tone': 'fast' }, `⚡ ${tt('modelFast')}`) : null,
+                hasImage ? h('span', { className: 'aw-pill' }, tt('modalityImage')) : null,
+                outputLabel ? h('span', { className: 'aw-pill' }, `${tt('ctxOutput')}: ${outputLabel}`) : null) : null))
+        }
+
+        function ProviderWorkbench({ providers, activeByProvider, defaultCwd, run, busy, creating, setCreating }) {
           const tt = useT()
           const [editing, setEditing] = React.useState(providers[0]?.id ?? '')
           const [draft, setDraft] = React.useState(() => providers[0] ? { ...providers[0], args: JSON.stringify(providers[0].args) } : blankProvider())
+          const [showConfig, setShowConfig] = React.useState(false)
           const [notice, setNotice] = React.useState('')
-          const [cwd, setCwd] = React.useState(cwdHint ?? '')
+          const [statusBanner, setStatusBanner] = React.useState('')
+          const [probeCwd, setProbeCwd] = React.useState('')
           const [report, setReport] = React.useState(null)
-          const [discovery, setDiscovery] = React.useState(null)
-          const [modelCount, setModelCount] = React.useState(null)
-          const [selectedModels, setSelectedModels] = React.useState(() => providers[0]?.models ?? [])
-          const [modelsSaved, setModelsSaved] = React.useState(false)
-          const saved = providers.find(provider => provider.id === editing)
-          const modelChoices = [...[...(saved?.advertised?.models ?? []), ...(saved?.models ?? []), ...selectedModels]
-            .reduce((map, model) => map.set(model.id, { ...map.get(model.id), ...model }), new Map()).values()].filter(model => model.id !== 'default')
-          const modelInfo = model => [model.description,
-            model.inputModalities?.length ? tt('modelInput', { types: model.inputModalities.map(type => tt(type === 'image' ? 'modalityImage' : 'modalityText')).join(' / ') }) : null,
-            model.contextWindow ? tt('modelContext', { n: model.contextWindow }) : null,
-            model.maxTokens ? tt('modelOutput', { n: model.maxTokens }) : null,
-            model.reasoning ? tt('modelEfforts', { levels: model.reasoning.efforts.map(effort => effort.name).join(' / ') }) : null,
-          ].filter(Boolean).join(' · ') || tt('modelInfoUnknown')
-          const canSaveModels = !!saved && !busy && JSON.stringify(selectedModels) !== JSON.stringify(saved.models ?? [])
-          const edit = provider => {
+          const [hiddenModels, setHiddenModels] = React.useState(() => providers[0]?.hiddenModels ?? [])
+          const [modelQuery, setModelQuery] = React.useState('')
+          const [modelFilter, setModelFilter] = React.useState('all')
+          const saved = creating ? null : providers.find(provider => provider.id === editing) ?? providers[0] ?? null
+          const activeWorkspacePath = ctx.workspaces?.list?.getSnapshot?.().items?.[0]?.path || ''
+          const effectiveCwd = probeCwd.trim() || activeWorkspacePath || defaultCwd || ''
+
+          const selectProvider = provider => {
+            setCreating(false)
             setEditing(provider?.id ?? '')
             setDraft(provider ? { ...provider, args: JSON.stringify(provider.args) } : blankProvider())
-            setNotice(''); setReport(null); setDiscovery(null); setModelCount(null)
-            setSelectedModels(provider?.models ?? []); setModelsSaved(false)
+            setShowConfig(false)
+            setNotice(''); setStatusBanner(''); setReport(null)
+            setHiddenModels(provider?.hiddenModels ?? [])
+            setModelQuery(''); setModelFilter('all')
           }
-          React.useEffect(() => { if (!editing && providers[0] && !draft.id && !draft.command) edit(providers[0]) }, [providers.length])
-          React.useEffect(() => { if (!cwd && cwdHint) setCwd(cwdHint) }, [cwdHint])
-          const change = key => event => { setDraft(old => ({ ...old, [key]: event.target.value })); setNotice('') }
-          const save = async event => {
+
+          React.useEffect(() => {
+            if (creating) {
+              setDraft(blankProvider()); setNotice(''); setStatusBanner(''); setReport(null)
+            } else if (!editing && providers[0]) {
+              selectProvider(providers[0])
+            }
+          }, [creating, providers.length])
+
+          const allModels = React.useMemo(() => providerVisibleModels(saved ? { ...saved, hiddenModels: [] } : null), [saved])
+          const hiddenSet = React.useMemo(() => new Set(hiddenModels), [hiddenModels])
+          const savedHidden = saved?.hiddenModels ?? EMPTY
+          const visibleCount = allModels.filter(model => !hiddenSet.has(model.id)).length
+          const hiddenCount = allModels.length - visibleCount
+          const thinkingCount = allModels.filter(model => !!model.reasoning?.efforts?.length).length
+          const fastCount = allModels.filter(model => model.options?.some(opt => opt.id === 'fast')).length
+          const multiCtxCount = allModels.filter(model => model.options?.some(opt => opt.id === 'context' && opt.choices?.length > 1)).length
+
+          const changedCount = React.useMemo(() => {
+            const savedSet = new Set(savedHidden)
+            let diff = 0
+            for (const model of allModels) {
+              if (hiddenSet.has(model.id) !== savedSet.has(model.id)) diff += 1
+            }
+            return diff
+          }, [allModels, hiddenSet, savedHidden])
+          const isDirty = !!saved && changedCount > 0
+
+          const needle = modelQuery.trim().toLowerCase()
+          const filteredModels = allModels.filter(model => {
+            if (modelFilter === 'visible' && hiddenSet.has(model.id)) return false
+            if (modelFilter === 'hidden' && !hiddenSet.has(model.id)) return false
+            if (modelFilter === 'thinking' && !model.reasoning?.efforts?.length) return false
+            if (modelFilter === 'fast' && !model.options?.some(opt => opt.id === 'fast')) return false
+            if (modelFilter === 'multictx' && !model.options?.some(opt => opt.id === 'context' && opt.choices?.length > 1)) return false
+            if (!needle) return true
+            return [model.id, model.name, model.description].some(text => text?.toLowerCase().includes(needle))
+          })
+
+          const changeField = key => event => { setDraft(old => ({ ...old, [key]: event.target.value })); setNotice('') }
+          const saveProvider = async event => {
             event.preventDefault()
             let args
             try { args = JSON.parse(draft.args) } catch { args = null }
             if (!Array.isArray(args) || args.some(item => typeof item !== 'string')) { setNotice(tt('argsInvalid')); return }
-            const value = await run({ action: 'provider-save', provider: { id: draft.id.trim(), label: draft.label, command: draft.command, args, models: saved?.models ?? [] } })
-            if (value) { setEditing(value.id); setNotice(tt('saved')) }
+            const value = await run({
+              action: 'provider-save',
+              provider: { id: draft.id.trim(), label: draft.label, command: draft.command, args, models: saved?.models ?? [], hiddenModels: saved?.hiddenModels ?? [] },
+            })
+            if (value) {
+              setCreating(false)
+              setEditing(value.id)
+              setDraft({ ...value, args: JSON.stringify(value.args) })
+              setHiddenModels(value.hiddenModels ?? [])
+              setNotice(tt('saved'))
+              setStatusBanner(tt('saved'))
+            }
           }
-          const remove = async () => {
-            if (!saved || !window.confirm(tt('removeConfirm'))) return
-            if (await run({ action: 'provider-remove', providerId: saved.id })) edit(providers.find(provider => provider.id !== saved.id))
+          const removeProvider = async () => {
+            if (!saved || !await askConfirm(tt('removeConfirm'), { title: tt('remove'), confirmLabel: tt('remove'), danger: true })) return
+            if (await run({ action: 'provider-remove', providerId: saved.id })) {
+              selectProvider(providers.find(provider => provider.id !== saved.id) ?? null)
+            }
           }
-          const discover = async cursor => {
-            const value = await run({ action: 'discover', providerId: saved.id, cwd, ...(cursor ? { cursor } : {}) })
-            if (value) setDiscovery(old => cursor && old ? { ...value, sessions: [...old.sessions, ...(value.sessions ?? [])] } : { ...value, sessions: value.sessions ?? [] })
+          const refreshModels = async () => {
+            if (!saved) return
+            setStatusBanner('')
+            const value = await run({ action: 'models', providerId: saved.id, cwd: effectiveCwd })
+            if (value) setStatusBanner(tt('modelsLoaded', { n: value.models.length }))
           }
-          const saveModels = async () => {
-            const value = await run({ action: 'provider-save', provider: { ...saved, models: selectedModels } })
-            if (value) { setSelectedModels(value.models); setModelsSaved(true) }
+          const checkCapabilities = async () => {
+            if (!saved) return
+            const value = await run({ action: 'diagnose', providerId: saved.id, cwd: effectiveCwd })
+            if (value) setReport(value)
           }
-          const canCheck = !!saved && !busy && !!cwd.trim()
-          return h('div', { className: 'aw-split' },
-            h('nav', { className: 'aw-nav', 'aria-label': tt('providerList') },
-              providers.map(provider => h('button', { key: provider.id, type: 'button', className: 'aw-item', 'aria-current': provider.id === editing, disabled: busy, onClick: () => edit(provider) },
-                h('span', { className: 'aw-item-top' }, h('span', { className: 'aw-strong aw-ellipsis' }, provider.label), h(Tag, { tone: 'quiet' }, provider.id)),
-                h('span', { className: 'aw-item-sub aw-mono aw-ellipsis' }, [provider.command, ...provider.args].join(' ')))),
-              h(Button, { size: 'sm', variant: 'ghost', icon: h(IconPlusOutlineRegular, { size: 14 }), disabled: busy, onClick: () => edit(null) }, tt('addProvider'))),
+          const saveVisibility = async () => {
+            if (!saved) return
+            const value = await run({ action: 'provider-save', provider: { ...saved, hiddenModels } })
+            if (value) {
+              setHiddenModels(value.hiddenModels ?? [])
+              setStatusBanner(tt('modelsSaved'))
+            }
+          }
+          const toggleModel = (id, shown) => {
+            setHiddenModels(old => shown ? old.filter(item => item !== id) : [...new Set([...old, id])])
+          }
+          const modes = saved?.advertised?.modes?.options ?? EMPTY
+
+          const filterChips = [
+            ['all', tt('filterAll'), allModels.length],
+            ['visible', tt('filterVisible'), visibleCount],
+            ['hidden', tt('filterHidden'), hiddenCount],
+            ...(thinkingCount ? [['thinking', tt('filterThinking'), thinkingCount]] : []),
+            ...(fastCount ? [['fast', tt('filterFast'), fastCount]] : []),
+            ...(multiCtxCount ? [['multictx', tt('filterMultiCtx'), multiCtxCount]] : []),
+          ]
+
+          return h('div', { className: 'aw-hub' },
+            h('nav', { className: 'aw-rail', 'aria-label': tt('providerList') },
+              providers.map(provider => {
+                const total = providerVisibleModels({ ...provider, hiddenModels: [] }).length
+                const shown = providerVisibleModels(provider).length
+                const active = activeByProvider?.[provider.id]
+                const activeTone = active?.waiting ? 'warning' : active?.working ? 'ongoing' : active?.connected ? 'done' : null
+                const activeLabel = active?.waiting
+                  ? tt('activeWaiting', { n: active.waiting })
+                  : active?.working
+                    ? tt('activeWorking', { n: active.working })
+                    : active?.connected
+                      ? tt('activeConnected', { n: active.connected })
+                      : null
+                return h('button', {
+                  key: provider.id, type: 'button', className: 'aw-prov',
+                  'aria-current': !creating && saved?.id === provider.id,
+                  disabled: busy,
+                  onClick: () => selectProvider(provider),
+                },
+                h('span', { className: 'aw-prov-top' },
+                  activeTone ? h(StateDot, { state: activeTone, size: 7 }) : null,
+                  h('span', { className: 'aw-strong aw-ellipsis aw-grow' }, provider.label),
+                  h(Tag, { tone: 'quiet' }, provider.id)),
+                h('span', { className: 'aw-prov-meta' },
+                  h('span', null, total ? tt('modelsBadgeCount', { shown, total }) : tt('modelsNotFetched')),
+                  activeLabel ? h('span', null, `· ${activeLabel}`) : null),
+                h('span', { className: 'aw-item-sub aw-mono aw-ellipsis' }, [provider.command, ...provider.args].join(' ')))
+              })),
             h('div', { className: 'aw-stack' },
-              h('form', { className: 'aw-box', onSubmit: save },
-                h('div', { className: 'aw-box-head' }, h('h2', null, saved ? tt('editProvider') : tt('newProviderTitle'))),
-                h('p', { className: 'aw-note' }, tt('providerHint')),
-                h('div', { className: 'aw-form' },
-                  h('label', { className: 'aw-field' }, h('span', null, tt('fieldLabel')), h(Input, { className: 'aw-input', value: draft.label, required: true, onChange: change('label') })),
-                  h('label', { className: 'aw-field' }, h('span', null, tt('fieldId')), h(Input, { className: 'aw-input aw-mono', value: draft.id, required: true, pattern: '[a-z][a-z0-9-]*', disabled: !!saved, onChange: change('id') })),
-                  h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('fieldCommand')), h(Input, { className: 'aw-input aw-mono', value: draft.command, required: true, onChange: change('command') }),
-                    h('span', { className: 'aw-note' }, tt('fieldCommandHint'))),
-                  h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('fieldArgs')), h('textarea', { className: 'aw-textarea', value: draft.args, rows: 2, required: true, spellCheck: false, onChange: change('args') }),
-                    h('span', { className: 'aw-note' }, tt('fieldArgsHint')))),
-                h('div', { className: 'aw-row' },
-                  h(Button, { type: 'submit', size: 'sm', variant: 'primary', disabled: busy }, tt('save')),
-                  saved ? h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: remove }, tt('remove')) : null,
-                  notice ? h('span', { className: notice === tt('saved') ? 'aw-note' : 'aw-error', role: 'status' }, notice) : null)),
-              saved ? h('section', { className: 'aw-box', 'aria-label': tt('check') },
-                h('div', { className: 'aw-box-head' }, h('h2', null, tt('check'))),
-                h('p', { className: 'aw-note' }, tt('checkHint')),
-                h('label', { className: 'aw-field' }, h('span', null, tt('cwd')), h(Input, { className: 'aw-input aw-mono', value: cwd, disabled: busy, placeholder: tt('cwdPlaceholder'), onChange: event => { setCwd(event.target.value); setReport(null); setDiscovery(null); setModelCount(null) } })),
-                h('div', { className: 'aw-row' },
-                  h(Button, { size: 'sm', variant: 'outline', disabled: !canCheck, onClick: async () => { const value = await run({ action: 'diagnose', providerId: saved.id, cwd: cwd.trim() }); if (value) setReport(value) } }, tt('diagnose')),
-                  h(Button, { size: 'sm', variant: 'outline', disabled: !canCheck, onClick: async () => { const value = await run({ action: 'models', providerId: saved.id, cwd: cwd.trim() }); if (value) setModelCount(value.models.length) } }, tt('refreshModels')),
-                  h(Button, { size: 'sm', variant: 'ghost', disabled: !canCheck, onClick: () => discover() }, tt('discover'))),
-                h('p', { className: 'aw-note' }, tt('modelsHint')),
-                modelCount !== null ? h('p', { className: 'aw-note', role: 'status' }, tt('modelsLoaded', { n: modelCount })) : null,
-                h('fieldset', { className: 'aw-section' },
-                  h('legend', { className: 'aw-strong' }, tt('visibleModels')),
-                  h('p', { className: 'aw-note' }, tt('modelSelectionHint')),
-                  h('p', { className: 'aw-note' }, tt('modelInfoHint')),
-                  modelChoices.length ? h('div', { className: 'aw-model-list' }, modelChoices.map(model => h('label', { key: model.id, className: 'aw-option' },
-                    h('input', { type: 'checkbox', checked: selectedModels.some(item => item.id === model.id), disabled: busy, onChange: event => {
-                      const checked = event.target.checked
-                      setSelectedModels(old => checked ? [...old, { id: model.id, name: model.name ?? model.id }] : old.filter(item => item.id !== model.id))
-                      setModelsSaved(false)
-                    } }),
-                    h('span', { className: 'aw-grow' }, h('span', null, model.name ?? model.id),
-                      h('span', { className: 'aw-item-sub aw-mono', style: { display: 'block' } }, model.id),
-                      h('span', { className: 'aw-item-sub', style: { display: 'block' } }, modelInfo(model))))))
-                    : h('p', { className: 'aw-note' }, tt('noModels')),
-                  h('div', { className: 'aw-row' },
-                    h(Button, { size: 'sm', variant: 'primary', disabled: !canSaveModels, onClick: saveModels }, tt('saveModels')),
-                    modelsSaved ? h('span', { className: 'aw-note', role: 'status' }, tt('modelsSaved')) : null)),
-                report ? h(CapabilityReport, { info: report }) : null,
-                discovery ? h('div', { className: 'aw-section' }, h('h3', { className: 'aw-note' }, tt('discovered')),
-                  discovery.sessions.length ? h('ul', { className: 'aw-found' }, discovery.sessions.map(found => h('li', { key: found.sessionId },
-                    h('span', { className: 'aw-grow' }, h('span', { className: 'aw-ellipsis', style: { display: 'block' } }, found.title ?? found.sessionId),
-                      h('span', { className: 'aw-item-sub aw-mono aw-ellipsis', style: { display: 'block' } }, [found.cwd, found.updatedAt ? stamp(found.updatedAt) : null].filter(Boolean).join(' · ')))))) : h('p', { className: 'aw-empty' }, tt('noDiscovered')),
-                  discovery.nextCursor ? h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: () => discover(discovery.nextCursor) }, tt('more')) : null) : null,
-                h('p', { className: 'aw-note' }, tt('loginHint'))) : null))
+              creating || !saved
+                ? h(ProviderForm, {
+                  saved: null, draft, busy, notice, probeCwd, defaultCwd: activeWorkspacePath || defaultCwd,
+                  onChange: changeField, onProbeCwd: setProbeCwd, onSave: saveProvider,
+                  onCancel: providers.length ? () => selectProvider(providers.find(p => p.id === editing) ?? providers[0]) : null,
+                })
+                : h(React.Fragment, null,
+                  h('section', { className: 'aw-hero' },
+                    h('div', { className: 'aw-hero-top' },
+                      h('div', { className: 'aw-hero-title' },
+                        h('h2', null, saved.label),
+                        h('span', { className: 'aw-hero-cmd aw-mono aw-ellipsis' }, [saved.command, ...saved.args].join(' '))),
+                      h('div', { className: 'aw-hero-actions' },
+                        h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: refreshModels }, tt('refreshModels')),
+                        h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: checkCapabilities }, tt('diagnose')),
+                        h(Button, { size: 'sm', variant: showConfig ? 'outline' : 'ghost', 'aria-expanded': showConfig, disabled: busy, onClick: () => setShowConfig(v => !v) }, tt(showConfig ? 'hideConfig' : 'providerConfig')))),
+                    modes.length ? h('div', { className: 'aw-pills' },
+                      h('span', { className: 'aw-note' }, `${tt('modesLabel')}:`),
+                      modes.map(mode => h('span', { key: mode.value, className: 'aw-pill' }, mode.name ?? mode.value))) : null,
+                    statusBanner ? h('p', { className: 'aw-note', role: 'status' }, statusBanner) : null),
+                  showConfig ? h(ProviderForm, {
+                    saved, draft, busy, notice, probeCwd, defaultCwd: activeWorkspacePath || defaultCwd,
+                    onChange: changeField, onProbeCwd: setProbeCwd, onSave: saveProvider, onRemove: removeProvider,
+                    onCancel: () => setShowConfig(false),
+                  }) : null,
+                  report ? h(CapabilityReport, { info: report, onClose: () => setReport(null) }) : null,
+                  h('section', { className: 'aw-stack', 'aria-label': tt('visibleModels') },
+                    h('div', { className: 'aw-catalog-head' },
+                      h('div', { className: 'aw-row' },
+                        h('strong', { className: 'aw-grow' }, tt('visibleModels')),
+                        allModels.length ? h('span', { className: 'aw-note' }, tt('modelCountShown', { shown: visibleCount, total: allModels.length })) : null,
+                        allModels.length ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy || !hiddenCount, onClick: () => setHiddenModels([]) }, tt('showAllModels')) : null,
+                        allModels.length ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy || !visibleCount, onClick: () => setHiddenModels(allModels.map(m => m.id)) }, tt('hideAllModels')) : null),
+                      allModels.length ? h('div', { className: 'aw-catalog-bar' },
+                        h(Input, { type: 'search', className: 'aw-input', value: modelQuery, placeholder: tt('modelSearch'), 'aria-label': tt('modelSearch'), onChange: event => setModelQuery(event.target.value) }),
+                        h('div', { className: 'aw-chips', role: 'group' },
+                          filterChips.map(([key, label, count]) => h('button', {
+                            key, type: 'button', className: 'aw-chip', 'aria-pressed': modelFilter === key,
+                            onClick: () => setModelFilter(key),
+                          }, label, h('span', { className: 'aw-muted' }, String(count)))))) : null,
+                      isDirty ? h('div', { className: 'aw-dirty', role: 'status' },
+                        h('span', { className: 'aw-grow' }, tt('unsavedChanges', { n: changedCount })),
+                        h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy, onClick: () => setHiddenModels(savedHidden) }, tt('revertChanges')),
+                        h(Button, { type: 'button', size: 'sm', variant: 'primary', disabled: busy, onClick: saveVisibility }, tt('saveChanges'))) : null),
+                    !allModels.length
+                      ? h('div', { className: 'aw-empty-card' },
+                        h('p', null, tt('noModelsYet')),
+                        h('p', { className: 'aw-note' }, tt('modelsHint')),
+                        h(Button, { size: 'sm', variant: 'primary', disabled: busy, onClick: refreshModels }, tt('fetchModelsNow')))
+                      : !filteredModels.length
+                        ? h('div', { className: 'aw-empty-card' },
+                          h('p', null, tt('noMatchingModels')),
+                          h(Button, { size: 'sm', variant: 'ghost', onClick: () => { setModelQuery(''); setModelFilter('all') } }, tt('resetFilters')))
+                        : h('div', { className: 'aw-catalog' },
+                          filteredModels.map(model => h(ModelRow, {
+                            key: model.id, model, hidden: hiddenSet.has(model.id), busy, onToggle: toggleModel,
+                          })))),
+                  h('p', { className: 'aw-note' }, tt('loginHint')))))
         }
 
-        function recordKind(session) {
-          return session.native?.sessionId === session.native?.rootSessionId || !session.native?.rootSessionId ? 'nativeTag' : 'childTag'
-        }
-
-        function RecordDetail({ session, events, view, run, busy, onBack, providers }) {
-          const tt = useT()
-          const [raw, setRaw] = React.useState(false)
-          const [title, setTitle] = React.useState(session.title)
-          const [historyError, setHistoryError] = React.useState('')
-          const [paging, setPaging] = React.useState(false)
-          const loadOlder = async () => {
-            setPaging(true); setHistoryError('')
-            try { await view.older() } catch (failure) { if (failure.name !== 'AbortError') setHistoryError(failure.message) } finally { setPaging(false) }
-          }
-          React.useEffect(() => setTitle(session.title), [session.id, session.title])
-          const connected = CONNECTED.has(session.state)
-          const provider = providers.find(item => item.id === session.providerId)
-          const entries = configEntries(session, tt).filter(entry => !session.native || entry.category !== 'model')
-          const activity = session.activity
-          return h('div', { className: 'aw-stack' },
-            h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'ghost', onClick: onBack }, `← ${tt('back')}`), h('span', { className: 'aw-grow' }), h(OpenConversation, { session })),
-            activity?.group === 'attention' ? h('p', { className: 'aw-note' }, tt('attentionHint')) : null,
-            session.interactions?.map(item => h(InteractionCard, { key: item.id, item, sessionId: session.id, cwd: session.cwd, run, disabled: busy, inline: true })),
-            h('section', { className: 'aw-box' },
-              h('div', { className: 'aw-box-head' },
-                h('h2', null, session.title),
-                h('span', { className: 'aw-grow' }),
-                h(Status, { state: session.state })),
-              h('form', { className: 'aw-row', onSubmit: event => { event.preventDefault(); if (title.trim() && title !== session.title) void run({ action: 'rename', sessionId: session.id, title }) } },
-                h(Input, { className: 'aw-grow', value: title, 'aria-label': tt('rename'), onChange: event => setTitle(event.target.value) }),
-                h(Button, { type: 'submit', size: 'sm', variant: 'ghost', disabled: busy || !title.trim() || title === session.title }, tt('rename'))),
-              h('div', { className: 'aw-tags' }, h(Tag, { tone: 'outline' }, provider?.label ?? session.providerId), h(Tag, { tone: 'quiet' }, tt(recordKind(session))),
-                session.native?.retired ? h(Tag, { tone: 'quiet' }, tt('retiredTag')) : null, session.archived ? h(Tag, { tone: 'quiet' }, tt('archivedTag')) : null),
-              h('dl', { className: 'aw-facts' },
-                h('dt', null, tt('directory')), h('dd', null, h(PathLabel, { path: session.cwd })),
-                session.remoteId ? h(React.Fragment, null, h('dt', null, tt('remoteId')), h('dd', { className: 'aw-mono' }, session.remoteId)) : null,
-                session.native ? h(React.Fragment, null, h('dt', null, tt('dshSession')), h('dd', { className: 'aw-mono' }, session.native.sessionId)) : null,
-                h('dt', null, tt('updated')), h('dd', null, stamp(session.updatedAt))),
-              activity?.group === 'review' ? h('p', { className: 'aw-note' }, tt('recoveryHint')) : null,
-              activity?.issue ? h('p', { className: 'aw-error' }, activity.issue) : null,
-              session.native ? h('p', { className: 'aw-note' }, tt('nativeReadOnly'), ' ', tt('modelPickerHint')) : null,
-              h('div', { className: 'aw-row' },
-                connected ? h(Button, { size: 'sm', variant: 'outline', disabled: busy || !!activity?.stopId, onClick: () => run({ action: 'disconnect', sessionId: session.id, unlessRunning: true }) }, tt('disconnect'))
-                  : h(Button, { size: 'sm', variant: 'outline', disabled: busy || session.archived || !!session.native?.retired || !provider, onClick: () => run({ action: 'native-connect', dshSessionId: session.native.sessionId, externalId: session.id }) }, tt(session.remoteId ? 'reconnect' : 'connect')),
-                activity?.stopId ? h(Button, { size: 'sm', variant: 'ghost', icon: h(IconStopFillRegular, { size: 14 }), disabled: busy || session.state === 'canceling', onClick: () => run(stopOperation(session)) }, tt('stopTurn')) : null,
-                session.native && !session.native.retired ? h(Button, { size: 'sm', variant: 'ghost', disabled: busy || BUSY.has(session.state), onClick: () => { if (window.confirm(tt('newContextConfirm'))) void run({ action: 'native-reset', externalId: session.id }) } }, tt('newContext')) : null,
-                session.archived
-                  ? h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: () => run({ action: 'restore', sessionId: session.id }) }, tt('unarchive'))
-                  : h(Button, { size: 'sm', variant: 'ghost', disabled: busy || connected, title: tt('archiveHint'), onClick: () => run({ action: 'archive', sessionId: session.id }) }, tt('archive')))),
-            entries.length || session.usage ? h('section', { className: 'aw-box' },
-              h('div', { className: 'aw-box-head' }, h('h2', null, tt('configuration'))),
-              entries.length ? h('div', { className: 'aw-config' }, entries.map(entry => h(ConfigControl, { key: entry.id, entry, disabled: busy || session.state !== 'idle',
-                onChange: values => run({ action: 'configure', sessionId: session.id, ...values }) }))) : null,
-              h('p', { className: 'aw-note' }, usageText(session.usage) ?? '')) : null,
-            session.native && !session.native.retired && session.commands?.length ? h('section', { className: 'aw-box' },
-              h('div', { className: 'aw-box-head' }, h('h2', null, tt('commands'))),
-              h(CommandForm, { session, disabled: busy || session.state !== 'idle',
-                onRun: async (command, args) => !!(await run({ action: 'native-command', dshSessionId: session.native.sessionId, externalId: session.id, commandStamp: session.commandStamp, command, arguments: args })) })) : null,
-            h('section', { className: 'aw-box' },
-              h('div', { className: 'aw-box-head' }, h('h2', null, tt(raw ? 'viewRaw' : 'viewTimeline')), h('span', { className: 'aw-grow' }),
-                events[0]?.seq > 1 ? h(Button, { size: 'sm', variant: 'ghost', disabled: paging, onClick: loadOlder }, tt('older')) : null,
-                h(Button, { size: 'sm', variant: 'ghost', 'aria-pressed': raw, onClick: () => setRaw(!raw) }, tt(raw ? 'viewTimeline' : 'viewRaw'))),
-              historyError ? h('p', { className: 'aw-error', role: 'alert' }, historyError) : null,
-              h(TraceList, { key: session.id, recordId: session.id, remoteId: session.remoteId, events, raw, cwd: session.cwd, interactions: session.interactions, live: BUSY.has(session.state), activeTurnId: session.activity?.stopId, conversation: false })))
-        }
-
-        const GROUPS = ['attention', 'working', 'review', 'recent', 'history']
-        function ActivityInbox({ view, run, busy, selected, onSelect, providers, onSetup }) {
-          const tt = useT()
-          const [query, setQuery] = React.useState('')
-          const [filter, setFilter] = React.useState('all')
-          const [limit, setLimit] = React.useState(40)
-          const byProvider = React.useMemo(() => new Map(providers.map(p => [p.id, p.label])), [providers])
-          const groups = React.useMemo(() => {
-            const result = Object.fromEntries(GROUPS.map(key => [key, []]))
-            const needle = query.trim().toLowerCase()
-            for (const s of view.data.sessions) {
-              if (!needle || [s.title, s.providerId, byProvider.get(s.providerId), s.cwd, s.native?.sessionId, s.remoteId, s.id].some(v => v?.toLowerCase().includes(needle))) result[s.activity.group].push(s)
-            }
-            return result
-          }, [view.data.sessions, byProvider, query])
-          if (selected && view.detail) return h(RecordDetail, { key: selected, session: view.detail, events: view.events, view, run, busy, providers, onBack: () => onSelect(null) })
-          if (selected) return h('div', { className: 'aw-stack' }, h(Button, { variant: 'ghost', size: 'sm', onClick: () => onSelect(null) }, tt('back')), view.error ? null : h('p', { className: 'aw-empty', role: 'status' }, tt('loading')))
-          if (!view.data.sessions.length) return h('section', { className: 'aw-box' }, h('h2', null, tt('noRecords')), h('p', { className: 'aw-note' }, tt('firstUse')), h('div', { className: 'aw-row' }, h(Button, { size: 'sm', onClick: onSetup }, tt('setup'))))
-          const keys = filter === 'all' ? GROUPS.filter(key => key !== 'history') : [filter]
-          const count = keys.reduce((n, key) => n + groups[key].length, 0)
-          let remaining = limit
-          return h('div', { className: 'aw-stack' },
-            h('div', { className: 'aw-filter' }, h(Input, { type: 'search', className: 'aw-input', value: query, placeholder: tt('search'), 'aria-label': tt('search'), onChange: event => { setQuery(event.target.value); setLimit(40) } })),
-            h('div', { className: 'aw-row', role: 'group', 'aria-label': tt('tabRecords') }, ['all', 'attention', 'working', 'review', 'history'].map(key => h(Button, { key, size: 'sm', variant: key === filter ? 'outline' : 'ghost', 'aria-pressed': key === filter, onClick: () => { setFilter(key); setLimit(40) } }, key === 'all' ? tt(key) : tt(key) + ' · ' + groups[key].length))),
-            !count ? h('p', { className: 'aw-empty' }, tt('noMatch')) : null,
-            keys.map(key => {
-              const list = groups[key].slice(0, remaining)
-              remaining -= list.length
-              if (!list.length) return null
-              return h('section', { className: 'aw-box', key },
-                h('div', { className: 'aw-box-head' }, h('h2', null, tt(key)), h('span', { className: 'aw-muted' }, groups[key].length)),
-                key === 'attention' || key === 'review' ? h('p', { className: 'aw-note' }, tt(key === 'attention' ? 'attentionHint' : 'recoveryHint')) : null,
-                list.map(s => h('div', { key: s.id, className: 'aw-inbox-row' },
-                  h('button', { type: 'button', className: 'aw-item', onClick: () => onSelect(s.id) },
-                    h('span', { className: 'aw-item-top' }, h(StateDot, { state: key === 'review' ? 'warning' : DOT[s.state] ?? 'idle', size: 8 }), h('span', { className: 'aw-strong aw-ellipsis aw-grow' }, s.title), h(Tag, { tone: 'quiet' }, tt(recordKind(s)))),
-                    h('span', { className: 'aw-item-sub aw-ellipsis' }, [byProvider.get(s.providerId) ?? s.providerId, s.cwd, stamp(s.updatedAt)].join(' · ')),
-                    h('span', { className: 'aw-item-sub aw-ellipsis' }, s.activity.pending ? tt('requestCount', { n: s.activity.pending }) + ' · ' + tt(s.activity.request === 'plan' ? 'kind.plan' : s.activity.request) : s.activity.issue || (s.native?.retired ? tt('retiredTag') : s.archived ? tt('archivedTag') : activityLabel(s)))),
-                  h(OpenConversation, { session: s }))))
-            }),
-            count > limit ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => setLimit(n => n + 40) }, tt('more')) : null)
-        }
-
-        const useList = source => React.useSyncExternalStore(fn => source.subscribe(fn), () => source.getSnapshot())
-        async function scheduleValue(call, tt) {
-          let result
-          try { result = await call() } catch { throw new Error(tt('schUnknown')) }
-          if (!result?.ok) throw new Error(result?.error?.message || tt('schUnknown'))
-          if (result.value?.code) throw new Error(tt(result.value.code === 'schedule_execution_pending' ? 'schBusy' : 'schMissing'))
-          return result.value
-        }
-
-        function ScheduleHistory({ id, available }) {
-          const tt = useT(), [pages, setPages] = React.useState([]), [cursor, setCursor] = React.useState(null), [error, setError] = React.useState('')
-          React.useEffect(() => {
-            let current = true
-            scheduleValue(() => ctx.remote.schedule.history({ id, limit: 8, ...(cursor ? { before: cursor } : {}) }), tt).then(page => {
-              if (current) { setPages(old => cursor ? [...old, page] : [page]); setError('') }
-            }, e => { if (current) setError(e.message) })
-            return () => { current = false }
-          }, [id, cursor])
-          const last = pages.at(-1)
-          return h('div', { className: 'aw-detail' }, error ? h('p', { className: 'aw-error', role: 'alert' }, error) : null,
-            !pages.length && !error ? h('p', { className: 'aw-note' }, tt('loading')) : null,
-            last && !pages[0].records.length ? h('p', { className: 'aw-note' }, tt('schNoHistory')) : null,
-            pages.flatMap(p => p.records).map(r => h('div', { key: r.messageId, className: 'aw-section' }, h('div', { className: 'aw-row' }, h('time', null, stamp(r.deliveredAt)),
-              available.has(r.targetSessionId) ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => ctx.uiWorkspace.openSession(r.targetSessionId) }, tt('openConversation')) : null),
-              r.prompt ? h('div', { className: 'aw-text' }, r.prompt) : null)),
-            last?.nextBefore ? h(Button, { size: 'sm', variant: 'ghost', disabled: last.nextBefore === cursor, onClick: () => setCursor(last.nextBefore) }, tt('schMore')) : null,
-            last?.earlierRecordsUnavailable || last?.earlierRecordsPruned ? h('p', { className: 'aw-note' }, tt('schPruned')) : null)
-        }
-
-        function ProjectSchedules({ project, catalog, hidden, access }) {
-          const tt = useT(), remote = React.useMemo(() => ctx.get('remote'), [])
-          const roots = project.sessionIds.filter(id => !hidden.has(id) && catalog.byId[id] && catalog.byId[id].origin !== 'subagent' && !catalog.byId[id].parentId)
-            .map(id => ({ id, name: catalog.byId[id].title || catalog.byId[id].displayTitle || id }))
-          const available = new Set(roots.map(r => r.id))
-          const [draft, setDraft] = React.useState(() => ({ title: '', prompt: '', target: roots.length ? 'session' : 'new_once', sessionId: roots[0]?.id ?? '', preset: '',
-            cadence: 'after', minutes: '15', time: '09:00', expr: '0 9 * * 1-5', zone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' }))
-          const [tasks, setTasks] = React.useState(null), [presets, setPresets] = React.useState([]), [version, refresh] = React.useReducer(x => x + 1, 0)
-          const [form, showForm] = React.useState(false), [busy, setBusy] = React.useState(false), [error, setError] = React.useState(''), [readError, setReadError] = React.useState(''), [history, setHistory] = React.useState(null)
-          const lock = React.useRef(false)
-          React.useEffect(() => {
-            const changed = () => refresh(), dispose = remote.$on('schedule/changed', changed), reset = ctx.on('connection/reset', changed)
-            return () => { dispose(); reset() }
-          }, [remote])
-          React.useEffect(() => {
-            let current = true
-            scheduleValue(() => remote.schedule.catalog(), tt).then(items => { if (current) { setTasks(items); setReadError('') } }, e => { if (current) setReadError(e.message) })
-            return () => { current = false }
-          }, [version, remote])
-          React.useEffect(() => {
-            if (!access.preset || !form) return
-            let current = true
-            scheduleValue(() => remote.agentPresets.list(), tt).then(v => { if (current) setPresets(v.presets) }, () => { if (current) setPresets([]) })
-            return () => { current = false }
-          }, [form, access.preset, remote])
-          const field = (k, v) => setDraft(d => ({ ...d, [k]: v }))
-          const request = scheduleRequest(project, draft, roots, presets)
-          const operate = async (kind, task) => {
-            if (lock.current) return
-            const message = kind === 'create' ? 'schConfirm' : kind === 'run' ? 'schRunConfirm' : kind === 'delete' ? 'schDeleteConfirm' : null
-            if (kind === 'create' && !request) { setError(tt('schIncomplete')); return }
-            if (message && !window.confirm(tt(message) + '\n\n' + (task?.title ?? draft.title) + '\n' + (task?.prompt ?? draft.prompt))) return
-            lock.current = true; setBusy(true); setError('')
-            try {
-              if (kind === 'create') { await scheduleValue(() => remote.schedule.create(request), tt); showForm(false); setDraft(d => ({ ...d, title: '', prompt: '' })) }
-              else if (kind === 'run') await scheduleValue(() => remote.schedule.run({ id: task.id }), tt)
-              else await scheduleValue(() => remote.schedule.edit(kind === 'delete' ? { id: task.id, action: 'delete', expectedUpdatedAt: task.updatedAt ?? null }
-                : { id: task.id, action: 'update', patch: { active: kind === 'resume' }, expectedUpdatedAt: task.updatedAt ?? null }), tt)
-            } catch (e) { setError(e.message) } finally { lock.current = false; setBusy(false); refresh() }
-          }
-          const choice = (k, label, options) => h('label', { className: 'aw-field' }, h('span', null, tt(label)), h('select', { className: 'aw-select', value: draft[k], disabled: busy, onChange: e => field(k, e.target.value) }, options.map(([id, name]) => h('option', { key: id, value: id }, name))))
-          const input = (k, label, type = 'text') => h('label', { className: 'aw-field' }, h('span', null, tt(label)), h(Input, { type, className: 'aw-input', required: true, value: draft[k], disabled: busy, onChange: e => field(k, e.target.value) }))
-          const visible = tasks && schedulesInProject(project, tasks)
-          const floor = visible?.reduce((next, task) => { const at = Date.parse(task.deliveryFloorEndsAt); return at > Date.now() ? Math.min(at, next) : next }, Infinity)
-          React.useEffect(() => {
-            if (!Number.isFinite(floor)) return
-            const timer = setTimeout(refresh, Math.max(0, Math.min(2147483647, floor - Date.now() + 100))); return () => clearTimeout(timer)
-          }, [floor])
-          const titles = { active: 'schActive', paused: 'schPaused', ended: 'schEnded' }
-          const dest = { session: 'schExisting', new_once: 'schOnce', new: 'schFresh' }, canTab = ctx.get('sidebarRightTabs')?.get('scheduleTask') && ctx.get('sidebarRight')
-          return h('section', { className: 'aw-box' }, h('div', { className: 'aw-row' }, h('h2', { className: 'aw-grow' }, tt('schedules')), h(Button, { size: 'sm', variant: 'ghost', onClick: refresh }, tt('schRefresh')),
-            access.create ? h(Button, { size: 'sm', variant: 'outline', disabled: busy, 'aria-expanded': form, onClick: () => showForm(!form) }, tt('schNew')) : null),
-            h('p', { className: 'aw-note' }, tt('schDescription')),
-            form && access.create ? h('form', { className: 'aw-section', onSubmit: e => { e.preventDefault(); void operate('create') } }, h('div', { className: 'aw-form' }, input('title', 'schName'),
-              choice('target', 'schTarget', Object.entries(dest).filter(([k]) => k !== 'session' || roots.length).map(([k, v]) => [k, tt(v)])),
-              draft.target === 'session' ? choice('sessionId', 'schChoose', roots.map(r => [r.id, r.name])) : choice('preset', 'schPreset', [['', tt('schDefault')], ...presets.filter(p => !p.broken).map(p => [p.id, p.name || p.id])]),
-              choice('cadence', 'schTiming', [['after','schAfter'],['every','schEvery'],['daily','schDaily'],['cron','schCron']].map(([k,v]) => [k, tt(v)])),
-              ['after','every'].includes(draft.cadence) ? input('minutes', 'schMinutes', 'number') : h(React.Fragment, null, draft.cadence === 'daily' ? input('time', 'schTime', 'time') : input('expr', 'schExpr'), input('zone', 'schZone')),
-              h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('schPrompt')), h('textarea', { className: 'aw-textarea', rows: 3, required: true, disabled: busy, value: draft.prompt, onChange: e => field('prompt', e.target.value) }))),
-              h('p', { className: 'aw-note' }, tt('schRouteHint')), h(Button, { size: 'sm', type: 'submit', variant: 'primary', disabled: busy || !request }, tt('schNew'))) : null,
-            readError || error ? h('p', { role: 'alert', className: 'aw-error' }, error || readError) : null,
-            !readError && !visible?.length ? h('p', { className: 'aw-note' }, tt(tasks ? 'schEmpty' : 'loading')) : null,
-            visible?.map(task => {
-              const anchor = task.target.kind === 'session' && available.has(task.target.sessionId) ? task.target.sessionId : roots[0]?.id
-              const cadence = { after: task.afterSeconds + ' s', at: stamp(task.scheduledAt), every: tt('schEvery') + ' · ' + task.everySeconds / 60 + ' min',
-                daily: task.time + ' · ' + task.timeZone, weekly: task.weekdays?.join(', ') + ' · ' + task.time + ' · ' + task.timeZone,
-                cron: task.expression + ' · ' + task.timeZone, rrule: task.rrule }[task.kind]
-              const cooling = Date.parse(task.deliveryFloorEndsAt) > Date.now()
-              const last = task.lastDelivery, sessionName = task.target.kind === 'session' ? catalog.byId[task.target.sessionId]?.title : null
-              const button = (key, fn, disabled) => h(Button, { size: 'sm', variant: 'ghost', disabled: busy || disabled, onClick: fn }, tt(key))
-              return h('article', { key: task.id, className: 'aw-card aw-section' }, h('div', { className: 'aw-row' }, h(StateDot, { size: 8, state: task.executionActive ? 'ongoing' : 'idle' }), h('strong', { className: 'aw-grow' }, task.title), h('span', { className: 'aw-note' }, tt(titles[task.status]))),
-                h('div', { className: 'aw-note' }, sessionName || tt(dest[task.target.kind]), task.status === 'active' ? ' · ' + tt('schNext') + ' ' + stamp(task.scheduledAt) : ''),
-                h('div', { className: 'aw-note' }, tt('schCadence'), ': ', cadence),
-                cooling ? h('div', { className: 'aw-note' }, tt('schFloor'), ' ', stamp(task.deliveryFloorEndsAt)) : null,
-                h('div', { className: 'aw-text' }, task.prompt), last ? h('div', { className: 'aw-note' }, tt('schDelivered'), ' ', stamp(last.deliveredAt), task.executionActive ? ' · ' + tt('schQueued') : '') : null,
-                h('div', { className: 'aw-row' }, access.run ? button('schRun', () => operate('run', task), !!task.executionActive || cooling) : null,
-                  access.edit && task.status !== 'ended' ? button(task.status === 'active' ? 'schPause' : 'schResume', () => operate(task.status === 'active' ? 'pause' : 'resume', task)) : null,
-                  access.history ? button('schHistory', () => setHistory(history === task.id ? null : task.id)) : null,
-                  canTab && anchor ? button('schManage', () => { ctx.uiWorkspace.openSession(anchor); canTab.openTabIn(anchor, 'scheduleTask', { params: { sessionId: anchor, id: task.id } }) }) : null,
-                  access.edit ? button('schDelete', () => operate('delete', task)) : null),
-                access.history && history === task.id ? h(ScheduleHistory, { key: task.id + ':' + version, id: task.id, available }) : null)
-            }))
-        }
-
-        function ProjectScripts({ sessionId, targetFor, useSessionAccess }) {
-          const tt = useT()
-          const [data, setData] = React.useState(null), [error, setError] = React.useState(''), [busy, setBusy] = React.useState(false)
-          const [version, refresh] = React.useReducer(v => v + 1, 0), [log, setLog] = React.useState(null)
-          const lock = React.useRef(false)
-          React.useEffect(() => {
-            const controller = new AbortController(); let timer
-            const read = async () => {
-              try {
-                const result = await api({ action: 'script-list', dshSessionId: sessionId }, controller.signal)
-                if (controller.signal.aborted) return
-                setData(result)
-                if (result.runs.some(r => r.state === 'running' || r.state === 'starting')) timer = setTimeout(read, 2000)
-              } catch (e) { if (!controller.signal.aborted) setError(e.message) }
-            }
-            void read(); return () => { controller.abort(); clearTimeout(timer) }
-          }, [sessionId, version])
-          const act = async (action, entry, assignPort) => {
-            if (lock.current) return
-            if (action === 'script-start' && !window.confirm([tt(assignPort ? 'confirmPort' : 'scriptConfirm'), data.cwd, entry.command].join('\n\n'))) return
-            if (action === 'script-stop' && !window.confirm(tt('stopScriptConfirm'))) return
-            lock.current = true; setBusy(true); setError(''); setLog(null)
-            try {
-              const result = await api({ action, dshSessionId: sessionId, name: entry.name, terminalId: entry.terminalId, revision: entry.revision, ...(assignPort ? { assignPort: true } : {}) })
-              if (action === 'script-log') setLog({ name: entry.name, text: result.text })
-            } catch (e) { setError(e.message) } finally { lock.current = false; setBusy(false); refresh() }
-          }
-          return h(ProjectScriptsView, { sessionId, targetFor, useSessionAccess, data, error, busy, log, act, reload: () => { setError(''); refresh() } })
-        }
-
-        function ServiceReadiness({ sessionId, run }) {
-          const tt = useT(), [sample, show] = React.useState(null)
-          const { terminalId, servicePort, startedAt, name } = run
-          React.useEffect(() => {
-            const abort = new AbortController(); let timer, failures = 0, last = 0
-            const poll = async () => {
-              try {
-                const value = await api({ action: 'script-health', dshSessionId: sessionId, name, terminalId }, abort.signal)
-                if (abort.signal.aborted) return
-                if (value.terminalId !== terminalId || value.port !== servicePort || !Number.isFinite(value.checkedAt) || !['accepting','refused','timeout'].includes(value.state)) throw new Error(tt('portFailed'))
-                if (last !== value.checkedAt) { failures = value.state === 'accepting' ? 0 : failures + 1; last = value.checkedAt }
-                show({ label: !failures ? 'portAccepts' : failures < 2 ? 'portCheckAgain' : value.state === 'refused' ? 'portRefused' : 'portTimeout', at: last })
-                timer = setTimeout(poll, 3000)
-              } catch (e) { if (!abort.signal.aborted) show({ label: 'portFailed', error: e.message }) }
-            }
-            timer = setTimeout(poll, Math.max(0, Math.min(5000, startedAt + 5000 - Date.now())))
-            return () => { clearTimeout(timer); abort.abort() }
-          }, [sessionId, terminalId, servicePort, startedAt, name])
-          return h('div', { className: 'aw-section' }, h('div', { className: 'aw-row', role: 'status' }, h(Tag, { tone: sample?.label === 'portAccepts' ? 'success' : !sample || sample.label === 'portCheckAgain' ? 'quiet' : 'warning' }, tt(sample?.label ?? 'portPending')), sample?.at ? h('time', { className: 'aw-note' }, clock(sample.at)) : null),
-            h('p', { className: 'aw-note' }, tt('portHint')), sample?.error ? h('p', { className: 'aw-error' }, sample.error) : null)
-        }
-        function ProjectScriptsView({ sessionId, targetFor, useSessionAccess, data, error, busy, log, act, reload }) {
-          const tt = useT(), toolLabels = useToolLabels(), [watching, watch] = React.useState(null)
-          const defs = new Map(data?.definitions.map(s => [s.name, s])), runs = new Map(data?.runs.map(s => [s.name, s]))
-          const names = [...new Set([...defs.keys(), ...runs.keys()])], labels = { running: 'scriptRunning', starting: 'scriptStarting', failed: 'scriptFailed', exited: 'scriptExited', stopped: 'scriptStopped', unavailable: 'scriptUnavailable' }
-          return h('section', { className: 'aw-box', 'aria-label': tt('scripts') }, h('div', { className: 'aw-row' }, h('h2', { className: 'aw-grow' }, tt('scripts')), h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: reload }, tt('scriptRefresh'))),
-            h('p', { className: 'aw-note' }, tt('scriptsHint')), data ? h(PathLabel, { path: data.cwd }) : null,
-            error || data?.configError ? h('p', { role: 'alert', className: 'aw-error' }, error || data.configError) : null,
-            !names.length && !error && !data?.configError ? h('p', { className: 'aw-note' }, tt(data ? 'scriptNone' : 'scriptLoading')) : null,
-            names.map(name => {
-              const def = defs.get(name), run = runs.get(name), live = run?.state === 'running' || run?.state === 'starting', own = run?.sessionId === sessionId
-              return h('article', { key: name, className: 'aw-card aw-section' }, h('div', { className: 'aw-row' }, h('strong', { className: 'aw-grow' }, name), h('span', { className: 'aw-note' }, tt((def ?? run).type === 'service' ? 'scriptService' : 'scriptTask'))),
-                def ? h('pre', { className: 'aw-log aw-command' }, def.command) : null,
-                run ? h('div', { className: 'aw-note' }, tt(labels[run.state] ?? 'scriptUnavailable'), run.exitCode != null ? ' · ' + tt('scriptExit') + ' ' + run.exitCode : '', run.takenOver ? ' · ' + tt('scriptOwner') : '') : null,
-                run?.servicePort ? h('div', { className: 'aw-row' }, h('code', null, `127.0.0.1:${run.servicePort}`),
-                  run.state === 'running' && own && !run.takenOver ? h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': watching === run.terminalId, onClick: () => watch(watching === run.terminalId ? null : run.terminalId) }, tt(watching === run.terminalId ? 'unwatchPort' : 'watchPort')) : null) : null,
-                run?.state === 'running' && own && !run.takenOver && run.servicePort && watching === run.terminalId ? h(ServiceReadiness, { key: run.terminalId, sessionId, run }) : null,
-                h('div', { className: 'aw-row' }, def && !live ? h(Button, { size: 'sm', disabled: busy, onClick: () => act('script-start', def) }, tt('scriptStart')) : null,
-                  def?.autoPort && !live ? h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => act('script-start', def, true) }, tt('startWithPort')) : null,
-                  live && own && !run.takenOver ? h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => act('script-stop', run) }, tt('scriptStop')) : null,
-                  own ? h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: () => act('script-log', run) }, tt('scriptLog')) : null,
-                  run?.retained ? h(OpenTerminalButton, { sessionId: run.sessionId, terminalId: run.terminalId, target: targetFor(run.sessionId), useSessionAccess }) : null,
-                  run && !own && !run.retained ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => ctx.uiWorkspace.openSession(run.sessionId) }, tt('runHere')) : null),
-                log?.name === name && run ? h('div', { className: 'aw-output' }, run.command && (live || run.exitCode != null) ? h(TerminalBlock, {
-                  labels: toolLabels, command: run.command, cwd: run.cwd, output: log.text, running: live, exitCode: run.exitCode ?? undefined, maxLines: 12,
-                }) : h('pre', { className: 'aw-log' }, log.text || tt('noOutput'))) : null)
-            }))
-        }
-
-        function patchRows(file) {
-          const rows = []
-          for (const hunk of file.hunks) {
-            let old = hunk.oldStart, next = hunk.newStart
-            rows.push({ header: true, text: `@@ -${old},${hunk.oldLines} +${next},${hunk.newLines} @@` })
-            for (const text of hunk.lines) {
-              const sign = text[0]
-              rows.push({ text, old: sign === ' ' || sign === '-' ? old++ : null, next: sign === ' ' || sign === '+' ? next++ : null })
-            }
-          }
-          return rows
-        }
-        const reviewResult = result => { if (!result.ok) throw new Error(result.error?.message ?? t('checkoutUnavailable')); return result.value }
-        const pageLines = 16
-        function checkoutPath(root, path) {
-          if (!root || !path || path.includes('\\') || /\p{Cc}/u.test(path) || /^[A-Za-z]:/u.test(path) || path.split('/').some(part => !part || part === '..' || part === '.')) return null
-          return root.replace(/\\/g, '/').replace(/\/+$/, '') + '/' + path
-        }
-        function fileAddress(sessionId, absolute) {
-          // external: DSH file/session resource URIs resolve relative paths against header.cwd, so pass absolute paths
-          return 'dsh-resource://file/session/' + encodeURIComponent(sessionId) + '/' + absolute.split('/').map(part => encodeURIComponent(part).replace(/%3A/giu, ':')).join('/')
-        }
-        function verifyWindow(patch, offset, lines, eof) {
-          for (const row of patch) if (row.next >= offset && (eof || row.next < offset + lines.length)) {
-            if (lines[row.next - offset]?.replace(/\r$/u, '') !== row.text.slice(1).replace(/\r$/u, '')) throw new Error(t('reviewStale'))
-          }
-        }
-        function FilePreview({ sessionId, target, scope, file, absolute, patch = EMPTY, selection, close, closeLabel }) {
-          const tt = useT(), labels = useToolLabels(), index = scope?.kind === 'staged', recorded = !scope
-          const found = scope?.kind === 'file-search', commit = scope?.commits?.to, snapshot = index || !!commit, stale = recorded || found ? 'fileChanged' : 'reviewStale'
-          const heading = commit ? tt('commitVersion', { sha: commit.slice(0, 8) }) : tt(recorded ? 'recordedFile' : index ? 'reviewIndex' : 'reviewDisk')
-          const [offset, setOffset] = React.useState(selection), [data, setData] = React.useState(null), [error, setError] = React.useState(''), [busy, setBusy] = React.useState(false)
-          const generation = React.useRef(null), inspected = React.useRef(null), preview = React.useRef(null)
-          React.useEffect(() => { preview.current?.focus() }, [])
-          const side = ctx.get('sidebarRight') && ctx.get('sidebarRightTabs')?.get('text')
-          React.useEffect(() => {
-            const abort = new AbortController(); generation.current = abort; setError(''); setData(null); setBusy(false)
-            void (async () => {
-              let lines, eof, disk, noText = file.binary || file.oversized
-              if (snapshot) {
-                if (!inspected.current) {
-                  const text = reviewResult(await ctx.remote.forgePanel.localText(sessionId, scope, file.path, abort.signal))
-                  const all = text.split('\n'); if (all.at(-1) === '') all.pop()
-                  verifyWindow(patch, 1, all, true); if (abort.signal.aborted) return; inspected.current = all
-                }
-                lines = inspected.current.slice(offset - 1, offset - 1 + pageLines); eof = offset - 1 + lines.length >= inspected.current.length
-              } else {
-                const files = ctx.remote.workspaceFiles, stat = reviewResult(await files.stat(sessionId, absolute, abort.signal))
-                disk = { path: stat.absolutePath.replace(/\\/g, '/'), version: stat.version }
-                if (!recorded && disk.path !== absolute) throw new Error(tt('reviewPath'))
-                if (inspected.current && (inspected.current.path !== disk.path || inspected.current.version !== disk.version)) throw new Error(tt(stale))
-                if (!noText) {
-                  const reply = await files.read(sessionId, disk.path, { offset, limit: pageLines }, abort.signal)
-                  if ((recorded || found) && !reply.ok && reply.error?.code === 'workspace-file/not-text') noText = true
-                  else {
-                    const page = reviewResult(reply)
-                    if (page.absolutePath.replace(/\\/g, '/') !== disk.path || page.version !== disk.version) throw new Error(tt(stale))
-                    lines = page.lines ? page.text.split('\n') : []; eof = page.eof; verifyWindow(patch, offset, lines, eof)
-                  }
-                }
-                if (noText) { lines = []; eof = true }
-                if (abort.signal.aborted) return
-                inspected.current = disk
-              }
-              if (!abort.signal.aborted) setData({ lines, eof, offset, disk, noText })
-            })().catch(e => { if (!abort.signal.aborted) setError(e.message) })
-            return () => abort.abort()
-          }, [absolute, file, snapshot, offset, patch, scope, sessionId])
-          const openInSidebar = async () => {
-            const abort = generation.current; if (!data || abort?.signal.aborted) return
-            setBusy(true); setError('')
-            try {
-              const stat = reviewResult(await ctx.remote.workspaceFiles.stat(sessionId, absolute, abort.signal))
-              if (abort.signal.aborted) return
-              if (stat.version !== data.disk.version || stat.absolutePath.replace(/\\/g, '/') !== data.disk.path) throw new Error(tt(stale))
-              openReviewResource(sessionId, target, fileAddress(sessionId, data.disk.path), data.lines.length ? data.offset : null)
-            } catch (e) { if (!abort.signal.aborted) setError(e.message) } finally { if (!abort.signal.aborted) setBusy(false) }
-          }
-          const current = data?.offset === offset ? data : null
-          return h('section', { ref: preview, tabIndex: -1, className: 'aw-review-preview aw-section', 'aria-label': heading },
-            h('div', { className: 'aw-row' }, h(Tag, { tone: 'quiet', title: commit }, heading), h(PathLabel, { path: file.path }), h(Button, { variant: 'ghost', size: 'sm', onClick: close }, tt(closeLabel ?? (found ? 'fileHitsBack' : 'reviewBack')))),
-            recorded ? h('p', { className: 'aw-note' }, tt('recordedLocation')) : null,
-            error ? h('p', { className: 'aw-error', role: 'alert' }, error) : !current ? h('p', { className: 'aw-note' }, tt('loading')) : current.lines.length ? h(ReadBlock, { label: file.path + ':' + offset, labels, lines: current.lines.map((text, i) => ({ number: offset + i, text })), lang: file.path.match(/\.([a-z0-9]+)$/iu)?.[1], maxLines: pageLines }) : h('p', { className: 'aw-note' }, tt(current.noText ? 'reviewBinary' : recorded && (offset > 1 || file.line) ? 'lineGone' : 'reviewEmpty', { n: offset })),
-            current && !error ? h('div', { className: 'aw-row' }, !current.lines.length && offset > 1 && !current.noText ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => setOffset(1) }, tt('fileStart')) : offset > 1 && !current.noText ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => setOffset(Math.max(1, offset - pageLines)) }, tt('reviewPrev')) : null,
-              !current.eof ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => setOffset(offset + pageLines) }, tt('reviewNext')) : null,
-              !snapshot && side && (current.lines.length || !file.line || current.noText || offset !== file.line) ? h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: openInSidebar }, tt('reviewFull')) : null) : null)
-        }
-        const fullOid = sha => typeof sha === 'string' && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(sha)
-        function BeforePreview({ sessionId, file, patch, source, comparison, line, close }) {
-          const tt = useT(), labels = useToolLabels(), path = file.previousPath || file.path
-          const captured = React.useMemo(() => patch.filter(r => r.old > 0), [patch])
-          const whole = file.status === 'deleted' && captured.length === file.deletions && captured.length > 0 && captured.every((r, i) => r.old === i + 1 && r.text.startsWith('-'))
-          const [position, move] = React.useState(line ?? captured[0]?.old ?? 1), [asked, ask] = React.useState(false), [full, setFull] = React.useState(null), [error, setError] = React.useState('')
-          const preview = React.useRef(null)
-          React.useEffect(() => { preview.current?.focus() }, [])
-          React.useEffect(() => {
-            if (!asked || !source) return
-            const abort = new AbortController(), signal = abort.signal
-            void (async () => {
-              const forge = ctx.remote.forgePanel
-              let sha = source.sha
-              if (source.kind === 'head') {
-                const value = reviewResult(await forge.localCommits(sessionId, source.branch ? 'refs/heads/' + source.branch : null, signal))
-                sha = value.headSha
-                if (!fullOid(sha) || !sha.startsWith(source.head)) throw new Error(tt('commitHeadMoved'))
-              }
-              if (source.kind !== 'index' && !fullOid(sha)) throw new Error(tt('reviewStale'))
-              const readScope = source.kind === 'index' ? { kind: 'staged' } : { kind: 'branch', base: null, commits: { from: sha, to: sha } }
-              signal.throwIfAborted()
-              const text = reviewResult(await forge.localText(sessionId, readScope, path, signal)), lines = text.split('\n')
-              if (lines.at(-1) === '') lines.pop()
-              if (captured.some(r => lines[r.old - 1]?.replace(/\r$/u, '') !== r.text.slice(1).replace(/\r$/u, ''))) throw new Error(tt('reviewStale'))
-              if (source.kind !== 'commit') {
-                signal.throwIfAborted()
-                const check = reviewResult(await forge.localDiff(sessionId, comparison, signal))
-                if (!check.files.some(f => f.path === file.path && f.digest === file.digest)) throw new Error(tt('reviewStale'))
-              }
-              if (!signal.aborted) setFull({ sha, lines })
-            })().catch(e => { if (!signal.aborted) setError(e.message) })
-            return () => abort.abort()
-          }, [asked, source, sessionId, comparison, path, file, captured])
-          const index = full ? position - 1 : Math.max(0, captured.findIndex(r => r.old >= position)), total = full?.lines.length ?? captured.length
-          const page = full ? full.lines.slice(index, index + pageLines).map((text, i) => ({ number: i + index + 1, text })) : captured.slice(index, index + pageLines).map(r => ({ number: r.old, text: r.text.slice(1) }))
-          const groups = []
-          for (const row of page) {
-            if (groups.at(-1)?.at(-1).number !== row.number - 1) groups.push([])
-            groups.at(-1).push(row)
-          }
-          const at = i => full ? i + 1 : captured[i].old
-          const heading = full ? full.sha ? tt('beforeCommit', { sha: full.sha.slice(0, 8) }) : tt('beforeIndex') : tt(whole ? 'beforeWhole' : 'beforePatch')
-          return h('section', { ref: preview, tabIndex: -1, className: 'aw-review-preview aw-section', 'aria-label': heading },
-            h('div', { className: 'aw-row' }, h(Tag, { tone: 'quiet', title: full?.sha }, heading), h(PathLabel, { path }), h(Button, { variant: 'ghost', size: 'sm', onClick: close }, tt('reviewBack'))),
-            h('p', { className: 'aw-note' }, tt(full ? full.sha ? 'beforeSnapshot' : 'beforeIndexHint' : !source && !whole ? 'beforeLimited' : 'beforeHint')),
-            page.length ? groups.map((group, i) => h(React.Fragment, { key: group[0].number }, i > 0 && h('p', { className: 'aw-note' }, tt('beforeGap', { from: groups[i - 1].at(-1).number + 1, to: group[0].number - 1 })),
-              h(ReadBlock, { label: path + ':' + group[0].number, labels, lines: group, lang: path.match(/\.([a-z0-9]+)$/iu)?.[1], maxLines: pageLines }))) : h('p', { className: 'aw-note' }, tt(full ? 'reviewEmpty' : 'beforeNone')),
-            error && h('p', { role: 'alert', className: 'aw-error' }, error), h('div', { className: 'aw-row' }, index > 0 && h(Button, { size: 'sm', variant: 'ghost', onClick: () => move(at(Math.max(0, index - pageLines))) }, tt('reviewPrev')),
-              index + pageLines < total && h(Button, { size: 'sm', variant: 'ghost', onClick: () => move(at(index + pageLines)) }, tt('reviewNext')),
-              source && !asked && h(Button, { size: 'sm', variant: 'outline', onClick: () => ask(true) }, tt('beforeFull')), asked && !full && !error && h('span', { className: 'aw-note' }, tt('loading'))))
-        }
-        function CheckoutFile({ file, root, sessionId, target, scope, before }) {
-          const tt = useT(), labels = useToolLabels(), [open, setOpen] = React.useState(false), [lines, setLines] = React.useState(80), [selection, select] = React.useState(null), [copyPatch, setCopyPatch] = React.useState(false)
-          const patch = React.useMemo(() => open ? patchRows(file) : EMPTY, [file, open]), absolute = checkoutPath(root, file.path)
-          const opener = React.useRef(null), close = () => { select(null); opener.current?.focus() }
-          const locate = (event, line, old = false) => { opener.current = event.currentTarget; select(previous => ({ line, old, request: (previous?.request ?? 0) + 1 })) }
-          const canReadOld = file.status !== 'added' && !file.untracked && !file.binary && !file.oversized && !!checkoutPath(root, file.previousPath || file.path) && (before || patch.some(r => r.old > 0))
-          const canRead = !!absolute && file.status !== 'deleted' && !((scope?.kind === 'staged' || scope?.commits) && (file.binary || file.oversized))
-          return h('div', { className: 'aw-section' }, h('button', { className: 'aw-item', type: 'button', 'aria-expanded': open, onClick: () => setOpen(!open) },
-            h('span', { className: 'aw-item-top' }, h('strong', { className: 'aw-grow aw-ellipsis' }, file.previousPath ? file.previousPath + ' → ' + file.path : file.path), h(Tag, { tone: 'quiet' }, '+' + file.additions + ' / −' + file.deletions))),
-            open && h(React.Fragment, null, h('div', { className: 'aw-row' }, canRead ? h(Button, { size: 'sm', variant: 'outline', onClick: e => locate(e, 1) }, tt('reviewFile')) : null,
-              canReadOld ? h(Button, { size: 'sm', variant: 'outline', onClick: e => locate(e, null, true) }, tt('beforeFile')) : null,
-              file.status === 'deleted' ? h('span', { className: 'aw-note' }, tt('reviewDeleted')) : null,
-              patch.length ? h(Button, { size: 'sm', variant: 'ghost', 'aria-pressed': copyPatch, onClick: () => setCopyPatch(!copyPatch) }, tt('reviewPatch')) : null),
-              selection?.old && canReadOld ? h(BeforePreview, { key: selection.request, sessionId, file, patch, source: before, comparison: scope, line: selection.line, close }) : canRead && selection !== null && !selection.old ? h(FilePreview, { key: selection.request, sessionId, target, file, scope, absolute, patch, selection: selection.line, close }) : null,
-              patch.length ? h(React.Fragment, null, copyPatch ? h(CodeBlock, { code: patch.slice(0, lines).map(row => row.text).join('\n'), lang: 'diff', copyLabel: labels.copy, copiedLabel: labels.copied, toolbarLabels: labels }) : h('div', { className: 'aw-review-patch' }, patch.slice(0, lines).map((row, i) => row.header ? h('div', { key: i, className: 'aw-patch-hunk' }, row.text) : h('div', { key: i, className: 'aw-patch-line', 'data-side': row.text[0] === '+' ? 'add' : row.text[0] === '-' ? 'del' : 'context' }, canReadOld && row.old > 0 ? h('button', { type: 'button', 'aria-label': tt('beforeAt', { path: file.previousPath || file.path, n: row.old }), onClick: e => locate(e, row.old, true) }, row.old) : h('span', null, row.old), canRead && row.next > 0 ? h('button', { type: 'button', 'aria-label': tt('reviewAt', { path: file.path, n: row.next }), onClick: e => locate(e, row.next) }, row.next) : h('span', null, row.next), h('code', null, row.text)))),
-                patch.length > lines ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => setLines(n => n + 120) }, tt('moreLines')) : null) : h('p', { className: 'aw-note' }, tt(file.binary ? 'binaryDiff' : file.oversized ? 'largeDiff' : 'noHunks'))))
-        }
-
-        function ReviewBase({ sessionId, base, select }) {
-          const tt = useT(), [query, setQuery] = React.useState(''), [choices, setChoices] = React.useState(null), [error, setError] = React.useState('')
-          React.useEffect(() => {
-            const abort = new AbortController()
-            const timer = setTimeout(async () => {
-              try {
-                const result = await ctx.remote.forgePanel.diffBases(sessionId, query, abort.signal)
-                if (abort.signal.aborted) return
-                if (!result.ok) throw new Error(result.error?.message || tt('checkoutUnavailable'))
-                setChoices(result.value); setError('')
-              } catch (e) { if (!abort.signal.aborted) setError(e.message) }
-            }, query ? 180 : 0)
-            return () => { clearTimeout(timer); abort.abort() }
-          }, [sessionId, query])
-          const refs = [...(choices?.local || []), ...(choices?.remote || [])]
-          return h('div', { className: 'aw-row' }, h(Input, { className: 'aw-input', type: 'search', value: query, placeholder: tt('findBase'), 'aria-label': tt('findBase'), onChange: e => setQuery(e.target.value) }),
-            h('label', { className: 'aw-field' }, tt('baseBranch'), h('select', { className: 'aw-select', value: base, onChange: e => select(e.target.value) },
-              h('option', { value: '' }, tt('autoBase') + (choices?.automatic ? ': ' + choices.automatic.name : '')),
-              base && !refs.some(r => r.ref === base) ? h('option', { value: base }, base) : null,
-              refs.map(r => h('option', { key: r.ref, value: r.ref }, r.name)))),
-            error ? h('p', { role: 'alert', className: 'aw-error' }, error) : null)
-        }
-
-        function ReviewCheckout({ sessionId, target }) {
-          const tt = useT(), [location, setLocation] = React.useState(null), [retry, retryLocation] = React.useReducer(n => n + 1, 0)
-          React.useEffect(() => {
-            const abort = new AbortController(); let stream
-            setLocation(null)
-            void (async () => {
-              stream = ctx.remote.forgePanel.follow(sessionId, abort.signal)
-              for await (const frame of stream) {
-                if (abort.signal.aborted) return
-                const checkout = frame.checkout
-                setLocation(checkout.state === 'ready' ? { sessionId, ...checkout.checkout, createdBase: frame.worktree?.created?.path === checkout.checkout.root ? frame.worktree.created.baseCommit : null } : checkout.state === 'pending' ? null : { error: checkout.message || tt('checkoutUnavailable') })
-              }
-              if (!abort.signal.aborted) setLocation({ error: tt('checkoutUnavailable') })
-            })().catch(e => { if (!abort.signal.aborted) setLocation({ error: e.message }) })
-            return () => { abort.abort(); stream?.dispose() }
-          }, [sessionId, retry])
-          if (location?.error) return h('div', { className: 'aw-section' }, h('p', { className: 'aw-error', role: 'alert' }, location.error), h(Button, { size: 'sm', onClick: retryLocation }, tt('refreshComparison')))
-          return location?.sessionId === sessionId ? h(CheckoutComparison, { key: JSON.stringify([sessionId, location.root, location.branch]), sessionId, target, root: location.root, head: location.commit, branchName: location.branch, createdBase: location.createdBase }) : h('p', { className: 'aw-note' }, tt('loading'))
-        }
-        function CheckoutComparison({ sessionId, target, root, head, branchName, createdBase }) {
-          const tt = useT(), [scope, setScope] = React.useState('uncommitted'), [base, setBase] = React.useState(''), [version, refresh] = React.useReducer(n => n + 1, 0)
-          const commits = scope === 'commits', branch = scope === 'branch' || commits
-          const before = React.useMemo(() => scope === 'unstaged' ? { kind: 'index' } : scope === 'branch' ? !base && fullOid(createdBase) ? { kind: 'commit', sha: createdBase } : null : head ? { kind: 'head', head, branch: branchName } : null, [scope, base, head, branchName, createdBase])
-          const comparison = React.useMemo(() => branch ? { kind: 'branch', base: base || null, commits: null } : { kind: scope }, [scope, base])
-          return h('div', { className: 'aw-detail' }, h('p', { className: 'aw-note' }, tt(commits ? 'commitHint' : 'checkoutHint')), h(PathLabel, { path: root }),
-            h('div', { className: 'aw-row' }, h('label', null, tt('gitScope'), ' ', h('select', { className: 'aw-select', value: scope, onChange: e => setScope(e.target.value) },
-              ['uncommitted','staged','unstaged','branch','commits'].map(k => h('option', { key: k, value: k }, tt(k === 'branch' ? 'branchDiff' : k === 'commits' ? 'commitScope' : k))))), h(Button, { size: 'sm', variant: 'ghost', onClick: refresh }, tt('refreshComparison'))),
-            branch ? h(ReviewBase, { sessionId, base, select: setBase }) : null,
-            commits ? h(CommitComparison, { key: base, sessionId, target, root, base, head, version }) : h(CheckoutDiff, { key: JSON.stringify([scope, base, head, version]), sessionId, target, root, comparison, before }))
-        }
-        // external: DSH Forge localCommits lists parents before children and merges can break the first-parent chain
-        function commitEnds(commits, from) {
-          const i = commits.findIndex(c => c.sha === from)
-          if (i < 0) return EMPTY
-          let end = i + 1
-          while (end < commits.length && commits[end].parent === commits[end - 1].sha) end++
-          return commits.slice(i, end)
-        }
-        function CommitComparison({ sessionId, target, root, base, head, version }) {
-          const tt = useT(), [listing, setListing] = React.useState(null), [range, setRange] = React.useState(null)
-          React.useEffect(() => {
-            const abort = new AbortController()
-            void (async () => {
-              const value = reviewResult(await ctx.remote.forgePanel.localCommits(sessionId, base || null, abort.signal))
-              if (head && !value.headSha.startsWith(head)) throw new Error(tt('commitHeadMoved'))
-              if (!abort.signal.aborted) setListing({ head, version, value })
-            })().catch(e => { if (!abort.signal.aborted) setListing({ head, version, error: e.message }) })
-            return () => abort.abort()
-          }, [sessionId, base, head, version])
-          const comparison = React.useMemo(() => ({ kind: 'branch', base: base || null, commits: range }), [base, range])
-          const parent = listing?.value?.commits.find(c => c.sha === range?.from)?.parent
-          const before = React.useMemo(() => fullOid(parent) ? { kind: 'commit', sha: parent } : null, [parent])
-          if (!listing || listing.version !== version || listing.head !== head) return h('p', { className: 'aw-note' }, tt('loading'))
-          if (listing.error) return h('p', { className: 'aw-error', role: 'alert' }, listing.error)
-          const { commits } = listing.value, ends = commitEnds(commits, range?.from), last = ends.findIndex(c => c.sha === range?.to), selected = ends[last]
-          const option = c => h('option', { key: c.sha, value: c.sha }, `${c.sha.slice(0, 8)} · ${c.title}`)
-          return h('div', { className: 'aw-section' }, range && !selected ? h('p', { className: 'aw-error', role: 'alert' }, tt('commitMissing')) : null,
-            !commits.length ? h('p', { className: 'aw-note' }, tt('noBranchCommits')) : h('div', { className: 'aw-row' },
-              h('label', { className: 'aw-field' }, tt('commitStart'), h('select', { className: 'aw-select', value: selected ? range.from : '', onChange: e => setRange(e.target.value ? { from: e.target.value, to: e.target.value } : null) }, h('option', { value: '' }, tt('chooseCommit')), commits.toReversed().map(option))),
-              selected && ends.length > 1 ? h('label', { className: 'aw-field' }, tt('commitEnd'), h('select', { className: 'aw-select', value: range.to, onChange: e => setRange({ from: range.from, to: e.target.value }) }, h('option', { value: range.from }, tt('commitOnly')), ends.slice(1).map(option))) : null),
-            listing.value.truncated ? h('p', { className: 'aw-note' }, tt('commitTruncated', { n: commits.length })) : null,
-            selected ? h('div', { className: 'aw-row' }, h(Tag, { tone: 'quiet' }, last ? tt('rangeSize', { n: last + 1 }) : selected.sha.slice(0, 8)), h('strong', null, selected.title), h('span', { className: 'aw-note' }, [selected.author, selected.authoredAt && stamp(selected.authoredAt)].filter(Boolean).join(' · '))) : null,
-            selected ? h(CheckoutDiff, { key: JSON.stringify([version, head, range.from, range.to]), sessionId, target, root, comparison, before }) : null)
-        }
-        function CheckoutDiff({ sessionId, target, root, comparison, before }) {
-          const tt = useT(), [diff, setDiff] = React.useState(null), [error, setError] = React.useState(''), [limit, setLimit] = React.useState(20)
-          React.useEffect(() => {
-            const abort = new AbortController(); setDiff(null); setError('')
-            void (async () => {
-              try {
-                const result = await ctx.remote.forgePanel.localDiff(sessionId, comparison, abort.signal)
-                if (abort.signal.aborted) return
-                if (!result.ok) throw new Error(result.error?.message || tt('checkoutUnavailable'))
-                setDiff(result.value)
-              } catch (e) { if (!abort.signal.aborted) setError(e.message) }
-            })()
-            return () => abort.abort()
-          }, [sessionId, comparison])
-          return h(React.Fragment, null,
-            diff?.base ? h('p', { className: 'aw-note' }, tt('gitScope'), ': ', diff.base) : null,
-            error ? h('p', { className: 'aw-error', role: 'alert' }, error) : !diff ? h('p', { className: 'aw-note' }, tt('loading')) : h(React.Fragment, null,
-              !diff.files.length && !diff.omitted ? h('p', { className: 'aw-note' }, tt('diffClean')) : null,
-              diff.files.slice(0, limit).map(file => h(CheckoutFile, { key: file.path + ':' + file.digest, file, root, target, sessionId, scope: comparison, before })),
-              diff.files.length > limit ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => setLimit(n => n + 20) }, tt('moreFiles')) : null,
-              diff.omitted ? h('p', { className: 'aw-note' }, tt('diffOmitted', { n: diff.omitted })) : null))
-        }
-
-        function ResultCard({ item, catalog, providers, writable, changes, busy, mark }) {
-          const tt = useT(), [open, setOpen] = React.useState(null), [selected, select] = React.useState(null), [replyOpen, setReplyOpen] = React.useState(false)
-          const openFile = (path, options) => select(previous => ({ path, line: options?.line, request: (previous?.request ?? 0) + 1 }))
-          const target = item.parentSessionId ? conversationTarget(item) : item.sessionId, opener = React.useRef(null)
-          const closeFile = () => { select(null); if (opener.current?.isConnected) opener.current.focus() }
-          const toggle = (key, label) => h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': open === key, onClick: () => { select(null); setOpen(open === key ? null : key) } }, tt(label))
-          const name = catalog.byId[item.sessionId]?.title || item.title, provider = providers.find(p => p.id === item.providerId)?.label || item.providerId
-          const longReply = !!item.reply && (item.reply.length > 200 || item.reply.split('\n').length > 3)
-          return h('article', { className: 'aw-card aw-section', onClickCapture: event => { const link = event.target.closest?.('.aw-file-link'); if (link) opener.current = link } }, h('div', { className: 'aw-row' }, h(StateDot, { state: DOT[item.state] || 'warning', size: 8 }), h('strong', { className: 'aw-grow' }, name), h(Tag, { tone: 'quiet' }, tt(item.reviewed === 'seen' ? 'reviewed' : 'unseen'))),
-            h('div', { className: 'aw-note' }, [provider, tt('resultTurn', { n: item.turn }), stateText(item.state), stamp(item.at)].join(' · ')),
-            item.reply ? h(React.Fragment, null,
-              h('p', { className: longReply && !replyOpen ? 'aw-text aw-reply-clamped' : 'aw-text' }, item.reply),
-              longReply ? h('div', null, h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': replyOpen, onClick: () => setReplyOpen(v => !v) }, tt(replyOpen ? 'collapseExcerpt' : 'expandExcerpt'))) : null) : null,
-            item.error ? h('p', { className: 'aw-error' }, item.error) : null,
-            h('div', { className: 'aw-note' }, [item.cwd, item.tools ? tt('traceTools', { n: item.tools }) : null, item.fileCount ? tt('traceFiles', { n: item.fileCount }) : null].filter(Boolean).join(' · ')),
-            item.files.length ? h(ToolTargets, { targets: item.files.map(path => ({ path })), cwd: item.cwd, openFile }) : null,
-            h('div', { className: 'aw-row' }, toggle('trace', 'runTrace'), changes ? toggle('diff', 'checkoutDiff') : null, h(OpenConversation, { session: { native: item } }),
-              writable && item.reviewed !== 'seen' ? h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => mark(item) }, tt('markSeen')) : null),
-            selected ? h(FilePreview, { key: selected.request, file: selected, absolute: selected.path, sessionId: item.sessionId, target, selection: selected.line ?? 1, close: closeFile }) : null,
-            open === 'trace' ? h(NativeTrace, { sessionId: item.sessionId, reference: { sessionId: item.recordId, turnId: item.id }, openFile }) : null,
-            open === 'diff' ? h(ReviewCheckout, { sessionId: item.sessionId, target }) : null)
-        }
-
-        function ProjectResults({ project, data, hidden, catalog, busy, run }) {
-          const tt = useT(), [filter, setFilter] = React.useState('pending'), [pages, setPages] = React.useState([]), [snapshot, setSnapshot] = React.useState(null), [error, setError] = React.useState('')
-          const [version, refresh] = React.useReducer(n => n + 1, 0)
-          const members = new Set(project.sessionIds), records = data.sessions.filter(s => s.native && !s.archived && !hidden.has(s.native.sessionId) && !hidden.has(s.native.rootSessionId) && (members.has(s.native.sessionId) || members.has(s.native.rootSessionId)))
-          const waiting = records.filter(s => s.activity.pending > 0 && !s.native.retired)
-          const revision = records.map(s => s.id + ':' + s.reviewRevision).toSorted().join('|'), before = pages.at(-1), pageKey = filter + ':' + (before || '')
-          React.useEffect(() => {
-            const controller = new AbortController()
-            api({ action: 'project-results', workspaceId: project.workspaceId, filter, before }, controller.signal).then(value => { if (!controller.signal.aborted) { setSnapshot({ ...value, key: pageKey }); setError('') } }, e => { if (!controller.signal.aborted) setError(e.message) })
-            return () => controller.abort()
-          }, [project.workspaceId, revision, pageKey, version])
-          const page = snapshot?.key === pageKey ? snapshot : null
-          const mark = async item => { if (await run({ action: 'project-reviewed', workspaceId: project.workspaceId, recordId: item.recordId, runId: item.id })) refresh() }
-          const select = key => { setFilter(key); setPages([]); setError('') }
-          return h('section', { className: 'aw-box' }, h('div', { className: 'aw-row' }, h('h2', { className: 'aw-grow' }, tt('projectResults')), h(Button, { size: 'sm', variant: 'ghost', onClick: refresh }, tt('schRefresh'))),
-            waiting.length ? h('div', { className: 'aw-section' }, h('h3', null, tt('projectRequests')), waiting.map(s => h('div', { key: s.id, className: 'aw-row' }, h(StateDot, { state: 'warning', size: 8 }), h('span', { className: 'aw-grow' }, catalog.byId[s.native.sessionId]?.title || s.title, ' · ', tt('requestCount', { n: s.activity.pending })), h(OpenConversation, { session: s })))) : null,
-            h('div', { className: 'aw-row' }, ['pending','all'].map(key => h(Button, { key, size: 'sm', variant: key === filter ? 'outline' : 'ghost', 'aria-pressed': key === filter, onClick: () => select(key) }, (key === 'pending' ? tt('unseen') + (page ? ' · ' + page.pending : '') : tt('resultHistory'))))), h('p', { className: 'aw-note' }, tt('reviewHint')),
-            error ? h('p', { role: 'alert', className: 'aw-error' }, error) : !page ? h('p', { className: 'aw-note' }, tt('loading')) : null,
-            page?.items.map(item => h(ResultCard, { key: item.id, item, catalog, providers: data.providers, writable: data.projects.reviewWritable, changes: data.projects.changes, busy, mark })),
-            page && !page.items.length && !error ? h('p', { className: 'aw-note' }, tt(filter === 'pending' ? 'noResults' : 'noAllResults')) : null,
-            h('div', { className: 'aw-row' }, before ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => setPages(old => old.slice(0,-1)) }, tt('previousPage')) : null,
-              page?.next ? h(Button, { size: 'sm', variant: 'ghost', onClick: () => setPages(old => [...old, page.next]) }, tt('nextPage')) : null))
-        }
-
-        const treeLocation = state => state === 'directory' ? 'treeDirectory' : state === 'missing' ? 'treeMissing' : state === 'incomplete' ? 'treeIncomplete' : 'treeOccupied'
-        function SharedCheckout({ tree, value, group, refresh }) {
-          const tt = useT(), [form, show] = React.useState(false), [providerId, pick] = React.useState(''), [title, name] = React.useState('')
-          const [pending, wait] = React.useState(false), [error, fail] = React.useState(''), [created, remember] = React.useState(null)
-          const locked = React.useRef(false), mounted = React.useRef(false)
-          React.useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-          const provider = providerId || group.providers[0]?.id, isMember = tree.participants?.includes(value.sessionId)
-          const canCreate = group.writable && group.enabled && !value.archived && isMember && !tree.incompleteJoin && tree.location === 'directory' && value.current === 'directory'
-          const members = tree.participants ?? []
-          const create = async event => {
-            event.preventDefault(); if (locked.current || !canCreate || !provider || created) return
-            locked.current = true; wait(true); fail('')
-            try {
-              const result = await api({ action: 'project-launch', workspaceId: group.workspaceId, isolation: 'shared', checkoutSessionId: value.sessionId, checkoutRevision: tree.revision, providerId: provider, title })
-              if (!mounted.current) return
-              remember(result); refresh()
-              if (result.ready) await ctx.uiWorkspace.openSession(result.sessionId); else fail(result.error)
-            } catch (e) { if (mounted.current) fail(e.message) } finally { locked.current = false; if (mounted.current) wait(false) }
-          }
-          return h('div', { className: 'aw-section' }, h('div', { className: 'aw-row' }, h('strong', { className: 'aw-grow' }, tt('shareHeading')), canCreate && !form ? h(Button, { variant: 'outline', size: 'sm', onClick: () => show(true) }, tt('shareCheckout')) : null),
-            members.map(id => {
-              const row = group.catalog.byId[id], record = group.related.get(id), here = id === value.sessionId
-              const target = projectConversationTarget(id, row, record)
-              return h('div', { key: id, className: 'aw-inbox-row' }, h('button', { type: 'button', className: 'aw-item', 'aria-current': here || undefined, onClick: () => ctx.uiWorkspace.openSession(target) },
-                h('span', { className: 'aw-item-top' }, h(StateDot, { size: 8, state: record ? DOT[record.state] ?? 'idle' : row?.running ? 'ongoing' : 'idle' }), h('strong', { className: 'aw-ellipsis' }, row?.title || record?.title || row?.displayTitle || id)),
-                h('span', { className: 'aw-item-sub aw-ellipsis' }, record ? [group.providers.find(p => p.id === record.providerId)?.label ?? record.providerId, activityLabel(record)].join(' · ') : tt('nativeChat'))),
-                record?.activity.group === 'attention' ? h(Tag, { tone: 'warning' }, tt('attention')) : null, here ? h(Tag, { tone: 'quiet' }, tt('shareCurrent')) : null, id === tree.ownerId ? h(Tag, { tone: 'quiet' }, tt('shareOwner')) : null)
-            }),
-            tree.incompleteJoin ? h('p', { className: 'aw-error' }, tt('sharePartial')) : null,
-            canCreate && form ? h('form', { className: 'aw-card aw-section', onSubmit: create }, h('strong', null, tt('shareCheckout')), h(PathLabel, { path: tree.path }), h('p', { className: 'aw-note' }, tt('shareHint')),
-              h('div', { className: 'aw-form' }, h('label', { className: 'aw-field' }, h('span', null, tt('engine')), h('select', { className: 'aw-select', disabled: pending || !!created, value: provider ?? '', onChange: e => pick(e.target.value) }, group.providers.map(p => h('option', { key: p.id, value: p.id }, p.label)))),
-                h('label', { className: 'aw-field' }, h('span', null, tt('agentName')), h(Input, { value: title, disabled: pending || !!created, maxLength: 160, onChange: e => name(e.target.value) }))),
-              h('div', { className: 'aw-row' }, h(Button, { type: 'submit', size: 'sm', variant: 'primary', disabled: pending || !provider || !!created }, tt('shareOpen')), h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: pending, onClick: () => { show(false); remember(null); fail('') } }, tt('shareDismiss')))) : null,
-            created ? h('div', { className: 'aw-row' }, !created.ready ? tt('projectFailed') : null, h(Button, { size: 'sm', variant: 'ghost', onClick: () => ctx.uiWorkspace.openSession(created.sessionId) }, tt('openConversation'))) : null,
-            error ? h('p', { className: 'aw-error', role: 'alert' }, error) : null)
-        }
-
-        function CheckoutState({ value, writable, rebuilding, rebuild, receipt, refresh, group }) {
-          const tt = useT(), cleanupKey = { scheduled: 'treeScheduled', retained: 'treeRetained', removed: 'treeRemoved', failed: 'treeFailed' }[value.cleanup?.status]
-          return h('section', { className: 'aw-card aw-section', 'aria-label': tt('treeInspect') },
-            h('div', { className: 'aw-row' }, h('strong', { className: 'aw-grow' }, tt('treeActual')), h(Tag, { tone: 'quiet' }, tt(treeLocation(value.current))), h(Button, { size: 'sm', variant: 'ghost', onClick: refresh }, tt('schRefresh'))), h(PathLabel, { path: value.cwd }),
-            value.archived && (value.trees.length || cleanupKey) ? h('p', { className: value.cleanup?.status === 'failed' ? 'aw-error' : 'aw-note', role: 'status' }, tt(cleanupKey || 'treeNoReceipt')) : null,
-            !value.trees.length ? h('p', { className: 'aw-note' }, tt('treeEmpty')) : null,
-            value.trees.map(w => h('div', { key: w.revision, className: 'aw-section' }, h('div', { className: 'aw-row' }, h(Tag, { tone: 'quiet' }, tt(w.owned ? 'treeOwned' : w.shared ? 'sharedCheckout' : 'treeInherited')), h('strong', { className: 'aw-grow aw-ellipsis' }, tt('treeRecorded'), ': ', w.branch), h('span', { className: 'aw-note' }, tt(treeLocation(w.location)))),
-              h(PathLabel, { path: w.path }), h('div', { className: 'aw-note' }, tt('treeSource'), ': ', w.repositoryRoot, ' · ', tt('treeBase'), ': ', w.baseCommit.slice(0,12)),
-              !w.inUseHere ? h('p', { className: 'aw-note' }, tt('treeOther')) : null,
-              group && w.ownerId && (w.participants?.length || w.incompleteJoin) ? h(SharedCheckout, { tree: w, value, group, refresh }) : null,
-              w.owned && w.inUseHere && w.location === 'missing' ? value.archived ? h('p', { className: 'aw-note' }, tt('treeRestoreFirst')) : writable ? h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'outline', disabled: rebuilding || value.restoring || value.readOnly || value.busy, onClick: () => rebuild(w) }, tt(rebuilding || value.restoring ? 'treeBusy' : 'treeRestore')), value.busy || value.readOnly ? h('span', { className: 'aw-note' }, tt('treePolicy')) : null) : null : null)),
-            receipt ? h('p', { className: 'aw-note', role: 'status' }, tt(receipt.branchRecreated ? 'treeRecreated' : 'treeRebuilt'), ' ', receipt.path) : null)
-        }
-
-        function CheckoutDetails({ workspaceId, sessionId, archived, writable, group, membership }) {
-          const tt = useT(), [value, setValue] = React.useState(null), [error, setError] = React.useState(''), [receipt, setReceipt] = React.useState(null)
-          const [rebuilding, setRebuilding] = React.useState(false), [version, refresh] = React.useReducer(n => n + 1, 0), lock = React.useRef(false)
-          React.useEffect(() => {
-            const abort = new AbortController(); let timer
-            const read = async () => {
-              try {
-                const next = await api({ action: 'checkout-info', workspaceId, dshSessionId: sessionId }, abort.signal)
-                if (abort.signal.aborted) return
-                setValue(next); if (next.cleanup?.status === 'scheduled' || next.restoring) timer = setTimeout(read, 600)
-              } catch (e) { if (!abort.signal.aborted) setError(e.message) }
-            }
-            void read(); return () => { abort.abort(); clearTimeout(timer) }
-          }, [workspaceId, sessionId, archived, membership, version])
-          const rebuild = async w => {
-            if (lock.current || !window.confirm([tt('treeRestoreAsk'), w.path, w.branch + ' · ' + w.baseCommit].join('\n\n'))) return
-            lock.current = true; setRebuilding(true); setError(''); setReceipt(null)
-            try { setReceipt(await api({ action: 'checkout-restore', workspaceId, dshSessionId: sessionId, revision: w.revision })) }
-            catch (e) { setError(e.message) } finally { lock.current = false; setRebuilding(false); refresh() }
-          }
-          return h('div', { className: 'aw-detail' }, error ? h('p', { className: 'aw-error', role: 'alert' }, error, ' ', h(Button, { size: 'sm', variant: 'ghost', onClick: () => { setError(''); refresh() } }, tt('retry'))) : null,
-            value ? h(CheckoutState, { value, writable, rebuilding, rebuild, receipt, group, refresh: () => { setError(''); refresh() } }) : !error ? h('p', { className: 'aw-note' }, tt('loading')) : null)
-        }
-
-        const fileSearchScope = { kind: 'file-search' }
-        function OpenTerminalButton({ sessionId, target, terminalId, useSessionAccess }) {
-          const tt = useT(), [error, fail] = React.useState(''), allowed = useSessionAccess(sessionId, 'terminal/attach')
-          if (!allowed || !ctx.get('webTerminals') || !ctx.get('sidebarRightTabs')?.get('terminal') || !ctx.get('sidebarRight')) return null
-          return h(React.Fragment, null, h(Button, { size: 'sm', variant: 'outline', onClick: () => {
-            try { fail(''); openRetainedTerminal(sessionId, target, terminalId) } catch (e) { fail(e.message) }
-          } }, tt('scriptTerminal')), error && h('span', { role: 'alert', className: 'aw-error' }, error))
-        }
-        function TerminalListToggle({ sessionId, open, toggle, useSessionAccess }) {
-          const allowed = useSessionAccess(sessionId, 'terminal/watch'), tt = useT()
-          return allowed && ctx.get('webTerminals') ? h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': open, onClick: toggle }, tt('termList')) : null
-        }
-        function ProjectTerminals({ sessionId, target, useSessionAccess }) {
-          const allowed = useSessionAccess(sessionId, 'terminal/watch')
-          return allowed && ctx.get('webTerminals') ? h(TerminalRoster, { key: sessionId, sessionId, target, useSessionAccess }) : null
-        }
-        function TerminalRoster({ sessionId, target, useSessionAccess }) {
-          const tt = useT(), [version, retry] = React.useReducer(n => n + 1, 0), [result, report] = React.useState(null)
-          React.useEffect(() => {
-            let active = true
-            const stream = ctx.remote.$stream({ name: 'ACP session terminals', open: signal => ctx.remote.terminal.watch(sessionId, signal),
-              ended: () => new Error(t('termLost')), carrierFailed: () => { if (active) report({ version, error: t('termLost') }) } })
-            void (async () => {
-              try { for await (const frame of stream) { if (!active) break; report({ version, rows: frame.value }); frame.accept() } }
-              catch (e) { if (active) report({ version, error: e.message }) }
-              finally { await stream.dispose() }
-            })()
-            return () => { active = false; void stream.dispose() }
-          }, [sessionId, version])
-          const value = result?.version === version ? result : null
-          return h('section', { className: 'aw-detail aw-section', 'aria-label': tt('termList') }, h('div', { className: 'aw-row' }, h('strong', { className: 'aw-grow' }, tt('termList')), value?.rows && h(Tag, { tone: 'quiet' }, String(value.rows.length))),
-            h('span', { className: 'aw-note' }, tt('termScope')),
-            !value ? h('p', { className: 'aw-note' }, tt('loading')) : value.error ? h('div', { className: 'aw-row' }, h('span', { role: 'alert', className: 'aw-error' }, value.error), h(Button, { size: 'sm', variant: 'ghost', onClick: retry }, tt('termRetry'))) : !value.rows.length ? h('p', { className: 'aw-note' }, tt('termEmpty')) : value.rows.map(row =>
-              h('div', { key: row.id, className: 'aw-section' }, h('div', { className: 'aw-row' }, h('strong', { className: 'aw-grow aw-ellipsis', title: row.title }, row.title || row.id), h(Tag, { tone: row.state === 'failed' || row.exitCode ? 'warning' : 'quiet' }, tt({ running: 'scriptRunning', exited: 'scriptExited', failed: 'scriptFailed' }[row.state])),
-                h(OpenTerminalButton, { sessionId, target, terminalId: row.id, useSessionAccess })),
-                h('span', { className: 'aw-note' }, [row.shell?.name, tt(row.origin === 'agent' ? 'termAgent' : 'termUser'), tt(row.control === 'agent' ? 'termAgentControl' : 'scriptOwner'), Number.isInteger(row.exitCode) && tt('scriptExit') + ': ' + row.exitCode].filter(Boolean).join(' · ')),
-                h(PathLabel, { path: row.cwd }), h('small', { className: 'aw-note aw-mono' }, row.id), row.error && h('span', { className: 'aw-error' }, row.error))))
-        }
-
-        function ProjectFileFinder(props) {
-          const tt = useT(), [mode, select] = React.useState('name'), tabs = React.useId(), panel = tabs + 'files'
-          return h('section', { className: 'aw-detail aw-section', 'aria-label': tt('findFile') }, h('div', { className: 'aw-row' }, h(IconBrowseOutlineRegular, { size: 14 }), h('strong', { className: 'aw-grow' }, tt('findFile')),
-            h(SegmentedTabs, { size: 'sm', label: tt('findFile'), value: mode, onChange: select, items: [['name', 'fileByName'], ['directory', 'fileByDirectory']].map(([value, key]) => ({ id: tabs + value, panelId: panel, value, label: tt(key) })) })),
-            h('div', { id: panel, role: 'tabpanel', 'aria-labelledby': tabs + mode, className: 'aw-section' }, h(mode === 'name' ? ProjectFileSearch : ProjectDirectory, props)))
-        }
-
-        function LocatedProjectFile({ workspaceId, sessionId, target, cwd, chosen, close, reopenRoot }) {
-          const tt = useT(), [location, locate] = React.useState(null)
-          React.useEffect(() => {
-            const abort = new AbortController()
-            api({ action: 'project-file-locate', workspaceId, dshSessionId: sessionId, path: chosen.path, expectedCwd: cwd }, abort.signal).then(
-              v => { if (!abort.signal.aborted) locate({ chosen, cwd, absolute: v.absolute.replace(/\\/g, '/') }) },
-              e => { if (!abort.signal.aborted) locate({ chosen, cwd, error: e.message }) })
-            return () => abort.abort()
-          }, [workspaceId, sessionId, chosen, cwd])
-          if (location?.chosen !== chosen || location.cwd !== cwd) return h('p', { role: 'status', className: 'aw-note' }, tt('loading'))
-          return location.error ? h('div', { className: 'aw-row' }, h('span', { role: 'alert', className: 'aw-error' }, location.error), reopenRoot && h(Button, { size: 'sm', variant: 'ghost', onClick: reopenRoot }, tt('dirRestart'))) :
-            h(FilePreview, { key: location.absolute, target, sessionId, scope: fileSearchScope, absolute: location.absolute, file: chosen, selection: 1, close, closeLabel: reopenRoot ? 'dirBack' : 'fileHitsBack' })
-        }
-
-        function ProjectDirectory({ workspaceId, sessionId, target }) {
-          const tt = useT(), [request, move] = React.useState(() => ({ path: '' })), [answer, publish] = React.useState(null)
-          const [limit, more] = React.useState(24), [chosen, choose] = React.useState(null), trigger = React.useRef(null), breadcrumb = React.useRef(null)
-          const go = (path, expectedCwd) => { choose(null); more(24); move({ path, expectedCwd }); breadcrumb.current?.focus() }
-          React.useEffect(() => {
-            const abort = new AbortController()
-            api({ action: 'project-file-directory', workspaceId, dshSessionId: sessionId, ...request }, abort.signal).then(
-              result => { if (!abort.signal.aborted) publish({ request, result }) }, e => { if (!abort.signal.aborted) publish({ request, error: e.message }) })
-            return () => abort.abort()
-          }, [workspaceId, sessionId, request])
-          const current = answer?.request === request ? answer : null, result = current?.result, cwd = result?.cwd ?? request.expectedCwd
-          const segments = request.path ? request.path.split('/') : [], entries = React.useMemo(() => result ? [...result.entries.filter(e => e.type === 'directory'), ...result.entries.filter(e => e.type !== 'directory')] : EMPTY, [result])
-          return h(React.Fragment, null, h('nav', { ref: breadcrumb, tabIndex: -1, className: 'aw-row', 'aria-label': tt('fileByDirectory') }, ['', ...segments].map((name, i) => {
-            const path = segments.slice(0, i).join('/')
-            return h(Button, { key: path, size: 'sm', variant: 'ghost', disabled: i === segments.length, 'aria-current': i === segments.length ? 'location' : undefined, onClick: () => go(path, cwd) }, i ? name : tt('dirRoot'))
-          })), h('div', { className: 'aw-row' }, h('span', { className: 'aw-note aw-grow' }, tt('dirHint')), h(Button, { size: 'sm', variant: 'ghost', onClick: () => go(request.path, cwd) }, tt('dirRefresh'))),
-            !current ? h('p', { role: 'status', className: 'aw-note' }, tt('loading')) : current.error ? h('div', { className: 'aw-row' }, h('span', { role: 'alert', className: 'aw-error' }, current.error), h(Button, { variant: 'outline', size: 'sm', onClick: () => go('') }, tt('dirRestart'))) : h(React.Fragment, null,
-              h(PathLabel, { path: result.cwd }), h('span', { className: 'aw-note', role: 'status' }, entries.length ? tt('dirCount', { n: entries.length }) : tt('dirEmpty'), result.truncated ? ' · ' + tt('dirPartial') : ''),
-              h('div', { className: 'aw-directory-list' }, entries.slice(0, limit).map(entry => {
-                const path = [request.path, entry.name].filter(Boolean).join('/'), folder = entry.type === 'directory'
-                return h('button', { key: entry.name, type: 'button', title: path, className: 'aw-file-hit aw-dir-entry', disabled: !folder && entry.type !== 'file', 'aria-pressed': folder ? undefined : chosen?.path === path,
-                  onClick: e => { if (folder) go(path, cwd); else { trigger.current = e.currentTarget; choose(chosen?.path === path ? null : { path }) } } },
-                  h('span', { className: 'aw-note' }, tt(folder ? 'dirFolder' : entry.type === 'file' ? 'dirFile' : 'dirOther')), h('strong', { className: 'aw-ellipsis' }, entry.name), Number.isSafeInteger(entry.size) && !folder && h('small', { className: 'aw-note' }, tt('dirBytes', { n: entry.size })))
-              })), limit < entries.length && h(Button, { variant: 'ghost', size: 'sm', onClick: () => more(n => n + 24) }, tt('dirMore')),
-              chosen && h(LocatedProjectFile, { workspaceId, sessionId, target, cwd, chosen, reopenRoot: () => go(''), close: () => { choose(null); trigger.current?.focus() } })))
-        }
-
-        function ProjectFileSearch({ workspaceId, sessionId, target }) {
-          const tt = useT(), [input, typeQuery] = React.useState(''), [answer, publish] = React.useState(null), [version, refresh] = React.useReducer(n => n + 1, 0)
-          const [limit, show] = React.useState(12), [chosen, choose] = React.useState(null)
-          const query = input.trim(), trigger = React.useRef(null)
-          React.useEffect(() => {
-            if (!query) return
-            const abort = new AbortController()
-            const timer = setTimeout(async () => {
-              try {
-                const result = await api({ action: 'project-file-search', workspaceId, dshSessionId: sessionId, query }, abort.signal)
-                if (!abort.signal.aborted) publish({ query, version, result })
-              } catch (e) { if (!abort.signal.aborted) publish({ query, version, error: e.message }) }
-            }, 150)
-            return () => { clearTimeout(timer); abort.abort() }
-          }, [workspaceId, sessionId, query, version])
-          const current = answer?.query === query && answer.version === version ? answer : null, result = current?.result
-          const clear = () => { publish(null); choose(null); show(12) }
-          return h(React.Fragment, null, query && h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'ghost', onClick: () => { clear(); refresh() } }, tt('fileRefresh'))),
-            h(Input, { className: 'aw-input', type: 'search', maxLength: 200, 'aria-label': tt('fileQuery'), placeholder: tt('fileQuery'), value: input, onChange: e => { if (e.target.value.trim() !== query) clear(); typeQuery(e.target.value) } }),
-            h('p', { className: 'aw-note' }, tt('findFileHint')), current?.error && h('p', { className: 'aw-error', role: 'alert' }, current.error),
-            query && !current ? h('p', { className: 'aw-note', role: 'status' }, tt('loading')) : null,
-            result && h(React.Fragment, null, h(PathLabel, { path: result.cwd }), h('p', { role: 'status', className: 'aw-note' }, tt('foundFiles', { n: result.paths.length }), result.truncated ? ' · ' + tt('fileHitsLimit') : '', result.incomplete ? ' · ' + tt('fileScanCut') : ''),
-              result.paths.slice(0, limit).map(path => h('button', { type: 'button', className: 'aw-file-hit', key: path, 'aria-pressed': chosen?.path === path, title: path, onClick: e => { trigger.current = e.currentTarget; choose(chosen?.path === path ? null : { path }) } }, h('strong', null, path.split('/').at(-1)), path.includes('/') && h('span', { className: 'aw-note' }, path.slice(0, path.lastIndexOf('/') + 1)))),
-              limit < result.paths.length && h(Button, { size: 'sm', variant: 'ghost', onClick: () => show(limit + 12) }, tt('moreFileHits'))),
-            chosen && result && h(LocatedProjectFile, { workspaceId, sessionId, target, cwd: result.cwd, chosen, close: () => { choose(null); trigger.current?.focus() } }))
-        }
-
-        function ProjectTitle({ project, items, useWorkspaceAccess }) {
-          const allowed = useWorkspaceAccess(project.workspaceId, 'workspace/rename'), tt = useT()
-          const [draft, setDraft] = React.useState(null), [saving, save] = React.useState(false), [error, fail] = React.useState('')
-          const name = draft?.trim(), duplicate = name && items.some(w => w.workspaceId !== project.workspaceId && w.title === name)
-          const blocked = !allowed || saving || !name || name === project.title || duplicate
-          const submit = async event => {
-            event.preventDefault(); if (blocked) return
-            save(true); fail('')
-            try { await ctx.workspaces.rename(project.workspaceId, name); setDraft(null) }
-            catch (e) { fail(e.message || String(e)) } finally { save(false) }
-          }
-          return h('div', { className: 'aw-section' }, h('div', { className: 'aw-row' }, h(PathLabel, { path: project.path }), allowed && draft === null && h(Button, { size: 'sm', variant: 'ghost', onClick: () => { setDraft(project.title); fail('') } }, tt('projectRename'))),
-            allowed && draft !== null && h('form', { className: 'aw-row', onSubmit: submit }, h(Input, { className: 'aw-input', autoFocus: true, value: draft, 'aria-label': tt('projectTitle'), disabled: saving, onChange: e => { setDraft(e.target.value); fail('') }, onKeyDown: e => { if (e.nativeEvent.isComposing && e.key === 'Enter') e.preventDefault(); else if (e.key === 'Escape' && !saving) setDraft(null) } }),
-              h(Button, { size: 'sm', type: 'submit', variant: 'primary', disabled: !!blocked }, tt('save')), h(Button, { size: 'sm', type: 'button', variant: 'ghost', disabled: saving, onClick: () => setDraft(null) }, tt('cancelEdit')),
-              (duplicate || error) ? h('span', { role: 'alert', className: 'aw-error' }, duplicate ? tt('sameProjectTitle') : error) : null))
-        }
-
-        function ArchiveChoice({ member, archived, held, disabled, useSessionAccess }) {
-          const tt = useT(), allowed = useSessionAccess(member.id, archived ? 'workspace/unarchiveSession' : 'workspace/archiveSession')
-          return h('label', { className: 'aw-batch-choice' }, h('input', { type: 'checkbox', name: 'dsh-session', value: member.id, disabled: disabled || !allowed || held }),
-            h('span', { className: 'aw-section' }, h('strong', null, member.title), h('small', { className: 'aw-note aw-mono' }, member.id)),
-            (!allowed || held) && h(Tag, { tone: 'quiet' }, tt(allowed ? 'batch.active' : 'batch.denied')))
-        }
-
-        function ArchiveBatch({ project, members, archived, data, busy, useSessionAccess, open, show }) {
-          const tt = useT(), [choose, remind] = React.useState(false), [running, spin] = React.useState(false), [outcomes, report] = React.useState([])
-          const lock = React.useRef(null), latest = React.useRef(data); latest.current = data
-          React.useEffect(() => () => lock.current?.abort(), [])
-          const label = tt(archived ? 'batch.restore' : 'batch.archive')
-          const held = id => !archived && (ctx.sessions.list.getSnapshot().byId[id]?.running || latest.current.sessions.some(s =>
-            (s.native?.sessionId === id || s.native?.rootSessionId === id) && ['working', 'attention'].includes(s.activity?.group)))
-          const submit = async event => {
-            event.preventDefault()
-            if (lock.current || busy) return
-            const ids = new Set(new FormData(event.currentTarget).getAll('dsh-session'))
-            const targets = members.filter(m => ids.has(m.id))
-            remind(!targets.length)
-            if (!targets.length) return
-            if (!window.confirm([label + ' · ' + project.title, ...targets.map(m => m.title + ' (' + m.id + ')'), tt(archived ? 'batch.restoreNote' : 'batch.archiveNote')].join('\n'))) return
-            const controller = new AbortController(); lock.current = controller; spin(true); report([])
-            const available = id => {
-              const state = ctx.workspaces.list.getSnapshot()
-              return state.phase === 'ready' && state.items.find(w => w.workspaceId === project.workspaceId)?.sessionIds.includes(id) && state.archivedSessionIds.includes(id) === archived
-            }
-            try {
-              for (const { id, title } of targets) {
-                if (controller.signal.aborted) break
-                let reason = '', ok = false
-                try {
-                  if (!available(id)) reason = tt('batch.changed')
-                  else if (held(id)) reason = tt('batch.active')
-                  else if (!archived) {
-                    const state = await api({ action: 'checkout-info', workspaceId: project.workspaceId, dshSessionId: id }, controller.signal)
-                    if (state.sessionId !== id || state.archived || !available(id)) reason = tt('batch.changed')
-                    else if (state.busy || state.restoring || held(id)) reason = tt('batch.active')
-                    else if (state.trees.length) reason = tt('batch.tree')
-                  }
-                  if (controller.signal.aborted) break
-                  if (!reason) {
-                    if (archived) await ctx.uiWorkspace.unarchiveSession(id)
-                    else await ctx.uiWorkspace.archiveSession(id, { stopActivity: false })
-                    ok = true
-                  }
-                } catch (e) { reason = e.message || String(e) }
-                if (!controller.signal.aborted) report(old => [...old, { id, title, ok, reason }])
-              }
-            } finally { if (!controller.signal.aborted) { lock.current = null; spin(false) } }
-          }
-          return h('section', { className: 'aw-section' }, h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': open, disabled: running || busy || (!open && !members.length), onClick: () => { show(!open); report([]); remind(false) } }, label)),
-            open && h('form', { className: 'aw-box aw-section', onSubmit: submit, onChange: () => remind(false), 'aria-label': label }, h('p', { className: 'aw-note' }, tt(archived ? 'batch.restoreNote' : 'batch.archiveNote')),
-              members.map(m => h(ArchiveChoice, { key: m.id, member: m, archived, held: held(m.id), disabled: running || busy, useSessionAccess })),
-              h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'outline', type: 'submit', disabled: running || busy || !members.length }, tt(running ? 'loading' : 'batch.confirm'))),
-              choose && h('small', { className: 'aw-note', role: 'status' }, tt('batch.choose')),
-              outcomes.length > 0 && h('ul', { className: 'aw-section', 'aria-label': tt('batch.result'), 'aria-live': 'polite' }, outcomes.map(o => h('li', { key: o.id, className: 'aw-row', title: o.id }, h(Tag, { tone: o.ok ? 'quiet' : 'warning' }, tt(o.ok ? archived ? 'batch.restored' : 'batch.archived' : 'batch.skipped')), h('span', null, o.title), o.reason && h('span', { className: 'aw-note' }, o.reason))))))
-        }
-
-        function Projects({ data, run, busy, onRecord, scheduleAccess, renderFactorySlot, useSessionAccess = () => false, useWorkspaceAccess = () => false }) {
-          const tt = useT()
-          const workspaces = useList(ctx.workspaces.list), catalog = useList(ctx.sessions.list)
-          const [projectId, select] = React.useState(null), [adding, setAdding] = React.useState(false), [error, setError] = React.useState('')
-          const [checkoutId, setCheckoutId] = React.useState(null), [inspectId, inspect] = React.useState(null), [fileId, setFileId] = React.useState(null)
-          const [scriptsId, setScriptsId] = React.useState(null), [terminalId, setTerminalId] = React.useState(null), [scheduling, showSchedules] = React.useState(false)
-          const [query, search] = React.useState(''), [scope, setScope] = React.useState('project'), [pinsOnly, filterPins] = React.useState(false)
-          const [form, setForm] = React.useState(false), [archived, showArchived] = React.useState(false), [partial, setPartial] = React.useState(null)
-          const [draft, setDraft] = React.useState({ provider: '', model: 'default', effort: '', isolation: 'local', title: '', branch: '', from: '', profileName: '', profileId: '' })
-          const project = workspaces.items.find(w => w.workspaceId === projectId) ?? workspaces.items[0]
-          const provider = draft.provider ? data.providers.find(p => p.id === draft.provider) : data.providers[0]
-          const model = provider?.models?.some(m => m.id === draft.model) ? draft.model : 'default'
-          const effortsFor = (p, m) => p?.advertised?.models?.find(item => item.id === m)?.reasoning?.efforts ?? p?.models?.find(item => item.id === m)?.reasoning?.efforts ?? []
-          const efforts = effortsFor(provider, model), profiles = data.projects?.profiles ?? []
-          const field = (key, value) => setDraft(d => ({ ...d, [key]: value, ...(key === 'provider' ? { model: 'default', effort: '' } : key === 'model' ? { effort: '' } : {}) }))
-          const applyProfile = id => {
-            const p = profiles.find(item => item.id === id)
-            if (!p) { setDraft(d => ({ ...d, profileId: '', profileName: '' })); return }
-            const source = data.providers.find(item => item.id === p.providerId)
-            if (!source || (p.isolation === 'worktree' && !data.projects.worktree) || (p.model !== 'default' && !source.models?.some(m => m.id === p.model)) || (p.effort && !effortsFor(source, p.model).some(e => e.id === p.effort))) { setError(tt('unavailableProfile')); return }
-            setError(''); setDraft(d => ({ ...d, provider: p.providerId, model: p.model, effort: p.effort ?? '', isolation: p.isolation, profileId: id, profileName: p.name }))
-          }
-          const saveProfile = async () => {
-            const value = await run({ action: 'profile-save', id: draft.profileId || undefined, name: draft.profileName, providerId: provider.id, model, effort: draft.effort || undefined, isolation: draft.isolation })
-            if (value) field('profileId', value.id)
-          }
-          const removeProfile = async () => {
-            if (window.confirm(tt('removeProfileConfirm')) && await run({ action: 'profile-remove', id: draft.profileId })) applyProfile('')
-          }
-          const resetFinder = () => { search(''); filterPins(false); setScope('project') }
-          const changeProject = id => { select(id); resetFinder(); setTerminalId(null); setFileId(null); setScriptsId(null); setCheckoutId(null); inspect(null); setForm(false); setPartial(null); setError(''); showArchived(false) }
-          const add = async () => {
-            setAdding(true); setError('')
-            try { const path = await ctx.uiWorkspace.pickDirectory(); if (path) changeProject((await ctx.workspaces.create({ path })).workspaceId) }
-            catch (e) { setError(e.message) } finally { setAdding(false) }
-          }
-          const archive = async (owner, sessionId, restore) => {
-            setError(''); setAdding(true)
-            try {
-              if (restore) await ctx.uiWorkspace.unarchiveSession(sessionId)
-              else {
-                const state = data.projects?.checkouts ? await api({ action: 'checkout-info', workspaceId: owner.workspaceId, dshSessionId: sessionId }) : null
-                const owned = state?.trees.filter(w => w.owned) ?? []
-                const note = [tt(!owned.length && state?.trees.some(w => w.shared) ? 'shareArchive' : 'archiveChatConfirm'), catalog.byId[sessionId]?.displayTitle || sessionId, ...owned.map(w => w.path + ' · ' + w.branch), owned.length ? tt('treeArchiveRisk') : null].filter(Boolean).join('\n\n')
-                if (!window.confirm(note)) return
-                await ctx.uiWorkspace.archiveSession(sessionId, { stopActivity: false })
-              }
-              if (data.projects?.checkouts) { showArchived(!restore); filterPins(false); inspect(sessionId); setCheckoutId(null); setScriptsId(null) }
-            } catch (e) { setError(e.message) } finally { setAdding(false) }
-          }
-          const submit = async e => {
-            e.preventDefault(); setPartial(null)
-            if (!project || !provider || model !== draft.model) { setError(tt('unavailableProfile')); return }
-            const result = await run({ action: 'project-launch', workspaceId: project.workspaceId, providerId: provider.id, title: draft.title, model, effort: draft.effort || undefined,
-              isolation: draft.isolation, ...(draft.isolation === 'worktree' ? { branch: draft.branch, from: draft.from } : {}) })
-            if (result?.ready) ctx.uiWorkspace.openSession(result.sessionId)
-            else if (result) setPartial(result)
-          }
-          const choice = (label, value, options, change) => h('label', { className: 'aw-field' }, h('span', null, tt(label)), h('select', { className: 'aw-select', value, disabled: busy || adding, onChange: e => change(e.target.value) }, options.map(([id, name]) => h('option', { key: id, value: id }, name))))
-          const input = (key, label, maxLength) => h('label', { className: 'aw-field' }, h('span', null, tt(label)), h(Input, { className: 'aw-input', maxLength, value: draft[key], disabled: busy, onChange: e => field(key, e.target.value) }))
-          const related = new Map()
-          for (const s of data.sessions) if (s.native && !s.native.retired && !related.has(s.native.sessionId)) related.set(s.native.sessionId, s)
-          const hidden = new Set(workspaces.archivedSessionIds)
-          const pinned = new Set(workspaces.pinnedSessionIds), words = query.toLowerCase().trim().split(/\s+/u).filter(Boolean)
-          const groups = (scope === 'all' ? workspaces.items : project ? [project] : []).map(owner => {
-            const members = []
-            for (const id of owner.sessionIds) {
-              if (hidden.has(id) !== archived || (pinsOnly && !pinned.has(id))) continue
-              const row = catalog.byId[id], s = related.get(id), engine = s && (data.providers.find(p => p.id === s.providerId)?.label || s.providerId)
-              const title = row?.title || row?.displayTitle || s?.title || id
-              const fields = [title, owner.title, owner.path, id, engine, s?.providerId, s?.cwd, row?.cwd].filter(Boolean).map(v => v.toLowerCase())
-              if (words.every(word => fields.some(value => value.includes(word)))) members.push({ id, title, row, s, engine })
-            }
-            members.sort((a, b) => Number(pinned.has(b.id)) - Number(pinned.has(a.id)))
-            return { owner, members }
-          }).filter(group => group.members.length)
-          const count = groups.reduce((n, g) => n + g.members.length, 0), filtered = words.length > 0 || pinsOnly
-          const [selectionView, setSelectionView] = React.useState(null)
-          const batchKey = scope === 'project' && data.projects?.reviewWritable && (archived || data.projects.checkouts) ? JSON.stringify([project?.workspaceId, archived, query, pinsOnly]) : null
-          const selecting = !!batchKey && batchKey === selectionView
-          React.useEffect(() => setSelectionView(null), [batchKey])
-          const sessionMenu = (id, row, title) => renderFactorySlot?.('contextMenu.button', { target: { kind: 'session', value: { sessionId: id, displayTitle: row.title || '' } }, label: tt('agentMenu', { name: title }), size: 'sm' })
-          return h('div', { className: 'aw-stack' }, h('section', { className: 'aw-box' },
-            h('div', { className: 'aw-row' }, h('h2', { className: 'aw-grow' }, tt('projects')), h(Button, { size: 'sm', variant: 'ghost', disabled: busy || adding, onClick: add }, tt('addProject'))),
-            project ? h(React.Fragment, null, choice('chooseProject', project.workspaceId, workspaces.items.map(w => [w.workspaceId, w.title]), changeProject), h(ProjectTitle, { key: project.workspaceId, project, items: workspaces.items, useWorkspaceAccess }),
-              h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'primary', disabled: busy || !provider || !data.projects?.enabled, 'aria-expanded': form, onClick: () => { setForm(!form); setPartial(null) } }, tt('newAgent')),
-                scheduleAccess?.catalog && data.projects?.schedule ? h(Button, { size: 'sm', variant: 'outline', 'aria-expanded': scheduling, onClick: () => showSchedules(!scheduling) }, tt('schedules')) : null)) : h('p', { className: 'aw-note' }, tt(workspaces.phase === 'ready' ? 'noProject' : 'loading')),
-            (error || workspaces.error) ? h('p', { role: 'alert', className: 'aw-error' }, error || workspaces.error.message) : null),
-            project && data.projects?.review && !form && !scheduling ? h(ProjectResults, { key: project.workspaceId, project, data, hidden, catalog, busy, run }) : null,
-            project && scheduling && scheduleAccess?.catalog && data.projects?.schedule ? h(ProjectSchedules, { key: project.workspaceId, project, catalog, hidden, access: scheduleAccess }) : null,
-            project && form ? h('form', { className: 'aw-box', onSubmit: submit }, h('h2', null, tt('newAgent')), h('div', { className: 'aw-form' },
-              choice('profiles', draft.profileId, [['', tt('customLaunch')], ...profiles.map(p => [p.id, p.name])], applyProfile),
-              choice('engine', provider?.id, data.providers.map(p => [p.id, p.label]), v => field('provider', v)),
-              choice('model', model, [['default', tt('cliDefault')], ...(provider?.models ?? []).filter(m => m.id !== 'default').map(m => [m.id, m.name ?? m.id])], v => field('model', v)),
-              efforts.length ? choice('effortChoice', draft.effort, [['', tt('cliDefault')], ...efforts.map(e => [e.id, e.name ?? e.id])], v => field('effort', v)) : null,
-              input('title', 'agentName', 160), choice('checkout', draft.isolation, (data.projects?.worktree ? ['local', 'worktree'] : ['local']).map(v => [v, tt(v)]), v => field('isolation', v)),
-              draft.isolation === 'worktree' ? h(React.Fragment, null, input('branch', 'branchName', 200), input('from', 'baseRef', 250)) : null),
-              h('details', { className: 'aw-tech' }, h('summary', null, tt('saveProfile')), input('profileName', 'profileName', 80), h('div', { className: 'aw-row' },
-                h(Button, { type: 'button', size: 'sm', disabled: busy || !provider || !draft.profileName.trim(), onClick: saveProfile }, tt('saveProfile')),
-                draft.profileId ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy, onClick: removeProfile }, tt('removeProfile')) : null)),
-              h('p', { className: 'aw-note' }, tt('launchHint')), partial ? h('div', { className: 'aw-error', role: 'alert' }, tt('projectFailed'), ' ', partial.error, ' ', h(Button, { size: 'sm', type: 'button', onClick: () => ctx.uiWorkspace.openSession(partial.sessionId) }, tt('openConversation'))) : null,
-              h(Button, { type: 'submit', variant: 'primary', size: 'sm', disabled: busy || !provider || !!partial || model !== draft.model || (draft.isolation === 'worktree' && !data.projects?.worktree) }, tt('createAgent'))) : null,
-            project ? h('section', { className: 'aw-box aw-agent-finder', 'aria-label': tt('findAgent') }, h('div', { className: 'aw-row' }, h('h2', { className: 'aw-grow' }, tt('agents')), h(Button, { size: 'sm', variant: 'ghost', 'aria-pressed': archived, onClick: () => { showArchived(!archived); filterPins(false) } }, tt('projectArchive'))),
-              h('div', { className: 'aw-row' }, h(Input, { type: 'search', className: 'aw-input aw-grow', value: query, 'aria-label': tt('findAgent'), placeholder: tt('findAgentHint'), onChange: e => search(e.target.value) }),
-                h('select', { className: 'aw-select', value: scope, 'aria-label': tt('finderScope'), onChange: e => setScope(e.target.value) }, h('option', { value: 'project' }, tt('hereProjects')), h('option', { value: 'all' }, tt('everyProject'))),
-                !archived && h(Button, { size: 'sm', variant: pinsOnly ? 'outline' : 'ghost', 'aria-pressed': pinsOnly, onClick: () => filterPins(!pinsOnly) }, tt('onlyPinned'))),
-              h('div', { className: 'aw-row' }, h('span', { role: 'status', className: 'aw-note' }, count ? tt('finderCount', { n: count }) : tt(filtered ? 'finderNoMatch' : 'noAgents')), filtered && h(Button, { size: 'sm', variant: 'ghost', onClick: () => { search(''); filterPins(false) } }, tt('finderReset'))),
-              batchKey && h(ArchiveBatch, { key: batchKey, project, members: groups[0]?.members ?? EMPTY, archived, data, busy: busy || adding, useSessionAccess, open: selecting, show: value => setSelectionView(value ? batchKey : null) }),
-              !selecting && groups.map(({ owner, members }) => h('div', { key: owner.workspaceId, className: 'aw-section' }, scope === 'all' ? h('div', { className: 'aw-row' }, h('strong', { className: 'aw-strong' }, owner.title), h(PathLabel, { path: owner.path })) : null,
-              members.map(({ id, title, row, s, engine }) => {
-                const target = projectConversationTarget(id, row, s)
-                return h(React.Fragment, { key: id }, h('div', { className: 'aw-inbox-row' }, h('button', { type: 'button', className: 'aw-item', disabled: archived, title: archived ? tt('archivedOpen') : title, onClick: () => ctx.uiWorkspace.openSession(target) },
-                  h('span', { className: 'aw-item-top' }, h(StateDot, { state: s ? DOT[s.state] ?? 'idle' : row?.running ? 'ongoing' : 'idle', size: 8 }), h('strong', { className: 'aw-ellipsis' }, title), !archived && pinned.has(id) ? h(Tag, { tone: 'quiet' }, tt('isPinned')) : null),
-                  h('span', { className: 'aw-item-sub aw-ellipsis' }, s ? [engine, activityLabel(s), s.cwd].join(' · ') : tt('nativeChat'))),
-                  row && sessionMenu(id, row, title),
-                  !archived && h(TerminalListToggle, { sessionId: id, open: terminalId === id, toggle: () => setTerminalId(terminalId === id ? null : id), useSessionAccess }),
-                  data.projects?.fileSearch && !archived ? h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': fileId === id, onClick: () => setFileId(fileId === id ? null : id) }, tt('findFile')) : null,
-                  data.projects?.checkouts ? h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': inspectId === id, onClick: () => inspect(inspectId === id ? null : id) }, tt('treeInspect')) : null,
-                  data.projects?.changes && !archived ? h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': checkoutId === id, onClick: () => setCheckoutId(checkoutId === id ? null : id) }, tt('checkoutDiff')) : null,
-                  data.projects?.scripts && !archived ? h(Button, { variant: 'ghost', size: 'sm', 'aria-expanded': scriptsId === id, onClick: () => setScriptsId(scriptsId === id ? null : id) }, tt('scripts')) : null,
-                  s ? h(Button, { variant: 'ghost', size: 'sm', onClick: () => onRecord(s.id) }, tt(s.activity.group === 'attention' ? 'attention' : 'viewTimeline')) : null,
-                  h(Button, { size: 'sm', variant: 'ghost', disabled: busy || adding || (!archived && !!row?.running), onClick: () => archive(owner, id, archived) }, tt(archived ? 'restoreChat' : 'archiveChat'))),
-                  !archived && terminalId === id ? h(ProjectTerminals, { key: 'terminals:' + owner.workspaceId + ':' + id, sessionId: id, target, useSessionAccess }) : null,
-                  data.projects?.fileSearch && !archived && fileId === id ? h(ProjectFileFinder, { key: owner.workspaceId + ':' + id, workspaceId: owner.workspaceId, sessionId: id, target }) : null,
-                  data.projects?.checkouts && inspectId === id ? h(CheckoutDetails, { key: id + ':' + archived, workspaceId: owner.workspaceId, sessionId: id, archived, writable: data.projects.reviewWritable, membership: owner.sessionIds.filter(sid => !hidden.has(sid)).join(':'), group: { workspaceId: owner.workspaceId, enabled: data.projects.sharing, writable: data.projects.reviewWritable, providers: data.providers, catalog, related } }) : null,
-                  data.projects?.changes && !archived && checkoutId === id ? h(ReviewCheckout, { key: id, sessionId: id }) : null)
-              })))) : null, !archived && scriptsId && groups.some(g => g.members.some(m => m.id === scriptsId)) ? h(ProjectScripts, { key: scriptsId, sessionId: scriptsId, useSessionAccess, targetFor: id => projectConversationTarget(id, catalog.byId[id], related.get(id)) }) : null)
-        }
-
-        function Page({ useRemoteAccess = () => false, useSessionAccess, useWorkspaceAccess, renderFactorySlot }) {
-          const scheduleAccess = { catalog: useRemoteAccess('schedule/catalog'), create: useRemoteAccess('schedule/create'), edit: useRemoteAccess('schedule/edit'),
-            run: useRemoteAccess('schedule/run'), history: useRemoteAccess('schedule/history'), preset: useRemoteAccess('agentPresets/list') }
+        function Page() {
           const tt = useT()
           const online = useOnline()
-          const [tab, setTab] = React.useState('projects')
-          const [selected, setSelected] = React.useState(null)
           const [busy, setBusy] = React.useState(false)
+          const [creating, setCreating] = React.useState(false)
           const inFlight = React.useRef(false)
           const [error, setError] = React.useState('')
-          const view = useWorkbench(tab === 'records' ? selected : null)
+          const view = useWorkbench()
           const run = async op => {
             if (inFlight.current) return null
             inFlight.current = true
@@ -3610,23 +2858,22 @@ window.__ModuleLoader__.load({
           return h('div', { className: 'acpw aw-page' }, h('div', { className: 'aw-page-inner' },
             h('header', { className: 'aw-head' },
               h('div', { className: 'aw-grow' }, h('h1', null, tt('panel')), h('p', { className: 'aw-note' }, tt('panelHint'))),
-              h('span', { className: 'aw-live', role: 'status' }, h(StateDot, { state: online === 'live' ? 'done' : 'warning', size: 8 }), tt(online))),
-            h(SegmentedTabs, { className: 'aw-tabs', size: 'sm', label: tt('panel'), value: tab, onChange: setTab, items: [
-              { value: 'projects', label: tt('projects'), id: 'aw-tab-projects', panelId: 'aw-panel-projects' },
-              { value: 'records', label: tt('tabRecords'), id: 'aw-tab-records', panelId: 'aw-panel-records' },
-              { value: 'providers', label: tt('tabProviders'), id: 'aw-tab-providers', panelId: 'aw-panel-providers' },
-            ] }),
+              h('div', { className: 'aw-head-actions' },
+                h('span', { className: 'aw-live', role: 'status' }, h(StateDot, { state: online === 'live' ? 'done' : 'warning', size: 8 }), tt(online)),
+                h(Button, { size: 'sm', variant: 'outline', icon: h(IconPlusOutlineRegular, { size: 14 }), disabled: busy, onClick: () => setCreating(true) }, tt('addProvider')))),
             view.data.storageError ? h('div', { className: 'aw-banner', 'data-tone': 'error', role: 'alert' }, h(IconWarningTriangleOutlineRegular, { size: 14 }), tt('storageError', { message: view.data.storageError })) : null,
             problem ? h('div', { className: 'aw-banner', 'data-tone': 'error', role: 'alert' }, h(IconWarningTriangleOutlineRegular, { size: 14 }), problem, view.error ? h(Button, { size: 'sm', variant: 'ghost', onClick: view.refresh }, tt('retry')) : null) : null,
-            h('div', { role: 'tabpanel', id: `aw-panel-${tab}`, 'aria-labelledby': `aw-tab-${tab}` },
-              !view.ready ? (view.error ? null : h('p', { className: 'aw-empty', role: 'status' }, tt('loading'))) : tab === 'providers'
-                ? h('div', { className: 'aw-stack' },
-                  h('div', { className: 'aw-banner' }, h(IconInfoOutlineRegular, { size: 14 }),
-                    h('div', { className: 'aw-banner-text' }, h('span', null, tt('engineHint')), h('span', null, tt('delegateHint')), h('span', null, tt('warning')), h('span', null, tt('scopeOnce')))),
-                  h(ProvidersTab, { providers: view.data.providers, run, busy, cwdHint: view.data.sessions[0]?.cwd }))
-                : tab === 'projects' ? h(Projects, { data: view.data, run, busy, scheduleAccess, useSessionAccess, useWorkspaceAccess, renderFactorySlot, onRecord: id => { setSelected(id); setTab('records') } })
-                : h(ActivityInbox, { view, run, busy, selected, onSelect: setSelected, providers: view.data.providers, onSetup: () => setTab('providers') }))))
+            !view.ready
+              ? (view.error ? null : h('p', { className: 'aw-empty', role: 'status' }, tt('loading')))
+              : h(ProviderWorkbench, {
+                providers: view.data.providers,
+                activeByProvider: view.data.activeByProvider,
+                defaultCwd: view.data.defaultCwd,
+                run, busy, creating, setCreating,
+              })),
+            h(ConfirmModal))
         }
+
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: NS, locale: NS }, Page))
         function Icon({ size = 16 }) {
           return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },

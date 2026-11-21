@@ -22,8 +22,6 @@ export class WorkbenchStore {
     this.onError = onError
     this.sessions = new Map([...domain.table('sessions').entries()].map(([key, value]) => [key, structuredClone(value)]))
     this.providers = new Map([...domain.table('providers').entries()].map(([key, value]) => [key, structuredClone(value)]))
-    this.sharedGroups = new Map()
-    for (const [, link] of domain.table('checkout_links').entries()) this.indexCheckoutLink(link)
     this.dirty = new Map()
     this.chunks = new Map()
     this.tail = Promise.resolve()
@@ -46,17 +44,6 @@ export class WorkbenchStore {
       this.onError?.(error)
     })
     return task
-  }
-
-  indexCheckoutLink(link) {
-    if (!link.ready) return
-    this.sharedGroups.set(link.ownerId, link.workspaceId)
-    this.sharedGroups.set(link.sessionId, link.workspaceId)
-  }
-
-  async saveCheckoutLink(link) {
-    await this.enqueue(() => this.domain.table('checkout_links').put(link.sessionId, link))
-    this.indexCheckoutLink(link)
   }
 
   async saveProvider(provider) {

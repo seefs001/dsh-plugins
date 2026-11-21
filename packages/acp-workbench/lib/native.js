@@ -1,16 +1,32 @@
 import { randomUUID } from 'node:crypto'
+import { isAbsolute, join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { applyLateCompactions, cliParentOf, createTrace, foldEvents } from './trace.js'
-import { replyExcerpt } from './review.js'
+import { applyLateCompactions, cliParentOf, createTrace, defined, foldEvents, foldTerminal, namedPlan } from './trace.js'
 import { connectionNotices } from './notices.js'
-import { guardManagedCheckout } from './checkouts.js'
-import { modelDetails, reasoningInfo, reasoningSelection } from './models.js'
+import {
+  advertisedModes,
+  extractLegacyOverrides,
+  modelConfigOptions,
+  modelContextWindow,
+  modelDetails,
+  reasoningInfo,
+  reasoningSelection,
+  resolveLiveThinkingUpdates,
+  visibleModels,
+  wireModelId,
+} from './models.js'
+import { hasToolInput, isToolTerminal, makeCallId, mapPlanTodos, mapToolCall, mapToolResult } from './native-tools.js'
 
 export const ACP_ROUTE_PREFIX = 'acp-'
 const MAX_HANDOFF = 200_000
+const MAX_TOOL_HANDOFF = 4_000
 const MAX_RUN_FILES = 50
 const MAX_CACHED_TRACES = 64
 const DEFAULT_MODEL = 'default'
+const TOOL_INPUT_WAIT_MS = 300
+const TOOL_BATCH_WINDOW_MS = 25
+const STALE_TOOL_GRACE_MS = 200
+const EXECUTOR_BRIDGE = Symbol.for('dsh-acp-workbench:executor-bridge')
 const ACTIVE_RUN = new Set(['preparing', 'running', 'waiting', 'canceling'])
 const timestamp = () => new Date().toISOString()
 const isRoute = value => typeof value === 'string' && value.startsWith(ACP_ROUTE_PREFIX)
@@ -42,13 +58,697 @@ function tally(run, update, tools) {
 
 function messageText(message) {
   const content = (message.content ?? []).flatMap(block => {
-    if (block.type === 'text') return [block.text]
+    if (block.type === 'text') {
+      return [message.role === 'tool' && block.text.length > MAX_TOOL_HANDOFF ? `${block.text.slice(0, MAX_TOOL_HANDOFF)}…` : block.text]
+    }
     if (block.type === 'tool-call') return [`[Historical tool request: ${block.name}]`]
     if (block.type === 'file') return [`[File: ${block.attachment.name}]`]
     if (block.type === 'image') return ['[Image attachment in DSH history]']
     return []
   }).join('\n')
   return content ? `${message.role}:\n${content}` : ''
+}
+
+function createToolResultMessage(callId, content, isError) {
+  return {
+    id: randomUUID(),
+    role: 'tool',
+    source: { kind: 'tool', callId },
+    toolCallId: callId,
+    content,
+    isError,
+  }
+}
+
+class AcpTurn {
+  constructor(native, { agent, turn, turnId, provider, model, effort }) {
+    this.native = native
+    this.agent = agent
+    this.turn = turn
+    this.turnId = turnId
+    this.stopId = turnId
+    this.provider = provider
+    this.model = model
+    this.effort = effort
+    this.externalId = null
+    this.session = null
+    this.run = null
+    this.controller = new AbortController()
+    this.doneDeferred = Promise.withResolvers()
+    this.done = this.doneDeferred.promise
+    this.bridge = null
+    this.unsubscribe = null
+    this.removeCancel = null
+    this.queue = []
+    this.toolByAcpId = new Map()
+    this.toolByDshId = new Map()
+    this.toolsSeen = new Set()
+    this.lastTodoJson = null
+    this.waiters = new Set()
+    this.settled = false
+    this.result = null
+    this.failure = null
+    this.finalized = false
+    this.cleaned = false
+    this.started = false
+  }
+
+  wake() {
+    for (const resolve of Array.from(this.waiters)) {
+      this.waiters.delete(resolve)
+      resolve()
+    }
+  }
+
+  wait(signal) {
+    if (signal?.aborted || this.controller.signal.aborted) return Promise.resolve()
+    return new Promise(resolve => {
+      const done = () => {
+        this.waiters.delete(done)
+        signal?.removeEventListener('abort', done)
+        this.controller.signal.removeEventListener('abort', done)
+        resolve()
+      }
+      this.waiters.add(done)
+      signal?.addEventListener('abort', done, { once: true })
+      this.controller.signal.addEventListener('abort', done, { once: true })
+    })
+  }
+
+  waitUntil(deadline, signal) {
+    const remaining = deadline - Date.now()
+    if (remaining <= 0 || signal?.aborted || this.controller.signal.aborted) return Promise.resolve()
+    return new Promise(resolve => {
+      const done = () => {
+        clearTimeout(timer)
+        this.waiters.delete(done)
+        signal?.removeEventListener('abort', done)
+        this.controller.signal.removeEventListener('abort', done)
+        resolve()
+      }
+      this.waiters.add(done)
+      signal?.addEventListener('abort', done, { once: true })
+      this.controller.signal.addEventListener('abort', done, { once: true })
+      const timer = setTimeout(done, remaining)
+    })
+  }
+
+  installExecutor() {
+    const existing = this.agent[EXECUTOR_BRIDGE]
+    if (existing) {
+      existing.turn = this
+      this.bridge = existing
+      return
+    }
+    const tools = this.agent.ctx?.tools
+    if (!tools?.setExecutor || !tools?.selectExecutor) return
+    let base
+    try { base = tools.selectExecutor(this.agent) } catch { return }
+    const bridge = { turn: this }
+    const executor = {
+      ...(base.sections ? { sections: base.sections } : {}),
+      describe: defs => base.describe(defs),
+      execute: input => {
+        const active = bridge.turn
+        if (active && !active.cleaned && input.calls.length > 0 && input.calls.every(block => active.toolByDshId.has(block.id))) {
+          return active.executeTools(input)
+        }
+        return base.execute(input)
+      },
+    }
+    try {
+      // external: dsh-tools setExecutor disposal leaves a tombstone in scoped map, so keep one pass-through wrapper per agent
+      tools.setExecutor(executor)
+      this.agent[EXECUTOR_BRIDGE] = bridge
+      this.bridge = bridge
+    } catch (error) {
+      this.native.manager.log?.(`ACP tool executor registration skipped: ${error.message}`)
+    }
+  }
+
+  hasActiveInteraction() {
+    const runtime = this.session ? this.native.manager.runtimes.get(this.session.id) : null
+    return !!runtime?.interactions?.size
+  }
+
+  emitSubCallStart(record, parentRecord) {
+    if (record.subStarted || !parentRecord?.callLogged) return
+    record.mapped = mapToolCall(record.tool, record.terminal)
+    record.subStarted = true
+    try {
+      this.agent.session.append('tool/ptc-dispatch-start', {
+        rootCallId: parentRecord.dshCallId,
+        parentCallId: parentRecord.dshCallId,
+        subCallId: record.dshCallId,
+        name: record.mapped.name,
+        arguments: record.mapped.argumentsObj,
+      })
+    } catch {}
+  }
+
+  emitSubCallResult(record, parentRecord, options = {}) {
+    if (record.subFinished || !parentRecord?.callLogged) return
+    if (!record.subStarted) this.emitSubCallStart(record, parentRecord)
+    record.subFinished = true
+    const mapped = record.mapped ?? mapToolCall(record.tool, record.terminal)
+    const result = mapToolResult(mapped, record.tool, record.terminal, { cwd: this.session?.cwd, ...options })
+    try {
+      this.agent.session.append('tool/ptc-dispatch', {
+        rootCallId: parentRecord.dshCallId,
+        parentCallId: parentRecord.dshCallId,
+        subCallId: record.dshCallId,
+        name: mapped.name,
+        arguments: mapped.argumentsObj,
+        isError: result.isError,
+        ...(result.isError && result.error ? { error: result.error } : {}),
+        content: result.content,
+        ...(result.meta !== undefined ? { meta: result.meta } : {}),
+      })
+    } catch {}
+  }
+
+  flushSubCalls(parentRecord) {
+    if (!parentRecord?.callLogged || !parentRecord.subCalls.length) return
+    for (const child of parentRecord.subCalls) {
+      if (!child.subStarted && (hasToolInput(child.tool) || child.done)) {
+        this.emitSubCallStart(child, parentRecord)
+      }
+      if (child.done && !child.subFinished) {
+        this.emitSubCallResult(child, parentRecord)
+      }
+    }
+  }
+
+  onEvent(event) {
+    if (event.type !== 'notification' || event.data.replay || event.data.turnId !== this.turnId) {
+      this.wake()
+      return
+    }
+    const method = event.data.method
+    const update = method === 'session/update' ? event.data.params?.update : null
+    tally(this.run, update, this.toolsSeen)
+
+    if (method?.replace(/^_/u, '') === 'cursor/update_todos') {
+      const todos = mapPlanTodos(event.data.params?.todos)
+      if (todos.length) this.queue.push({ kind: 'todo', todos })
+      this.wake()
+      return
+    }
+    if (!update) { this.wake(); return }
+
+    const kind = update.sessionUpdate
+    const parent = cliParentOf(update)
+
+    if ((kind === 'tool_call' || kind === 'tool_call_update') && update.toolCallId) {
+      if (parent) {
+        let record = this.toolByAcpId.get(update.toolCallId)
+        if (!record) {
+          record = {
+            acpId: update.toolCallId,
+            dshCallId: makeCallId(),
+            isSubCall: true,
+            parentAcpId: parent,
+            tool: {},
+            terminal: undefined,
+            mapped: null,
+            done: false,
+            subStarted: false,
+            subFinished: false,
+          }
+          this.toolByAcpId.set(update.toolCallId, record)
+          const parentRecord = this.toolByAcpId.get(parent)
+          if (parentRecord && !parentRecord.isSubCall) parentRecord.subCalls.push(record)
+        }
+        const folded = foldTerminal(record, update) ?? update
+        record.tool = { ...record.tool, ...defined(folded) }
+        if (isToolTerminal(record.tool)) record.done = true
+        const parentRecord = this.toolByAcpId.get(parent)
+        if (parentRecord?.callLogged) {
+          if (!record.subStarted && (hasToolInput(record.tool) || record.done)) this.emitSubCallStart(record, parentRecord)
+          if (record.done && !record.subFinished) this.emitSubCallResult(record, parentRecord)
+        }
+        this.wake()
+        return
+      }
+
+      let record = this.toolByAcpId.get(update.toolCallId)
+      if (!record) {
+        record = {
+          acpId: update.toolCallId,
+          dshCallId: makeCallId(),
+          isSubCall: false,
+          tool: {},
+          terminal: undefined,
+          mapped: null,
+          done: false,
+          emitted: false,
+          callLogged: false,
+          resultLogged: false,
+          subCalls: [],
+        }
+        this.toolByAcpId.set(update.toolCallId, record)
+        this.toolByDshId.set(record.dshCallId, record)
+        this.queue.push({ kind: 'tool', record })
+      }
+      const folded = foldTerminal(record, update) ?? update
+      record.tool = { ...record.tool, ...defined(folded) }
+      if (isToolTerminal(record.tool)) record.done = true
+      this.wake()
+      return
+    }
+
+    if (parent) { this.wake(); return }
+
+    if (kind === 'agent_thought_chunk') {
+      const content = update.content
+      const text = content?.type === 'text' ? content.text
+        : content?.type === 'resource' && typeof content.resource?.text === 'string' ? content.resource.text
+          : content?.type ? pointer(content) : null
+      if (typeof text === 'string' && text !== '') this.queue.push({ kind: 'thought', text })
+      this.wake()
+      return
+    }
+
+    if (kind === 'agent_message_chunk') {
+      const content = update.content
+      if (content?.type === 'image') {
+        this.queue.push({ kind: 'image', content })
+      } else if (content?.type) {
+        const text = content.type === 'text' ? content.text
+          : content.type === 'resource' && typeof content.resource?.text === 'string' ? content.resource.text
+            : pointer(content)
+        if (typeof text === 'string' && text !== '') this.queue.push({ kind: 'text', text })
+      }
+      this.wake()
+      return
+    }
+
+    const plan = namedPlan(update)
+    if (plan?.type === 'items') {
+      const todos = mapPlanTodos(plan.entries)
+      if (todos.length) this.queue.push({ kind: 'todo', todos })
+      this.wake()
+      return
+    }
+
+    if (kind === 'plan' && Array.isArray(update.entries)) {
+      const todos = mapPlanTodos(update.entries)
+      if (todos.length) this.queue.push({ kind: 'todo', todos })
+      this.wake()
+      return
+    }
+
+    this.wake()
+  }
+
+  async start(options, position) {
+    const abort = () => this.controller.abort(options.signal?.reason ?? new Error('Native request canceled'))
+    if (options.signal?.aborted) abort()
+    else options.signal?.addEventListener('abort', abort, { once: true })
+    const signal = this.controller.signal
+    signal.throwIfAborted()
+    this.session = await this.native.binding(this.agent, this.provider)
+    this.externalId = this.session.id
+    this.run = {
+      id: this.turnId,
+      turn: position.turn,
+      step: position.step,
+      nativeVersion: 2,
+      state: 'preparing',
+      reviewedAt: null,
+      startedAt: timestamp(),
+      from: (this.session.eventSeq ?? 0) + 1,
+    }
+    this.session.native.runs.push(this.run)
+    await this.native.manager.store.saveSession(this.session)
+    this.native.manager.changed(this.session.id)
+    const cancel = () => {
+      void this.native.manager.cancel(this.session).catch(error => this.native.manager.log?.(error.message))
+    }
+    signal.addEventListener('abort', cancel, { once: true })
+    this.removeCancel = () => {
+      signal.removeEventListener('abort', cancel)
+      options.signal?.removeEventListener('abort', abort)
+    }
+    await this.native.manager.runtimes.get(this.session.id)?.shutdown
+    signal.throwIfAborted()
+    if (!this.native.manager.runtimes.has(this.session.id)) await this.native.manager.connect(this.session)
+    signal.throwIfAborted()
+    await this.native.applyModel(this.session, this.model, this.effort)
+    signal.throwIfAborted()
+    const input = await this.native.input(this.session, options.messages, signal, position.messageIds)
+    signal.throwIfAborted()
+    this.session.native.lastMessageId = input.lastMessageId
+    this.run.handoff = input.handoff
+    this.run.state = 'running'
+    await this.native.manager.store.saveSession(this.session)
+    signal.throwIfAborted()
+    this.installExecutor()
+    this.unsubscribe = this.native.manager.subscribe(this.session.id, event => this.onEvent(event))
+    await this.native.manager.prompt(this.session, input.text, { content: input.prompt, turnId: this.turnId })
+    const runtime = this.native.manager.runtimes.get(this.session.id)
+    const completion = runtime?.completion
+    if (!completion) throw new Error('External prompt did not establish a completion handle')
+    this.started = true
+    void completion.then(
+      completed => { this.result = completed; this.settled = true; this.wake() },
+      error => { this.failure = error; this.settled = true; this.wake() },
+    )
+  }
+
+  acpCheckpoint() {
+    return {
+      version: 2,
+      sessionId: this.session.id,
+      ownerSessionId: this.agent.id,
+      turnId: this.turnId,
+      from: this.run.from,
+      to: this.run.to ?? this.session.eventSeq,
+    }
+  }
+
+  async finalizeTurn() {
+    if (this.finalized) return
+    this.finalized = true
+    if (this.run && this.session) {
+      this.run.state = this.result?.stopReason === 'cancelled' ? 'interrupted' : 'completed'
+      this.run.stopReason = this.result?.stopReason ?? null
+      this.run.to = this.session.eventSeq
+      this.run.finishedAt = timestamp()
+      await this.native.manager.store.saveSession(this.session)
+      await this.native.manager.store.flush()
+      this.native.manager.changed(this.session.id)
+    }
+    await this.cleanup()
+  }
+
+  async failTurn(error) {
+    if (!this.finalized && this.run && this.session) {
+      this.finalized = true
+      this.run.state = this.controller.signal.aborted ? 'interrupted' : 'failed'
+      this.run.error = error.message ?? String(error)
+      this.run.to = this.session.eventSeq
+      this.run.finishedAt = timestamp()
+      await this.native.manager.store.saveSession(this.session)
+      this.native.manager.changed(this.session.id)
+    }
+    await this.cleanup()
+  }
+
+  async cleanup() {
+    if (this.cleaned) return
+    this.cleaned = true
+    this.unsubscribe?.()
+    this.unsubscribe = null
+    this.removeCancel?.()
+    this.removeCancel = null
+    if (this.bridge?.turn === this) this.bridge.turn = null
+    this.bridge = null
+    this.wake()
+    if (!this.finalized && this.session) {
+      try {
+        await this.native.manager.cancel(this.session)
+        await this.native.manager.runtimes.get(this.session.id)?.completion
+      } catch (error) {
+        this.native.manager.log?.(`ACP native cleanup: ${error.message}`)
+      }
+    }
+    try {
+      if (!this.finalized && this.run && this.session && ACTIVE_RUN.has(this.run.state)) {
+        this.finalized = true
+        this.run.state = 'interrupted'
+        this.run.to = this.session.eventSeq
+        this.run.finishedAt = timestamp()
+        await this.native.manager.store.saveSession(this.session)
+        this.native.manager.changed(this.session.id)
+      }
+    } finally {
+      if (this.native.active.get(this.agent.id) === this) this.native.active.delete(this.agent.id)
+      this.doneDeferred.resolve()
+    }
+  }
+
+  commitToolEntry(entry, log, agent, options = {}) {
+    if (entry.result) return
+    const record = entry.record
+    if (record && !record.isSubCall) {
+      for (const child of record.subCalls) {
+        if (!child.subFinished) this.emitSubCallResult(child, record, options)
+      }
+    }
+    const mapped = record?.mapped ?? { name: entry.block.name, argumentsObj: {}, originalKind: 'other' }
+    const result = record?.syntheticTodo
+      ? { content: [{ type: 'text', text: 'Updated task list.' }], isError: false }
+      : mapToolResult(mapped, record?.tool, record?.terminal, { cwd: this.session?.cwd, ...options })
+    entry.result = result
+    if (record) record.resultLogged = true
+    if (log !== undefined) {
+      agent.session.append('tool/result', {
+        turn: log.turn,
+        step: log.step,
+        message: createToolResultMessage(entry.block.id, result.content, result.isError),
+        ...(result.isError && result.error ? { error: result.error } : {}),
+        ...(result.meta !== undefined ? { meta: result.meta } : {}),
+      }, {
+        surfaceOp: 'append',
+        ...(entry.callSeq !== undefined ? { sourceEventSeqs: [entry.callSeq] } : {}),
+      })
+    }
+  }
+
+  async executeTools(input) {
+    const { calls, signal, agent, log } = input
+    const entries = calls.map(block => ({
+      block,
+      record: this.toolByDshId.get(block.id) ?? null,
+      callSeq: undefined,
+      result: undefined,
+    }))
+    for (const entry of entries) {
+      if (log !== undefined) {
+        entry.callSeq = agent.session.append('tool/call', {
+          turn: log.turn,
+          step: log.step,
+          callId: entry.block.id,
+          name: entry.block.name,
+          arguments: entry.block.arguments,
+        }).seq
+      }
+      if (entry.record) {
+        entry.record.callLogged = true
+        this.flushSubCalls(entry.record)
+        if (entry.record.syntheticTodo) {
+          try { agent.session.append('todo/write', { todos: entry.record.syntheticTodo }) } catch {}
+          this.commitToolEntry(entry, log, agent)
+        } else if (entry.record.done) {
+          this.commitToolEntry(entry, log, agent)
+        }
+      } else {
+        this.commitToolEntry(entry, log, agent)
+      }
+    }
+
+    let nonToolSeenAt = null
+    while (entries.some(entry => !entry.result)) {
+      const aborted = signal.aborted || this.controller.signal.aborted
+      const hasNewTopOutput = this.queue.some(item =>
+        (item.kind === 'thought' || item.kind === 'text') && item.text.trim() !== '')
+      if (hasNewTopOutput && !this.hasActiveInteraction()) {
+        nonToolSeenAt ??= Date.now()
+      } else {
+        nonToolSeenAt = null
+      }
+      const forceSettle = aborted || this.settled || (nonToolSeenAt !== null && Date.now() - nonToolSeenAt >= STALE_TOOL_GRACE_MS)
+      for (const entry of entries) {
+        if (entry.result) continue
+        if (entry.record?.done || forceSettle) {
+          const interrupted = !aborted && forceSettle && !entry.record?.done && this.result?.stopReason === 'cancelled'
+          this.commitToolEntry(entry, log, agent, { aborted, interrupted })
+        }
+      }
+      if (!entries.some(entry => !entry.result)) break
+      if (nonToolSeenAt !== null) {
+        await this.waitUntil(nonToolSeenAt + STALE_TOOL_GRACE_MS, signal)
+      } else {
+        await this.wait(signal)
+      }
+    }
+
+    if (!this.settled && !this.queue.length) await Promise.resolve()
+    const concluded = this.settled && !this.failure && !signal.aborted && !this.controller.signal.aborted
+      && this.result?.stopReason !== 'cancelled' && this.queue.length === 0
+    if (concluded) await this.finalizeTurn()
+    return {
+      results: entries.map(entry => ({ callId: entry.block.id, result: entry.result })),
+      additionalContexts: [],
+      concluded,
+    }
+  }
+
+  async *streamStep(options) {
+    const stepSignal = options.signal
+    const abortStep = () => this.controller.abort(stepSignal?.reason ?? new Error('Native request canceled'))
+    if (stepSignal?.aborted) abortStep()
+    else stepSignal?.addEventListener('abort', abortStep, { once: true })
+    let index = 0
+    let openKind = null
+    let openText = ''
+    const pendingCalls = []
+    let batchDeadline = null
+
+    const closeOpenBlock = function* () {
+      if (openKind === null) return
+      yield { type: 'block-end', index, block: { type: openKind, text: openText } }
+      index++
+      openKind = null
+      openText = ''
+    }
+
+    try {
+      while (true) {
+        if (stepSignal?.aborted || this.controller.signal.aborted) {
+          throw stepSignal?.reason ?? this.controller.signal.reason ?? new Error('Native request canceled')
+        }
+        if (!this.queue.length) {
+          if (pendingCalls.length > 0) {
+            if (this.settled || Date.now() >= batchDeadline) break
+            await this.waitUntil(batchDeadline, stepSignal)
+            continue
+          }
+          if (this.settled) break
+          await this.wait(stepSignal)
+          continue
+        }
+
+        const next = this.queue[0]
+        if (pendingCalls.length > 0 && next.kind !== 'tool' && next.kind !== 'todo') {
+          break
+        }
+
+        if (next.kind === 'tool') {
+          if (!hasToolInput(next.record.tool) && !this.settled && this.queue.length === 1) {
+            next.waitUntil ??= Date.now() + TOOL_INPUT_WAIT_MS
+            if (Date.now() < next.waitUntil) {
+              await this.waitUntil(next.waitUntil, stepSignal)
+              continue
+            }
+          }
+          this.queue.shift()
+          yield* closeOpenBlock()
+          const mapped = mapToolCall(next.record.tool, next.record.terminal)
+          next.record.mapped = mapped
+          next.record.emitted = true
+          yield { type: 'block-start', index, blockType: 'tool-call' }
+          yield { type: 'tool-call-delta', index, id: next.record.dshCallId, name: mapped.name, argumentsDelta: mapped.argumentsJson }
+          yield { type: 'block-end', index, block: { type: 'tool-call', id: next.record.dshCallId, name: mapped.name, arguments: mapped.argumentsJson } }
+          index++
+          pendingCalls.push(next.record)
+          batchDeadline ??= Date.now() + TOOL_BATCH_WINDOW_MS
+          continue
+        }
+
+        if (next.kind === 'todo') {
+          this.queue.shift()
+          const serialized = JSON.stringify(next.todos)
+          if (serialized === this.lastTodoJson) continue
+          this.lastTodoJson = serialized
+          const dshCallId = makeCallId()
+          const mapped = {
+            name: 'todo_write',
+            argumentsObj: { todos: next.todos },
+            argumentsJson: JSON.stringify({ todos: next.todos }),
+            originalKind: 'plan',
+          }
+          const record = {
+            acpId: null,
+            dshCallId,
+            isSubCall: false,
+            syntheticTodo: next.todos,
+            mapped,
+            done: true,
+            emitted: true,
+            callLogged: false,
+            resultLogged: false,
+            subCalls: [],
+          }
+          this.toolByDshId.set(dshCallId, record)
+          yield* closeOpenBlock()
+          yield { type: 'block-start', index, blockType: 'tool-call' }
+          yield { type: 'tool-call-delta', index, id: dshCallId, name: mapped.name, argumentsDelta: mapped.argumentsJson }
+          yield { type: 'block-end', index, block: { type: 'tool-call', id: dshCallId, name: mapped.name, arguments: mapped.argumentsJson } }
+          index++
+          pendingCalls.push(record)
+          batchDeadline ??= Date.now() + TOOL_BATCH_WINDOW_MS
+          continue
+        }
+
+        if (next.kind === 'image') {
+          this.queue.shift()
+          let attachment = null
+          let fallbackText = null
+          try {
+            attachment = await this.native.ctx.attachments.saveImage({
+              data: Buffer.from(next.content.data, 'base64'),
+              mediaType: next.content.mimeType,
+            })
+          } catch (error) {
+            fallbackText = pointer(next.content, `It could not be saved as a DSH attachment (${error.message ?? error}); see raw execution events.`)
+          }
+          if (attachment) {
+            yield* closeOpenBlock()
+            yield { type: 'block-start', index, blockType: 'image' }
+            yield { type: 'block-end', index, block: { type: 'image', attachment } }
+            index++
+          } else if (fallbackText) {
+            if (openKind !== 'text') {
+              yield* closeOpenBlock()
+              openKind = 'text'
+              openText = ''
+              yield { type: 'block-start', index, blockType: 'text' }
+            }
+            openText += fallbackText
+            yield { type: 'text-delta', index, text: fallbackText }
+          }
+          continue
+        }
+
+        this.queue.shift()
+        const nextKind = next.kind === 'thought' ? 'reasoning' : 'text'
+        if (openKind !== nextKind) {
+          yield* closeOpenBlock()
+          openKind = nextKind
+          openText = ''
+          yield { type: 'block-start', index, blockType: openKind }
+        }
+        openText += next.text
+        yield { type: openKind === 'reasoning' ? 'reasoning-delta' : 'text-delta', index, text: next.text }
+      }
+
+      yield* closeOpenBlock()
+
+      if (pendingCalls.length > 0) {
+        // external: ACP session/prompt.usage is session-cumulative, whereas DSH finish usage is per-request
+        yield { type: 'finish', reason: { kind: 'stop' }, replayState: { response: { acp: this.acpCheckpoint() } } }
+        return
+      }
+
+      if (this.failure) throw this.failure
+      if (stepSignal?.aborted || this.controller.signal.aborted) {
+        throw stepSignal?.reason ?? this.controller.signal.reason ?? new Error('Native request canceled')
+      }
+      if (!this.result) throw new Error('External execution ended without a completion result')
+      await this.finalizeTurn()
+      const reason = this.result.stopReason === 'cancelled'
+        ? { kind: 'aborted', failure: { code: 'ABORTED', message: 'The external agent canceled this turn' } }
+        : { kind: this.result.stopReason === 'max_tokens' ? 'max-tokens' : 'stop' }
+      yield { type: 'finish', reason, replayState: { response: { acp: this.acpCheckpoint() } } }
+    } catch (error) {
+      await this.failTurn(error)
+      throw error
+    } finally {
+      stepSignal?.removeEventListener('abort', abortStep)
+    }
+  }
 }
 
 export class NativeAcp {
@@ -63,13 +763,51 @@ export class NativeAcp {
     this.disposers = []
     this.closing = false
     this.traces = new Map()
+    this.sessionOptions = new Map()
+  }
+
+  preferenceKey(sessionId, route) { return `${sessionId}:${route}` }
+
+  preferencesOf(sessionId, route, binding) {
+    if (!sessionId || !route) return { mode: undefined, options: {} }
+    const stored = this.sessionOptions.get(this.preferenceKey(sessionId, route))
+    const fallback = binding?.native?.preferences
+    const base = stored ?? fallback
+    return { mode: base?.mode, options: { ...base?.options } }
+  }
+
+  async savePreferences(sessionId, route, next, binding) {
+    const clean = {
+      ...(next.mode ? { mode: next.mode } : {}),
+      options: { ...next.options },
+    }
+    this.sessionOptions.set(this.preferenceKey(sessionId, route), clean)
+    if (binding?.native) {
+      binding.native.preferences = structuredClone(clean)
+      await this.manager.store.saveSession(binding)
+    }
   }
 
   route(providerId) { return ACP_ROUTE_PREFIX + providerId }
   cwd(agent) { return this.ctx.get('workingDirectory')?.get(agent.session) ?? agent.session.header.cwd }
 
-  checkoutLink(id) { return this.manager.store.domain.table('checkout_links').get(id) }
-  guardDirectory(agent, cwd, signal) { return guardManagedCheckout(this.ctx, agent, cwd, signal, this.checkoutLink(agent.id)) }
+  async guardDirectory(agent, cwd, signal) {
+    const projections = this.ctx.get('sessionProjections'), fs = this.ctx.get('fs')
+    if (!cwd || !this.ctx.get('worktrees') || !projections || !fs) return
+    const within = (root, target) => {
+      const rest = relative(root, target)
+      return rest === '' || !(rest === '..' || rest.startsWith('..' + sep) || isAbsolute(rest))
+    }
+    const entries = projections.snapshot(agent.session, ['worktree']).values.worktree ?? []
+    const used = entries.findLast(({ worktree }) => within(worktree.path, cwd))
+    if (!used) return
+    const rootType = (await fs.lstat(used.worktree.path, undefined, signal))?.type ?? 'missing'
+    const gitType = rootType === 'directory' ? (await fs.lstat(join(used.worktree.path, '.git'), undefined, signal))?.type : 'missing'
+    if (rootType !== 'directory' || gitType !== 'file' ||
+      (cwd !== used.worktree.path && (await fs.lstat(cwd, undefined, signal))?.type !== 'directory')) {
+      throw new Error('The recorded worktree is missing or incomplete. No input was sent to the source checkout.')
+    }
+  }
 
   async checkDirectory(agent, session) {
     await this.guardDirectory(agent, this.cwd(agent))
@@ -93,13 +831,18 @@ export class NativeAcp {
     }))
     this.disposers.push(this.ctx.on('session/event', (dshSession, event) => {
       if (event.type === 'model/selection') this.manager.changed(undefined, dshSession.id)
+      if (event.type === 'turn/end') {
+        const current = this.active.get(dshSession.id)
+        if (current && current.turn === event.data.turn) void current.cleanup()
+        return
+      }
       if (event.type !== 'assistant/message' || !isRoute(event.data.message.source?.provider)) return
       for (const session of this.sessions(dshSession.id, false)) {
         if (session.native.route !== event.data.message.source.provider) continue
-        const run = session.native.runs.findLast(item => item.turn === event.data.turn && item.step === event.data.step)
+        const run = session.native.runs.findLast(item => item.turn === event.data.turn && (item.nativeVersion >= 2 || item.step === event.data.step))
         if (!run || run.messageId === event.data.message.id) continue
+        run.lastStep = event.data.step
         run.messageId = event.data.message.id
-        run.replyExcerpt = replyExcerpt(event.data.message)
         void this.manager.store.saveSession(session)
           .catch(error => this.manager.log?.(`ACP trace reference: ${error.message}`))
           .finally(() => this.manager.changed(session.id))
@@ -118,6 +861,11 @@ export class NativeAcp {
       this.manager.changed()
     }))
     this.disposers.push(this.ctx.on('agent/disposed', ({ agent }) => {
+      const current = this.active.get(agent.id)
+      if (current) {
+        current.controller.abort(new Error('Native DSH agent disposed'))
+        void current.cleanup()
+      }
       for (const session of this.sessions(agent.id, false)) {
         void this.manager.disconnect(session, 'native-agent-disposed').catch(error => this.manager.log?.(error.message))
       }
@@ -170,33 +918,60 @@ export class NativeAcp {
   imageRequestTarget(_provider, _model, image) {
     return { width: image.width, height: image.height, maxBytes: this.ctx.attachments.imageLimits.maxImageBytes }
   }
+  formatModelEntry(provider, source, id, name, description) {
+    const facts = id === DEFAULT_MODEL ? {} : modelDetails(source, id)
+    const inputs = facts.inputModalities ?? source.advertised?.inputModalities
+    const reasoning = reasoningInfo(facts)
+    const contextWindow = modelContextWindow(facts)
+    const contextOpt = facts.options?.find(item => item.id === 'context' && item.type === 'select')
+    const hasFast = facts.options?.some(item => item.id === 'fast')
+    const formatCtx = value => value >= 1_000_000 && value % 1_000_000 === 0
+      ? `${value / 1_000_000}M`
+      : value % 1000 === 0 ? `${value / 1000}k` : String(value)
+    const contextBadge = contextOpt?.choices?.length > 1
+      ? contextOpt.choices.map(choice => choice.name).join('/')
+      : contextWindow ? `${formatCtx(contextWindow)} ctx` : null
+    const details = [
+      facts.description,
+      description,
+      contextWindow ? `Context: ${formatCtx(contextWindow)} tokens.` : null,
+      facts.maxTokens ? `Maximum output: ${facts.maxTokens} tokens (CLI limit).` : null,
+      hasFast ? 'Supports Fast mode.' : null,
+      inputs?.length ? `Input: ${inputs.join(', ')}.` : null,
+    ].filter(Boolean).join(' ')
+    const badge = ['ACP', contextBadge, hasFast ? 'Fast' : null, inputs?.includes('image') ? 'image' : null].filter(Boolean).join(' · ')
+    return {
+      provider,
+      id,
+      name,
+      description: details,
+      badge: { text: badge, tone: 'neutral' },
+      ...(inputs ? { inputModalities: inputs } : {}),
+      ...(contextWindow ? { context: { contextWindow } } : {}),
+      ...(reasoning ? { reasoning } : {}),
+    }
+  }
   async listModels(provider) {
     const source = this.provider(provider)
-    const { label, models = [] } = source
-    const entry = (id, name, description) => {
-      const facts = id === DEFAULT_MODEL ? {} : modelDetails(source, id)
-      const inputs = facts.inputModalities ?? source.advertised?.inputModalities
-      const reasoning = reasoningInfo(facts)
-      const details = [facts.description, description,
-        facts.contextWindow ? `Context: ${facts.contextWindow} tokens.` : null,
-        facts.maxTokens ? `Maximum output: ${facts.maxTokens} tokens (CLI limit).` : null,
-        inputs?.length ? `Input: ${inputs.join(', ')}.` : null].filter(Boolean).join(' ')
-      const badge = ['ACP', inputs?.includes('image') ? 'image' : null,
-        facts.contextWindow ? `${facts.contextWindow % 1000 === 0 ? `${facts.contextWindow / 1000}k` : facts.contextWindow} ctx` : null].filter(Boolean).join(' · ')
-      return { provider, id, name, description: details, badge: { text: badge, tone: 'neutral' },
-        ...(inputs ? { inputModalities: inputs } : {}),
-        ...(facts.contextWindow ? { context: { contextWindow: facts.contextWindow } } : {}),
-        ...(reasoning ? { reasoning } : {}) }
-    }
+    const { label } = source
+    const models = visibleModels(source)
     return [
-      entry(DEFAULT_MODEL, 'CLI default', `Keep ${label}’s current model. Runs with ${label}’s own tools and credentials outside the DSH sandbox.`),
-      ...models.map(model => entry(model.id, model.name ?? model.id, `Switches ${label} to this model before sending. Runs outside the DSH sandbox.`)),
+      this.formatModelEntry(provider, source, DEFAULT_MODEL, 'CLI default', `Keep ${label}’s current model. Runs with ${label}’s own tools and credentials outside the DSH sandbox.`),
+      ...models.map(model => this.formatModelEntry(provider, source, model.id, model.name ?? model.id, `Switches ${label} to this model before sending. Runs outside the DSH sandbox.`)),
     ]
   }
   async resolveModel(provider, model) {
-    const found = (await this.listModels(provider)).find(entry => entry.id === model)
-    if (!found) throw new Error(`Model "${model}" is not enabled for ${this.provider(provider).label}. Select it in ACP Settings or choose CLI default.`)
-    return found
+    const listed = await this.listModels(provider)
+    const found = listed.find(entry => entry.id === model)
+    if (found) return found
+    const source = this.provider(provider)
+    const facts = modelDetails(source, model)
+    const known = source.advertised?.models?.some(item => item.id === facts.id)
+      || source.models?.some(item => item.id === model || item.id === facts.id)
+    if (known) {
+      return this.formatModelEntry(provider, source, model, facts.name ?? model, `Switches ${source.label} to this model before sending. Runs outside the DSH sandbox.`)
+    }
+    throw new Error(`Model "${model}" is not enabled for ${source.label}. Refresh models in ACP Workbench → Providers, or choose CLI default.`)
   }
   async prepareCall(provider, model, signal) {
     signal?.throwIfAborted()
@@ -221,14 +996,57 @@ export class NativeAcp {
     const agent = this.ctx.agents.get(sessionId), selected = agent?.model.current() ?? null, sessions = this.sessions(sessionId)
     const binding = sessions.findLast(s => s.native.sessionId === sessionId && s.native.route === selected?.provider && !s.native.retired)
     const report = binding?.lastContext
+    let controls = null
+    if (isRoute(selected?.provider)) {
+      const providerRecord = this.manager.store.providers.get(selected.provider.slice(ACP_ROUTE_PREFIX.length))
+      const prefs = this.preferencesOf(sessionId, selected.provider, binding)
+      const connected = !!binding && this.manager.runtimes.has(binding.id)
+      const liveModelOption = binding?.configOptions?.find(item => item?.category === 'model' && item.type !== 'boolean')
+      const liveModelId = liveModelOption?.currentValue ?? binding?.models?.currentModelId ?? null
+      const selectedFacts = selected.model && selected.model !== DEFAULT_MODEL
+        ? modelDetails(providerRecord, selected.model)
+        : liveModelId ? modelDetails(providerRecord, liveModelId === 'default' ? 'auto' : liveModelId) : null
+      const liveMatches = connected && (selected.model === DEFAULT_MODEL || (selectedFacts && wireModelId(selectedFacts) === liveModelId))
+      const options = liveMatches && binding.configOptions?.length
+        ? modelConfigOptions(binding.configOptions)
+        : selectedFacts?.options ?? []
+      const values = {}
+      for (const option of options) {
+        const preferred = prefs.options?.[option.id]
+        const validPreferred = option.type === 'boolean'
+          ? typeof preferred === 'boolean'
+          : typeof preferred === 'string' && option.choices?.some(choice => choice.value === preferred)
+        if (validPreferred) {
+          values[option.id] = preferred
+          continue
+        }
+        const liveOpt = liveMatches ? binding.configOptions?.find(item => item?.id === option.id) : null
+        if (liveOpt?.currentValue !== undefined) values[option.id] = liveOpt.currentValue
+        else if (option.defaultValue !== undefined) values[option.id] = option.defaultValue
+      }
+      const modes = (connected && (binding.configOptions?.length || binding.modes))
+        ? advertisedModes({ modes: binding.modes, configOptions: binding.configOptions })
+        : providerRecord?.advertised?.modes ?? null
+      const validMode = prefs.mode && modes?.options?.some(item => item.value === prefs.mode)
+      controls = {
+        route: selected.provider,
+        model: selected.model ?? DEFAULT_MODEL,
+        options,
+        values,
+        modes,
+        mode: validMode ? prefs.mode : modes?.currentModeId ?? null,
+        connected,
+        hasCatalog: !!(providerRecord?.advertised?.models?.length),
+      }
+    }
     return {
       contextReport: !binding?.archived && report && report.remoteId === binding.remoteId ? { externalId: binding.id, at: report.at, window: report.window } : null,
       commandStamp: binding?.state === 'idle' && !binding.archived ? this.manager.commandReport(binding)?.stamp ?? null : null,
       noticeFeed: connectionNotices(binding, binding && this.manager.runtimes.get(binding.id)),
-      checkoutGroup: this.manager.store.sharedGroups.get(sessionId) ?? null,
       providers: [...this.manager.store.providers.values()].map(p => ({ id: p.id, label: p.label, route: this.route(p.id) })),
       sessions: sessions.map(s => ({ ...this.manager.overview(s), native: { ...s.native, runs: s.native.runs.slice(-128) } })),
       selected,
+      controls,
       fullAccess: fullAccess(this.ctx, agent?.session),
       status: agent?.status ?? 'idle',
     }
@@ -239,7 +1057,7 @@ export class NativeAcp {
       ? [...this.manager.store.sessions.values()].find(session => session.native?.runs.some(run => run.messageId === op.messageId)) : null
     const candidates = op.externalId ? [this.manager.session(op.externalId)] : indexed ? [indexed] : this.sessions(op.dshSessionId, false)
     for (const session of candidates.toReversed()) {
-      const run = session.native?.runs.findLast(r => op.runId ? r.id === op.runId : indexed ? r.messageId === op.messageId : r.turn === op.turn && r.step === op.step)
+      const run = session.native?.runs.findLast(r => op.runId ? r.id === op.runId : indexed ? r.messageId === op.messageId : r.turn === op.turn && (r.nativeVersion >= 2 || r.step === op.step))
       if (run) return { session, run }
     }
     return null
@@ -361,9 +1179,74 @@ export class NativeAcp {
     } catch (error) { throw new Error('CLI returned fork ' + fork.id + '. Check CLI history before retrying: ' + error.message, { cause: error }) }
   }
 
-  configure(op) {
+  async configure(op) {
     const session = this.manager.session(op.sessionId)
-    return this.maintainConnection(session.native.sessionId, { configuration: op })
+    if (!session.native) return this.manager.operate(op)
+    const result = await this.maintainConnection(session.native.sessionId, { configuration: op })
+    const route = session.native?.route
+    const owner = session.native?.sessionId
+    if (route && owner) {
+      const prefs = this.preferencesOf(owner, route, session)
+      if (op.modeId !== undefined) prefs.mode = op.modeId
+      else if (op.configId !== undefined) {
+        const option = session.configOptions?.find(item => item?.id === op.configId)
+        if (option?.category === 'mode') prefs.mode = op.value
+        else if (option?.category !== 'model' && option?.category !== 'thought_level') {
+          prefs.options = { ...prefs.options, [op.configId]: op.value }
+        }
+      }
+      await this.savePreferences(owner, route, prefs, session)
+    }
+    return result
+  }
+
+  async setOption(op) {
+    const { dshSessionId, route, modeId, configId, value } = op
+    this.provider(route)
+    const agent = this.ctx.agents.get(dshSessionId)
+    if (this.closing || (agent && agent.status !== 'idle')) throw new Error('Wait until the current turn finishes before changing CLI options')
+    const binding = this.sessions(dshSessionId, false).findLast(s => s.native.route === route && !s.native.retired)
+    const prefs = this.preferencesOf(dshSessionId, route, binding)
+    if (modeId !== undefined) {
+      if (typeof modeId !== 'string' || !modeId.trim()) throw new Error('modeId must be a non-empty string')
+      prefs.mode = modeId.trim()
+    } else if (configId !== undefined) {
+      if (typeof configId !== 'string' || !configId.trim()) throw new Error('configId must be a non-empty string')
+      if (typeof value !== 'string' && typeof value !== 'boolean') throw new Error('Option value must be a string or boolean')
+      prefs.options = { ...prefs.options, [configId]: value }
+    } else {
+      throw new Error('Specify modeId or configId to update')
+    }
+    await this.savePreferences(dshSessionId, route, prefs, binding)
+
+    if (binding && !binding.archived && binding.state === 'idle' && this.manager.runtimes.has(binding.id)) {
+      if (modeId !== undefined) {
+        const modeConfig = binding.configOptions?.find(item => item?.category === 'mode' && item.type === 'select')
+        const choices = (modeConfig?.options ?? []).flatMap(group => group.options ?? [group])
+        if (modeConfig && choices.some(item => item.value === prefs.mode) && modeConfig.currentValue !== prefs.mode) {
+          await this.maintainConnection(dshSessionId, { configuration: { sessionId: binding.id, configId: modeConfig.id, value: prefs.mode } })
+        } else if (binding.modes?.availableModes?.some(item => item.id === prefs.mode) && binding.modes.currentModeId !== prefs.mode) {
+          await this.maintainConnection(dshSessionId, { configuration: { sessionId: binding.id, modeId: prefs.mode } })
+        }
+      } else if (configId !== undefined) {
+        const selected = agent?.model.current()
+        const providerRecord = this.provider(route)
+        const selectedFacts = selected?.model && selected.model !== DEFAULT_MODEL ? modelDetails(providerRecord, selected.model) : null
+        const liveModelOption = binding.configOptions?.find(item => item?.category === 'model' && item.type !== 'boolean')
+        const liveModelId = liveModelOption?.currentValue ?? binding.models?.currentModelId ?? null
+        const liveMatches = !selected || selected.model === DEFAULT_MODEL || (selectedFacts && wireModelId(selectedFacts) === liveModelId)
+        if (liveMatches) {
+          const liveOpt = binding.configOptions?.find(item => item?.id === configId)
+          const choices = (liveOpt?.options ?? []).flatMap(group => group.options ?? [group])
+          const validLive = liveOpt && (liveOpt.type === 'boolean' ? typeof value === 'boolean' : choices.some(item => item.value === value))
+          if (validLive && liveOpt.currentValue !== value) {
+            await this.maintainConnection(dshSessionId, { configuration: { sessionId: binding.id, configId, value } })
+          }
+        }
+      }
+    }
+    this.manager.changed(binding?.id, dshSessionId)
+    return this.snapshot(dshSessionId)
   }
 
   async maintainConnection(sessionId, { configuration, externalId, adoption, fork, route: expectedRoute } = {}) {
@@ -428,8 +1311,17 @@ export class NativeAcp {
   }
 
   bindingIdentity(agent, route) {
-    return { sessionId: agent.id, parentSessionId: agent.session.header.origin === 'subagent' ? agent.session.header.parentSession : undefined,
-      rootSessionId: this.ctx.subagents.rootOf(agent).id, name: this.ctx.subagents.namesOf(agent).self, route, lastMessageId: null, runs: [] }
+    const prefs = this.sessionOptions.get(this.preferenceKey(agent.id, route))
+    return {
+      sessionId: agent.id,
+      parentSessionId: agent.session.header.origin === 'subagent' ? agent.session.header.parentSession : undefined,
+      rootSessionId: this.ctx.subagents.rootOf(agent).id,
+      name: this.ctx.subagents.namesOf(agent).self,
+      route,
+      lastMessageId: null,
+      runs: [],
+      ...(prefs ? { preferences: structuredClone(prefs) } : {}),
+    }
   }
 
   async binding(agent, route, imported) {
@@ -451,25 +1343,64 @@ export class NativeAcp {
   }
 
   async applyModel(session, model, effort) {
-    if (!model || model === DEFAULT_MODEL) {
-      if (effort !== undefined) throw new Error('Choose an explicit ACP model to set reasoning effort. No prompt was sent.')
-      return
+    const provider = this.manager.provider(session.providerId)
+    const prefs = this.preferencesOf(session.native?.sessionId, session.native?.route, session)
+    const legacy = model && model !== DEFAULT_MODEL ? extractLegacyOverrides(model) : { baseId: '', effort: undefined, options: {} }
+    const effectiveEffort = effort ?? legacy.effort
+    const mergedOptions = { ...legacy.options, ...prefs.options }
+
+    if (prefs.mode) {
+      const modeConfig = session.configOptions?.find(item => item?.category === 'mode' && item.type === 'select')
+      const modeChoices = (modeConfig?.options ?? []).flatMap(group => group.options ?? [group])
+      if (modeConfig && modeChoices.some(item => item.value === prefs.mode) && modeConfig.currentValue !== prefs.mode) {
+        await this.manager.configure(session, { configId: modeConfig.id, value: prefs.mode })
+      } else if (session.modes?.availableModes?.some(item => item.id === prefs.mode) && session.modes.currentModeId !== prefs.mode) {
+        await this.manager.configure(session, { modeId: prefs.mode })
+      }
     }
-    try {
-      const selection = reasoningSelection(modelDetails(this.manager.provider(session.providerId), model), effort)
-      const option = session.configOptions?.find(item => item?.category === 'model' && item.type !== 'boolean')
-      const current = option ? option.currentValue : session.models?.currentModelId
-      if (current !== selection.modelId) {
-        await this.manager.configure(session, option ? { configId: option.id, value: selection.modelId } : { modelId: selection.modelId }, { chosen: true })
+
+    let facts = null
+    if (model && model !== DEFAULT_MODEL) {
+      facts = modelDetails(provider, model)
+      try {
+        const selection = reasoningSelection(facts, effectiveEffort)
+        const option = session.configOptions?.find(item => item?.category === 'model' && item.type !== 'boolean')
+        const current = option ? option.currentValue : session.models?.currentModelId
+        if (current !== selection.modelId) {
+          await this.manager.configure(session, option ? { configId: option.id, value: selection.modelId } : { modelId: selection.modelId }, { chosen: true })
+        }
+        if (effectiveEffort !== undefined) {
+          const updates = resolveLiveThinkingUpdates(session.configOptions, effectiveEffort, facts)
+          for (const update of updates) {
+            const liveOpt = session.configOptions?.find(item => item?.id === update.configId && item.category === 'thought_level' && item.type === 'select')
+            if (!liveOpt) throw new Error('The connected CLI did not advertise the selected reasoning option')
+            const list = (liveOpt.options ?? []).flatMap(group => group.options ?? [group])
+            if (!list.some(item => item.value === update.value)) throw new Error(`Unsupported reasoning value "${update.value}" for ${liveOpt.id}`)
+            if (liveOpt.currentValue !== update.value) await this.manager.configure(session, { configId: liveOpt.id, value: update.value })
+          }
+        }
+      } catch (error) {
+        throw new Error(`${provider.label} did not switch to model "${model}"${effectiveEffort === undefined ? '' : ` with reasoning effort "${effectiveEffort}"`}: ${error.message}. Refresh models in ACP Workbench → Providers, or choose CLI default. No prompt was sent.`, { cause: error })
       }
-      if (selection.configId) {
-        const thought = session.configOptions?.find(item => item.id === selection.configId && item.category === 'thought_level' && item.type === 'select')
-        if (!thought) throw new Error('The connected CLI did not advertise the selected reasoning option')
-        if (thought.currentValue !== selection.value) await this.manager.configure(session, { configId: thought.id, value: selection.value })
+    } else if (effort !== undefined) {
+      throw new Error('Choose an explicit ACP model to set reasoning effort. No prompt was sent.')
+    }
+
+    for (const [configId, value] of Object.entries(mergedOptions)) {
+      const liveOpt = session.configOptions?.find(item => item?.id === configId && item.category !== 'model' && item.category !== 'mode' && item.category !== 'thought_level')
+      if (!liveOpt) continue
+      if (liveOpt.type === 'boolean') {
+        if (typeof value === 'boolean' && Boolean(liveOpt.currentValue) !== value) {
+          await this.manager.configure(session, { configId: liveOpt.id, value })
+        }
+        continue
       }
-    } catch (error) {
-      const { label } = this.manager.provider(session.providerId)
-      throw new Error(`${label} did not switch to model "${model}"${effort === undefined ? '' : ` with reasoning effort "${effort}"`}: ${error.message}. Refresh models in ACP Workbench → Providers, or choose CLI default. No prompt was sent.`, { cause: error })
+      if (liveOpt.type !== 'select' || typeof value !== 'string') continue
+      const list = (liveOpt.options ?? []).flatMap(group => group.options ?? [group])
+      if (!list.some(item => item.value === value)) continue
+      if (liveOpt.currentValue !== value) {
+        await this.manager.configure(session, { configId: liveOpt.id, value })
+      }
     }
   }
 
@@ -479,7 +1410,17 @@ export class NativeAcp {
     const fresh = previousIndex < 0
     const pending = messages.slice(previousIndex + 1).filter(message =>
       (message.role === 'user' && message.source?.kind !== 'runtime-context') || message.role === 'assistant' || message.role === 'tool')
-    const selected = pending.filter(message => checkpointOf(message)?.sessionId !== session.id)
+    const ownedCalls = new Set()
+    for (const message of pending) {
+      if (message.role === 'assistant' && checkpointOf(message)?.sessionId === session.id) {
+        for (const block of message.content ?? []) {
+          if (block.type === 'tool-call' && block.id) ownedCalls.add(block.id)
+        }
+      }
+    }
+    const selected = pending.filter(message =>
+      checkpointOf(message)?.sessionId !== session.id
+      && !(message.role === 'tool' && ownedCalls.has(message.toolCallId ?? message.source?.callId)))
     const users = selected.filter(message => message.role === 'user')
     const admitted = new Set(messageIds)
     const current = users.filter(message => admitted.has(message.id))
@@ -529,158 +1470,32 @@ export class NativeAcp {
       throw new Error('ACP routes are conversation execution engines, not utility completion models')
     }
     if (this.ctx.get('workspaceRegistry')?.archivedSessionIds.includes(agent.id)) throw new Error('Restore the archived DSH conversation before sending input')
-    if (this.active.has(agent.id)) throw new Error('This DSH session already has an active ACP request')
-    const controller = new AbortController()
-    const abort = () => controller.abort(options.signal?.reason ?? new Error('Native request canceled'))
-    if (options.signal?.aborted) abort()
-    else options.signal?.addEventListener('abort', abort, { once: true })
-    const signal = controller.signal
-    const done = Promise.withResolvers()
-    const operation = { controller, done: done.promise, stopId: null, externalId: null }
-    this.active.set(agent.id, operation)
-    let session, run, unsubscribe, removeCancel
-    let finished = false
-    let index = 0
-    let kind = 'text'
-    let value = ''
-    try {
-      signal.throwIfAborted()
-      session = await this.binding(agent, options.provider)
-      const turnId = randomUUID()
-      operation.stopId = turnId
-      operation.externalId = session.id
-      run = { id: turnId, turn: position.turn, step: position.step, state: 'preparing', reviewedAt: null, startedAt: timestamp(), from: (session.eventSeq ?? 0) + 1 }
-      session.native.runs.push(run)
-      await this.manager.store.saveSession(session)
-      this.manager.changed(session.id)
-      yield { type: 'block-start', index, blockType: kind }
-      const cancel = () => { void this.manager.cancel(session).catch(error => this.manager.log?.(error.message)) }
-      signal.addEventListener('abort', cancel, { once: true })
-      removeCancel = () => signal.removeEventListener('abort', cancel)
-      await this.manager.runtimes.get(session.id)?.shutdown
-      signal.throwIfAborted()
-      if (!this.manager.runtimes.has(session.id)) await this.manager.connect(session)
-      signal.throwIfAborted()
-      await this.applyModel(session, model, options.reasoningEffort)
-      signal.throwIfAborted()
-      const input = await this.input(session, options.messages, signal, position.messageIds)
-      signal.throwIfAborted()
-      session.native.lastMessageId = input.lastMessageId
-      run.handoff = input.handoff
-      run.state = 'running'
-      await this.manager.store.saveSession(session)
-      signal.throwIfAborted()
-      const events = []
-      const tools = new Set()
-      let wake
-      let settled = false
-      let failure
-      let result
-      unsubscribe = this.manager.subscribe(session.id, event => {
-        if (event.type === 'notification' && !event.data.replay && event.data.turnId === turnId) {
-          events.push(event)
-          tally(run, event.data.params?.update, tools)
-        }
-        wake?.()
-      })
-      await this.manager.prompt(session, input.text, { content: input.prompt, turnId })
-      const runtime = this.manager.runtimes.get(session.id)
-      const completion = runtime?.completion
-      if (!completion) throw new Error('External prompt did not establish a completion handle')
-      void completion.then(completed => { result = completed }, error => { failure = error }).finally(() => { settled = true; wake?.() })
-      while (true) {
-        if (!events.length) {
-          if (settled) break
-          await new Promise(resolve => { wake = resolve }); wake = undefined; continue
-        }
-        const event = events.shift()
-        const update = event.data.params?.update
-        if (!update || event.data.method !== 'session/update') continue
-        if (update.sessionUpdate !== 'agent_message_chunk' && update.sessionUpdate !== 'agent_thought_chunk') continue
-        if (cliParentOf(update)) continue
-        const content = update.content
-        const nextKind = update.sessionUpdate === 'agent_thought_chunk' ? 'reasoning' : 'text'
-        let attachment = null
-        let text = null
-        if (content?.type === 'image' && nextKind === 'text') {
-          try {
-            attachment = await this.ctx.attachments.saveImage({ data: Buffer.from(content.data, 'base64'), mediaType: content.mimeType })
-          } catch (error) {
-            text = pointer(content, `It could not be saved as a DSH attachment (${error.message ?? error}); see raw execution events.`)
-          }
-        } else if (content?.type) {
-          text = content.type === 'text' ? content.text
-            : content.type === 'resource' && typeof content.resource?.text === 'string' ? content.resource.text
-              : pointer(content)
-        }
-        if (attachment) {
-          yield { type: 'block-end', index, block: { type: kind, text: value } }
-          index++
-          yield { type: 'block-start', index, blockType: 'image' }
-          yield { type: 'block-end', index, block: { type: 'image', attachment } }
-          index++; kind = 'text'; value = ''
-          yield { type: 'block-start', index, blockType: kind }
-        } else if (typeof text === 'string') {
-          if (nextKind !== kind) {
-            yield { type: 'block-end', index, block: { type: kind, text: value } }
-            index++; kind = nextKind; value = ''
-            yield { type: 'block-start', index, blockType: kind }
-          }
-          value += text
-          yield { type: kind === 'reasoning' ? 'reasoning-delta' : 'text-delta', index, text }
-        }
+
+    const existing = this.active.get(agent.id)
+    if (existing) {
+      if (existing.turn === position.turn && existing.provider === options.provider && existing.started && !existing.cleaned) {
+        yield* existing.streamStep(options)
+        return
       }
-      if (failure) throw failure
-      signal.throwIfAborted()
-      if (!result) throw new Error('External execution ended without a completion result')
-      run.state = result.stopReason === 'cancelled' ? 'interrupted' : 'completed'
-      run.stopReason = result.stopReason ?? null
-      run.to = session.eventSeq
-      run.finishedAt = timestamp()
-      await this.manager.store.saveSession(session)
-      await this.manager.store.flush()
-      this.manager.changed(session.id)
-      yield { type: 'block-end', index, block: { type: kind, text: value } }
-      // external: ACP session/prompt.usage is session-cumulative, whereas DSH finish usage is per-request
-      const acp = { version: 1, sessionId: session.id, ownerSessionId: agent.id, turnId, from: run.from, to: run.to }
-      finished = true
-      const reason = result.stopReason === 'cancelled'
-        ? { kind: 'aborted', failure: { code: 'ABORTED', message: 'The external agent canceled this turn' } }
-        : { kind: result.stopReason === 'max_tokens' ? 'max-tokens' : 'stop' }
-      yield { type: 'finish', reason, replayState: { response: { acp } } }
-    } catch (error) {
-      if (run && session) {
-        run.state = signal.aborted ? 'interrupted' : 'failed'
-        run.error = error.message ?? String(error)
-        run.to = session.eventSeq
-        run.finishedAt = timestamp()
-        await this.manager.store.saveSession(session)
-        this.manager.changed(session.id)
-      }
-      throw error
-    } finally {
-      unsubscribe?.()
-      removeCancel?.()
-      options.signal?.removeEventListener('abort', abort)
-      if (!finished && session) {
-        try {
-          await this.manager.cancel(session)
-          await this.manager.runtimes.get(session.id)?.completion
-        } catch (error) { this.manager.log?.(`ACP native cleanup: ${error.message}`) }
-      }
-      try {
-        if (!finished && run && session && ['preparing', 'running'].includes(run.state)) {
-          run.state = 'interrupted'
-          run.to = session.eventSeq
-          run.finishedAt = timestamp()
-          await this.manager.store.saveSession(session)
-          this.manager.changed(session.id)
-        }
-      } finally {
-        this.active.delete(agent.id)
-        done.resolve()
-      }
+      throw new Error('This DSH session already has an active ACP request')
     }
+
+    const turn = new AcpTurn(this, {
+      agent,
+      turn: position.turn,
+      turnId: randomUUID(),
+      provider: options.provider,
+      model,
+      effort: options.reasoningEffort,
+    })
+    this.active.set(agent.id, turn)
+    try {
+      await turn.start(options, position)
+    } catch (error) {
+      await turn.failTurn(error)
+      throw error
+    }
+    yield* turn.streamStep(options)
   }
 
   async close() {

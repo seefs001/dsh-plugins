@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { AcpConnection, RpcError } from './transport.js'
 import { WorkbenchStore } from './store.js'
-import { advertisedModels, inputModalities } from './models.js'
+import { advertisedModels, advertisedModes, inputModalities } from './models.js'
 import { contextWindow } from './usage.js'
 import { rememberNotice } from './notices.js'
 import { formFields, formResponse } from './forms.js'
@@ -28,6 +28,8 @@ const DEFAULT_PROVIDERS = [
   { id: 'claude-code', label: 'Claude Code', command: cli('claude-agent-acp'), args: [], models: [] },
 ]
 const MAX_MODELS = 200
+const MAX_HIDDEN_MODELS = 500
+const CLIENT_CAPABILITY_META = { parameterizedModelPicker: true }
 
 export function summary(session, runtime) {
   const { id, providerId, title, cwd, state, remoteId, createdAt, updatedAt, archived, eventSeq, lastError, stopReason } = session
@@ -89,9 +91,26 @@ export class Workbench {
   }
 
   snapshot() {
+    const activeByProvider = {}
+    let recentCwd = ''
+    let recentAt = ''
+    for (const session of this.store.sessions.values()) {
+      if (session.cwd && (!recentAt || session.updatedAt > recentAt)) {
+        recentCwd = session.cwd
+        recentAt = session.updatedAt
+      }
+      const runtime = this.runtimes.get(session.id)
+      if (!runtime || runtime.closing) continue
+      const bucket = activeByProvider[session.providerId] ?? { connected: 0, working: 0, waiting: 0 }
+      bucket.connected += 1
+      if (runtime.interactions.size > 0 || session.state === 'waiting') bucket.waiting += 1
+      else if (runtime.turnId || session.state === 'running' || session.state === 'starting') bucket.working += 1
+      activeByProvider[session.providerId] = bucket
+    }
     return {
       providers: [...this.store.providers.values()],
-      sessions: [...this.store.sessions.values()].map(s => summary(s, this.runtimes.get(s.id))).toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+      activeByProvider,
+      defaultCwd: recentCwd || homedir(),
       storageError: this.store.failure?.message ?? null,
     }
   }
@@ -208,25 +227,55 @@ export class Workbench {
       return { id: modelId, name: model.name?.trim() ? str(model.name, 'model name', 200) : modelId }
     })
     const previous = this.store.providers.get(id)
+    const rawHidden = raw.hiddenModels === undefined ? previous?.hiddenModels ?? [] : raw.hiddenModels
+    if (!Array.isArray(rawHidden) || rawHidden.length > MAX_HIDDEN_MODELS || rawHidden.some(item => typeof item !== 'string' || !item.trim() || item.length > 200)) {
+      throw new Error(`hiddenModels must be an array of at most ${MAX_HIDDEN_MODELS} model ids`)
+    }
+    const hiddenModels = [...new Set(rawHidden.map(item => item.trim()))]
     const provider = { id, label: str(raw.label, 'label', 100), command, args: raw.args, models: cleanModels,
+      ...(hiddenModels.length ? { hiddenModels } : {}),
       ...(previous?.advertised ? { advertised: previous.advertised } : {}) }
     await this.store.saveProvider(provider)
     this.changed()
     return provider
   }
 
-  async noteAdvertised(providerId, models, capabilities) {
+  async noteAdvertised(providerId, models, capabilities, { modes, authoritative = false } = {}) {
     const provider = this.store.providers.get(providerId)
     if (!provider) return
     const previous = provider.advertised
     const known = new Map(previous?.models?.map(model => [model.id, model]) ?? [])
     const inputs = inputModalities(capabilities) ?? previous?.inputModalities
-    const facts = { models: models.length ? models.map(model => ({ ...known.get(model.id), ...model })) : previous?.models ?? [],
-      ...(inputs ? { inputModalities: inputs } : {}) }
-    if (JSON.stringify({ models: previous?.models ?? [], ...(previous?.inputModalities ? { inputModalities: previous.inputModalities } : {}) }) === JSON.stringify(facts)) return
+    const nextModes = modes ?? previous?.modes
+    const nextModels = models.length
+      ? (authoritative ? models : models.map(model => ({ ...known.get(model.id), ...model })))
+      : previous?.models ?? []
+    const facts = {
+      models: nextModels,
+      ...(inputs ? { inputModalities: inputs } : {}),
+      ...(nextModes ? { modes: nextModes } : {}),
+    }
+    const prevFacts = {
+      models: previous?.models ?? [],
+      ...(previous?.inputModalities ? { inputModalities: previous.inputModalities } : {}),
+      ...(previous?.modes ? { modes: previous.modes } : {}),
+    }
+    if (JSON.stringify(prevFacts) === JSON.stringify(facts)) return
     await this.store.saveProvider({ ...provider, advertised: { at: now(), ...facts } })
     this.changed()
     this.modelsChanged?.(providerId)
+  }
+
+  async fetchCursorCatalog(connection) {
+    try {
+      // external: Cursor ACP exposes per-model configOptions via cursor/list_available_models without mutating CLI preferences
+      const result = await connection.request('cursor/list_available_models', {}, 15_000)
+      return Array.isArray(result?.models) && result.models.length > 0 ? result : null
+    } catch (error) {
+      if (error instanceof RpcError && error.code === -32601) return null
+      this.log?.(`ACP cursor model catalog: ${error.message}`)
+      return null
+    }
   }
 
   async create(op, native) {
@@ -254,14 +303,18 @@ export class Workbench {
 
   async withProbe(providerId, rawCwd, use) {
     const provider = this.provider(providerId)
-    const cwd = await this.directory(rawCwd)
+    const cwd = await this.directory(typeof rawCwd === 'string' && rawCwd.trim() ? rawCwd : homedir())
     const connection = await this.spawn(provider, cwd, {
       onNotification: () => {}, onRequest: () => { throw new RpcError('Client operations are unavailable during CLI setup', -32601) },
     })
     this.probes.add(connection)
     try {
       if (this.closed) throw new Error('ACP Workbench is unloading')
-      const info = await connection.request('initialize', { protocolVersion: 1, clientCapabilities: {}, clientInfo: CLIENT_INFO })
+      const info = await connection.request('initialize', {
+        protocolVersion: 1,
+        clientCapabilities: { _meta: CLIENT_CAPABILITY_META },
+        clientInfo: CLIENT_INFO,
+      })
       if (info.protocolVersion !== 1) throw new Error(`Unsupported ACP version ${info.protocolVersion}`)
       return await use({ connection, info, provider, cwd })
     } finally { try { await connection.stop() } finally { this.probes.delete(connection) } }
@@ -296,9 +349,11 @@ export class Workbench {
       if (mode === 'models') {
         // external: ACP only advertises models inside a session/new response
         const result = await connection.request('session/new', { cwd, mcpServers: [] }, 60_000)
-        const models = advertisedModels(result, info.agentCapabilities)
-        await this.noteAdvertised(provider.id, models, info.agentCapabilities)
-        return { models, sessionId: result.sessionId ?? null }
+        const catalog = await this.fetchCursorCatalog(connection)
+        const models = advertisedModels(result, info.agentCapabilities, catalog)
+        const modes = advertisedModes(result)
+        await this.noteAdvertised(provider.id, models, info.agentCapabilities, { modes, authoritative: !!catalog })
+        return { models, modes, sessionId: result.sessionId ?? null }
       }
       return this.historyPage(connection, info, cwd, cursor)
     })
@@ -341,7 +396,7 @@ export class Workbench {
       if (!this.isCurrent(session, runtime)) { await connection.stop(); throw new Error('Connection was canceled during startup') }
       const info = await connection.request('initialize', {
         protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false, plan: {}, elicitation: { form: {} }, session: { compaction: {}, notices: {} },
-          _meta: { terminal_output: true, terminal_output_delta: true } }, clientInfo: CLIENT_INFO,
+          _meta: { terminal_output: true, terminal_output_delta: true, ...CLIENT_CAPABILITY_META } }, clientInfo: CLIENT_INFO,
       })
       if (info.protocolVersion !== 1) throw new Error(`Unsupported ACP version ${info.protocolVersion}`)
       session.capabilities = info.agentCapabilities ?? {}
@@ -373,7 +428,12 @@ export class Workbench {
       session.configOptions = result.configOptions ?? session.configOptions ?? []
       runtime.replaying = false
       this.record(session, 'session', result)
-      await this.noteAdvertised(session.providerId, advertisedModels(result, session.capabilities), session.capabilities)
+      const catalog = await this.fetchCursorCatalog(connection)
+      if (!this.isCurrent(session, runtime)) throw new Error('Connection was canceled during startup')
+      await this.noteAdvertised(session.providerId, advertisedModels(result, session.capabilities, catalog), session.capabilities, {
+        modes: advertisedModes(result),
+        authoritative: !!catalog,
+      })
       await this.transition(session, 'idle')
     } catch (error) {
       runtime.releaseSpawn()
@@ -411,7 +471,9 @@ export class Workbench {
       case 'notice': if (!runtime.turnId) rememberNotice(runtime, event); break
       case 'config_option_update':
         session.configOptions = update.configOptions ?? []
-        await this.noteAdvertised(session.providerId, advertisedModels({ models: session.models, configOptions: session.configOptions }, session.capabilities))
+        await this.noteAdvertised(session.providerId, advertisedModels({ models: session.models, configOptions: session.configOptions }, session.capabilities), undefined, {
+          modes: advertisedModes({ modes: session.modes, configOptions: session.configOptions }),
+        })
         break
       case 'current_mode_update': session.modes = { ...session.modes, currentModeId: update.currentModeId }; break
       case 'available_commands_update': {
@@ -608,7 +670,9 @@ export class Workbench {
       if (op.modelId !== undefined) session.models = { ...session.models, currentModelId: op.modelId }
       if (result.configOptions) {
         session.configOptions = result.configOptions
-        await this.noteAdvertised(session.providerId, advertisedModels({ ...result, models: result.models ?? session.models }, session.capabilities))
+        await this.noteAdvertised(session.providerId, advertisedModels({ ...result, models: result.models ?? session.models }, session.capabilities), undefined, {
+          modes: advertisedModes({ modes: result.modes ?? session.modes, configOptions: result.configOptions }),
+        })
       } else if (op.configId !== undefined) {
         const option = session.configOptions.find(o => o.id === op.configId)
         if (option) option.currentValue = op.value
