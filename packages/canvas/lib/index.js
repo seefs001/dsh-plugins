@@ -56,7 +56,19 @@ function isSessionId(v) {
   return typeof v === 'string' && v.length > 0 && v.length <= 200
 }
 
-export async function apply(ctx) {
+// external: DSH plugin reload can start a new instance before the previous one closes storageDomain
+async function openDomain(ctx) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await ctx.storageDomain.open(DOMAIN_SPEC)
+    } catch (error) {
+      if (error?.code !== 'already-open' || attempt >= 20) throw error
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+  }
+}
+
+export function apply(ctx) {
   let closed = false
   let tail = Promise.resolve()
 
@@ -68,12 +80,13 @@ export async function apply(ctx) {
   const streams = new Set()
   const agentHandles = new Map()
 
-  const ready = ctx.storageDomain.register(DOMAIN_SPEC).then(domain => {
+  const ready = openDomain(ctx).then(domain => {
     for (const [id, entry] of domain.table('sessions').entries()) sessionMap.set(id, entry)
     for (const [path, entry] of domain.table('states').entries()) stateMap.set(path, entry)
     for (const [path, entry] of domain.table('revisions').entries()) revisionMap.set(path, entry)
     return domain
   })
+  ready.catch(error => ctx.logger?.warn?.(`canvas: cannot open storage: ${error?.message ?? error}`))
 
   const agentCwd = agent => ctx.get('workingDirectory')?.get(agent?.session) ?? agent?.session?.header?.cwd ?? ''
 
@@ -378,7 +391,7 @@ export async function apply(ctx) {
     }
     return {
       name: PROVIDER_NAME,
-      discover() {
+      async list() {
         if (!isEnabled(agent.session?.id)) return []
         return [{
           name: skill.name,
@@ -387,10 +400,12 @@ export async function apply(ctx) {
           invocation: { userInvocable: true, modelInvocable: true },
           source: 'plugin',
           provider: PROVIDER_NAME,
+          resourceBase: { kind: 'opaque', description: 'DSH Canvas authoring guide (dsh-canvas); this skill has no external files' },
           rank: 240,
+          locator: { name: skill.name },
         }]
       },
-      load(candidate) {
+      async get(candidate) {
         if (!isEnabled(agent.session?.id) || candidate.name !== skill.name) return undefined
         return {
           name: skill.name,
@@ -653,11 +668,14 @@ export async function apply(ctx) {
     },
   }), `canvas: GET ${EVENTS_PATH}`)
 
-  ctx.effect(() => () => {
+  ctx.effect(() => async () => {
     closed = true
     for (const stream of streams) stream.res.end()
     streams.clear()
     for (const entry of watchers.values()) entry.watcher.close()
     watchers.clear()
+    await tail
+    const domain = await ready.catch(() => null)
+    await domain?.close()
   }, 'canvas: cleanup')
 }

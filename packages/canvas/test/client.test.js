@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { loadClient } from '../../../test-utils/load-client.js'
 
 const { id, plugin } = loadClient(fileURLToPath(new URL('../lib/client.js', import.meta.url)))
-const { buildSrcDoc, resolveTargetPath, fileAddress } = plugin._internal
+const { buildSrcDoc, resolveTargetPath, fileAddress, readJsonResponse } = plugin._internal
 
 test('registers under package name dsh-canvas', () => {
   assert.equal(id, 'dsh-canvas')
@@ -32,4 +32,17 @@ test('resolveTargetPath resolves workspace-relative and absolute paths cleanly',
 test('built client.runtime.js chunk loads under dsh-canvas module id', () => {
   const chunk = readFileSync(fileURLToPath(new URL('../lib/client.runtime.js', import.meta.url)), 'utf8')
   assert.match(chunk, /window\.__ModuleLoader__\.load\(\{\s*id:\s*'dsh-canvas',\s*chunk:\s*'client\.runtime\.js'/)
+})
+
+test('readJsonResponse handles empty and non-JSON error responses without SyntaxError', async () => {
+  await assert.rejects(
+    readJsonResponse(new Response('', { status: 404 })),
+    /HTTP 404/,
+  )
+  await assert.rejects(
+    readJsonResponse(new Response(JSON.stringify({ message: 'sessionId is required' }), { status: 400 })),
+    /sessionId is required/,
+  )
+  const ok = await readJsonResponse(new Response(JSON.stringify({ enabled: true }), { status: 200 }))
+  assert.deepEqual(ok, { enabled: true })
 })

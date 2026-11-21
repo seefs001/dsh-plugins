@@ -118,11 +118,16 @@ window.__ModuleLoader__.load({
 .cv :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
 .cv-ellipsis{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 
-.cv-trigger{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 9px;border-radius:var(--dsw-radius-sm,8px);color:var(--dsw-alias-label-secondary);font-size:12.5px;line-height:18px;font-weight:500;white-space:nowrap}
-@media (hover:hover){.cv-trigger:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
-.cv-trigger[data-enabled=true]{color:var(--dsw-alias-label-primary)}
-.cv-dot{width:6px;height:6px;border-radius:999px;background:var(--dsw-alias-state-success-primary);flex:none}
-.cv-count{padding:0 5px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;font-variant-numeric:tabular-nums}
+.cv-anchor{display:inline-flex;min-width:0;font-size:calc(var(--dsh-content-font-size-secondary,13px) - 1px);line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px))}
+.cv-trigger{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;margin:0;padding:1px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);
+  background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-variant-numeric:tabular-nums;line-height:inherit;white-space:nowrap;cursor:pointer}
+.cv-trigger svg{flex:none;width:14px;height:14px}
+@media (hover:hover){.cv-trigger:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}}
+.cv-trigger:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.cv-trigger[data-enabled=true]{color:var(--dsw-alias-label-secondary)}
+.cv-dot{flex:none;width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-success-primary)}
+.cv-count{color:var(--dsw-alias-label-tertiary);font-size:11px;font-weight:400;font-variant-numeric:tabular-nums}
+.cv-tab-icon{flex:none;color:var(--dsw-alias-label-tertiary)}
 
 .cv-dock{container-type:inline-size;flex:none;margin:0 auto;
   width:calc(100% - 2 * var(--dsh-composer-side-clearance,16px) - 4 * var(--dsh-composer-dock-inset,8px));
@@ -199,14 +204,16 @@ window.__ModuleLoader__.load({
 .cv-dialog-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}
 `
 
-    function CanvasIcon({ size = 15 }) {
-      return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
-        h('rect', { x: 3, y: 3, width: 18, height: 18, rx: 3 }),
-        h('path', { d: 'M3 8.5h18' }),
-        h('path', { d: 'M9.5 8.5V21' }),
-        h('path', { d: 'M13 13h4.5' }),
-        h('path', { d: 'M13 16.5h3' }),
-      )
+    function CanvasIcon({ size = 14, className }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 1.25, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, className,
+      },
+      h('rect', { x: 2, y: 2.25, width: 12, height: 11.5, rx: 2 }),
+      h('path', { d: 'M2 5.75h12' }),
+      h('path', { d: 'M6.25 5.75v8' }),
+      h('path', { d: 'M8.75 8.75h2.75' }),
+      h('path', { d: 'M8.75 11.25h1.75' }))
     }
 
     const encode = s => encodeURIComponent(s)
@@ -301,6 +308,14 @@ window.__ModuleLoader__.load({
       return runtimePromise
     }
 
+    async function readJsonResponse(response) {
+      let data = null
+      try { data = await response.json() } catch {}
+      if (!response.ok) throw new Error(data?.message ?? `HTTP ${response.status}`)
+      if (!data || typeof data !== 'object') throw new Error(`HTTP ${response.status}`)
+      return data
+    }
+
     const sessionStores = new Map()
 
     function createSessionStore(sessionId, initialCwd) {
@@ -339,7 +354,7 @@ window.__ModuleLoader__.load({
       }
 
       const fetchState = () => fetch(`canvas/state?${query()}`, { headers: { accept: 'application/json' } })
-        .then(r => (r.ok ? r.json() : r.json().then(d => Promise.reject(new Error(d?.message ?? `HTTP ${r.status}`)))))
+        .then(readJsonResponse)
         .then(applySnapshot)
         .catch(err => {
           state = { ...state, status: 'error', error: err.message }
@@ -391,9 +406,7 @@ window.__ModuleLoader__.load({
             headers: { 'content-type': 'application/json', accept: 'application/json' },
             body: JSON.stringify({ sessionId, cwd: state.cwd || cwd, ...body }),
           })
-          let data = null
-          try { data = await r.json() } catch {}
-          if (!r.ok) throw new Error(data?.message ?? `HTTP ${r.status}`)
+          const data = await readJsonResponse(r)
           if (Array.isArray(data?.canvases)) applySnapshot(data)
           return data
         },
@@ -586,17 +599,23 @@ window.__ModuleLoader__.load({
           const cwd = byId?.[sessionId]?.cwd ?? ''
           const { snapshot } = useCanvasSession(sessionId, cwd)
           if (!sessionId) return null
-          return h('button', {
-            type: 'button',
-            className: 'cv cv-trigger',
-            'data-enabled': snapshot.enabled,
-            title: snapshot.enabled ? t('modeOn') : t('modeOff'),
-            onClick: () => openSidebar(),
-          },
-          h(CanvasIcon, { size: 14 }),
-          h('span', null, t('title')),
-          snapshot.enabled && h('span', { className: 'cv-dot', 'aria-hidden': true }),
-          snapshot.canvases.length > 0 && h('span', { className: 'cv-count' }, snapshot.canvases.length))
+          return h('span', { className: 'cv-anchor', 'data-canvas': '' },
+            h('button', {
+              type: 'button',
+              className: 'cv-trigger',
+              'data-enabled': snapshot.enabled ? 'true' : undefined,
+              title: snapshot.enabled ? t('modeOn') : t('modeOff'),
+              onClick: () => openSidebar(),
+            },
+            h(CanvasIcon, { size: 14 }),
+            h('span', null, t('title')),
+            snapshot.canvases.length > 0 && h('span', { className: 'cv-count' }, snapshot.canvases.length),
+            snapshot.enabled && h('span', { className: 'cv-dot', 'aria-hidden': true })))
+        }
+
+        function TabTitle() {
+          const t = useLocale()
+          return h(React.Fragment, null, h(CanvasIcon, { size: 15, className: 'cv-tab-icon' }), t('title'))
         }
 
         function InputDock({ sessionId, useSessions }) {
@@ -937,10 +956,11 @@ window.__ModuleLoader__.load({
         }), 'canvas: sidebar tab')
 
         ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: KEY }, CanvasPanel))
+        ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({ name: 'sidebar.right.pane.tab.title', key: KEY }, TabTitle))
         ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'canvas', order: 5 }, InputDock))
         ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'canvas', order: 15 }, ComposerTrigger))
       },
-      _internal: { buildSrcDoc, resolveTargetPath, fileAddress, readHostTheme },
+      _internal: { buildSrcDoc, resolveTargetPath, fileAddress, readHostTheme, readJsonResponse },
     }
   },
 })

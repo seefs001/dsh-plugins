@@ -9,7 +9,10 @@ import { apply, EVENTS_PATH, OP_PATH, STATE_PATH } from '../lib/index.js'
 
 function createMemoryDomain() {
   const tables = new Map()
+  let closed = false
   return {
+    get closed() { return closed },
+    async close() { closed = true },
     table(name) {
       if (!tables.has(name)) tables.set(name, new Map())
       const map = tables.get(name)
@@ -32,8 +35,8 @@ function createFakeAgent(sessionId, cwd) {
     session: { id: sessionId, header: { cwd } },
     registeredTools,
     get invalidations() { return invalidations },
-    discoverSkills() { return skillProvider ? skillProvider.discover() : [] },
-    loadSkill(candidate) { return skillProvider ? skillProvider.load(candidate) : undefined },
+    async listSkills() { return skillProvider ? await skillProvider.list() : [] },
+    async getSkill(candidate) { return skillProvider ? await skillProvider.get(candidate) : undefined },
     ctx: {
       inject(deps, fn) {
         const cleanups = []
@@ -78,7 +81,7 @@ function createHarness() {
   const ctx = {
     get: () => undefined,
     storageDomain: {
-      async register() { return domain },
+      async open() { return domain },
     },
     connection: {
       requestRejection: () => undefined,
@@ -142,10 +145,10 @@ function createHarness() {
   }
 
   async function dispose() {
-    while (cleanups.length > 0) cleanups.pop()()
+    while (cleanups.length > 0) await cleanups.pop()()
   }
 
-  return { ctx, addAgent, request, promptSections, routes, dispose }
+  return { ctx, domain, addAgent, request, promptSections, routes, dispose }
 }
 
 const VALID_CANVAS = `
@@ -184,7 +187,7 @@ test('zero injection by default; per-session toggle activates skills, prompt, an
 
     assert.equal(a1.registeredTools.size, 0)
     assert.equal(a2.registeredTools.size, 0)
-    assert.equal(a1.discoverSkills().length, 0)
+    assert.equal((await a1.listSkills()).length, 0)
     assert.equal(h.promptSections[0].text({ agent: a1 }), '')
 
     const enableRes = await h.request('POST', OP_PATH, { action: 'toggle', sessionId: 's1', cwd, enabled: true })
@@ -192,22 +195,26 @@ test('zero injection by default; per-session toggle activates skills, prompt, an
     assert.equal(enableRes.json.enabled, true)
 
     assert.deepEqual([...a1.registeredTools.keys()].toSorted(), ['canvas_check', 'canvas_state', 'canvas_write'])
-    assert.equal(a1.discoverSkills().length, 1)
-    assert.equal(a1.discoverSkills()[0].name, 'canvas')
+    const a1Skills = await a1.listSkills()
+    assert.equal(a1Skills.length, 1)
+    assert.equal(a1Skills[0].name, 'canvas')
+    const loadedSkill = await a1.getSkill(a1Skills[0])
+    assert.match(loadedSkill.content, /DSH Canvas Authoring Guide/)
     assert.match(h.promptSections[0].text({ agent: a1 }), /Canvas mode is enabled/)
 
     assert.equal(a2.registeredTools.size, 0)
-    assert.equal(a2.discoverSkills().length, 0)
+    assert.equal((await a2.listSkills()).length, 0)
     assert.equal(h.promptSections[0].text({ agent: a2 }), '')
 
     const disableRes = await h.request('POST', OP_PATH, { action: 'toggle', sessionId: 's1', cwd, enabled: false })
     assert.equal(disableRes.status, 200)
     assert.equal(disableRes.json.enabled, false)
     assert.equal(a1.registeredTools.size, 0)
-    assert.equal(a1.discoverSkills().length, 0)
+    assert.equal((await a1.listSkills()).length, 0)
     assert.equal(h.promptSections[0].text({ agent: a1 }), '')
   } finally {
     await h.dispose()
+    assert.equal(h.domain.closed, true)
     await rm(cwd, { recursive: true, force: true })
   }
 })
