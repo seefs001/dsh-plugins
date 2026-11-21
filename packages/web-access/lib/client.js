@@ -2,7 +2,15 @@ window.__ModuleLoader__.load({
   id: 'dsh-web-access',
   factory(require) {
     const React = require('react')
-    const { Switch } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const {
+      DisclosureRow,
+      IconGlobeOutlineRegular,
+      IconInspectOutlineRegular,
+      Switch,
+      Tag,
+      TextShimmer,
+      WebBlock,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'web-access'
     const KEY = 'dsh-web-access'
@@ -13,7 +21,10 @@ window.__ModuleLoader__.load({
       searchOpenai: 'OpenAI search',
       searchWeb: 'Web',
       searchHosted: 'Hosted search',
-      searchSources: 'sources',
+      searchSources: '{n} sources',
+      searchStopped: 'Stopped',
+      searchInspect: 'Inspect',
+      searchError: 'Error',
       title: 'Web access',
       hint: 'Each search tool calls a hosted search through one of your local Responses models. The endpoint and key come from that model\'s provider.',
       grokTitle: 'Grok search (grok_search)',
@@ -43,7 +54,10 @@ window.__ModuleLoader__.load({
       searchOpenai: 'OpenAI 搜索',
       searchWeb: '网页',
       searchHosted: '托管搜索',
-      searchSources: '个来源',
+      searchSources: '{n} 个来源',
+      searchStopped: '已中止',
+      searchInspect: '查看',
+      searchError: '错误',
       title: '联网搜索',
       hint: '每个搜索工具都通过一个本地 Responses 模型调用托管搜索。地址和 key 取自该模型所在的 provider。',
       grokTitle: 'Grok 搜索（grok_search）',
@@ -91,6 +105,19 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.wa-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.wa-btn.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
 @media (pointer:coarse){.wa select{font-size:16px}}
 @media (max-width:560px){.wa-row{grid-template-columns:1fr}}
+.wa-card{display:flex;flex-direction:column}
+.wa-tool-row{min-width:0}
+.wa-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.wa-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.wa-summary.wa-err{color:var(--dsw-alias-state-error-primary)}
+.wa-summary.wa-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.wa-tag{flex:none;margin-left:6px}
+.wa-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
+.wa-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-state-error-primary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+.wa-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.wa-inspect:focus-visible{opacity:1}
+@media (hover:hover){.wa-card:hover .wa-inspect{opacity:1}.wa-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media (hover:none){.wa-inspect{opacity:1}}
 `
 
     async function getJson(path, init) {
@@ -118,6 +145,58 @@ window.__ModuleLoader__.load({
     }
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
+    function firstLine(text) {
+      if (typeof text !== 'string') return ''
+      const index = text.indexOf('\n')
+      return index === -1 ? text : text.slice(0, index)
+    }
+
+    function resultText(block) {
+      if (!block || !('kind' in block) || !Array.isArray(block.content)) return ''
+      return block.content.filter(item => item.type === 'text').map(item => item.text).join('\n')
+    }
+
+    function parseSearchBlock(toolName, phase, block) {
+      const settled = phase === 'result' && block && 'kind' in block
+      const call = settled ? block.call : block
+      let args = {}
+      try {
+        const parsed = JSON.parse(call?.argsRaw ?? '{}')
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed
+      } catch {}
+      const query = typeof args.query === 'string' ? args.query : block?.args?.text?.('query') ?? ''
+      const meta = settled && !block.isError && block.meta && typeof block.meta === 'object' ? block.meta : {}
+      const sources = Array.isArray(meta.sources) ? meta.sources : []
+      const answer = typeof meta.answer === 'string' ? meta.answer : ''
+      const channels = toolName === 'openai_search' ? ['web'] : Array.isArray(args.sources) ? args.sources : undefined
+      const state = phase === 'preparing' ? 'preparing'
+        : !settled ? 'running'
+          : block.error?.code === 'interrupted' ? 'stopped'
+            : block.isError ? 'error' : 'ok'
+      return { state, query, answer, sources, channels, model: typeof meta.model === 'string' ? meta.model : '', text: settled ? resultText(block) : '' }
+    }
+
+    function webLabels(ct) {
+      return {
+        noResults: ct('web.noResults'),
+        sourcesTruncated: ct('web.sourcesTruncated'),
+        http: code => ct('web.http', { code }),
+        contentTruncated: ct('web.contentTruncated'),
+        markdown: {
+          code: {
+            copyLabel: ct('copy'),
+            copiedLabel: ct('copied'),
+            toolbarLabels: {
+              codeLabel: ct('codeBlock.title'),
+              wrapLabel: ct('codeBlock.wrap'),
+              unwrapLabel: ct('codeBlock.unwrap'),
+            },
+          },
+          footnotes: ct('web.footnotes'),
+        },
+      }
+    }
+
     return {
       inject: ['slots', 'locale', 'remote', 'remote.session'],
       apply(ctx) {
@@ -129,52 +208,62 @@ window.__ModuleLoader__.load({
           return () => style.remove()
         }, 'web-access: styles')
         const t = ctx.locale.bind(NS)
+        const ct = ctx.locale.bind('conversation')
 
-        // external: dsh built-in web tool view is keyed strictly to web_search
-        function SearchRow(props) {
-          const { block, toolName } = props
-          const entries = [...ctx.slots.entries('tool.call.toolview')]
-            .filter(entry => entry.options?.key === 'web_search' && (entry.options.priority ?? 0) >= 0)
-            .toSorted((a, b) => (a.options.priority ?? 0) - (b.options.priority ?? 0))
-          const base = entries[0]
-          if (!base) return null
-
-          const settled = 'kind' in block
-          const call = settled ? block.call : block
-          let args = {}
-          try { args = JSON.parse(call?.argsRaw ?? '{}') ?? {} } catch {}
-          const query = typeof args.query === 'string' ? args.query : block.args?.text('query') ?? ''
-          const meta = block.meta
-          const sources = Array.isArray(meta?.sources) ? meta.sources : []
-          const channels = toolName === 'openai_search' ? ['web'] : args.sources
-          const channel = Array.isArray(channels) && channels.length === 1
-            ? channels[0] === 'x' ? 'X' : t('searchWeb')
-            : Array.isArray(channels) && channels.includes('web') && channels.includes('x')
-              ? `${t('searchWeb')} + X` : t('searchHosted')
-          const count = settled && !block.isError ? ` · ${sources.length} ${t('searchSources')}` : ''
-          const summary = [query, channel].filter(Boolean).join(' · ') + count
-          const displayCall = { ...call, name: 'web_search', argsRaw: JSON.stringify({ queries: [query || '…'] }) }
-          // external: dsh built-in web_search view requires meta.truncated boolean
-          const display = {
-            ...block,
-            ...(settled ? { call: displayCall, meta: { ...meta, truncated: false } } : displayCall),
-            args: {
-              text: key => key === 'description' ? summary : block.args?.text(key),
-              complete: key => key === 'description' || (block.args?.complete(key) ?? false),
-            },
-          }
+        function SearchRow({ toolName, phase, block, inspect, useDisclosure }) {
+          const { expanded, toggle } = useDisclosure()
+          const parsed = parseSearchBlock(toolName, phase, block)
+          const labels = React.useMemo(() => webLabels(ct), [])
           const title = toolName === 'grok_search' ? t('searchGrok') : t('searchOpenai')
-          return h(base.component, {
-            ...props,
-            toolName: 'web_search',
-            block: display,
-            t: (key, ...rest) => key === 'tool.title.webSearch' ? title : props.t(key, ...rest),
-          })
+          const running = parsed.state === 'preparing' || parsed.state === 'running'
+          const channel = Array.isArray(parsed.channels) && parsed.channels.length === 1
+            ? (parsed.channels[0] === 'x' ? 'X' : t('searchWeb'))
+            : Array.isArray(parsed.channels) && parsed.channels.includes('web') && parsed.channels.includes('x')
+              ? `${t('searchWeb')} + X` : t('searchHosted')
+          const hasWebResult = parsed.state === 'ok' && (parsed.answer.length > 0 || parsed.sources.length > 0)
+          const hasErrorBody = parsed.state === 'error' && parsed.text.length > 0
+          const expandable = hasWebResult || hasErrorBody
+          const open = expanded && expandable
+
+          let summary = parsed.query
+          if (parsed.state === 'stopped') summary = t('searchStopped')
+          else if (parsed.state === 'error' && parsed.text) summary = firstLine(parsed.text)
+
+          return h('div', { className: 'wa-card', 'data-tool': toolName, 'data-state': parsed.state },
+            h(DisclosureRow, {
+              rowClassName: 'wa-tool-row',
+              icon: h(IconGlobeOutlineRegular, { size: 14 }),
+              title,
+              running,
+              open,
+              expandable,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: parsed.state === 'preparing' ? null : h(React.Fragment, null,
+                summary ? h(React.Fragment, null,
+                  h('span', { className: 'wa-sep', 'aria-hidden': true }),
+                  h('span', { className: `wa-summary${parsed.state === 'error' ? ' wa-err' : parsed.state === 'stopped' ? ' wa-stop' : ''}` },
+                    h(TextShimmer, null, summary))) : null,
+                channel ? h(Tag, { className: 'wa-tag' }, channel) : null,
+                parsed.state === 'ok' ? h(Tag, { className: 'wa-tag' }, t('searchSources', { n: parsed.sources.length })) : null),
+            },
+            open ? h('div', { className: 'wa-body' },
+              hasWebResult ? h(WebBlock, {
+                kind: 'search',
+                answer: parsed.answer || undefined,
+                sources: parsed.sources,
+                truncated: false,
+                labels,
+              }) : null,
+              hasErrorBody ? h('pre', { className: 'wa-pre' }, parsed.text) : null,
+              inspect ? h('button', { type: 'button', className: 'wa-inspect', onClick: inspect },
+                h(IconInspectOutlineRegular, { size: 12 }), t('searchInspect')) : null) : null))
         }
 
         for (const key of ['grok_search', 'openai_search']) {
           ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
-            name: 'tool.call.toolview', key, locale: 'conversation', priority: -10,
+            name: 'tool.call.toolview', key, locale: NS, priority: -10,
           }, SearchRow))
         }
 
@@ -294,6 +383,7 @@ window.__ModuleLoader__.load({
           locale: NS,
         }, Settings))
       },
+      _internal: { parseSearchBlock, webLabels },
     }
   },
 })

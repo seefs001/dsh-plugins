@@ -400,7 +400,7 @@ export function toolOf(ctx, b, timeoutMs) {
     output: {
       schema: OUTPUT_SCHEMA,
       render: (_args, value) => [{ type: 'text', text: renderResult(value) }],
-      presentationMeta: (_args, value) => ({ answer: value.answer, sources: value.sources }),
+      presentationMeta: (_args, value) => ({ answer: value.answer, sources: value.sources, model: value.model, provider: value.provider }),
     },
     timeoutMs,
     isConcurrencySafe: () => true,
@@ -412,18 +412,6 @@ export function toolOf(ctx, b, timeoutMs) {
         if (error instanceof SearchError || exec.signal.aborted) throw error
         if (error?.name === 'TimeoutError' || signal.aborted) throw new SearchError(`${toolName} timed out after ${timeoutMs} ms`)
         throw new SearchError(`${toolName} failed: ${error?.message ?? error}`)
-      }
-    },
-    presentCall: args => ({ card: 'generic', kind: 'search', title: typeof args?.query === 'string' ? args.query : toolName }),
-    presentResult(args, result) {
-      if (result.isError || !isRecord(result.meta) || !Array.isArray(result.meta.sources)) return undefined
-      return {
-        card: 'web',
-        kind: 'search',
-        ...(typeof args?.query === 'string' ? { title: args.query } : {}),
-        sources: result.meta.sources,
-        ...(result.meta.answer ? { answer: result.meta.answer } : {}),
-        truncated: false,
       }
     },
   }
