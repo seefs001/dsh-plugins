@@ -102,6 +102,7 @@ export async function runGrep(args, ops) {
   // external: ripgrep anchors path-containing --glob patterns at cwd rather than the search path argument
   argv.push('--', args.pattern, directory ? '.' : root)
   const output = []
+  const fileGroups = new Map()
   let count = 0
   let totalBytes = 0
   let totalLines = 0
@@ -127,6 +128,15 @@ export async function runGrep(args, ops) {
       const sep = withinLimit && match ? ':' : '-'
       const row = `${label}${sep}${number}${sep} ${value.text}`
       if (totalBytes - 1 <= DEFAULT_MAX_BYTES) output.push(row)
+      if (withinLimit && match) {
+        const groupPath = directory ? resolve(root, file) : root
+        let group = fileGroups.get(groupPath)
+        if (!group) {
+          group = { path: groupPath, matches: [] }
+          fileGroups.set(groupPath, group)
+        }
+        group.matches.push({ lineNumber: number, line: value.text })
+      }
       totalBytes += Buffer.byteLength(row) + 1
       totalLines++
       linesTruncated ||= value.wasTruncated
@@ -142,7 +152,12 @@ export async function runGrep(args, ops) {
   if (!result.limited && result.exitCode !== 0 && result.exitCode !== 1) {
     throw new Error(result.stderr || `ripgrep exited with code ${result.exitCode}`)
   }
-  if (!count) return { content: [{ type: 'text', text: 'No matches found' }] }
+  if (!count) {
+    return {
+      content: [{ type: 'text', text: 'No matches found' }],
+      meta: { shape: 'matches', files: [], total: 0, truncated: false },
+    }
+  }
   const truncation = truncateHead(output.join('\n'), { maxLines: Number.MAX_SAFE_INTEGER })
   truncation.totalLines = totalLines
   truncation.totalBytes = totalBytes - 1
@@ -163,5 +178,11 @@ export async function runGrep(args, ops) {
   return {
     content: [{ type: 'text', text: truncation.content + (notices.length ? `\n\n[${notices.join('. ')}]` : '') }],
     ...(Object.keys(details).length ? { details } : {}),
+    meta: {
+      shape: 'matches',
+      files: [...fileGroups.values()],
+      total: count,
+      truncated: Boolean(matchLimitReached || truncation.truncated),
+    },
   }
 }

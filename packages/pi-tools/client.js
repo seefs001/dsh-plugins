@@ -4,10 +4,16 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const {
-      Button, Checkbox, Input, Modal, IconChevronRightOutlineRegular, IconSearchOutlineRegular,
+      Button, Checkbox, CodeBlock, DiffBlock, DisclosureRow, Input, Modal, ReadBlock, SearchBlock, Tag, TerminalBlock, TextShimmer,
+      diffTotals, languageForPath,
+      IconApiOutlineRegular, IconBrowseOutlineRegular, IconChevronRightOutlineRegular, IconCodeOutlineRegular,
+      IconEditOutlineRegular, IconInspectOutlineRegular, IconSearchOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const NS = 'pi-tools'
-    const supported = new Set(['edit', 'codemode', 'tool_search'])
+    const PI_VERSION = '1.6.0'
+    const DIRECT_KEYS = ['codemode', 'tool_search', 'find', 'ls']
+    const WRAPPED_KEYS = ['edit', 'write', 'read', 'grep', 'bash']
+    const KILOBYTE = 1024
     const en = {
       tools: 'Tools', chooseTools: 'Tools for this conversation',
       toolsHint: 'Applies only to this conversation. The selection locks when its first turn starts.',
@@ -29,11 +35,12 @@ window.__ModuleLoader__.load({
       sectionJobs: 'Jobs and schedules', sectionWeb: 'Web, search and images', sectionFiles: 'Presentation and Office',
       sectionInteraction: 'Skills and questions', sectionPlugins: 'Plugins', sectionOther: 'Other DSH tools',
       sectionMcpResources: 'MCP resources', sectionMcpServer: 'Server {server}',
-      codemode: 'Script', tool_search: 'Tool search',
-      input: 'Input', output: 'Output', editDiff: 'Edit diff', diff: 'Applied diff', loaded: 'Loaded tools',
-      inspect: 'Inspect call', open: 'Open file', noCalls: 'No tool calls',
-      stepProgress: '{done}/{total} steps finished', stepsFailed: 'Failed steps: {count}',
-      ok: 'Succeeded', error: 'Failed', running: 'Running',
+      codemode: 'Script', tool_search: 'Tool search', edit: 'Edit', write: 'Write', read: 'Read', grep: 'Search', find: 'Find files', ls: 'List directory', bash: 'Shell',
+      input: 'Input', output: 'Output', editDiff: 'Edit', diff: 'Applied diff', loaded: 'Loaded tools',
+      inspect: 'Inspect', open: 'Open file', noCalls: 'No tool calls',
+      stepProgress: '{done}/{total} steps', stepsFailed: '{count} failed',
+      streamingKb: '{kb} KB',
+      ok: 'Succeeded', error: 'Failed', running: 'Running', stopped: 'Stopped',
     }
     const zh = {
       tools: '工具', chooseTools: '本对话保留的工具',
@@ -56,34 +63,39 @@ window.__ModuleLoader__.load({
       sectionJobs: '作业与定时', sectionWeb: '网页、搜索与画图', sectionFiles: '展示与 Office',
       sectionInteraction: '技能与提问', sectionPlugins: '插件', sectionOther: '其他 DSH 工具',
       sectionMcpResources: 'MCP 资源', sectionMcpServer: '服务 {server}',
-      codemode: '脚本', tool_search: '工具搜索',
-      input: '输入', output: '输出', editDiff: '编辑差异', diff: '实际差异', loaded: '已加载工具',
-      inspect: '检查调用', open: '打开文件', noCalls: '未调用工具',
-      stepProgress: '已完成 {done}/{total} 步', stepsFailed: '{count} 步失败',
-      ok: '成功', error: '失败', running: '运行中',
+      codemode: '脚本', tool_search: '工具搜索', edit: '编辑', write: '写入', read: '读取', grep: '搜索', find: '查找文件', ls: '列出目录', bash: '终端',
+      input: '输入', output: '输出', editDiff: '编辑', diff: '实际差异', loaded: '已加载工具',
+      inspect: '查看', open: '打开文件', noCalls: '未调用工具',
+      stepProgress: '{done}/{total} 步', stepsFailed: '{count} 步失败',
+      streamingKb: '{kb} KB',
+      ok: '成功', error: '失败', running: '运行中', stopped: '已中止',
     }
     const css = `
-.pi-tools-card{min-width:0;color:var(--dsw-alias-label-secondary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
-[data-chat-call-id] > :not([data-subcalls]):has([data-pi-fold-steps][aria-expanded="false"]) ~ [data-subcalls]{display:none}
-.pi-tools-head{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
-.pi-tools-card button{font:inherit;color:inherit;border:0;background:transparent;padding:0;cursor:pointer;text-align:left}
-.pi-tools-card button:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px;border-radius:var(--dsw-radius-xs,4px)}
-.pi-tools-toggle{display:flex;align-items:center;gap:6px;flex:none}
-.pi-tools-toggle-chevron{flex:none;color:var(--dsw-alias-label-tertiary);transition:transform var(--ds-transition-duration,150ms) var(--ds-ease-in-out,ease)}
-.pi-tools-toggle[aria-expanded=true] .pi-tools-toggle-chevron{transform:rotate(90deg)}
-.pi-tools-file{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
-.pi-tools-summary{min-width:0;overflow-wrap:anywhere}
-.pi-tools-input-preview{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.pi-tools-badge{font-size:11px;color:var(--dsw-alias-label-secondary);margin-left:auto}
-.pi-tools-body{margin:6px 0 8px 20px;min-width:0;color:var(--dsw-alias-label-primary)}
-.pi-tools-body pre{margin:4px 0 8px;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-1);font:calc(var(--dsh-content-font-size-secondary,13px) - 1px)/1.6 var(--ds-font-family-code,monospace);white-space:pre;overflow:auto;max-height:420px}
-.pi-tools-line{display:block;min-height:1.6em}
-.pi-tools-plus{color:var(--dsw-alias-state-success-primary)}
-.pi-tools-minus,.pi-tools-error{color:var(--dsw-alias-state-error-primary)}
+.pi-tools-card{min-width:0;color:var(--dsw-alias-label-tertiary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+[data-chat-call-id] > :not([data-subcalls]):has([data-pi-fold-steps="closed"]) ~ [data-subcalls]{display:none}
+.pi-tools-row{min-width:0;color:var(--dsw-alias-label-tertiary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.pi-tools-sep{flex:none;width:2px;height:2px;margin:0 6px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.pi-tools-file{flex:0 1 auto;min-width:0;max-width:100%;margin:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;text-align:left;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;transition:text-decoration-color .1s,color .1s}
+@media(hover:hover){.pi-tools-file:hover{color:var(--dsw-alias-label-primary);text-decoration-color:currentColor}}
+.pi-tools-file:focus-visible,.pi-tools-inspect:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px;border-radius:var(--dsw-radius-xs,4px)}
+.pi-tools-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.pi-tools-suffix{flex:none;margin-left:6px;font-size:12px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pi-tools-tag{flex:none;margin-left:6px}
+.pi-tools-diff-added{color:var(--dsw-alias-state-success-primary)}
+.pi-tools-diff-removed{color:var(--dsw-alias-state-error-primary)}
+.pi-tools-error{color:var(--dsw-alias-state-error-primary)}
+.pi-tools-stopped{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.pi-tools-body{display:flex;flex-direction:column;gap:8px;margin:6px 0 8px 20px;min-width:0;color:var(--dsw-alias-label-primary)}
+.pi-tools-io{display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-layer-1));overflow:hidden}
+.pi-tools-io-sec{display:flex;flex-direction:column;gap:4px;padding:8px 12px}
+.pi-tools-io-label{font-size:11px;line-height:16px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--dsw-alias-label-caption)}
+.pi-tools-io-pre{margin:0;max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:calc(var(--dsh-content-font-size-secondary,13px) - 1px)/1.6 var(--ds-font-family-code,monospace);color:var(--dsw-alias-label-secondary)}
+.pi-tools-io-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
+.pi-tools-loaded{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
 .pi-tools-note{font-size:12px;overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}
-.pi-tools-loaded code{overflow-wrap:anywhere;font:calc(var(--dsh-content-font-size-secondary,13px) - 1px)/1.6 var(--ds-font-family-code,monospace)}
-.pi-tools-loaded{padding-left:20px;margin:4px 0 8px}
-.pi-tools-inspect{font-size:12px!important;text-decoration:underline;text-underline-offset:3px}
+.pi-tools-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;line-height:16px;cursor:pointer}
+.pi-tools-inspect svg{width:12px;height:12px}
+@media(hover:hover){.pi-tools-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid,var(--dsw-alias-interactive-bg-hover));color:var(--dsw-alias-label-primary)}}
 .pi-tools-picker{width:min(720px,100%);max-height:100%}
 .pi-tools-picker .pi-tools-error{margin:10px 0 0;font-size:13px}
 .pi-tools-picker .pi-tools-notice{margin:10px 0 0;font-size:13px;color:var(--dsw-alias-label-secondary)}
@@ -124,13 +136,43 @@ window.__ModuleLoader__.load({
 @media(max-width:520px){.pi-tools-body{margin-left:0}.pi-tools-badge{margin-left:0}.pi-tools-file{flex-basis:100%}}
 `
 
-    function select(owner) {
-      if (owner.phase !== 'result' || owner.block.isError || owner.block.meta?.piVersion !== '1.6.0'
-        || !supported.has(owner.toolName) || owner.block.content.some(block => block.type !== 'text')) return null
-      let args
-      try { args = JSON.parse(owner.block.call?.argsRaw ?? '') } catch { return null }
-      if (!args || typeof args !== 'object' || Array.isArray(args)) return null
-      return { args, details: owner.block.meta.pi ?? {}, file: owner.block.meta.piFile }
+    function isPiCall(owner) {
+      if (DIRECT_KEYS.includes(owner.toolName)) return true
+      if (owner.phase === 'result') return owner.block?.meta?.piVersion === PI_VERSION
+      const args = owner.block?.args
+      if (!args) return false
+      if (owner.toolName === 'edit' || owner.toolName === 'write' || owner.toolName === 'read') {
+        return Boolean(args.has?.('path') && !args.has?.('file_path'))
+      }
+      return false
+    }
+
+    function parseJson(raw) {
+      if (typeof raw !== 'string' || !raw) return {}
+      try {
+        const value = JSON.parse(raw)
+        return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+      } catch {
+        return {}
+      }
+    }
+
+    function rowState(phase, block) {
+      if (phase === 'preparing') return 'preparing'
+      if (phase !== 'result' || !block || !('kind' in block)) return 'running'
+      if (block.error?.code === 'interrupted') return 'stopped'
+      return block.isError ? 'error' : 'ok'
+    }
+
+    function resultText(block) {
+      if (!block || !('kind' in block) || !Array.isArray(block.content)) return ''
+      return block.content.filter(item => item.type === 'text').map(item => item.text).join('\n')
+    }
+
+    function firstLine(text) {
+      if (typeof text !== 'string') return ''
+      const index = text.indexOf('\n')
+      return index === -1 ? text : text.slice(0, index)
     }
 
     function duration(ms) {
@@ -154,69 +196,223 @@ window.__ModuleLoader__.load({
       return path
     }
 
-    function textBlock(text, label) {
-      return h('pre', { tabIndex: 0, 'aria-label': label }, text)
+    function streamingKb(block, fields) {
+      const args = block?.args
+      if (!args?.has || !args?.stringLength) return null
+      let chars = 0
+      let seen = false
+      for (const key of fields) {
+        if (!args.has(key)) continue
+        seen = true
+        chars += args.stringLength(key, { step: KILOBYTE }) ?? 0
+      }
+      return seen ? Math.max(1, Math.ceil(chars / KILOBYTE)) : null
     }
 
-    function disclosureButton(toolName, expanded, toggle, bodyId, t) {
-      return h('button', { type: 'button', className: 'pi-tools-toggle', onClick: toggle, 'aria-expanded': expanded,
-        'aria-controls': bodyId, 'data-pi-fold-steps': toolName === 'codemode' ? '' : undefined },
-      h(IconChevronRightOutlineRegular, { size: 14, className: 'pi-tools-toggle-chevron', 'aria-hidden': true }), h('span', null, t(toolName === 'edit' ? 'editDiff' : toolName)))
+    function toolIcon(toolName) {
+      if (toolName === 'codemode') return h(IconCodeOutlineRegular, { size: 14 })
+      if (toolName === 'edit' || toolName === 'write') return h(IconEditOutlineRegular, { size: 14 })
+      if (toolName === 'read') return h(IconBrowseOutlineRegular, { size: 14 })
+      if (toolName === 'bash') return h(IconApiOutlineRegular, { size: 14 })
+      return h(IconSearchOutlineRegular, { size: 14 })
     }
 
-    function stepStatus(children, running, t) {
+    function convLabels(ct) {
+      const code = { codeLabel: ct('codeBlock.title'), wrapLabel: ct('codeBlock.wrap'), unwrapLabel: ct('codeBlock.unwrap') }
+      return {
+        code,
+        diff: {
+          ...code, copy: ct('copy'), copied: ct('copied'),
+          collapseAria: ct('diff.collapseAria'), expandAria: count => ct('diff.expandAria', { count }),
+          collapse: ct('collapse'), expand: count => ct('diff.expandRest', { count }),
+        },
+        read: {
+          ...code, window: (shown, total) => ct('read.window', { shown, total }),
+          copy: ct('copy'), copied: ct('copied'),
+          collapseAria: ct('read.collapseAria'), expandAria: count => ct('read.expandAria', { count }),
+          collapse: ct('collapse'), expand: count => ct('read.expandRest', { count }),
+        },
+        search: {
+          pathsSummary: (shown, total, truncated) => ct(truncated ? 'search.paths.truncated' : 'search.paths', { shown, total }),
+          matchesSummary: (shown, total, files, truncated) => ct(truncated ? 'search.matches.truncated' : 'search.matches', { shown, total, files }),
+          copy: ct('copy'), copied: ct('copied'), noResults: ct('search.noResults'),
+          collapseAria: ct('search.collapseAria'), expandAria: count => ct('search.expandAria', { count }),
+          collapse: ct('collapse'), expand: count => ct('search.expandRest', { count }),
+        },
+        terminal: {
+          commandLine: line => ct('terminal.commandLine', { n: line }),
+          signal: signal => ct('terminal.signal', { signal }),
+          exitCode: exitCode => ct('terminal.exitCode', { code: exitCode }),
+          noExitCode: ct('terminal.noExitCode'),
+          running: ct('terminal.running'), failed: ct('terminal.failed'), done: ct('terminal.done'),
+          copy: ct('copy'), copied: ct('copied'), noOutput: ct('terminal.noOutput'),
+          collapseAria: ct('terminal.collapseAria'), collapse: ct('collapse'),
+          expandAria: hidden => ct('terminal.expandAria', { n: hidden }),
+          expand: hidden => ct('terminal.expandRest', { n: hidden }),
+        },
+      }
+    }
+
+    function stepTags(children, running, t) {
       if (!children?.length) return null
       const failed = children.filter(child => child.isError).length
       return h(React.Fragment, null,
-        running ? h('span', { className: 'pi-tools-note' }, t('stepProgress', {
+        running ? h(Tag, { className: 'pi-tools-tag' }, t('stepProgress', {
           done: children.filter(child => child.kind === 'tool-result').length, total: children.length,
         })) : null,
-        failed ? h('span', { className: 'pi-tools-error' }, t('stepsFailed', { count: failed })) : null)
+        failed ? h(Tag, { className: 'pi-tools-tag', tone: 'error' }, t('stepsFailed', { count: failed })) : null)
     }
 
-    function PiCard({ matched, toolName, block, callId, cwd, home, openFile, inspect, expanded, toggle, t }) {
-      const { args, details, file } = matched
-      const path = typeof file?.path === 'string' ? file.path : typeof args.path === 'string' ? args.path : ''
-      const requestedLine = file?.line ?? details.firstChangedLine
-      const line = Number.isInteger(requestedLine) && requestedLine > 0 ? requestedLine : 1
-      const text = block.content.map(item => item.text).join('\n')
+    function ioPanel(label, text, isError) {
+      return h('div', { className: 'pi-tools-io' },
+        h('div', { className: 'pi-tools-io-sec' },
+          h('span', { className: 'pi-tools-io-label' }, label),
+          h('pre', { className: 'pi-tools-io-pre', 'data-error': isError || undefined }, text)))
+    }
+
+    function PiRow({ toolName, phase, block, cwd, home, sessionId, openFile, inspect, expanded, toggle, useContextMenu, t, ct }) {
+      const { getTriggerProps } = useContextMenu()
+      const settled = phase === 'result' && block && 'kind' in block
+      const state = rowState(phase, block)
+      const running = state === 'preparing' || state === 'running'
+      const rawArgs = settled ? block.call?.argsRaw : block?.argsRaw
+      const args = parseJson(rawArgs)
+      const meta = settled && !block.isError && block.meta && typeof block.meta === 'object' ? block.meta : {}
+      const details = meta.pi && typeof meta.pi === 'object' ? meta.pi : {}
+      const file = meta.piFile && typeof meta.piFile === 'object' ? meta.piFile : undefined
+      const text = settled ? resultText(block) : ''
+      const labels = React.useMemo(() => convLabels(ct), [ct])
+
+      const path = typeof file?.path === 'string' ? file.path
+        : typeof meta.path === 'string' ? meta.path
+          : typeof args.path === 'string' ? args.path
+            : block?.args?.complete?.('path') ? block.args.text('path') : ''
+      const requestedLine = file?.line ?? details.firstChangedLine ?? (typeof args.offset === 'number' ? args.offset : undefined)
+      const line = Number.isInteger(requestedLine) && requestedLine > 0 ? requestedLine : undefined
+      const diffs = Array.isArray(meta.diffs) && meta.diffs.length > 0 ? meta.diffs : null
+      const totals = React.useMemo(() => (diffs ? diffTotals(diffs) : null), [diffs])
+      const readLines = Array.isArray(meta.lines) && typeof meta.totalLines === 'number' ? meta.lines : null
+      const searchMatches = meta.shape === 'matches' && Array.isArray(meta.files) ? meta.files : null
+      const searchPaths = meta.shape === 'paths' && Array.isArray(meta.paths) ? meta.paths : null
       const calls = Array.isArray(details.calls) ? details.calls : []
       const loaded = Array.isArray(details.loaded) ? details.loaded.filter(name => typeof name === 'string') : []
-      const bodyId = `pi-tool-body-${callId}`
-      const summary = toolName === 'codemode' ? callSummary(calls, t)
-        : toolName === 'tool_search' ? `${t('loaded')}: ${loaded.length}` : ''
-      const elapsed = duration(block.time - block.callTime)
-      let body
-      if (!expanded) {
-        body = null
-      } else if (toolName === 'edit' && typeof details.diff === 'string') {
-        body = h(React.Fragment, null,
-          h('div', { className: 'pi-tools-note' }, t('diff')),
-          h('pre', { tabIndex: 0, 'aria-label': t('diff') }, details.diff.split('\n').map((value, index) =>
-            h('span', { key: index, className: `pi-tools-line${value.startsWith('+') ? ' pi-tools-plus' : value.startsWith('-') ? ' pi-tools-minus' : ''}` }, value || '\u200b'))))
-      } else if (toolName === 'codemode') {
-        body = h(React.Fragment, null,
-          calls.length ? null : h('div', { className: 'pi-tools-note' }, t('noCalls')),
-          textBlock(text, t('output')))
-      } else if (toolName === 'tool_search') {
-        body = h(React.Fragment, null,
-          h('ul', { className: 'pi-tools-loaded' }, loaded.map(name => h('li', { key: name }, h('code', null, name)))),
-          textBlock(text, t('output')))
-      } else {
-        body = textBlock(text, t('output'))
+      const elapsed = settled ? duration(block.time - block.callTime) : ''
+      const kb = running
+        ? streamingKb(block, toolName === 'codemode' ? ['code'] : toolName === 'write' ? ['content'] : toolName === 'edit' ? ['oldText', 'newText'] : [])
+        : null
+      const codeInput = toolName === 'codemode'
+        ? (typeof args.code === 'string' ? args.code : block?.args?.text?.('code') ?? '')
+        : ''
+      const queryInput = toolName === 'tool_search'
+        ? (typeof args.query === 'string' ? args.query : block?.args?.text?.('query') ?? '')
+        : ''
+      const commandInput = toolName === 'bash'
+        ? (typeof args.command === 'string' ? args.command : block?.args?.text?.('command') ?? '')
+        : ''
+
+      let summary = ''
+      if (state === 'stopped') summary = t('stopped')
+      else if (state === 'error' && text) summary = firstLine(text)
+      else if (toolName === 'codemode') summary = settled ? callSummary(calls, t) : firstLine(block?.args?.textPrefix?.('code', 120) ?? '')
+      else if (toolName === 'tool_search') summary = settled && loaded.length ? loaded.slice(0, 4).join(', ') + (loaded.length > 4 ? ` +${loaded.length - 4}` : '') : firstLine(queryInput)
+      else if (toolName === 'grep' || toolName === 'find') summary = firstLine(typeof args.pattern === 'string' ? args.pattern : block?.args?.text?.('pattern') ?? '')
+      else if (toolName === 'ls') summary = path ? pathLabel(path, cwd, home) : '.'
+      else if (toolName === 'bash') summary = firstLine(commandInput)
+
+      const isFileTool = (toolName === 'edit' || toolName === 'write' || toolName === 'read') && Boolean(path) && state !== 'error' && state !== 'stopped'
+      const hasBody = state !== 'preparing' && Boolean(
+        diffs || readLines || searchMatches || searchPaths || (toolName === 'bash' && (commandInput || text))
+        || codeInput || queryInput || loaded.length || typeof details.diff === 'string' || text,
+      )
+      const open = expanded && hasBody
+
+      const collapsedContent = h(React.Fragment, null,
+        isFileTool ? h(React.Fragment, null,
+          h('span', { className: 'pi-tools-sep', 'aria-hidden': true }),
+          h('button', {
+            type: 'button',
+            className: 'pi-tools-file',
+            title: `${t('open')}: ${path}${line ? `:${line}` : ''}`,
+            ...getTriggerProps(() => ({ kind: 'file', value: { sessionId, path, ...(line ? { line } : {}) } })),
+            onClick: event => { event.stopPropagation(); openFile(path, line ? { line } : undefined) },
+          }, h(TextShimmer, null, `${pathLabel(path, cwd, home)}${line && toolName !== 'write' ? `:${line}` : ''}`)))
+          : summary ? h(React.Fragment, null,
+            h('span', { className: 'pi-tools-sep', 'aria-hidden': true }),
+            h('span', { className: `pi-tools-summary${state === 'error' ? ' pi-tools-error' : state === 'stopped' ? ' pi-tools-stopped' : ''}` },
+              h(TextShimmer, null, summary))) : null,
+        kb !== null ? h('span', { className: 'pi-tools-suffix' }, t('streamingKb', { kb })) : null,
+        totals && state === 'ok' ? h('span', { className: 'pi-tools-suffix' },
+          h('span', { className: 'pi-tools-diff-added' }, `+${totals.added}`), ' ',
+          h('span', { className: 'pi-tools-diff-removed' }, `-${totals.removed}`)) : null,
+        toolName === 'codemode' ? stepTags(block?.subCalls, running, t) : null,
+        elapsed ? h('span', { className: 'pi-tools-suffix' }, elapsed) : null)
+
+      let body = null
+      if (open) {
+        if (diffs) {
+          body = h(DiffBlock, { diffs, labels: labels.diff, maxLines: 12 })
+        } else if (toolName === 'edit' && typeof details.diff === 'string') {
+          body = h(CodeBlock, { code: details.diff, lang: 'diff', diff: true, copyLabel: ct('copy'), copiedLabel: ct('copied'), toolbarLabels: labels.code })
+        } else if (toolName === 'read' && readLines) {
+          body = h(ReadBlock, {
+            label: pathLabel(meta.path || path, cwd, home),
+            lines: readLines,
+            totalLines: meta.totalLines,
+            lang: languageForPath(meta.path || path),
+            labels: labels.read,
+            maxLines: 12,
+          })
+        } else if (searchMatches) {
+          body = h(SearchBlock, { kind: 'matches', files: searchMatches, total: meta.total ?? searchMatches.length, truncated: Boolean(meta.truncated), labels: labels.search, maxLines: 10 })
+        } else if (searchPaths) {
+          body = h(SearchBlock, { kind: 'paths', paths: searchPaths, total: meta.total ?? searchPaths.length, truncated: Boolean(meta.truncated), labels: labels.search, maxLines: 10 })
+        } else if (toolName === 'bash') {
+          body = h(TerminalBlock, {
+            command: commandInput,
+            cwd: meta.cwd || cwd,
+            home,
+            output: text,
+            running,
+            labels: labels.terminal,
+            maxLines: 20,
+          })
+        } else if (toolName === 'codemode') {
+          body = h(React.Fragment, null,
+            codeInput ? h(CodeBlock, { code: codeInput, lang: 'javascript', copyLabel: ct('copy'), copiedLabel: ct('copied'), toolbarLabels: labels.code }) : null,
+            settled && !calls.length && !block.isError ? h('div', { className: 'pi-tools-note' }, t('noCalls')) : null,
+            text ? ioPanel(t('output'), text, state === 'error') : null)
+        } else if (toolName === 'tool_search') {
+          body = h(React.Fragment, null,
+            queryInput ? ioPanel(t('input'), queryInput, false) : null,
+            loaded.length ? h('ul', { className: 'pi-tools-loaded' }, loaded.map(name => h('li', { key: name }, h(Tag, null, name)))) : null,
+            text ? ioPanel(t('output'), text, state === 'error') : null)
+        } else if (text) {
+          body = ioPanel(t('output'), text, state === 'error')
+        }
       }
-      return h('div', { className: 'pi-tools-card', 'data-pi-tool': toolName },
-        h('div', { className: 'pi-tools-head' },
-          disclosureButton(toolName, expanded, toggle, bodyId, t),
-          path ? h('button', { type: 'button', className: 'pi-tools-file', title: `${t('open')}: ${path}:${line}`, onClick: () => openFile(path, { line }) }, pathLabel(path, cwd, home), `:${line}`) : null,
-          summary ? h('span', { className: 'pi-tools-summary' }, summary) : null,
-          toolName === 'codemode' ? stepStatus(block.subCalls, false, t) : null,
-          h('span', { className: 'pi-tools-badge' }, ['Pi', elapsed].filter(Boolean).join(' · '))),
-        expanded ? h('div', { className: 'pi-tools-body', id: bodyId },
-          toolName === 'codemode' ? textBlock(args.code, t('input'))
-            : toolName === 'tool_search' ? textBlock(args.query, t('input')) : null,
-          body,
-          inspect ? h('button', { type: 'button', className: 'pi-tools-inspect', onClick: inspect }, t('inspect')) : null) : null)
+
+      return h('div', {
+        className: 'pi-tools-card',
+        'data-pi-tool': toolName,
+        'data-state': state,
+        'data-pi-fold-steps': toolName === 'codemode' ? (open ? 'open' : 'closed') : undefined,
+      },
+      h(DisclosureRow, {
+        rowClassName: 'pi-tools-row',
+        icon: toolIcon(toolName),
+        title: t(toolName),
+        running,
+        open,
+        expandable: hasBody,
+        expandOnRowClick: true,
+        keepContentWhenOpen: true,
+        onToggle: toggle,
+        collapsedContent,
+      },
+      open ? h('div', { className: 'pi-tools-body' },
+        body,
+        inspect ? h('button', { type: 'button', className: 'pi-tools-inspect', onClick: inspect },
+          h(IconInspectOutlineRegular, { size: 12 }), t('inspect')) : null) : null))
     }
 
     const OPTIONS_PATH = 'pi-tools/options'
@@ -232,37 +428,12 @@ window.__ModuleLoader__.load({
       return value
     }
 
-    const CARD_KEYS = ['codemode', 'tool_search']
-
-    function PiPlainRow({ callId, toolName, phase, block, inspect, expanded, toggle, t }) {
-      const failed = phase === 'result' && block?.isError
-      const status = phase === 'result' ? (failed ? 'error' : 'ok') : 'running'
-      const text = phase === 'result' && Array.isArray(block?.content)
-        ? block.content.filter(item => item.type === 'text').map(item => item.text).join('\n') : ''
-      const field = toolName === 'codemode' ? 'code' : 'query'
-      const preview = block.args.textPrefix(field, 160)
-      const steps = toolName === 'codemode' ? block.subCalls : undefined
-      const expandable = Boolean(preview || steps?.length) || (failed && text.length > 0)
-      const bodyId = `pi-tool-body-${callId}`
-      return h('div', { className: 'pi-tools-card', 'data-pi-tool': toolName },
-        h('div', { className: 'pi-tools-head' },
-          expandable ? disclosureButton(toolName, expanded, toggle, bodyId, t) : h('span', null, t(toolName)),
-          preview ? h('code', { className: 'pi-tools-input-preview' }, preview) : null,
-          h('span', { className: failed ? 'pi-tools-error' : 'pi-tools-note' }, t(status)),
-          stepStatus(steps, phase !== 'result', t),
-          inspect ? h('button', { type: 'button', className: 'pi-tools-inspect', onClick: inspect }, t('inspect')) : null),
-        expandable && expanded ? h('div', { className: 'pi-tools-body', id: bodyId },
-          preview ? textBlock(block.args.text(field), t('input')) : null,
-          text ? textBlock(text, t('output')) : null) : null)
-    }
-
-    function PiToolView({ nativeEdit, nativeProps, ...props }) {
+    function PiToolView({ nativeBase, nativeProps, ct, ...props }) {
       const disclosure = props.useDisclosure()
-      const matched = select(props)
-      if (nativeEdit && !(typeof matched?.details.diff === 'string' && matched.details.diff.length)) {
-        return h(nativeEdit, { ...props, ...nativeProps, useDisclosure: () => disclosure })
+      if (nativeBase && !isPiCall(props)) {
+        return h(nativeBase, { ...props, ...nativeProps, useDisclosure: () => disclosure })
       }
-      return matched ? h(PiCard, { ...props, matched, ...disclosure }) : h(PiPlainRow, { ...props, ...disclosure })
+      return h(PiRow, { ...props, ...disclosure, ct })
     }
 
     function PiToolOptions({ sessionId, useSessions, t }) {
@@ -572,23 +743,34 @@ window.__ModuleLoader__.load({
           document.head.append(style)
           return () => style.remove()
         })
-        // external: DSH stock edit toolview does not render Pi diffs; priority -1 wraps it and delegates other edits
         ctx.slots.inject('tool.call.toolview', function* () {
-          for (const key of CARD_KEYS) {
-            yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, PiToolView)
+          const ct = ctx.locale.bind('conversation')
+          for (const key of DIRECT_KEYS) {
+            yield ctx.slots.register({
+              name: 'tool.call.toolview', key, locale: NS,
+              inject: () => ({ ct }),
+            }, PiToolView)
           }
-          yield ctx.slots.register({
-            name: 'tool.call.toolview', key: 'edit', priority: -1, locale: NS,
-            inject: sessionId => {
-              const base = ctx.slots.entries('tool.call.toolview').find(entry =>
-                entry.options.key === 'edit' && (entry.options.priority ?? 0) >= 0)
-              return base ? { nativeEdit: base.component, nativeProps: {
-                ...base.inject?.(sessionId), t: ctx.locale.bind(base.locale ?? 'conversation'),
-              } } : {}
-            },
-          }, PiToolView)
+          // external: DSH stock toolviews expect native tool meta shapes; priority -1 handles Pi calls and delegates others
+          for (const key of WRAPPED_KEYS) {
+            yield ctx.slots.register({
+              name: 'tool.call.toolview', key, priority: -1, locale: NS,
+              inject: sessionId => {
+                const base = ctx.slots.entries('tool.call.toolview').find(entry =>
+                  entry.options.key === key && (entry.options.priority ?? 0) >= 0)
+                return {
+                  ct,
+                  ...(base ? {
+                    nativeBase: base.component,
+                    nativeProps: { ...base.inject?.(sessionId), t: ctx.locale.bind(base.locale ?? 'conversation') },
+                  } : {}),
+                }
+              },
+            }, PiToolView)
+          }
         })
       },
+      _internal: { isPiCall, parseJson, rowState, duration, callSummary, pathLabel, streamingKb, PiRow, PiToolView, DIRECT_KEYS, WRAPPED_KEYS },
     }
   },
 })
