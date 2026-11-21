@@ -143,6 +143,8 @@ importers:
 
   packages/session-search: {}
 
+  packages/side-chat: {}
+
   packages/subagent-model: {}
 
   packages/title-model: {}
