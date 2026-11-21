@@ -11,7 +11,7 @@ const result = await build({
   format: 'cjs',
   platform: 'browser',
   target: 'es2022',
-  external: ['react', 'react/jsx-runtime'],
+  external: ['react', 'react/jsx-runtime', '@deepseek-ai/dsh-client-ui-primitives'],
   define: { 'process.env.NODE_ENV': '"production"' },
   minify: true,
   legalComments: 'eof',
@@ -21,7 +21,7 @@ const result = await build({
 
 for (const output of Object.values(result.metafile.outputs)) {
   for (const entry of output.imports) {
-    if (entry.external && !['react', 'react/jsx-runtime'].includes(entry.path)) {
+    if (entry.external && !['react', 'react/jsx-runtime', '@deepseek-ai/dsh-client-ui-primitives'].includes(entry.path)) {
       throw new Error(`Unexpected Client runtime import: ${entry.path}`)
     }
   }
