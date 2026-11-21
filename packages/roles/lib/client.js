@@ -3,10 +3,10 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const {
-      Button, Checkbox, CodeBlock, Input, Modal, PathLabel, SegmentedTabs, StateDot, Tag,
+      Button, Checkbox, CodeBlock, DisclosureRow, Input, JsonBlock, Modal, PathLabel, SegmentedTabs, StateDot, Tag, TextShimmer,
       IconCheckOutlineRegular, IconChevronRightOutlineRegular, IconCloseOutlineRegular,
-      IconEllipsisOutlineRegular, IconPlusOutlineRegular, IconRefreshOutlineRegular,
-      IconSearchOutlineRegular, IconTrashOutlineRegular, IconWarningTriangleOutlineRegular,
+      IconEllipsisOutlineRegular, IconInspectOutlineRegular, IconPlusOutlineRegular, IconRefreshOutlineRegular,
+      IconSearchOutlineRegular, IconTrashOutlineRegular, IconUsersOutlineRegular, IconWarningTriangleOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'roles'
@@ -122,6 +122,10 @@ window.__ModuleLoader__.load({
       copySuffix: 'copy',
       newRoleName: 'New role',
       roleSections: 'Role editor sections',
+      tvStopped: 'Stopped',
+      tvInspect: 'Inspect',
+      tvResult: 'Result',
+      tvCount: '{n} roles',
     }
     const zh = {
       panel: '角色',
@@ -231,6 +235,10 @@ window.__ModuleLoader__.load({
       copySuffix: '副本',
       newRoleName: '新角色',
       roleSections: '角色编辑分区',
+      tvStopped: '已中止',
+      tvInspect: '查看',
+      tvResult: '结果',
+      tvCount: '{n} 个角色',
     }
 
     async function op(body) {
@@ -435,6 +443,20 @@ window.__ModuleLoader__.load({
 .rlc{display:flex;flex-direction:column;align-items:flex-start;gap:10px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}
 .rlc p{margin:0}
 @media (pointer:coarse){.rlp-page textarea{font-size:16px}}
+.rl-tv{display:flex;flex-direction:column}
+.rl-tv-row{min-width:0}
+.rl-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.rl-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.rl-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
+.rl-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.rl-tv-tag{flex:none;margin-left:6px}
+.rl-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
+.rl-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+.rl-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
+.rl-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.rl-tv-inspect:focus-visible{opacity:1}
+@media (hover:hover){.rl-tv:hover .rl-tv-inspect{opacity:1}.rl-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media (hover:none){.rl-tv-inspect{opacity:1}}
 `
 
     const svg = (size, children) => h('svg', {
@@ -1268,6 +1290,65 @@ window.__ModuleLoader__.load({
             h('p', null, t('configHint')),
             h(Button, { size: 'sm', variant: 'outline', onClick: () => openManager() }, t('openManager')))
         }
+
+        function RolesToolRow({ phase, block, inspect, useDisclosure }) {
+          const { expanded, toggle } = useDisclosure()
+          const settled = phase === 'result' && block && 'kind' in block
+          const call = settled ? block.call : block
+          let args = {}
+          try {
+            const parsed = JSON.parse(call?.argsRaw ?? '{}')
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed
+          } catch {}
+          const text = settled && Array.isArray(block.content)
+            ? block.content.filter(item => item.type === 'text').map(item => item.text).join('\n') : ''
+          let payload = null
+          if (text) { try { payload = JSON.parse(text) } catch {} }
+          const action = typeof args.action === 'string' ? args.action : block?.args?.text?.('action') ?? ''
+          const state = phase === 'preparing' ? 'preparing'
+            : !settled ? 'running'
+              : block.error?.code === 'interrupted' ? 'stopped'
+                : block.isError ? 'error' : 'ok'
+          const running = state === 'preparing' || state === 'running'
+          let summary = ''
+          if (state === 'stopped') summary = t('tvStopped')
+          else if (state === 'error') summary = text.split('\n')[0] || ''
+          else {
+            const target = args.role?.name || args.roleId || payload?.role?.name || payload?.roleId
+            if (typeof target === 'string' && target) summary = target
+            else if (Array.isArray(payload?.roles)) summary = tf('tvCount', { n: payload.roles.length })
+          }
+          const expandable = Boolean(text)
+          const open = expanded && expandable
+          return h('div', { className: 'rl-tv', 'data-tool': 'roles', 'data-state': state },
+            h(DisclosureRow, {
+              rowClassName: 'rl-tv-row',
+              icon: h(IconUsersOutlineRegular, { size: 14 }),
+              title: t('panel'),
+              running,
+              open,
+              expandable,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: state === 'preparing' ? null : h(React.Fragment, null,
+                action ? h(Tag, { className: 'rl-tv-tag', tone: state === 'error' ? 'error' : 'outline' }, action) : null,
+                summary ? h(React.Fragment, null,
+                  h('span', { className: 'rl-tv-sep', 'aria-hidden': true }),
+                  h('span', { className: `rl-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+                    h(TextShimmer, null, summary))) : null),
+            },
+            open ? h('div', { className: 'rl-tv-body' },
+              payload !== null
+                ? h(JsonBlock, { label: t('tvResult'), payload, defaultOpen: true })
+                : h('pre', { className: 'rl-tv-pre', 'data-error': state === 'error' || undefined }, text),
+              inspect ? h('button', { type: 'button', className: 'rl-tv-inspect', onClick: inspect },
+                h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+        }
+
+        ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+          name: 'tool.call.toolview', key: 'roles', locale: NS, priority: -10,
+        }, RolesToolRow))
 
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
           name: 'plugins.bundle.config',
