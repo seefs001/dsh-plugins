@@ -1,0 +1,34 @@
+---
+title: 画布
+description: 按会话按需开启的工作区 .canvas.tsx 交互式 React 画布，支持 TypeScript 诊断、沙箱热重载、持久化状态与版本对比。
+---
+
+<PluginFacts slug="canvas" />
+
+在对话右侧边栏渲染工作区 `.canvas.tsx` 文件，适用于数据分析报告、架构依赖图、安全审计面板、大表格和可交互排查工具。
+
+<Callout type="info" title="按会话开启，默认零注入">
+未开启 Canvas 模式的会话不会注入任何 skill、tool 或 system prompt。在输入框下方点击 **画布**（或执行 `/canvas`）并在面板顶部打开 **当前会话画布** 开关后，才仅对该会话动态启用 `canvas` skill 与 `canvas_write` / `canvas_check` / `canvas_state` 工具；关闭开关即刻卸载。
+</Callout>
+
+## 安装
+
+<InstallCommand slug="canvas" />
+
+## 工作区文件与热重载
+
+- 默认新建画布保存在 `<cwd>/.dsh/canvases/<name>.canvas.tsx`，同时自动发现工作区内已有的 `*.canvas.tsx` 文件。
+- Host 通过文件监听自动检测磁盘改动并增量重编译，无论智能体直接写文件、通过 `canvas_write` 更新，还是你在本地编辑器或面板源码页保存，预览都会热更新且保留交互状态。
+
+## 面板视图
+
+- **预览**：在 `sandbox="allow-scripts"` + 随机 nonce CSP（禁用网络与 `unsafe-eval`）的隔离 iframe 中运行，实时同步 DSH 明暗主题，支持全屏弹窗展开。
+- **源码**：直接编辑工作区 `.canvas.tsx` 文件，`Cmd/Ctrl+S` 即时保存并重新编译。
+- **历史**：查看最近 25 次修订记录与逐行 Diff，一键恢复到任意历史版本。
+- **诊断与状态**：展示 TypeScript 类型错误、策略检查结果与运行时报错，支持一键 **让智能体修复**（将路径与精确行号填入输入框），并可查看或重置持久化的 `useCanvasState`。
+
+## `dsh/canvas` SDK 概览
+
+- **Hooks**：`useHostTheme`、`useCanvasState`、`useCanvasAction`（`openFile` / `askInChat` / `copyText`）以及常用 React Hooks。
+- **布局与基础原语**：`Stack`、`Row`、`Grid`、`Card`、`CardHeader`、`CardBody`、`Callout`、`CollapsibleSection`、`H1`–`H3`、`Text`、`Code`、`Pill`、`Stat`、`Swatch`、`Tabs` 与基础表单控件。
+- **可视化与领域组件**：可排序 `Table`、`BarChart`、`LineChart`、`PieChart`、`UsageBar`、`DiffView`、`DiffStats`、`TodoList`、`TodoListCard`、`DAGView` 与 `computeDAGLayout`。

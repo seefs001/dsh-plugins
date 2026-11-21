@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Canvas",
+    "description": "Live sandboxed React Canvas artifacts beside chat with TypeScript checking, persistent state, revision diffs, and host actions."
+  }
+}

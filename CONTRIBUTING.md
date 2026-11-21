@@ -14,8 +14,9 @@ packages/<name>/
 └── README.md
 ```
 
-Most packages are plain ES modules with no build step. Three packages build artifacts:
+Most packages are plain ES modules with no build step. Four packages build artifacts:
 
+- `canvas`: rebuild the sandbox runtime chunk with `pnpm --filter dsh-canvas build` (`prepack` runs it automatically).
 - `diagram-preview`: rebuild lazy renderer chunks with `pnpm --filter dsh-diagram-preview build` after updating diagram dependencies.
 - `pi-tools`: browser half lives at `client.js`; rebuild Go runners with `pnpm --filter dsh-pi-tools build:runner:all` after changing `runner/` or Pi dependencies.
 - `message-actions`: build `lib/client.js` from `src/client.js` with `pnpm --filter dsh-message-actions build` (`prepack` runs it automatically).

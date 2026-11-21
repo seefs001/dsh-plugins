@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "画布",
+    "description": "在对话旁渲染沙箱隔离的交互式 React 画布，支持 TypeScript 类型诊断、持久化状态、版本对比与宿主联动。"
+  }
+}

@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-33 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
+34 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [在线文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -52,6 +52,7 @@
 |---|---|---|
 | [`dsh-compaction-status`](packages/compaction-status) | 上下文压缩时在输入框上方显示状态和耗时。 | Host + Web |
 | [`dsh-diagram-preview`](packages/diagram-preview) | 在对话中预览 Mermaid、Graphviz、ECharts 和 SVG 图表，并支持切回源码。 | Web |
+| [`dsh-canvas`](packages/canvas) | 按会话按需开启的交互式 React 画布：基于工作区 `.canvas.tsx` 文件，提供 TypeScript 诊断、沙箱热重载、持久化状态、版本对比与宿主联动。 | Host + Web |
 | [`dsh-side-chat`](packages/side-chat) | 在右栏沿用主聊预设独立追问，按需将引用带回主聊草稿。 | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 把用户消息中的引用渲染为可点击块，点击跳回原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 在工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理对话。 | Web |
@@ -97,7 +98,7 @@ dsh plugin --profile web add "link:$PWD/packages/model-reference"
 ## 配置与数据存储
 
 - **profile 配置（`cordis.patch.yml`）**：`model-reference`、`service-tier`、`auto-review-model`、`message-actions`、`web-access`、`image-gen`、`bark-notify`。
-- **Host storage domain（`~/.dsh/storages`）**：`session_groups`、`roles`、`cheat_sheet`、`auto_review_log`、`message_actions`、`session_lifecycle`、`session_lifecycle_summary`、`pi_tools_defaults`、`paseo_hub`、`acp_workbench`。
+- **Host storage domain（`~/.dsh/storages`）**：`session_groups`、`roles`、`cheat_sheet`、`auto_review_log`、`message_actions`、`session_lifecycle`、`session_lifecycle_summary`、`pi_tools_defaults`、`paseo_hub`、`acp_workbench`、`canvas`。
 - **DSH credentials**：`bark-notify/device`、`paseo-hub/{daemon,api}`。
 - **会话日志与浏览器存储**：`pi-tools` 工具选择与 `work-timeline` 快照保存在会话日志；`prompt-shortcut` 片段、`ai-mascot` 偏好与 `session-lifecycle` 分区折叠状态保存在浏览器 `localStorage`。
 

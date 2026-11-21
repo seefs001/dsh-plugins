@@ -11,6 +11,7 @@
   },
   "jsPlugins": ["./scripts/oxlint-plugin.mjs"],
   "ignorePatterns": [
+    "packages/canvas/lib/client.runtime.js",
     "packages/diagram-preview/lib/client.echarts.js",
     "packages/diagram-preview/lib/client.graphviz.js",
     "packages/diagram-preview/lib/client.mermaid.js",

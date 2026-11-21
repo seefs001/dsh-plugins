@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-33 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
+34 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation (中文)](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -52,6 +52,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 |---|---|---|
 | [`dsh-compaction-status`](packages/compaction-status) | Show context compaction status and elapsed time above the composer. | Host + Web |
 | [`dsh-diagram-preview`](packages/diagram-preview) | Render Mermaid, Graphviz, ECharts, and SVG blocks in chat, with a toggle back to source. | Web |
+| [`dsh-canvas`](packages/canvas) | Opt-in per-session live React Canvas artifacts from workspace `.canvas.tsx` files, with TypeScript checking, persistent state, revision diffs, and host actions. | Host + Web |
 | [`dsh-side-chat`](packages/side-chat) | Open a separate chat in the sidebar with the main session’s agent preset and bring its reference back to your draft. | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Turn quotes in user messages into clickable blocks that jump to and highlight the source. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Open skill files, full spill outputs, search hits, links, and subagent chats directly from tool-call rows. | Web |
@@ -97,7 +98,7 @@ If Plugin Manager reports `applied`, Host changes take effect immediately; if it
 ## Configuration and Storage
 
 - **Profile config (`cordis.patch.yml`)**: `model-reference`, `service-tier`, `auto-review-model`, `message-actions`, `web-access`, `image-gen`, and `bark-notify` settings.
-- **Host storage domains (`~/.dsh/storages`)**: `session_groups`, `roles`, `cheat_sheet`, `auto_review_log`, `message_actions`, `session_lifecycle`, `session_lifecycle_summary`, `pi_tools_defaults`, `paseo_hub`, and `acp_workbench`.
+- **Host storage domains (`~/.dsh/storages`)**: `session_groups`, `roles`, `cheat_sheet`, `auto_review_log`, `message_actions`, `session_lifecycle`, `session_lifecycle_summary`, `pi_tools_defaults`, `paseo_hub`, `acp_workbench`, and `canvas`.
 - **DSH credentials**: `bark-notify/device` and `paseo-hub/{daemon,api}`.
 - **Session log & `localStorage`**: `pi-tools` selection and `work-timeline` snapshots live in the session log; `prompt-shortcut` snippets, `ai-mascot` preferences, and `session-lifecycle` shelf fold states stay in browser `localStorage`.
 
