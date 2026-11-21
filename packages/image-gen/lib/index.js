@@ -384,8 +384,16 @@ export function toolOf(ctx, b, settings) {
     output: {
       schema: OUTPUT_SCHEMA,
       render: (_args, value) => renderResult(value),
-      presentationMeta: (_args, value) => ({
-        images: value.images.map(({ path, attachment }) => ({ path, ...(attachment ? { attachment } : {}) })),
+      presentationMeta: (args, value) => ({
+        model: value.model,
+        ...(typeof args?.prompt === 'string' && args.prompt.trim() !== '' ? { prompt: args.prompt.trim() } : {}),
+        images: value.images.map(({ path, attachment, revisedPrompt, bytes, mediaType }) => ({
+          path,
+          bytes,
+          mediaType,
+          ...(revisedPrompt ? { revisedPrompt } : {}),
+          ...(attachment ? { attachment } : {}),
+        })),
       }),
     },
     timeoutMs,

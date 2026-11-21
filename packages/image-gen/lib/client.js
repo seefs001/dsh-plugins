@@ -2,15 +2,32 @@ window.__ModuleLoader__.load({
   id: 'dsh-image-gen',
   factory(require) {
     const React = require('react')
-    const { Switch } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const {
+      DisclosureRow,
+      FileTypeIcon,
+      IconBrowseOutlineRegular,
+      IconInspectOutlineRegular,
+      Switch,
+      Tag,
+      TextShimmer,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'image-gen'
     const KEY = 'dsh-image-gen'
+    const TURN_DATA_KEY = 'image-gen-created'
+    const IMAGE_TOOLS = new Set(['openai_image', 'grok_image'])
     const SEP = '\u0000'
 
     const en = {
       rowOpenai: 'OpenAI image',
       rowGrok: 'Grok image',
+      imageCount: '{n} images',
+      imageSingle: '1 image',
+      stopped: 'Stopped',
+      inspect: 'Inspect',
+      revisedPrompt: 'Prompt used',
+      openFile: 'Open image file',
+      generatedHeading: 'Generated images',
       title: 'Image generation',
       hint: 'Each image tool calls the hosted image_generation tool through one of your local Responses models. The endpoint and key come from that model\'s provider.',
       onlyResponses: 'Only models on openai-responses providers are listed.',
@@ -35,6 +52,13 @@ window.__ModuleLoader__.load({
     const zh = {
       rowOpenai: 'OpenAI 画图',
       rowGrok: 'Grok 画图',
+      imageCount: '{n} 张图片',
+      imageSingle: '1 张图片',
+      stopped: '已中止',
+      inspect: '查看',
+      revisedPrompt: '实际提示词',
+      openFile: '打开图片文件',
+      generatedHeading: '生成的图片',
       title: '画图',
       hint: '每个画图工具都通过一个本地 Responses 模型调用托管的 image_generation 工具。地址和 key 取自该模型所在的 provider。',
       onlyResponses: '只列出 openai-responses 类型 provider 下的模型。',
@@ -80,6 +104,32 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.ig-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.ig-btn.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
 @media (pointer:coarse){.ig select,.ig input[type=text]{font-size:16px}}
 @media (max-width:560px){.ig-row{grid-template-columns:1fr}}
+.ig-card{display:flex;flex-direction:column}
+.ig-tool-row{min-width:0}
+.ig-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.ig-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.ig-summary.ig-err{color:var(--dsw-alias-state-error-primary)}
+.ig-summary.ig-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.ig-tag{flex:none;margin-left:6px}
+.ig-body{display:flex;flex-direction:column;gap:8px;margin:4px 0 4px 4px}
+.ig-meta-list{display:flex;flex-direction:column;gap:4px}
+.ig-meta-item{display:flex;flex-direction:column;gap:2px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.ig-file-link{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:0;border:0;background:none;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;text-align:left}
+.ig-file-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ig-file-size{flex:none;color:var(--dsw-alias-label-caption);font-size:11px}
+@media (hover:hover){.ig-file-link:hover{color:var(--dsw-alias-label-primary)}.ig-file-link:hover .ig-file-path{text-decoration:underline;text-underline-offset:3px}}
+.ig-revised{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+.ig-revised-label{color:var(--dsw-alias-label-caption);margin-right:6px;font-size:11px}
+.ig-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-state-error-primary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+.ig-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.ig-inspect:focus-visible{opacity:1}
+@media (hover:hover){.ig-card:hover .ig-inspect{opacity:1}.ig-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media (hover:none){.ig-inspect{opacity:1}}
+.ig-tail{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.ig-tail-files{display:flex;flex-wrap:wrap;gap:6px}
+.ig-tail-chip{display:inline-flex;align-items:center;gap:5px;max-width:300px;height:22px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer}
+.ig-tail-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (hover:hover){.ig-tail-chip:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 `
 
     async function getJson(path, init) {
@@ -116,6 +166,127 @@ window.__ModuleLoader__.load({
 
     const KINDS = ['openai', 'grok']
     const isRecord = v => v !== null && typeof v === 'object' && !Array.isArray(v)
+    const firstLine = text => {
+      if (typeof text !== 'string') return ''
+      const index = text.indexOf('\n')
+      return index === -1 ? text : text.slice(0, index)
+    }
+    const shortPath = (path, cwd, home) => {
+      if (cwd && path.startsWith(`${cwd}/`)) return path.slice(cwd.length + 1)
+      if (home && path.startsWith(`${home}/`)) return `~/${path.slice(home.length + 1)}`
+      return path
+    }
+    const baseName = path => path.replace(/\\/g, '/').split('/').filter(Boolean).slice(-1)[0] || path
+    const formatSize = bytes => {
+      if (!Number.isFinite(bytes) || bytes <= 0) return ''
+      if (bytes < 1024) return `${bytes} B`
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+    }
+    const formatDimensions = image => {
+      const att = image.attachment
+      const parts = []
+      if (Number.isFinite(att?.width) && Number.isFinite(att?.height)) parts.push(`${att.width}×${att.height}`)
+      const size = formatSize(att?.bytes ?? image.bytes)
+      if (size) parts.push(size)
+      return parts.join(' · ')
+    }
+    const resultText = block => {
+      if (!block || !('kind' in block) || !Array.isArray(block.content)) return ''
+      return block.content.filter(item => item.type === 'text').map(item => item.text).join('\n')
+    }
+    const parseMetaImages = meta => {
+      if (!isRecord(meta) || !Array.isArray(meta.images)) return []
+      return meta.images
+        .filter(item => isRecord(item) && typeof item.path === 'string' && item.path !== '')
+        .map(item => ({
+          path: item.path,
+          ...(isRecord(item.attachment) ? { attachment: item.attachment } : {}),
+          ...(typeof item.revisedPrompt === 'string' && item.revisedPrompt !== '' ? { revisedPrompt: item.revisedPrompt } : {}),
+          ...(typeof item.bytes === 'number' ? { bytes: item.bytes } : {}),
+        }))
+    }
+    const parseImageBlock = (phase, block) => {
+      const settled = phase === 'result' && block && 'kind' in block
+      const call = settled ? block.call : block
+      let args = {}
+      try {
+        const parsed = JSON.parse(call?.argsRaw ?? '{}')
+        if (isRecord(parsed)) args = parsed
+      } catch {}
+      const prompt = typeof args.prompt === 'string' ? args.prompt
+        : (typeof block?.meta?.prompt === 'string' ? block.meta.prompt : block?.args?.text?.('prompt') ?? '')
+      const state = phase === 'preparing' ? 'preparing'
+        : !settled ? 'running'
+          : block.error?.code === 'interrupted' ? 'stopped'
+            : block.isError ? 'error' : 'ok'
+      const images = state === 'ok' ? parseMetaImages(block.meta) : []
+      const model = state === 'ok' && typeof block.meta?.model === 'string' ? block.meta.model : ''
+      return { state, prompt, images, model, text: settled ? resultText(block) : '' }
+    }
+
+    const imageGenTurnDefinition = {
+      kind: TURN_DATA_KEY,
+      match(event) {
+        if (event.type === 'turn/start') return { id: String(event.data.turn), role: 'start' }
+        if (event.type === 'tool/call') return { id: String(event.data.turn), role: 'update' }
+        if (event.type === 'tool/result' && event.surfaceOp === 'append') {
+          return { id: String(event.data.turn), role: 'update' }
+        }
+        return null
+      },
+      start(_context, match) {
+        return { turn: match.event.data.turn, calls: new Map(), generated: [] }
+      },
+      update(context, match) {
+        if (match.event.type === 'tool/call') {
+          if (!IMAGE_TOOLS.has(match.event.data.name)) return context.state
+          const calls = new Map(context.state.calls)
+          calls.set(String(match.event.data.callId), {
+            name: match.event.data.name,
+            argsRaw: match.event.data.arguments,
+          })
+          return { ...context.state, calls }
+        }
+        if (match.event.type !== 'tool/result') return context.state
+        const message = match.event.data.message
+        if (message?.isError === true) return context.state
+        const callId = String(message?.source?.callId ?? '')
+        const call = context.state.calls.get(callId)
+        if (!call) return context.state
+        const images = parseMetaImages(match.event.data.meta).filter(image => isRecord(image.attachment))
+        if (images.length === 0) return context.state
+        const entry = { seq: match.event.seq, callId, toolName: call.name, images }
+        return { ...context.state, generated: [...context.state.generated, entry] }
+      },
+      buildLocationData(context, scope, previous) {
+        if (scope !== 'turn' || context.state === undefined) return null
+        if (previous?.kind === 'turn'
+          && previous.turn === context.state.turn
+          && previous.key === TURN_DATA_KEY
+          && previous.value?.generated === context.state.generated) return previous
+        return {
+          kind: 'turn',
+          turn: context.state.turn,
+          key: TURN_DATA_KEY,
+          value: { generated: context.state.generated },
+        }
+      },
+    }
+
+    const selectTurnImages = owner => {
+      const data = owner.turn?.data?.get?.(TURN_DATA_KEY)
+      if (!data || !Array.isArray(data.generated) || data.generated.length === 0) return []
+      const bound = owner.turn.end?.seq ?? owner.seq
+      const out = []
+      for (const entry of data.generated) {
+        if (entry.seq <= bound) {
+          for (const image of entry.images) out.push(image)
+        }
+      }
+      return out
+    }
+
     function normalize(s) {
       const out = { responsesProviders: Array.isArray(s?.responsesProviders) ? s.responsesProviders : [], status: s?.status ?? {}, outputDir: typeof s?.outputDir === 'string' ? s.outputDir : '' }
       for (const kind of KINDS) {
@@ -128,7 +299,7 @@ window.__ModuleLoader__.load({
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
     return {
-      inject: ['slots', 'locale', 'remote', 'remote.session'],
+      inject: ['slots', 'locale', 'remote', 'remote.session', 'uiConversation'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'image-gen: dictionaries')
         ctx.effect(() => {
@@ -139,57 +310,107 @@ window.__ModuleLoader__.load({
         }, 'image-gen: styles')
         const t = ctx.locale.bind(NS)
 
-        // external: dsh built-in read_image view is keyed strictly to read_image and reads images from content + tool.call.images
-        function ImageRow(props) {
-          const { block, toolName } = props
-          const base = [...ctx.slots.entries('tool.call.toolview')]
-            .filter(entry => entry.options?.key === 'read_image' && (entry.options.priority ?? 0) >= 0)
-            .toSorted((a, b) => (a.options.priority ?? 0) - (b.options.priority ?? 0))[0]
-          if (!base) return null
-
-          const settled = 'kind' in block
-          const call = settled ? block.call : block
-          let args = {}
-          try { args = JSON.parse(call?.argsRaw ?? '{}') ?? {} } catch {}
-          const prompt = typeof args.prompt === 'string' ? args.prompt : block.args?.text('prompt') ?? ''
-          const images = settled && !block.isError && isRecord(block.meta) && Array.isArray(block.meta.images)
-            ? block.meta.images.filter(i => isRecord(i) && typeof i.path === 'string' && isRecord(i.attachment))
-            : []
-          const label = images[0]?.path ?? (prompt || '…')
-          const displayCall = { ...call, name: 'read_image', argsRaw: JSON.stringify({ file_path: label }) }
-          let display
-          if (images.length > 0) {
-            const envelope = `<path>${images[0].path}</path>\n<type>image</type>\n<content>\n${images.map(i => i.path).join('\n')}\n</content>`
-            display = {
-              ...block,
-              call: displayCall,
-              content: [{ type: 'text', text: envelope }, ...images.map(i => ({ type: 'image', attachment: i.attachment }))],
-              meta: { path: images[0].path },
-            }
-          } else {
-            display = settled ? { ...block, call: displayCall } : { ...block, ...displayCall }
-          }
+        function ImageRow({ toolName, phase, block, cwd, home, sessionId, openFile, loadImage, inspect, renderSlot, useDisclosure, useContextMenu }) {
+          const { expanded, toggle } = useDisclosure()
+          const { getTriggerProps } = useContextMenu()
+          const parsed = parseImageBlock(phase, block)
           const title = toolName === 'grok_image' ? t('rowGrok') : t('rowOpenai')
-          return h(base.component, {
-            ...props,
-            renderSlot: (name, owner, options) => props.renderSlot(
-              name === 'tool.call.images' ? `image-gen.${toolName}.images` : name, owner, options),
-            toolName: 'read_image',
-            block: display,
-            t: (key, ...rest) => key === 'tool.title.readImage' ? title : props.t(key, ...rest),
-          })
+          const running = parsed.state === 'preparing' || parsed.state === 'running'
+          const gallery = parsed.images.filter(image => isRecord(image.attachment)).map(image => ({ attachment: image.attachment }))
+          const hasBody = (parsed.state === 'ok' && parsed.images.length > 0) || (parsed.state === 'error' && parsed.text.length > 0)
+          const open = expanded && hasBody
+
+          let summary = firstLine(parsed.prompt)
+          if (parsed.state === 'stopped') summary = t('stopped')
+          else if (parsed.state === 'error' && parsed.text) summary = firstLine(parsed.text)
+          const countLabel = parsed.state === 'ok' && parsed.images.length > 0
+            ? (parsed.images.length === 1 ? t('imageSingle') : t('imageCount', { n: parsed.images.length }))
+            : ''
+
+          return h('div', { className: 'ig-card', 'data-tool': toolName, 'data-state': parsed.state },
+            h(DisclosureRow, {
+              rowClassName: 'ig-tool-row',
+              icon: h(IconBrowseOutlineRegular, { size: 14 }),
+              title,
+              running,
+              open,
+              expandable: hasBody,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: parsed.state === 'preparing' ? null : h(React.Fragment, null,
+                summary ? h(React.Fragment, null,
+                  h('span', { className: 'ig-sep', 'aria-hidden': true }),
+                  h('span', { className: `ig-summary${parsed.state === 'error' ? ' ig-err' : parsed.state === 'stopped' ? ' ig-stop' : ''}` },
+                    h(TextShimmer, null, summary))) : null,
+                countLabel ? h(Tag, { className: 'ig-tag' }, countLabel) : null),
+            },
+            open ? h('div', { className: 'ig-body' },
+              gallery.length > 0 && renderSlot && loadImage
+                ? renderSlot(`image-gen.${toolName}.images`, { images: gallery, loadImage, align: 'start' })
+                : null,
+              parsed.images.length > 0 ? h('div', { className: 'ig-meta-list' },
+                parsed.images.map((image, index) => {
+                  const dims = formatDimensions(image)
+                  return h('div', { key: `${image.path}:${index}`, className: 'ig-meta-item' },
+                    h('button', {
+                      type: 'button',
+                      className: 'ig-file-link',
+                      title: `${t('openFile')}: ${image.path}`,
+                      ...getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: image.path } })),
+                      onClick: event => { event.stopPropagation(); openFile(image.path) },
+                    },
+                    h(FileTypeIcon, { path: image.path, size: 14 }),
+                    h('span', { className: 'ig-file-path' }, shortPath(image.path, cwd, home)),
+                    dims ? h('span', { className: 'ig-file-size' }, dims) : null),
+                    image.revisedPrompt ? h('div', { className: 'ig-revised' },
+                      h('span', { className: 'ig-revised-label' }, t('revisedPrompt')),
+                      image.revisedPrompt) : null)
+                })) : null,
+              parsed.state === 'error' && parsed.text ? h('pre', { className: 'ig-pre' }, parsed.text) : null,
+              inspect ? h('button', { type: 'button', className: 'ig-inspect', onClick: inspect },
+                h(IconInspectOutlineRegular, { size: 12 }), t('inspect')) : null) : null))
         }
 
         for (const key of ['openai_image', 'grok_image']) {
           ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
             name: 'tool.call.toolview',
             key,
-            locale: 'conversation',
+            locale: NS,
             priority: -10,
-            inject: () => ({ resolveFilePath: path => path }),
             children: { [`image-gen.${key}.images`]: { kind: 'single', scope: 'session' } },
           }, ImageRow))
           mirrorSlot(ctx, 'tool.call.images', `image-gen.${key}.images`)
+        }
+
+        if (ctx.uiConversation?.events?.register) {
+          ctx.effect(() => ctx.uiConversation.events.register(imageGenTurnDefinition), 'image-gen: turn data')
+          function ImageTurnTail({ turn, seq, openFile, renderSlot, loadImage }) {
+            const images = selectTurnImages({ turn, seq })
+            if (images.length === 0) return null
+            const gallery = images.map(image => ({ attachment: image.attachment }))
+            return h('div', { className: 'ig-tail', 'aria-label': t('generatedHeading') },
+              renderSlot && loadImage ? renderSlot('image-gen.tail.images', { images: gallery, loadImage, align: 'start' }) : null,
+              h('div', { className: 'ig-tail-files' },
+                images.map((image, index) => h('button', {
+                  key: `${image.path}:${index}`,
+                  type: 'button',
+                  className: 'ig-tail-chip',
+                  title: `${t('openFile')}: ${image.path}`,
+                  onClick: () => openFile(image.path),
+                }, h(FileTypeIcon, { path: image.path, size: 12 }), h('span', null, baseName(image.path))))))
+          }
+          ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({
+            name: 'conversation.chat.turnTail',
+            id: 'image-gen-gallery',
+            order: 15,
+            locale: NS,
+            inject: sessionId => ({
+              loadImage: attachment => ctx.uiConversation.imageUrl(sessionId, attachment),
+            }),
+            children: { 'image-gen.tail.images': { kind: 'single', scope: 'session' } },
+          }, ImageTurnTail))
+          mirrorSlot(ctx, 'tool.call.images', 'image-gen.tail.images')
         }
 
         function Settings() {
@@ -301,6 +522,7 @@ window.__ModuleLoader__.load({
           locale: NS,
         }, Settings))
       },
+      _internal: { parseImageBlock, imageGenTurnDefinition, selectTurnImages },
     }
   },
 })
