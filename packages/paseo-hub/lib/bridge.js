@@ -7,6 +7,7 @@ export const HUB_SERVER = 'hub'
 const PROTOCOL_FEATURES = {
   hubAgentRpc: true,
   agentRequestReceipts: true,
+  agentActiveTurnBehaviors: true,
   providersSnapshot: true,
   providersSnapshotCwd: true,
   hubAgentFileRead: true,
@@ -146,6 +147,7 @@ export class HubBridge {
         sessionId: typeof message.agentId === 'string' ? message.agentId : typeof message.workspaceId === 'string' ? message.workspaceId : null,
       })
       if (type === 'create_agent_request') return this.emit({ type: 'status', payload: { status: 'agent_create_failed', requestId, error: error?.message ?? String(error) } })
+      if (type === 'send_agent_message_request') return this.reply('send_agent_message_response', requestId, { agentId: message.agentId, accepted: false, error: error?.message ?? String(error) })
       this.rpcError(requestId, type, error)
     }
   }
@@ -350,14 +352,19 @@ export class HubBridge {
     const run = this.store.bySession(message.agentId)
     if (run === undefined) throw new RpcError(`Agent ${message.agentId} is not a Hub agent on this host`)
     if (this.ctx.workspaceRegistry?.archivedSessionIds?.includes(message.agentId)) throw new RpcError('Agent workspace is archived; restore it first')
+    const mode = message.activeTurnBehavior ?? 'queue'
+    if (mode !== 'queue' && mode !== 'steer') throw new RpcError(`DSH does not support activeTurnBehavior "${mode}" for Hub messages; send with queue or steer instead`)
     await this.ctx.sessionController.prompt({
       requestId: String(message.messageId ?? message.requestId),
       sessionId: message.agentId,
-      mode: message.activeTurnBehavior === 'steer' && this.ctx.agents.get(message.agentId)?.status === 'running' ? 'steer' : 'queue',
+      mode,
       content: [{ type: 'text', text: String(message.text ?? '') }],
     }, AbortSignal.timeout(30_000))
-    this.journal.add({ kind: 'run.message', message: `Hub sent a follow-up: ${String(message.text ?? '').slice(0, 160)}`, sessionId: message.agentId })
-    this.reply('send_agent_message_response', message.requestId, { agentId: message.agentId, accepted: true, error: null })
+    const guidance = mode === 'queue'
+      ? 'DSH accepted the follow-up for a turn after any current one. This does not confirm execution.'
+      : 'DSH accepted next-step input. This does not interrupt a turn or confirm that a running model received it.'
+    this.journal.add({ kind: 'run.message', message: `Hub follow-up (${mode}): ${guidance} ${String(message.text ?? '').slice(0, 160)}`, sessionId: message.agentId })
+    this.reply('send_agent_message_response', message.requestId, { agentId: message.agentId, accepted: true, deliveryStatus: 'queued', activeTurnBehavior: mode, guidance, error: null })
   }
 
   cancel(message) {
