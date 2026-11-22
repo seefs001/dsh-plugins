@@ -4,8 +4,8 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const {
-      Button, CodeBlock, DiffBlock, DisclosureRow, Input, JsonBlock, Modal, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, WebBlock, diffTotals,
-      IconBranchOutlineRegular, IconBrowseOutlineRegular, IconChecklistOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconPlayOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular,
+      Button, CodeBlock, DiffBlock, DisclosureRow, Input, JsonBlock, MarkdownText, Modal, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, TextShimmer, WebBlock, diffTotals,
+      IconBranchOutlineRegular, IconBrowseOutlineRegular, IconChecklistOutlineRegular, IconClockOutlineRegular, IconCodeOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconInspectOutlineRegular, IconPlayOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular, IconUsersOutlineRegular,
       IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular,
       IconWarningTriangleOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
@@ -143,6 +143,11 @@ window.__ModuleLoader__.load({
       nativeReadOnly: 'This record belongs to a DSH conversation. Send messages from that conversation.',
       storageError: 'History could not be saved: {message}',
       confirmTitle: 'Confirm action', confirmAction: 'Confirm', cancelAction: 'Cancel',
+      turnTrace: 'ACP trace', turnTraceHide: 'Hide ACP trace', turnTraceHint: 'Inspect ACP execution trace, MCP payloads, compactions, and CLI logs',
+      'tool.grepPaths': 'Search', 'tool.enterPlanMode': 'Enter plan mode', 'tool.exitPlanMode': 'Exit plan mode', 'tool.memoryRecall': 'Memory recall',
+      'tool.semanticSearch': 'Semantic search', 'tool.workflow': 'Workflow', 'tool.task': 'Task', 'tool.schedule': 'Schedule',
+      'tool.swarm': 'Swarm', 'tool.subagents': 'Subagents', 'tool.defineSubagent': 'Define subagent', 'tool.monitor': 'Monitor',
+      'tool.openPlanFile': 'Open plan file', 'tool.inspect': 'Inspect', 'tool.stopped': 'Stopped',
     }
     const zh = {
       panel: 'ACP 工作台', panelHint: '管理本机 ACP CLI 提供方、检测协议能力，并配置出现在 DSH 模型选择器中的模型。',
@@ -276,6 +281,11 @@ window.__ModuleLoader__.load({
       archiveHint: '归档前请先断开，工作区文件和 CLI 历史保留。',
       nativeReadOnly: '这条记录属于 DSH 会话，请在该会话中发送消息。',
       storageError: '历史记录无法保存：{message}',
+      turnTrace: 'ACP 轨迹', turnTraceHide: '收起 ACP 轨迹', turnTraceHint: '查看完整 ACP 执行轨迹、MCP 结构化输出、压缩记录与 CLI 日志',
+      'tool.grepPaths': '搜索', 'tool.enterPlanMode': '进入计划模式', 'tool.exitPlanMode': '退出计划模式', 'tool.memoryRecall': '召回记忆',
+      'tool.semanticSearch': '语义搜索', 'tool.workflow': '工作流', 'tool.task': '任务', 'tool.schedule': '定时任务',
+      'tool.swarm': '多代理协作', 'tool.subagents': '子代理管理', 'tool.defineSubagent': '定义子代理', 'tool.monitor': '监控',
+      'tool.openPlanFile': '打开计划文件', 'tool.inspect': '查看', 'tool.stopped': '已中止',
     }
 
     const CSS = `
@@ -506,6 +516,27 @@ window.__ModuleLoader__.load({
 .aw-tb-item[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-2))}
 .aw-tb-item:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .aw-tb-item:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:-2px}
+.aw-v2-trace{display:flex;flex-direction:column;gap:6px;margin-top:4px;min-width:0}
+.aw-v2-trace-btn{display:inline-flex;align-items:center;align-self:flex-start;gap:6px;height:24px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:11px;line-height:16px;cursor:pointer;transition:background-color .15s,color .15s,border-color .15s}
+@media (hover:hover){.aw-v2-trace-btn:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3);color:var(--dsw-alias-label-primary)}}
+.aw-v2-trace-btn[aria-expanded=true]{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l3)}
+.aw-tv-card{display:flex;flex-direction:column;min-width:0}
+.aw-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.aw-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.aw-tv-error{color:var(--dsw-alias-state-error-primary)}
+.aw-tv-stopped{color:var(--dsw-alias-state-warn-label)}
+.aw-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px;min-width:0}
+.aw-tv-panel{display:flex;flex-direction:column;gap:8px;max-height:320px;padding:10px 12px;overflow:auto;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block)}
+.aw-tv-pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:var(--dsw-font-markdown-code-block-small);color:var(--dsw-alias-label-secondary)}
+.aw-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
+.aw-tv-prose{font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);min-width:0}
+.aw-tv-files{display:flex;flex-wrap:wrap;gap:6px}
+.aw-tv-file{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (hover:hover){.aw-tv-file:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.aw-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:2px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.aw-tv-inspect:focus-visible{opacity:1}
+@media (hover:hover){.aw-tv-card:hover .aw-tv-inspect{opacity:1}.aw-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media (hover:none){.aw-tv-inspect{opacity:1}}
 `
 
     const ACTIVE_RUN = new Set(['preparing', 'running', 'waiting', 'canceling'])
@@ -680,6 +711,33 @@ window.__ModuleLoader__.load({
         ...(typeof parent === 'string' && parent.trim() && { cliParent: parent }) }
     }
 
+    function cursorTaskToolUpdate(params) {
+      if (!isPlainObj(params)) return null
+      const id = firstText(params.toolCallId, params.taskId, params.id)
+      if (!id) return null
+      const rawStatus = typeof params.status === 'string' ? params.status.toLowerCase() : ''
+      const status = rawStatus === 'completed' || rawStatus === 'done' || rawStatus === 'succeeded' ? 'completed'
+        : rawStatus === 'failed' || rawStatus === 'error' ? 'failed'
+          : rawStatus === 'cancelled' || rawStatus === 'canceled' ? 'cancelled'
+            : rawStatus === 'pending' ? 'pending' : 'in_progress'
+      const description = firstText(params.description, params.title) ?? 'Cursor task'
+      const resultText = firstText(params.result, params.output, params.summary, params.error)
+      return {
+        toolCallId: `cursor_task:${id}`,
+        name: 'Agent',
+        kind: 'think',
+        title: description,
+        status,
+        rawInput: defined({
+          description,
+          prompt: typeof params.prompt === 'string' ? params.prompt : undefined,
+          model: typeof params.model === 'string' ? params.model : undefined,
+          subagent_type: typeof params.subagentType === 'string' ? params.subagentType : typeof params.type === 'string' ? params.type : undefined,
+        }),
+        ...(resultText ? { content: [{ type: 'content', content: { type: 'text', text: resultText } }] } : {}),
+      }
+    }
+
     function timeline(events, remoteId) {
       const rows = []
       const tools = new Map()
@@ -688,13 +746,24 @@ window.__ModuleLoader__.load({
       for (const event of events) {
         const data = event.data ?? {}
         const update = updateOf(event)
+        const cursorMethod = data.method?.replace(/^_/u, '')
         const kind = update?.sessionUpdate, parent = cliParentOf(update), plan = namedPlan(update)
         if (event.type === 'initialize') connectionSeq = event.seq
         const totals = event.type === 'turn-result' ? sessionTotals(data.usage) : null
         const role = event.type === 'user-message' ? 'user' : kind === 'agent_message_chunk' ? 'assistant' : kind === 'agent_thought_chunk' ? 'thinking' : kind === 'user_message_chunk' ? 'user' : null
         const text = update?.content?.type === 'text' ? update.content.text : null
         const previous = rows.at(-1)
-        if (role || plan || kind === 'plan' || data.method?.replace(/^_/, '') === 'cursor/update_todos') section = event.seq
+        if (role || plan || kind === 'plan' || cursorMethod === 'cursor/update_todos') section = event.seq
+        if (cursorMethod === 'cursor/task') {
+          const taskUpdate = cursorTaskToolUpdate(data.params)
+          if (taskUpdate) {
+            const key = JSON.stringify([!!data.replay, data.turnId, taskUpdate.toolCallId])
+            let row = tools.get(key)
+            if (!row) { row = { kind: 'tool', seq: event.seq, section, turnId: data.turnId, tool: {}, cliTask: true, replay: !!data.replay }; tools.set(key, row); rows.push(row) }
+            row.tool = mergeToolUpdate(row.tool, taskUpdate)
+          }
+          continue
+        }
         if (role && parent) {
           if (role === 'thinking') continue
           const content = update.content, value = text ?? content?.resource?.text, input = role === 'user'
@@ -791,17 +860,19 @@ window.__ModuleLoader__.load({
     }
     function writeIntent(tool, input) {
       const wire = tool.name, meta = tool._meta?.claudeCode?.toolName
-      if (tool.kind !== 'edit' || (wire ?? meta) !== 'Write' || (meta != null && meta !== 'Write')) return null
-      const path = typeof input.file_path === 'string' ? input.file_path : input.path
-      if (!firstText(path)) return null
-      const content = input.content ?? input.file_text ?? input.file_content
+      const name = wire ?? meta
+      const isWriteName = name === 'Write' || name === 'write_file' || name === 'write_to_file'
+      if (tool.kind !== 'edit' || !isWriteName || (meta != null && meta !== 'Write' && meta !== 'write_file' && meta !== 'write_to_file')) return null
+      const path = firstText(input.file_path, input.path, input.Path, input.target_file, input.TargetFile)
+      if (!path) return null
+      const content = input.content ?? input.Content ?? input.CodeContent ?? input.contents ?? input.file_text ?? input.file_content
       return { path, content: typeof content === 'string' ? content : undefined }
     }
     function toolFace(tool, terminal, approval = false) {
       const input = tool.rawInput ?? {}, out = tool.rawOutput ?? {}
       const blocks = Array.isArray(tool.content) ? tool.content.filter(Boolean) : []
       const mcp = mcpIdentity(tool, approval)
-      const path = !mcp && tool.kind !== 'fetch' && firstText(input.file_path, input.path, input.filePath, input.AbsolutePath, input.TargetFile)
+      const path = !mcp && tool.kind !== 'fetch' && firstText(input.file_path, input.path, input.Path, input.filePath, input.target_file, input.notebook_path, input.AbsolutePath, input.TargetFile)
       const argv = Array.isArray(input.command) && input.command.length && input.command.every(s => typeof s === 'string') ? input.command : null
       const command = !mcp ? firstText(input.command, input.CommandLine) ?? (argv && (terminal || tool.kind === 'execute') ? JSON.stringify(argv) : undefined) : undefined
       const kind = mcp ? 'mcp' : kindIcons.has(tool.kind) ? tool.kind : blocks.some(validDiff) ? 'edit' : command ? 'execute' : 'other'
@@ -811,11 +882,16 @@ window.__ModuleLoader__.load({
         if (seen.has(key) || (!l.line && seen.has(l.path))) return false
         seen.add(key); seen.add(l.path); return true
       })
-      const query = firstText(input.pattern, input.query, input.Query, input.SearchTerm)
+      const query = firstText(input.pattern, input.query, input.Query, input.SearchTerm, input.glob)
       const web = kind === 'fetch' ? webAction(tool, input) : null
       const focus = mcp ? [mcp.server, mcp.name].filter(Boolean).join(' / ') : kind === 'execute' ? command : web ? firstText(web.pattern, web.url, web.queries?.join(', '), web.query, query) : kind === 'search' ? query : kind === 'think' ? firstText(input.description) : undefined
       const lastExit = tool.toolCallId && tool._meta?.terminal_exit?.terminal_id === tool.toolCallId ? tool._meta.terminal_exit : null
-      const exitCode = terminal?.exitCode ?? (out.call_id == null || out.call_id === tool.toolCallId ? [out.exitCode, out.exit_code, out.return_code].find(Number.isInteger) : undefined) ?? (Number.isInteger(lastExit?.exit_code) ? lastExit.exit_code : undefined)
+      let exitCode = terminal?.exitCode ?? (out.call_id == null || out.call_id === tool.toolCallId ? [out.exitCode, out.exit_code, out.return_code].find(Number.isInteger) : undefined) ?? (Number.isInteger(lastExit?.exit_code) ? lastExit.exit_code : undefined)
+      if (exitCode === undefined && !mcp && kind === 'execute' && tool.status === 'failed') {
+        const headText = blocks.filter(plainText).map(b => unwrap(b).text).join('\n') || (typeof out === 'string' ? out : '')
+        const m = /^Exit code (-?\d+)\b/u.exec(headText.trimStart())
+        if (m) exitCode = Number(m[1])
+      }
       const signal = terminal?.signal ?? firstText(lastExit?.signal)
       return { kind, mcp, web, write: !mcp && writeIntent(tool, input), input, blocks, targets, command, focus, exitCode: mcp ? undefined : exitCode, signal: mcp ? undefined : signal, hasTerminal: !!terminal }
     }
@@ -824,7 +900,7 @@ window.__ModuleLoader__.load({
     function callState(tool, face, live) {
       const out = tool.rawOutput
       if (tool.status === 'cancelled' || tool.status === 'canceled') return 'cancelled'
-      if (tool.status === 'failed' || (face.exitCode !== undefined && face.exitCode !== 0) || (face.mcp ? face.mcp.source === 'codex' && Array.isArray(out?.content) && out.isError === true : out?.isError === true || out?.is_error === true) || face.signal) return 'failed'
+      if (tool.status === 'failed' || (face.exitCode !== undefined && face.exitCode !== 0) || out?.isError === true || out?.is_error === true || face.signal) return 'failed'
       if (tool.status === 'completed') return 'completed'
       return live ? (tool.status === 'in_progress' ? 'in_progress' : 'pending') : 'unfinished'
     }
@@ -934,7 +1010,7 @@ window.__ModuleLoader__.load({
     function webAction(tool, input) {
       const name = firstText(tool.name, tool._meta?.claudeCode?.toolName), same = !tool.name || !tool._meta?.claudeCode?.toolName || tool.name === tool._meta.claudeCode.toolName
       const url = firstText(input.url, input.Url), query = firstText(input.query, input.Query, input.SearchTerm)
-      const mode = same && name === 'WebSearch' ? 'search' : same && name === 'WebFetch' ? 'page' : 'unknown'
+      const mode = same && (name === 'WebSearch' || name === 'search_web') ? 'search' : same && (name === 'WebFetch' || name === 'read_url_content') ? 'page' : 'unknown'
       const a = input.action
       if (!name && typeof input.query === 'string' && a && ['search', 'open_page', 'find_in_page'].includes(a.type)) {
         const queries = textList(a.queries)
@@ -944,44 +1020,85 @@ window.__ModuleLoader__.load({
         offset: same && name === 'WebFetch' && Number.isSafeInteger(input.offset) && input.offset >= 0 ? input.offset : undefined,
         allowed: mode === 'search' ? textList(input.allowed_domains) : [], blocked: mode === 'search' ? textList(input.blocked_domains) : [] }
     }
-    // external: Claude Code WebSearch emits "Title (url)" lines interleaved with plain text
+    // external: Claude Code WebSearch emits "Title (url)" lines; Antigravity/Cursor also emit Markdown "[Title](url)" source lines
     function webSections(text, mixed) {
       if (!text) return []
-      const sections = [], lines = text.split(/\r?\n/u)
+      const sections = [], lines = text.split(/\r?\n/u), seenUrls = new Set()
       for (const line of lines) {
-        const hit = /^(.+) \((https?:\/\/[^\s]+)\)$/iu.exec(line), url = hit && webAddress(hit[2])
+        const trimmed = line.trim()
+        if (/^Sources:?$/iu.test(trimmed) && mixed) continue
+        const paren = /^(.+) \((https?:\/\/[^\s)]+)\)$/iu.exec(trimmed)
+        const md = !paren ? /^(?:[-*+]\s+|\[\d+\]\s+|\d+\.\s+)?\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)(?:\s*[—:-]\s*(.*))?$/iu.exec(trimmed) : null
+        const url = paren ? webAddress(paren[2]) : md ? webAddress(md[2]) : null
         if (!url && !mixed) return [{ text }]
         const last = sections.at(-1)
-        if (url) { const source = { title: hit[1], url }; if (last?.sources) last.sources.push(source); else sections.push({ sources: [source] }) }
+        if (url) {
+          if (seenUrls.has(url)) continue
+          seenUrls.add(url)
+          const title = (paren ? paren[1] : md[1]).trim()
+          const source = { title, url }
+          if (last?.sources) last.sources.push(source); else sections.push({ sources: [source] })
+        }
         else if (last && !last.sources) last.text += '\n' + line
         else sections.push({ text: line })
       }
       return sections
     }
     function numberedRead(text) {
-      const rows = text.replace(/\r?\n$/u, '').split(/\r?\n/u).map(line => /^\s*(\d+)\t(.*)$/u.exec(line))
+      if (!text) return null
+      const rawLines = text.replace(/\r?\n$/u, '').split(/\r?\n/u)
+      while (rawLines.length > 0 && (/^(?:Showing lines \d+-\d+ of \d+|Partial read \(|Created At:|Completed At:)/u.test(rawLines[0].trim()) || rawLines[0].trim() === '')) {
+        if (rawLines[0].trim() === '' && rawLines.length > 1 && /^\s*\d+(?:\t|→|: )/u.test(rawLines[1])) { rawLines.shift(); continue }
+        if (/^(?:Showing lines \d+-\d+ of \d+|Partial read \(|Created At:|Completed At:)/u.test(rawLines[0].trim())) { rawLines.shift(); continue }
+        break
+      }
+      while (rawLines.length > 0 && /^\[File truncated:[^\]]*\]$/u.test(rawLines[rawLines.length - 1].trim())) rawLines.pop()
+      if (!rawLines.length) return null
+      const rows = rawLines.map(line => /^\s*(\d+)(?:\t|→|: )(.*)$/u.exec(line))
       if (rows.some((row, i) => !row || !Number.isSafeInteger(+row[1]) || +row[1] < 1 || (i && +row[1] <= +rows[i - 1][1]))) return null
       return rows.map(row => ({ number: +row[1], text: row[2] }))
     }
     function searchResult(raw, text, input = {}) {
-      const mode = raw?.mode ?? input.output_mode ?? ([true, 'true'].includes(input['-c']) ? 'count' : undefined)
+      const mode = raw?.mode ?? input.output_mode ?? ([true, 'true'].includes(input['-c']) ? 'count' : [true, 'true'].includes(input['-l']) ? 'files_with_matches' : undefined)
       if (mode === 'count') return null
       const paths = raw?.filenames ?? raw?.paths, listed = Array.isArray(paths) && paths.every(p => typeof p === 'string' && p.trim())
       if (mode !== 'content' && listed && (paths.length || !text)) return { kind: 'paths', paths, total: paths.length, truncated: raw.truncated === true }
-      if (mode === 'files_with_matches') return null
       const output = mode === 'content' ? firstText(raw?.content, text) : text
       if (!output) return null
-      const files = new Map(), rows = output.replace(/\r?\n$/u, '').split(/\r?\n/u)
+      const rawRows = output.replace(/\r?\n$/u, '').split(/\r?\n/u)
+      let truncated = raw?.truncated === true
+      const rows = []
+      for (const line of rawRows) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed === '--') continue
+        if (/^(?:\.\.\.|…|\[(?:truncated|more|\d+ more|results truncated)|Showing first \d+|Results truncated)/iu.test(trimmed)) { truncated = true; continue }
+        rows.push(line)
+      }
+      if (!rows.length) return null
+      if (mode === 'files_with_matches') {
+        const cleanPaths = rows.map(line => line.trim()).filter(p => p && !/\s/u.test(p) && (p.includes('/') || p.includes('\\') || /\.[A-Za-z0-9]{1,10}$/u.test(p)))
+        if (cleanPaths.length === rows.length) return { kind: 'paths', paths: cleanPaths, total: cleanPaths.length, truncated }
+        return null
+      }
+      const files = new Map()
       const single = mode === 'content' && listed && paths.length === 1 && (raw.numFiles == null || raw.numFiles === 1) ? paths[0] : null
+      let matchCount = 0
       for (const line of rows) {
         if (!single && mode === 'content' && /^\d+:/u.test(line)) return null
         const bare = single && /^(\d+):(.*)$/u.exec(line)
         const m = bare ? [null, single, bare[1], bare[2]] : /^(.+?):(\d+):(.*)$/u.exec(line)
-        if (!m || !Number.isSafeInteger(+m[2]) || +m[2] < 1) return null
+        if (!m || !Number.isSafeInteger(+m[2]) || +m[2] < 1) {
+          const allPaths = rows.map(r => r.trim())
+          if (allPaths.every(p => p && !/\s/u.test(p) && (p.includes('/') || p.includes('\\') || /\.[A-Za-z0-9]{1,10}$/u.test(p)))) {
+            return { kind: 'paths', paths: allPaths, total: allPaths.length, truncated }
+          }
+          return null
+        }
         if (!files.has(m[1])) files.set(m[1], { path: m[1], matches: [] })
         files.get(m[1]).matches.push({ lineNumber: +m[2], line: m[3] })
+        matchCount++
       }
-      return { kind: 'matches', files: [...files.values()], total: rows.length, truncated: raw?.truncated === true }
+      return { kind: 'matches', files: [...files.values()], total: matchCount, truncated }
     }
 
     function booleanSelectPair(choices) {
@@ -1469,9 +1586,9 @@ window.__ModuleLoader__.load({
           const evidence = face.blocks.length || !extras.length ? patchFrame : undefined
           const patch = React.useMemo(() => patchInventory(tool, extras, evidence), [tool, extras, evidence])
           const { input, targets, kind, command, exitCode, signal } = face
-          const description = terminal && firstText(input.description, input.command_description)
+          const description = terminal && firstText(input.description, input.command_description, input.toolSummary)
           const reportNote = terminal ? [description, display || (!terminalOutput && text)].filter((s, i, all) => s && s !== command && s !== terminal.text && s !== terminalOutput && all.indexOf(s) === i).join('\n') : note
-          const base = !face.mcp && firstText(input.cwd, input.workdir, input.Cwd), directory = base ? reportedPath(base, cwd) : cwd
+          const base = !face.mcp && firstText(input.cwd, input.workdir, input.working_directory, input.Cwd, input.target_directory), directory = base ? reportedPath(base, cwd) : cwd
           const [inspect, setInspect] = React.useState(false)
           const state = callState(tool, face, live), pending = state === 'in_progress'
           const fileLang = kind === 'read' ? targets[0]?.path.match(/\.([a-z0-9]+)$/iu)?.[1]?.toLowerCase() : undefined
@@ -1479,11 +1596,11 @@ window.__ModuleLoader__.load({
           if (face.mcp) {
             body = h(McpReport, { tool, face, approval })
           } else if (terminal && !approval) {
-            body = h(CommandReport, { term: terminal, face, final: terminalOutput, labels, live, state, cwd: terminal.cwd ?? firstText(input.cwd, input.workdir, input.Cwd, cwd) })
+            body = h(CommandReport, { term: terminal, face, final: terminalOutput, labels, live, state, cwd: terminal.cwd ?? firstText(input.cwd, input.workdir, input.working_directory, input.Cwd, cwd) })
           } else if (kind === 'execute' && command) {
             const settled = ['completed', 'failed'].includes(tool.status) || exitCode !== undefined || !!signal
             body = !approval && (pending || settled) ? h(TerminalBlock, { labels, command, output: text || undefined,
-              cwd: firstText(input.cwd, input.workdir, input.Cwd, cwd), running: !!pending, exitCode, signal, maxLines: 8,
+              cwd: firstText(input.cwd, input.workdir, input.working_directory, input.Cwd, cwd), running: !!pending, exitCode, signal, maxLines: 8,
               runStateDot: pending || !!signal || (exitCode !== undefined && !(state === 'failed' && exitCode === 0)) }) :
               h(React.Fragment, null, h('pre', { className: 'aw-log aw-command' }, command), text ? h('pre', { className: 'aw-log' }, text) : null)
           } else if (kind === 'read' && text && state !== 'failed') {
@@ -1501,14 +1618,16 @@ window.__ModuleLoader__.load({
           if (!body && text) body = ['read', 'search', 'execute'].includes(kind) ? h('div', { className: 'aw-code-window' },
             h(CodeBlock, { code: text, lang: fileLang || 'text', copyLabel: labels.copy, copiedLabel: labels.copied, toolbarLabels: labels })) : h('div', { className: 'aw-output aw-text' }, text)
           if (patch.files.size > 1) locations = locations.filter(l => !patch.files.has(l.path))
-          const proposed = kind === 'edit' && !patch.files.size && targets.length === 1 && (!patchFrame || ['permission','launch'].includes(patchFrame.stage)) && typeof input.old_string === 'string' && typeof input.new_string === 'string'
+          const propOld = typeof input.old_string === 'string' ? input.old_string : typeof input.Target === 'string' ? input.Target : undefined
+          const propNew = typeof input.new_string === 'string' ? input.new_string : typeof input.Replacement === 'string' ? input.Replacement : undefined
+          const proposed = kind === 'edit' && !patch.files.size && targets.length === 1 && (!patchFrame || ['permission','launch'].includes(patchFrame.stage)) && typeof propOld === 'string' && typeof propNew === 'string'
           return h('div', { className: 'aw-detail aw-call-detail' },
             !approval && isClaudeCompactTool(tool) ? h(CompactionFacts, { facts: compactionFacts(tool.rawOutput) }) : null,
             locations.length ? h(ToolTargets, { targets: locations, cwd: directory, openFile }) : null,
-            !face.mcp && (kind === 'other' || approval) ? h(FieldList, { value: input, label: t('input'), omit: [command, ...(face.web ? [face.web.url, face.web.query, face.web.prompt, face.web.offset] : []), ...targets.map(l => l.path), face.write?.content, ...(proposed || extras.some(validDiff) ? [input.old_string, input.new_string] : [])] }) : null,
+            !face.mcp && (kind === 'other' || approval) ? h(FieldList, { value: input, label: t('input'), omit: [command, ...(face.web ? [face.web.url, face.web.query, face.web.prompt, face.web.offset] : []), ...targets.map(l => l.path), face.write?.content, ...(proposed || extras.some(validDiff) ? [propOld, propNew] : [])] }) : null,
             !text && !extras.length && kind === 'other' ? h(FieldList, { value: tool.rawOutput, label: t('output') }) : null,
             proposed ? h('div', { className: 'aw-section' }, h('span', { className: 'aw-note' }, t('proposed')),
-              h(DiffBlock, { labels, maxLines: 8, diffs: [{ path: targets[0].path, oldText: input.old_string, newText: input.new_string }] })) : null,
+              h(DiffBlock, { labels, maxLines: 8, diffs: [{ path: targets[0].path, oldText: propOld, newText: propNew }] })) : null,
             !face.mcp && reportNote ? h('p', { className: 'aw-note aw-output' }, reportNote) : null, body,
             face.write?.content !== undefined ? h(WritePreview, { write: face.write, inventory: patch, frame: evidence, targets, cwd: directory, openFile, labels }) :
               h(PatchPreview, { inventory: patch, frame: evidence, targets, cwd: directory, openFile }),
@@ -2063,6 +2182,42 @@ window.__ModuleLoader__.load({
             h('p', { className: 'aw-note' }, chosen?.description || tt('commandHint')))
         }
 
+        function encodeSegment(segment) { return encodeURIComponent(segment).replace(/%3A/gi, ':') }
+        function joinCwd(cwd, rel) {
+          const rawBase = typeof cwd === 'string' ? cwd.replace(/\\/gu, '/') : ''
+          const base = rawBase.replace(/\/+$/u, '') || (rawBase.startsWith('/') ? '/' : '')
+          if (!base) return rel.replace(/^(?:\.\/)+/u, '')
+          const joined = base.endsWith('/') ? `${base}${rel}` : `${base}/${rel}`
+          const prefixMatch = /^(?:[A-Za-z]:\/|\/\/[^/]+\/[^/]+\/|\/)/u.exec(joined)
+          const prefix = prefixMatch ? prefixMatch[0] : ''
+          const parts = []
+          for (const segment of joined.slice(prefix.length).split('/')) {
+            if (!segment || segment === '.') continue
+            if (segment === '..') {
+              if (parts.length > 0 && parts[parts.length - 1] !== '..') parts.pop()
+              else if (!prefix) parts.push('..')
+            } else {
+              parts.push(segment)
+            }
+          }
+          return `${prefix}${parts.join('/')}`
+        }
+        function fileAddressFor(targetSessionId, cwd, path) {
+          const normalized = path.replace(/\\/gu, '/')
+          const absolute = normalized.startsWith('/') || /^[A-Za-z]:\//u.test(normalized) || normalized.startsWith('//')
+          const target = absolute ? normalized : joinCwd(cwd, normalized)
+          return `dsh-resource://file/session/${encodeSegment(targetSessionId)}/${target.split('/').map(encodeSegment).join('/')}`
+        }
+        function makeOpenFile(targetSessionId, cwd) {
+          const sidebar = ctx.get('sidebarRight')
+          if (!sidebar || !targetSessionId) return undefined
+          return (path, opts) => {
+            if (typeof path !== 'string' || !path.trim()) return
+            const uri = fileAddressFor(targetSessionId, cwd, path)
+            try { sidebar.openResource(uri, Number.isInteger(opts?.line) && opts.line > 0 ? { line: opts.line } : undefined) } catch {}
+          }
+        }
+
         function NativeTrace({ sessionId, turn, step, messageId, reference, openFile, collapsible = false, defaultOpen = false }) {
           const tt = useT()
           const view = useNative(sessionId)
@@ -2171,7 +2326,7 @@ window.__ModuleLoader__.load({
                 run.handoff !== undefined ? h('span', null, tt(run.handoff ? 'handoff' : 'sameContext')) : null,
                 events[0]?.seq > from ? h(Button, { size: 'sm', variant: 'ghost', disabled: loadingOlder, onClick: older }, tt('older')) : null) : null,
               run.stopReason && run.stopReason !== 'end_turn' ? h('p', { className: 'aw-note' }, tt('stopReason', { reason: run.stopReason })) : null,
-              (raw ? ready || events.length : traceReady) ? h(TraceList, { key: `${session.id}:${run.id}`, recordId: session.id, events, folded: raw ? undefined : fallback.rows, raw, interactions: current?.interactions ?? EMPTY, live: active, conversation: true, openFile, cwd: session.cwd }) : h('p', { className: 'aw-note' }, tt('loading')),
+              (raw ? ready || events.length : traceReady) ? h(TraceList, { key: `${session.id}:${run.id}`, recordId: session.id, remoteId: session.remoteId, events, folded: raw ? undefined : fallback.rows, raw, interactions: current?.interactions ?? EMPTY, live: active, conversation: true, openFile, cwd: session.cwd }) : h('p', { className: 'aw-note' }, tt('loading')),
               run.error ? h('p', { className: 'aw-error', role: 'alert' }, run.error) : null,
               error || view.error ? h('p', { className: 'aw-error', role: 'alert' }, error || view.error) : null,
               collapsible ? h('div', { className: 'aw-trace-foot' }, h(Button, { size: 'sm', variant: 'ghost', onClick: () => { setOpen(false); requestAnimationFrame(() => traceRef.current?.scrollIntoView({ block: 'nearest' })) } }, tt('collapseTrace'))) : null) : (
@@ -2220,7 +2375,7 @@ window.__ModuleLoader__.load({
               child.activity.stopId ? h(Button, { size: 'sm', variant: 'ghost', disabled: !canWrite || view.busy || child.state === 'canceling', onClick: () => view.run(stopOperation(child)) }, tt('stop')) : null,
               latest ? h(Toggle, { open: expanded, label: tt(expanded ? 'collapse' : 'expand'), onClick: () => setExpanded(!expanded) }) : null),
             child.interactions.map(item => h(InteractionCard, { key: item.id, item, sessionId: child.id, cwd: child.cwd, run: view.run, disabled: view.busy || !canWrite, inline: true })),
-            expanded && latest ? h('div', { className: 'aw-child-body' }, h(NativeTrace, { sessionId, reference: { sessionId: child.id, turnId: latest.id } })) : null)
+            expanded && latest ? h('div', { className: 'aw-child-body' }, h(NativeTrace, { sessionId, openFile: makeOpenFile(child.native?.sessionId ?? sessionId, child.cwd), reference: { sessionId: child.id, turnId: latest.id } })) : null)
         }
 
         function PreviousMessages({ binding }) {
@@ -2243,7 +2398,7 @@ window.__ModuleLoader__.load({
           return h('div', { className: 'aw-section' }, h('div', { className: 'aw-row' },
             h(Button, { size: 'sm', variant: 'ghost', disabled: pending, 'aria-expanded': !!page, onClick: () => page ? setPage(null) : earlier() }, tt(page ? 'hidePrevious' : pending ? 'loading' : 'previousMessages')),
             page && page.from > range.from ? h(Button, { size: 'sm', variant: 'ghost', disabled: pending, onClick: earlier }, tt('older')) : null),
-            page ? h('div', { className: 'aw-previous', role: 'region', 'aria-label': tt('previousMessages'), tabIndex: 0 }, page.events.length ? h(TraceList, { key: binding.id, events: page.events, cwd: binding.cwd, live: false, conversation: false }) : h('p', { className: 'aw-note' }, tt('noReplay'))) : null,
+            page ? h('div', { className: 'aw-previous', role: 'region', 'aria-label': tt('previousMessages'), tabIndex: 0 }, page.events.length ? h(TraceList, { key: binding.id, recordId: binding.id, remoteId: binding.remoteId, openFile: makeOpenFile(binding.native?.sessionId, binding.cwd), events: page.events, cwd: binding.cwd, live: false, conversation: false }) : h('p', { className: 'aw-note' }, tt('noReplay'))) : null,
             error ? h('p', { className: 'aw-error', role: 'alert' }, error) : null)
         }
 
@@ -2469,10 +2624,11 @@ window.__ModuleLoader__.load({
           }
           return ''
         }
-        function AcpTurnReplyToggle({ sessionId, turn, seq }) {
+        function AcpTurnReplyToggle({ sessionId, turn, seq, openFile }) {
           const tt = useT()
           const view = useNative(sessionId)
           const btnRef = React.useRef(null)
+          const [traceOpen, setTraceOpen] = React.useState(false)
           const steps = (turn?.steps ?? EMPTY).map(step => step.data.get('assistant-step')).filter(Boolean)
           const acpStep = steps.findLast(step => step.finalNode?.source?.provider?.startsWith('acp-'))
           const matchedSession = acpStep
@@ -2482,6 +2638,7 @@ window.__ModuleLoader__.load({
           const route = acpStep?.finalNode?.source?.provider ?? matchedSession?.native?.route
           const visibleBlocks = steps.flatMap(step => (step.blocks ?? EMPTY).filter(block =>
             block.kind !== 'reasoning' && block.kind !== 'tool-call' && (block.kind !== 'text' || block.text.trim() !== '')))
+          const isV2AcpTurn = !!route?.startsWith('acp-') && !!matchedRun && matchedRun.nativeVersion >= 2
           const isAcpReply = !!route?.startsWith('acp-') && !!matchedRun && !(matchedRun.nativeVersion >= 2) && visibleBlocks.length > 0
           const messageId = acpStep?.finalNode?.messageId ?? steps.at(-1)?.finalNode?.messageId
           const replyKey = `${sessionId}:${turn?.turn ?? 0}:${messageId ?? seq}`
@@ -2517,6 +2674,33 @@ window.__ModuleLoader__.load({
               }
             }
           }, [isAcpReply, collapsed, replyKey, turn?.turn, steps.length])
+          if (isV2AcpTurn) {
+            const active = ACTIVE_RUN.has(matchedRun.state)
+            const hasAlert = Boolean(matchedRun.error || matchedRun.state === 'failed' || matchedRun.state === 'interrupted')
+            const dotState = active ? 'ongoing' : matchedRun.state === 'failed' || matchedRun.error ? 'error' : matchedRun.state === 'interrupted' ? 'warning' : null
+            const toolCount = matchedRun.tools > 0 ? (matchedRun.tools === 1 ? tt('traceTool') : tt('traceTools', { n: matchedRun.tools })) : null
+            const resolvedOpenFile = openFile ?? makeOpenFile(sessionId, matchedSession?.cwd)
+            return h('div', { className: 'acpw aw-v2-trace' },
+              h('button', {
+                type: 'button',
+                className: 'aw-v2-trace-btn',
+                'aria-expanded': traceOpen,
+                title: tt('turnTraceHint'),
+                onClick: () => setTraceOpen(v => !v),
+              },
+              dotState ? h(StateDot, { state: settle(dotState, active), size: 7 }) : null,
+              h('span', null, tt(traceOpen ? 'turnTraceHide' : 'turnTrace')),
+              toolCount ? h('span', { className: 'aw-muted' }, `· ${toolCount}`) : null,
+              hasAlert && !traceOpen && matchedRun.stopReason && matchedRun.stopReason !== 'end_turn' ? h('span', { className: 'aw-muted' }, `· ${matchedRun.stopReason}`) : null,
+              h(traceOpen ? IconChevronUpOutlineRegular : IconChevronDownOutlineRegular, { size: 12 })),
+              traceOpen ? h(NativeTrace, {
+                sessionId,
+                openFile: resolvedOpenFile,
+                reference: { sessionId: matchedSession.id, turnId: matchedRun.id },
+                collapsible: false,
+                defaultOpen: true,
+              }) : null)
+          }
           if (!isAcpReply) return null
           const providerLabel = view.data?.providers.find(p => p.route === route)?.label ?? route.slice(4)
           const fullText = visibleBlocks.filter(b => b.kind === 'text').map(b => b.text).join('\n\n')
@@ -2661,12 +2845,195 @@ window.__ModuleLoader__.load({
             }))
         }
 
+        const GREP_PATHS_PRIORITY = -5
+        function tvParseArgs(block) {
+          const raw = ('kind' in block ? block.call?.argsRaw : block.argsRaw) ?? ''
+          try {
+            const parsed = JSON.parse(raw)
+            if (isPlainObj(parsed)) return { raw, args: parsed }
+          } catch {}
+          return { raw, args: null }
+        }
+        function tvResultText(block) {
+          if (!('kind' in block)) return null
+          const parts = []
+          for (const item of block.content ?? EMPTY) {
+            if (item?.type === 'text' && typeof item.text === 'string') parts.push(item.text)
+            else if (item) parts.push(JSON.stringify(item, null, 2))
+          }
+          if (!parts.length && block.error !== undefined) parts.push(`${block.error.name ?? 'Error'}: ${block.error.code ?? ''}`)
+          return parts.join('\n') || null
+        }
+        function tvState(phase, block) {
+          if (phase === 'preparing') return 'preparing'
+          if (!('kind' in block)) return 'running'
+          if (block.error?.code === 'interrupted') return 'stopped'
+          return block.isError ? 'error' : 'ok'
+        }
+        function tvFirstLine(text) {
+          if (typeof text !== 'string') return ''
+          for (const line of text.split(/\r?\n/u)) {
+            const clean = line.trim().replace(/^#{1,6}\s+/u, '')
+            if (clean) return clean.length > 100 ? `${clean.slice(0, 99)}…` : clean
+          }
+          return ''
+        }
+
+        function findBaseToolView(key, self, minPriority) {
+          let best
+          for (const entry of ctx.slots.entries('tool.call.toolview')) {
+            if (entry.options?.key !== key || entry.component === self) continue
+            const priority = entry.options.priority ?? 0
+            if (priority <= minPriority) continue
+            if (best === undefined || priority < (best.options.priority ?? 0)) best = entry
+          }
+          return best
+        }
+
+        function GrepPathsRow(props) {
+          const tt = useT()
+          const labels = useToolLabels()
+          const { expanded, toggle } = props.useDisclosure()
+          const { phase, block, inspect } = props
+          const meta = isPlainObj(block?.meta) ? block.meta : null
+          const isPathsResult = phase === 'result' && 'kind' in block && !block.isError && meta?.shape === 'paths' && Array.isArray(meta.paths)
+          if (!isPathsResult) {
+            const base = findBaseToolView('grep', GrepPathsRow, GREP_PATHS_PRIORITY)
+            return base ? h(base.component, props) : null
+          }
+          const { args } = tvParseArgs(block)
+          const pattern = firstText(args?.pattern)
+          const dir = firstText(args?.path)
+          const summary = [pattern, dir].filter(Boolean).join(' · ')
+          const paths = meta.paths.filter(p => typeof p === 'string')
+          const total = Number.isInteger(meta.total) && meta.total >= 0 ? meta.total : paths.length
+          return h('div', { className: 'acpw aw-tv-card', 'data-tool': 'grep', 'data-state': 'ok' },
+            h(DisclosureRow, {
+              icon: h(IconSearchOutlineRegular, { size: 14 }),
+              title: tt('tool.grepPaths'),
+              running: false,
+              open: expanded,
+              expandable: true,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: summary ? h(React.Fragment, null,
+                h('span', { className: 'aw-tv-sep', 'aria-hidden': true }),
+                h('span', { className: 'aw-tv-summary' }, h(TextShimmer, null, summary))) : null,
+            },
+            expanded ? h('div', { className: 'aw-tv-body' },
+              h(SearchBlock, { kind: 'paths', paths, total, truncated: meta.truncated === true, labels, maxLines: 8 }),
+              inspect ? h('button', { type: 'button', className: 'aw-tv-inspect', onClick: inspect }, h(IconInspectOutlineRegular, { size: 12 }), tt('tool.inspect')) : null) : null))
+        }
+
+        const ACP_TOOLVIEW_SPECS = {
+          ExitPlanMode: { icon: IconChecklistOutlineRegular, titleKey: 'tool.exitPlanMode', mode: 'plan' },
+          EnterPlanMode: { icon: IconChecklistOutlineRegular, titleKey: 'tool.enterPlanMode', mode: 'plan' },
+          memory_recall: { icon: IconBrowseOutlineRegular, titleKey: 'tool.memoryRecall', mode: 'memory' },
+          SemanticSearch: { icon: IconSearchOutlineRegular, titleKey: 'tool.semanticSearch', mode: 'search' },
+          codebase_search: { icon: IconSearchOutlineRegular, titleKey: 'tool.semanticSearch', mode: 'search' },
+          run_workflow: { icon: IconCodeOutlineRegular, titleKey: 'tool.workflow', mode: 'workflow' },
+          manage_task: { icon: IconChecklistOutlineRegular, titleKey: 'tool.task', mode: 'generic' },
+          TaskCreate: { icon: IconChecklistOutlineRegular, titleKey: 'tool.task', mode: 'generic' },
+          TaskUpdate: { icon: IconChecklistOutlineRegular, titleKey: 'tool.task', mode: 'generic' },
+          TaskList: { icon: IconChecklistOutlineRegular, titleKey: 'tool.task', mode: 'generic' },
+          TaskGet: { icon: IconChecklistOutlineRegular, titleKey: 'tool.task', mode: 'generic' },
+          TaskStop: { icon: IconChecklistOutlineRegular, titleKey: 'tool.task', mode: 'generic' },
+          schedule: { icon: IconClockOutlineRegular, titleKey: 'tool.schedule', mode: 'generic' },
+          Monitor: { icon: IconClockOutlineRegular, titleKey: 'tool.monitor', mode: 'generic' },
+          swarm: { icon: IconUsersOutlineRegular, titleKey: 'tool.swarm', mode: 'generic' },
+          manage_subagents: { icon: IconUsersOutlineRegular, titleKey: 'tool.subagents', mode: 'generic' },
+          define_subagent: { icon: IconUsersOutlineRegular, titleKey: 'tool.defineSubagent', mode: 'generic' },
+          ListAgents: { icon: IconUsersOutlineRegular, titleKey: 'tool.subagents', mode: 'generic' },
+        }
+
+        function acpToolSummary(mode, args) {
+          if (!args) return ''
+          if (mode === 'plan') return tvFirstLine(args.plan) || firstText(args.planFilePath, args.reason) || ''
+          if (mode === 'memory') {
+            const paths = Array.isArray(args.paths) ? args.paths.filter(p => typeof p === 'string') : EMPTY
+            return firstText(args.query) || paths.slice(0, 3).join(', ')
+          }
+          if (mode === 'search') return firstText(args.query, args.Query, args.pattern) || ''
+          if (mode === 'workflow') return firstText(args.Description, args.ScriptPath) || ''
+          const action = firstText(args.action, args.Action)
+          const detail = firstText(args.subject, args.name, args.Name, args.TaskId, args.CronExpression, args.Prompt, args.description, args.title)
+            ?? (Number.isFinite(args.DurationSeconds) ? `${args.DurationSeconds}s` : undefined)
+          return [action, detail].filter(Boolean).join(' · ')
+        }
+
+        function AcpCustomToolRow({ toolName, phase, block, openFile, inspect, useDisclosure }) {
+          const tt = useT()
+          const labels = useDiffLabels()
+          const { expanded, toggle } = useDisclosure()
+          const spec = ACP_TOOLVIEW_SPECS[toolName]
+          const IconComp = spec?.icon ?? IconSparkleRegular
+          const title = tt(spec?.titleKey ?? 'tool')
+          const state = tvState(phase, block)
+          const running = state === 'preparing' || state === 'running'
+          const { raw, args } = tvParseArgs(block)
+          const output = tvResultText(block)
+          const mode = spec?.mode ?? 'generic'
+          const summaryBase = state === 'stopped' ? tt('tool.stopped')
+            : state === 'error' && output ? tvFirstLine(output)
+              : acpToolSummary(mode, args)
+          const planPath = mode === 'plan' ? firstText(args?.planFilePath) : undefined
+          const planText = mode === 'plan' ? firstText(args?.plan) : undefined
+          const memoryPaths = mode === 'memory' && Array.isArray(args?.paths) ? args.paths.filter(p => typeof p === 'string' && p.trim()) : EMPTY
+          const workflowScript = mode === 'workflow' ? firstText(args?.Script) : undefined
+          const hasBody = Boolean(planPath || planText || memoryPaths.length || workflowScript || output || (raw && raw !== '{}'))
+          const expandable = state !== 'preparing' && hasBody
+          const open = expanded && expandable
+          const mdLabels = React.useMemo(() => ({
+            code: { copyLabel: labels.copy, copiedLabel: labels.copied, toolbarLabels: labels },
+            footnotes: '',
+          }), [labels])
+
+          return h('div', { className: 'acpw aw-tv-card', 'data-tool': toolName, 'data-state': state },
+            h(DisclosureRow, {
+              icon: h(IconComp, { size: 14 }),
+              title,
+              running,
+              open,
+              expandable,
+              expandOnRowClick: expandable,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: summaryBase ? h(React.Fragment, null,
+                h('span', { className: 'aw-tv-sep', 'aria-hidden': true }),
+                h('span', { className: `aw-tv-summary${state === 'error' ? ' aw-tv-error' : state === 'stopped' ? ' aw-tv-stopped' : ''}` },
+                  h(TextShimmer, null, summaryBase))) : null,
+            },
+            open ? h('div', { className: 'aw-tv-body' },
+              planPath ? h('div', { className: 'aw-tv-files' },
+                openFile
+                  ? h('button', { type: 'button', className: 'aw-tv-file', onClick: () => openFile(planPath) }, tt('tool.openPlanFile'), ' · ', planPath)
+                  : h(PathLabel, { path: planPath })) : null,
+              memoryPaths.length ? h('div', { className: 'aw-tv-files' },
+                memoryPaths.map(path => openFile
+                  ? h('button', { key: path, type: 'button', className: 'aw-tv-file', title: path, onClick: () => openFile(path) }, path)
+                  : h(PathLabel, { key: path, path }))) : null,
+              planText ? h('div', { className: 'aw-tv-panel' },
+                h('div', { className: 'aw-tv-prose' }, h(MarkdownText, { text: planText, labels: mdLabels }))) : null,
+              workflowScript ? h('div', { className: 'aw-code-window' },
+                h(CodeBlock, { code: workflowScript, lang: 'python', copyLabel: labels.copy, copiedLabel: labels.copied, toolbarLabels: labels })) : null,
+              !planText && !workflowScript && !output && raw && raw !== '{}' ? h('div', { className: 'aw-tv-panel' },
+                h('pre', { className: 'aw-tv-pre' }, args ? JSON.stringify(args, null, 2) : raw)) : null,
+              output ? h('div', { className: 'aw-tv-panel' },
+                h('pre', { className: 'aw-tv-pre', 'data-error': state === 'error' || undefined }, output)) : null,
+              inspect ? h('button', { type: 'button', className: 'aw-tv-inspect', onClick: inspect }, h(IconInspectOutlineRegular, { size: 12 }), tt('tool.inspect')) : null) : null))
+        }
+
         ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, CliMenuOption))
         ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({ name: 'conversation.input.overlay', id: 'acp-settings', order: 40 }, CliSettingsOverlay))
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-model-controls', order: 900 }, NativeModelControls))
         ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'acp-native', order: 40 }, NativeDock))
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, NativeNode))
         ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))
+        ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key: 'grep', priority: GREP_PATHS_PRIORITY, locale: 'conversation' }, GrepPathsRow))
+        for (const key of Object.keys(ACP_TOOLVIEW_SPECS)) {
+          ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key, priority: -5, locale: NS }, AcpCustomToolRow))
+        }
 
         function useWorkbench() {
           const [data, setData] = React.useState({ providers: EMPTY, providerTemplates: EMPTY, activeByProvider: {}, authByProvider: {}, defaultCwd: '', storageError: null })

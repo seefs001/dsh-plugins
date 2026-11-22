@@ -199,6 +199,45 @@ export function createTrace() {
   return { through: 0, section: 0, rows: [], tools: new Map(), plans: new Map(), compactions: new Map(), windows: new Map(), questions: new Map(), log: null }
 }
 
+export function cursorTaskToolUpdate(params) {
+  if (!isPlainObj(params)) return null
+  const id = typeof params.toolCallId === 'string' && params.toolCallId.trim()
+    ? params.toolCallId.trim()
+    : typeof params.taskId === 'string' && params.taskId.trim()
+      ? params.taskId.trim()
+      : typeof params.id === 'string' && params.id.trim()
+        ? params.id.trim()
+        : null
+  if (!id) return null
+  const rawStatus = typeof params.status === 'string' ? params.status.toLowerCase() : ''
+  const status = rawStatus === 'completed' || rawStatus === 'done' || rawStatus === 'succeeded' ? 'completed'
+    : rawStatus === 'failed' || rawStatus === 'error' ? 'failed'
+      : rawStatus === 'cancelled' || rawStatus === 'canceled' ? 'cancelled'
+        : rawStatus === 'pending' ? 'pending' : 'in_progress'
+  const description = typeof params.description === 'string' && params.description.trim()
+    ? params.description.trim()
+    : typeof params.title === 'string' && params.title.trim() ? params.title.trim() : 'Cursor task'
+  const resultText = typeof params.result === 'string' ? params.result
+    : typeof params.output === 'string' ? params.output
+      : typeof params.summary === 'string' ? params.summary
+        : typeof params.error === 'string' ? params.error : ''
+  return {
+    toolCallId: `cursor_task:${id}`,
+    name: 'Agent',
+    kind: 'think',
+    title: description,
+    status,
+    rawInput: defined({
+      description,
+      prompt: typeof params.prompt === 'string' ? params.prompt : undefined,
+      model: typeof params.model === 'string' ? params.model : undefined,
+      subagent_type: typeof params.subagentType === 'string' ? params.subagentType : typeof params.type === 'string' ? params.type : undefined,
+      durationMs: Number.isFinite(params.durationMs) ? params.durationMs : Number.isFinite(params.duration) ? params.duration : undefined,
+    }),
+    ...(resultText ? { content: [{ type: 'content', content: { type: 'text', text: resultText } }] } : {}),
+  }
+}
+
 export function foldEvents(trace, events, remoteId, runId) {
   for (const event of events) {
     if (event.seq <= trace.through) continue
@@ -206,9 +245,23 @@ export function foldEvents(trace, events, remoteId, runId) {
     const data = event.data ?? {}
     if (data.replay) { trace.section = event.seq; continue }
     const update = data.method === 'session/update' ? data.params?.update : null
+    const cursorMethod = data.method?.replace(/^_/, '')
     const kind = update?.sessionUpdate, parent = cliParentOf(update), plan = namedPlan(update)
     if (kind === 'agent_message_chunk' || kind === 'agent_thought_chunk' || kind === 'user_message_chunk' || plan || kind === 'plan' ||
-      data.method?.replace(/^_/, '') === 'cursor/update_todos' || event.type === 'user-message') trace.section = event.seq
+      cursorMethod === 'cursor/update_todos' || event.type === 'user-message') trace.section = event.seq
+    if (cursorMethod === 'cursor/task') {
+      const taskUpdate = cursorTaskToolUpdate(data.params)
+      if (taskUpdate) {
+        let row = trace.tools.get(taskUpdate.toolCallId)
+        if (!row) {
+          row = { kind: 'tool', seq: event.seq, section: trace.section, tool: {}, cliTask: true }
+          trace.tools.set(taskUpdate.toolCallId, row)
+          trace.rows.push(row)
+        }
+        row.tool = mergeToolUpdate(row.tool, taskUpdate)
+      }
+      continue
+    }
     if ((kind === 'tool_call' || kind === 'tool_call_update') && update.toolCallId) {
       let row = trace.tools.get(update.toolCallId)
       if (!row) {

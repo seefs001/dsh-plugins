@@ -662,6 +662,11 @@ export class Workbench {
     if (elicitation && (!session.remoteId || params.sessionId !== session.remoteId || params.requestId != null)) throw new RpcError('A form must address the active CLI session', -32602)
     if (params.sessionId && session.remoteId && params.sessionId !== session.remoteId) throw new RpcError('Wrong session', -32602)
     const normalized = method.replace(/^_/, '')
+    if (normalized === 'cursor/update_todos' || normalized === 'cursor/task') {
+      // external: some Cursor CLI builds attach a JSON-RPC id to notification extensions
+      await this.notification(session, runtime, method, params)
+      return {}
+    }
     let kind
     if (elicitation) kind = params.mode === 'url' ? 'url' : 'form'
     else if (normalized === 'session/request_permission') kind = 'permission'

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { isAbsolute, join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { applyLateCompactions, cliParentOf, createTrace, foldEvents, foldTerminal, mergePermissionToolCall, mergeToolUpdate, namedPlan } from './trace.js'
+import { applyLateCompactions, cliParentOf, createTrace, cursorTaskToolUpdate, foldEvents, foldTerminal, mergePermissionToolCall, mergeToolUpdate, namedPlan } from './trace.js'
 import { connectionNotices } from './notices.js'
 import {
   advertisedModes,
@@ -15,7 +15,7 @@ import {
   visibleModels,
   wireModelId,
 } from './models.js'
-import { hasToolInput, isToolTerminal, makeCallId, mapPlanTodos, mapToolCall, mapToolResult } from './native-tools.js'
+import { extractToolImages, hasToolInput, isToolTerminal, makeCallId, mapPlanTodos, mapToolCall, mapToolResult } from './native-tools.js'
 import { booleanSelectValues, isInteractivePermission } from './adapters.js'
 
 function coerceOptionValue(option, value) {
@@ -129,6 +129,7 @@ class AcpTurn {
     this.toolByAcpId = new Map()
     this.toolByDshId = new Map()
     this.toolsSeen = new Set()
+    this.cursorTodos = []
     this.lastTodoJson = null
     this.waiters = new Set()
     this.settled = false
@@ -217,30 +218,91 @@ class AcpTurn {
     return !!runtime?.interactions?.size
   }
 
+  rootCallIdFor(record) {
+    let cur = record
+    const visited = new Set()
+    while (cur?.parentAcpId && !visited.has(cur.acpId)) {
+      visited.add(cur.acpId)
+      const parent = this.toolByAcpId.get(cur.parentAcpId)
+      if (!parent) break
+      cur = parent
+    }
+    return cur?.dshCallId ?? record.dshCallId
+  }
+
+  async saveToolImages(tool) {
+    const rawImages = extractToolImages(tool)
+    if (!rawImages.length || !this.native.ctx.attachments?.saveImage) return []
+    const saved = []
+    for (const img of rawImages) {
+      try {
+        const attachment = await this.native.ctx.attachments.saveImage({
+          data: Buffer.from(img.data, 'base64'),
+          mediaType: img.mimeType,
+        })
+        if (attachment) saved.push(attachment)
+      } catch {}
+    }
+    return saved
+  }
+
+  ingestTopToolUpdate(update) {
+    let record = this.toolByAcpId.get(update.toolCallId)
+    if (!record) {
+      record = {
+        acpId: update.toolCallId,
+        dshCallId: makeCallId(),
+        isSubCall: false,
+        tool: {},
+        terminal: undefined,
+        mapped: null,
+        done: false,
+        emitted: false,
+        callLogged: false,
+        resultLogged: false,
+        subCalls: [],
+      }
+      this.toolByAcpId.set(update.toolCallId, record)
+      this.toolByDshId.set(record.dshCallId, record)
+      this.queue.push({ kind: 'tool', record })
+    }
+    const folded = foldTerminal(record, update) ?? update
+    record.tool = mergeToolUpdate(record.tool, folded)
+    if (isToolTerminal(record.tool)) record.done = true
+    return record
+  }
+
   emitSubCallStart(record, parentRecord) {
     if (record.subStarted || !parentRecord?.callLogged) return
     record.mapped = mapToolCall(record.tool, record.terminal)
     record.subStarted = true
+    record.callLogged = true
+    const rootCallId = this.rootCallIdFor(parentRecord)
     try {
       this.agent.session.append('tool/ptc-dispatch-start', {
-        rootCallId: parentRecord.dshCallId,
+        rootCallId,
         parentCallId: parentRecord.dshCallId,
         subCallId: record.dshCallId,
         name: record.mapped.name,
         arguments: record.mapped.argumentsObj,
       })
     } catch {}
+    this.flushSubCalls(record)
   }
 
   emitSubCallResult(record, parentRecord, options = {}) {
     if (record.subFinished || !parentRecord?.callLogged) return
     if (!record.subStarted) this.emitSubCallStart(record, parentRecord)
+    for (const child of record.subCalls ?? []) {
+      if (!child.subFinished) this.emitSubCallResult(child, record, options)
+    }
     record.subFinished = true
     const mapped = record.mapped ?? mapToolCall(record.tool, record.terminal)
     const result = mapToolResult(mapped, record.tool, record.terminal, { cwd: this.session?.cwd, ...options })
+    const rootCallId = this.rootCallIdFor(parentRecord)
     try {
       this.agent.session.append('tool/ptc-dispatch', {
-        rootCallId: parentRecord.dshCallId,
+        rootCallId,
         parentCallId: parentRecord.dshCallId,
         subCallId: record.dshCallId,
         name: mapped.name,
@@ -254,10 +316,12 @@ class AcpTurn {
   }
 
   flushSubCalls(parentRecord) {
-    if (!parentRecord?.callLogged || !parentRecord.subCalls.length) return
+    if (!parentRecord?.callLogged || !parentRecord.subCalls?.length) return
     for (const child of parentRecord.subCalls) {
       if (!child.subStarted && (hasToolInput(child.tool) || child.done)) {
         this.emitSubCallStart(child, parentRecord)
+      } else if (child.callLogged) {
+        this.flushSubCalls(child)
       }
       if (child.done && !child.subFinished) {
         this.emitSubCallResult(child, parentRecord)
@@ -291,9 +355,26 @@ class AcpTurn {
     const update = method === 'session/update' ? event.data.params?.update : null
     tally(this.run, update, this.toolsSeen)
 
-    if (method?.replace(/^_/u, '') === 'cursor/update_todos') {
-      const todos = mapPlanTodos(event.data.params?.todos)
-      if (todos.length) this.queue.push({ kind: 'todo', todos })
+    const cursorMethod = method?.replace(/^_/u, '')
+    if (cursorMethod === 'cursor/update_todos') {
+      const incoming = Array.isArray(event.data.params?.todos) ? event.data.params.todos : []
+      this.cursorTodos = event.data.params?.merge
+        ? [...new Map([...this.cursorTodos, ...incoming].map((entry, idx) => [entry?.id ?? idx, entry])).values()]
+        : incoming
+      const todos = mapPlanTodos(this.cursorTodos)
+      if (todos.length || (this.lastTodoJson !== null && this.lastTodoJson !== '[]')) {
+        this.queue.push({ kind: 'todo', todos })
+      }
+      this.wake()
+      return
+    }
+    if (cursorMethod === 'cursor/task') {
+      const taskUpdate = cursorTaskToolUpdate(event.data.params)
+      if (taskUpdate) {
+        this.ingestTopToolUpdate(taskUpdate)
+        this.toolsSeen.add(taskUpdate.toolCallId)
+        if (this.run) this.run.tools = this.toolsSeen.size
+      }
       this.wake()
       return
     }
@@ -315,12 +396,14 @@ class AcpTurn {
             terminal: undefined,
             mapped: null,
             done: false,
+            callLogged: false,
             subStarted: false,
             subFinished: false,
+            subCalls: [],
           }
           this.toolByAcpId.set(update.toolCallId, record)
           const parentRecord = this.toolByAcpId.get(parent)
-          if (parentRecord && !parentRecord.isSubCall) parentRecord.subCalls.push(record)
+          if (parentRecord) parentRecord.subCalls.push(record)
         }
         const folded = foldTerminal(record, update) ?? update
         record.tool = mergeToolUpdate(record.tool, folded)
@@ -334,28 +417,7 @@ class AcpTurn {
         return
       }
 
-      let record = this.toolByAcpId.get(update.toolCallId)
-      if (!record) {
-        record = {
-          acpId: update.toolCallId,
-          dshCallId: makeCallId(),
-          isSubCall: false,
-          tool: {},
-          terminal: undefined,
-          mapped: null,
-          done: false,
-          emitted: false,
-          callLogged: false,
-          resultLogged: false,
-          subCalls: [],
-        }
-        this.toolByAcpId.set(update.toolCallId, record)
-        this.toolByDshId.set(record.dshCallId, record)
-        this.queue.push({ kind: 'tool', record })
-      }
-      const folded = foldTerminal(record, update) ?? update
-      record.tool = mergeToolUpdate(record.tool, folded)
-      if (isToolTerminal(record.tool)) record.done = true
+      this.ingestTopToolUpdate(update)
       this.wake()
       return
     }
@@ -389,7 +451,9 @@ class AcpTurn {
     const plan = namedPlan(update)
     if (plan?.type === 'items') {
       const todos = mapPlanTodos(plan.entries)
-      if (todos.length) this.queue.push({ kind: 'todo', todos })
+      if (todos.length || (this.lastTodoJson !== null && this.lastTodoJson !== '[]')) {
+        this.queue.push({ kind: 'todo', todos })
+      }
       this.wake()
       return
     }
@@ -402,7 +466,9 @@ class AcpTurn {
 
     if (kind === 'plan' && Array.isArray(update.entries)) {
       const todos = mapPlanTodos(update.entries)
-      if (todos.length) this.queue.push({ kind: 'todo', todos })
+      if (todos.length || (this.lastTodoJson !== null && this.lastTodoJson !== '[]')) {
+        this.queue.push({ kind: 'todo', todos })
+      }
       this.wake()
       return
     }
@@ -540,8 +606,9 @@ class AcpTurn {
     }
   }
 
-  commitToolEntry(entry, log, agent, options = {}) {
-    if (entry.result) return
+  async commitToolEntry(entry, log, agent, options = {}) {
+    if (entry.committing || entry.result) return
+    entry.committing = true
     const record = entry.record
     if (record && !record.isSubCall) {
       for (const child of record.subCalls) {
@@ -553,9 +620,10 @@ class AcpTurn {
       const fresh = mapToolCall(record.tool, record.terminal)
       if (fresh.name === mapped.name) mapped = fresh
     }
+    const savedImages = record && !record.syntheticTodo ? await this.saveToolImages(record.tool) : []
     const result = record?.syntheticTodo
       ? { content: [{ type: 'text', text: 'Updated task list.' }], isError: false }
-      : mapToolResult(mapped, record?.tool, record?.terminal, { cwd: this.session?.cwd, ...options })
+      : mapToolResult(mapped, record?.tool, record?.terminal, { cwd: this.session?.cwd, savedImages, ...options })
     entry.result = result
     if (record) record.resultLogged = true
     if (log !== undefined) {
@@ -579,6 +647,7 @@ class AcpTurn {
       record: this.toolByDshId.get(block.id) ?? null,
       callSeq: undefined,
       result: undefined,
+      committing: false,
     }))
     for (const entry of entries) {
       if (log !== undefined) {
@@ -595,12 +664,12 @@ class AcpTurn {
         this.flushSubCalls(entry.record)
         if (entry.record.syntheticTodo) {
           try { agent.session.append('todo/write', { todos: entry.record.syntheticTodo }) } catch {}
-          this.commitToolEntry(entry, log, agent)
+          await this.commitToolEntry(entry, log, agent)
         } else if (entry.record.done) {
-          this.commitToolEntry(entry, log, agent)
+          await this.commitToolEntry(entry, log, agent)
         }
       } else {
-        this.commitToolEntry(entry, log, agent)
+        await this.commitToolEntry(entry, log, agent)
       }
     }
 
@@ -619,7 +688,7 @@ class AcpTurn {
         if (entry.result) continue
         if (entry.record?.done || forceSettle) {
           const interrupted = !aborted && forceSettle && !entry.record?.done && this.result?.stopReason === 'cancelled'
-          this.commitToolEntry(entry, log, agent, { aborted, interrupted })
+          await this.commitToolEntry(entry, log, agent, { aborted, interrupted })
         }
       }
       if (!entries.some(entry => !entry.result)) break
