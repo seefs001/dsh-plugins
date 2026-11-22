@@ -144,9 +144,8 @@ export async function startSummary(ctx) {
       default: throw new Error('Unknown summary operation')
     }
   }
-  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/session-lifecycle/summary', handler: async (req, res) => {
-    const peer = ctx.connection.admit(req)
-    if ('rejection' in peer || peer.peer.principal.kind !== 'owner') { res.writeHead('rejection' in peer ? peer.rejection : 403); res.end(); return }
+  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/session-lifecycle/summary', handler: async (req, res, peer) => {
+    if (peer?.principal?.kind !== 'owner') { res.writeHead(peer === undefined ? 401 : 403); res.end(); return }
     if (req.method !== 'POST' || req.headers['content-type']?.split(';')[0] !== 'application/json') { res.writeHead(405); res.end(); return }
     const ac = new AbortController(), abort = () => ac.abort(); res.on('close', abort)
     try {

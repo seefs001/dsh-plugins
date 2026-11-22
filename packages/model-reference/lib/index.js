@@ -43,10 +43,9 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: STATE_PATH,
-    handler: (req, res) => {
-      const admission = ctx.connection.admit(req)
-      if ('rejection' in admission || admission.peer.principal.kind !== 'owner') {
-        res.statusCode = 'rejection' in admission ? admission.rejection : 403
+    handler: (req, res, peer) => {
+      if (peer?.principal?.kind !== 'owner') {
+        res.statusCode = peer === undefined ? 401 : 403
         res.end()
         return
       }

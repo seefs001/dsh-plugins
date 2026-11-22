@@ -78,10 +78,9 @@ export async function apply(ctx) {
   const register = (path, method, read) => {
     ctx.effect(() => ctx.webServer.register({
       kind: 'exact', path,
-      async handler(req, res) {
-        const admission = ctx.connection.admit(req)
-        if ('rejection' in admission || admission.peer.principal.kind !== 'owner') {
-          sendJson(res, 'rejection' in admission ? admission.rejection : 403, { message: 'Connection is not authorized' })
+      async handler(req, res, peer) {
+        if (peer?.principal?.kind !== 'owner') {
+          sendJson(res, peer === undefined ? 401 : 403, { message: 'Connection is not authorized' })
           return
         }
         if (req.method !== method) {

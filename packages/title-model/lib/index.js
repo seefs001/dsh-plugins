@@ -87,10 +87,9 @@ export function apply(ctx) {
   for (const [path, method] of [[STATE_PATH, 'GET'], [SET_PATH, 'POST']]) {
     ctx.effect(() => ctx.webServer.register({
       kind: 'exact', path,
-      handler: async (req, res) => {
-        const admission = ctx.connection.admit(req)
-        if ('rejection' in admission) return sendJson(res, admission.rejection, { message: 'Authentication required' })
-        if (admission.peer.principal.kind !== 'owner') return sendJson(res, 403, { message: 'Browser owner access required' })
+      handler: async (req, res, peer) => {
+        if (peer === undefined) return sendJson(res, 401, { message: 'Authentication required' })
+        if (peer.principal.kind !== 'owner') return sendJson(res, 403, { message: 'Browser owner access required' })
         if (req.method !== method) {
           res.setHeader('allow', method)
           return sendJson(res, 405, { message: `${method} only` })

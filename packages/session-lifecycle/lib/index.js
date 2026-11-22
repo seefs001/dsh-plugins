@@ -393,10 +393,9 @@ export async function apply(ctx) {
     return () => { clearTimeout(first); clearInterval(timer) }
   }, 'session-lifecycle: sweep')
 
-  const rejected = (req, res) => {
-    const peer = ctx.connection.admit(req)
-    if (!('rejection' in peer) && peer.peer.principal.kind === 'owner') return false
-    res.statusCode = 'rejection' in peer ? peer.rejection : 403
+  const rejected = (res, peer) => {
+    if (peer?.principal?.kind === 'owner') return false
+    res.statusCode = peer === undefined ? 401 : 403
     res.end()
     return true
   }
@@ -404,8 +403,8 @@ export async function apply(ctx) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: STATE_PATH,
-    handler: async (req, res) => {
-      if (rejected(req, res)) return
+    handler: async (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
       try { sendJson(res, 200, current(await ready)) } catch (error) {
         sendJson(res, 503, { message: `storage unavailable: ${error?.message ?? error}` })
@@ -416,8 +415,8 @@ export async function apply(ctx) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: OP_PATH,
-    handler: async (req, res) => {
-      if (rejected(req, res)) return
+    handler: async (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'POST') return sendJson(res, 405, { message: 'POST only' }, { allow: 'POST' })
       if (req.headers['content-type']?.split(';')[0] !== 'application/json') return sendJson(res, 415, { message: 'JSON only' })
       const raw = await readBody(req)
@@ -436,8 +435,8 @@ export async function apply(ctx) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: EVENTS_PATH,
-    handler: async (req, res) => {
-      if (rejected(req, res)) return
+    handler: async (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
       let domain
       try { domain = await ready } catch (error) {

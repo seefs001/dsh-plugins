@@ -64,22 +64,19 @@ export async function apply(ctx) {
   bridge.native = native
   try { await manager.initialize(); await native.initialize() } catch (error) { await native.close(); await manager.close(); throw error }
 
-  const admit = (req, res) => {
-    const admission = ctx.connection.admit(req)
-    if ('rejection' in admission) { res.statusCode = admission.rejection; res.end(); return null }
-    if (admission.peer.principal.kind !== 'owner') { res.statusCode = 403; res.end(); return null }
-    return admission.peer
+  const admit = (res, peer) => {
+    if (peer === undefined) { res.statusCode = 401; res.end(); return null }
+    if (peer.principal.kind !== 'owner') { res.statusCode = 403; res.end(); return null }
+    return peer
   }
   const register = (path, handler) => ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: BASE + path, handler }), `acp-workbench: ${path}`)
-  register('/state', async (req, res) => {
-    const peer = admit(req, res)
-    if (!peer) return
+  register('/state', async (req, res, peer) => {
+    if (!admit(res, peer)) return
     if (req.method !== 'GET') return send(res, 405, { message: 'GET only' })
     send(res, 200, manager.snapshot())
   })
-  register('/op', async (req, res) => {
-    const peer = admit(req, res)
-    if (!peer) return
+  register('/op', async (req, res, peer) => {
+    if (!admit(res, peer)) return
     if (req.method !== 'POST') return send(res, 405, { message: 'POST only' })
     try {
       const op = await body(req)
@@ -109,8 +106,8 @@ export async function apply(ctx) {
       send(res, 200, result)
     } catch (error) { send(res, 400, { message: error.message ?? String(error) }) }
   })
-  register('/events', (req, res) => {
-    if (!admit(req, res)) return
+  register('/events', (req, res, peer) => {
+    if (!admit(res, peer)) return
     if (req.method !== 'GET') return send(res, 405, { message: 'GET only' })
     res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' })
     res.write(`retry: 2000\ndata: ${JSON.stringify({ revision })}\n\n`)

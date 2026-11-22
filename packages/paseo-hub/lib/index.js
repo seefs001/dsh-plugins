@@ -627,18 +627,17 @@ export function apply(ctx, config) {
     return () => restore()
   }, 'paseo-hub: shell env')
 
-  const owner = (req, res) => {
-    const admission = ctx.connection.admit(req)
-    if ('rejection' in admission) { res.statusCode = admission.rejection; res.end(); return false }
-    if (admission.peer.principal.kind !== 'owner') { res.statusCode = 403; res.end(); return false }
+  const owner = (res, peer) => {
+    if (peer === undefined) { res.statusCode = 401; res.end(); return false }
+    if (peer.principal.kind !== 'owner') { res.statusCode = 403; res.end(); return false }
     return true
   }
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: STATE_PATH,
-    handler: async (req, res) => {
-      if (!owner(req, res)) return
+    handler: async (req, res, peer) => {
+      if (!owner(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' })
       try {
         await ready
@@ -663,8 +662,8 @@ export function apply(ctx, config) {
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact', path: API_PATH,
-    handler: async (req, res) => {
-      if (!owner(req, res)) return
+    handler: async (req, res, peer) => {
+      if (!owner(res, peer)) return
       if (req.method !== 'POST') return sendJson(res, 405, { message: 'POST only' })
       const raw = await readBody(req, 8 * 1024 * 1024)
       if (raw === null) return sendJson(res, 413, { message: 'Hub API request exceeds the local 8 MiB limit' })
@@ -687,8 +686,8 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: RUNS_PATH,
-    handler: async (req, res) => {
-      if (!owner(req, res)) return
+    handler: async (req, res, peer) => {
+      if (!owner(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' })
       try {
         await ready
@@ -708,8 +707,8 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: EVENTS_PATH,
-    handler: async (req, res) => {
-      if (!owner(req, res)) return
+    handler: async (req, res, peer) => {
+      if (!owner(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' })
       try {
         await ready
@@ -732,8 +731,8 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: OP_PATH,
-    handler: async (req, res) => {
-      if (!owner(req, res)) return
+    handler: async (req, res, peer) => {
+      if (!owner(res, peer)) return
       if (req.method !== 'POST') return sendJson(res, 405, { message: 'POST only' })
       const raw = await readBody(req)
       if (raw === null) return sendJson(res, 413, { message: 'Request body is too large' })

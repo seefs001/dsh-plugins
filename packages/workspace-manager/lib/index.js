@@ -19,10 +19,9 @@ export function apply(ctx) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: '/workspace-manager/check',
-    handler: async (req, res) => {
-      const admission = ctx.connection.admit(req)
-      if ('rejection' in admission || admission.peer.principal.kind !== 'owner') {
-        res.statusCode = 'rejection' in admission ? admission.rejection : 403
+    handler: async (req, res, peer) => {
+      if (peer?.principal?.kind !== 'owner') {
+        res.statusCode = peer === undefined ? 401 : 403
         res.end()
         return
       }

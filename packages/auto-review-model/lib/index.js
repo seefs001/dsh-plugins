@@ -294,10 +294,9 @@ export function apply(ctx, config) {
     })
   }, { prepend: true })
 
-  const rejected = (req, res) => {
-    const admission = ctx.connection.admit(req)
-    if (!('rejection' in admission) && admission.peer.principal.kind === 'owner') return false
-    res.statusCode = 'rejection' in admission ? admission.rejection : 403
+  const rejected = (res, peer) => {
+    if (peer?.principal?.kind === 'owner') return false
+    res.statusCode = peer === undefined ? 401 : 403
     res.end()
     return true
   }
@@ -314,8 +313,8 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: STATE_PATH,
-    handler: (req, res) => {
-      if (rejected(req, res)) return
+    handler: (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
       sendJson(res, 200, state())
     },
@@ -324,8 +323,8 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: SET_PATH,
-    handler: async (req, res) => {
-      if (rejected(req, res)) return
+    handler: async (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'POST') return sendJson(res, 405, { message: 'POST only' }, { allow: 'POST' })
       const raw = await readBody(req)
       if (raw === null) return sendJson(res, 413, { message: `body exceeds ${MAX_BODY_BYTES} bytes` })
@@ -376,8 +375,8 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: LOG_PATH,
-    handler: async (req, res) => {
-      if (rejected(req, res)) return
+    handler: async (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
       const sessionId = sessionOf(req)
       if (sessionId === undefined) return sendJson(res, 400, { message: 'session query parameter is required' })
@@ -392,8 +391,8 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: LOG_CLEAR_PATH,
-    handler: async (req, res) => {
-      if (rejected(req, res)) return
+    handler: async (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'POST') return sendJson(res, 405, { message: 'POST only' }, { allow: 'POST' })
       const sessionId = sessionOf(req)
       if (sessionId === undefined) return sendJson(res, 400, { message: 'session query parameter is required' })
@@ -409,8 +408,8 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: LOG_EVENTS_PATH,
-    handler: async (req, res) => {
-      if (rejected(req, res)) return
+    handler: async (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
       const sessionId = sessionOf(req)
       if (sessionId === undefined) return sendJson(res, 400, { message: 'session query parameter is required' })

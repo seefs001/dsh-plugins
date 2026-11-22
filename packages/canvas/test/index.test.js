@@ -139,7 +139,7 @@ function createHarness() {
       if (chunk !== undefined) chunks.push(String(chunk))
       res.destroyed = true
     }
-    await handler(req, res)
+    await handler(req, res, { principal: { kind: 'owner' } })
     const raw = chunks.join('')
     return { status: statusCode, raw, json: raw ? JSON.parse(raw) : null }
   }
@@ -271,7 +271,7 @@ test('workspace file lifecycle: canvas_write, revision diff, restore, persistent
     sseRes.writeHead = () => {}
     sseRes.write = chunk => { sseChunks.push(String(chunk)) }
     sseRes.end = () => { sseRes.destroyed = true }
-    await sseHandler(sseReq, sseRes)
+    await sseHandler(sseReq, sseRes, { principal: { kind: 'owner' } })
     sseRes.emit('close')
     assert.ok(sseChunks.some(c => c.includes('latency-audit.canvas.tsx')))
   } finally {

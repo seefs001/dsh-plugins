@@ -262,10 +262,9 @@ export async function apply(ctx, config) {
   const recent = new Map()
   let closed = false
 
-  const admitOwner = (req, res) => {
-    const result = ctx.connection.admit(req)
-    if ('rejection' in result) { res.statusCode = result.rejection; res.end(); return false }
-    if (result.peer.principal.kind !== 'owner') { res.statusCode = 403; res.end(); return false }
+  const admitOwner = (res, peer) => {
+    if (peer === undefined) { res.statusCode = 401; res.end(); return false }
+    if (peer.principal.kind !== 'owner') { res.statusCode = 403; res.end(); return false }
     return true
   }
 
@@ -403,8 +402,8 @@ export async function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: STATE_PATH,
-    handler: async (req, res) => {
-      if (!admitOwner(req, res)) return
+    handler: async (req, res, peer) => {
+      if (!admitOwner(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
       sendJson(res, 200, await state())
     },
@@ -413,8 +412,8 @@ export async function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: SET_PATH,
-    handler: async (req, res) => {
-      if (!admitOwner(req, res)) return
+    handler: async (req, res, peer) => {
+      if (!admitOwner(res, peer)) return
       if (req.method !== 'POST') return sendJson(res, 405, { message: 'POST only' }, { allow: 'POST' })
       const raw = await readBody(req)
       if (raw === null) return sendJson(res, 413, { message: `body exceeds ${MAX_BODY_BYTES} bytes` })
@@ -456,8 +455,8 @@ export async function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: TEST_PATH,
-    handler: async (req, res) => {
-      if (!admitOwner(req, res)) return
+    handler: async (req, res, peer) => {
+      if (!admitOwner(res, peer)) return
       if (req.method !== 'POST') return sendJson(res, 405, { message: 'POST only' }, { allow: 'POST' })
       const raw = await readBody(req)
       if (raw === null) return sendJson(res, 413, { message: `body exceeds ${MAX_BODY_BYTES} bytes` })

@@ -79,7 +79,9 @@ function createHarness(options = {}) {
   return { route: routes.find(item => item.path === OP_PATH), commands, tools }
 }
 
-async function invoke(route, { method = 'POST', body } = {}) {
+async function invoke(route, opts = {}) {
+  const { method = 'POST', body } = opts
+  const peer = 'peer' in opts ? opts.peer : { principal: { kind: 'owner' } }
   const raw = body === undefined ? '' : typeof body === 'string' ? body : JSON.stringify(body)
   const req = Readable.from(raw ? [Buffer.from(raw)] : [])
   req.method = method
@@ -97,7 +99,7 @@ async function invoke(route, { method = 'POST', body } = {}) {
     if (chunk) payload += chunk
     res.writableEnded = true
   }
-  await route.handler(req, res)
+  await route.handler(req, res, peer)
   return { status: res.statusCode, headers: res.headers, text: payload, json: payload ? JSON.parse(payload) : null }
 }
 
@@ -137,13 +139,9 @@ test('branch-switcher HTTP endpoint switches branches including from detached HE
 })
 
 test('branch-switcher HTTP endpoint enforces owner admission, POST method, and session lookup', async () => {
-  const guest = createHarness({ admit: () => ({ peer: { principal: { kind: 'guest' } } }) })
-  assert.equal((await invoke(guest.route, { body: { sessionId: 's1', action: 'list' } })).status, 403)
-
-  const rejected = createHarness({ admit: () => ({ rejection: 401 }) })
-  assert.equal((await invoke(rejected.route, { body: { sessionId: 's1', action: 'list' } })).status, 401)
-
   const missing = createHarness({ resolveAgent: async () => ({ error: { code: 'NOT_FOUND', message: 'No session' } }) })
+  assert.equal((await invoke(missing.route, { body: { sessionId: 's1', action: 'list' }, peer: { principal: { kind: 'guest' } } })).status, 403)
+  assert.equal((await invoke(missing.route, { body: { sessionId: 's1', action: 'list' }, peer: undefined })).status, 401)
   const wrongMethod = await invoke(missing.route, { method: 'GET' })
   assert.equal(wrongMethod.status, 405)
   assert.equal(wrongMethod.headers.allow, 'POST')

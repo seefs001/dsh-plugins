@@ -441,10 +441,9 @@ export function apply(ctx) {
     return task
   }
 
-  const rejected = (req, res) => {
-    const admission = ctx.connection.admit(req)
-    if (!('rejection' in admission) && admission.peer.principal.kind === 'owner') return false
-    res.statusCode = 'rejection' in admission ? admission.rejection : 403
+  const rejected = (res, peer) => {
+    if (peer?.principal?.kind === 'owner') return false
+    res.statusCode = peer === undefined ? 401 : 403
     res.end()
     return true
   }
@@ -452,8 +451,8 @@ export function apply(ctx) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: STATE_PATH,
-    handler: async (req, res) => {
-      if (rejected(req, res)) return
+    handler: async (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
       try {
         await ready
@@ -467,8 +466,8 @@ export function apply(ctx) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: OP_PATH,
-    handler: async (req, res) => {
-      if (rejected(req, res)) return
+    handler: async (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'POST') return sendJson(res, 405, { message: 'POST only' }, { allow: 'POST' })
       const raw = await readBody(req)
       if (raw === null) return sendJson(res, 413, { message: `body exceeds ${MAX_BODY_BYTES} bytes` })
@@ -485,8 +484,8 @@ export function apply(ctx) {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: EVENTS_PATH,
-    handler: async (req, res) => {
-      if (rejected(req, res)) return
+    handler: async (req, res, peer) => {
+      if (rejected(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
       try { await ready } catch (error) {
         return sendJson(res, 503, { message: `storage unavailable: ${error?.message ?? error}` })

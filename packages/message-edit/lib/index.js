@@ -197,10 +197,9 @@ export function apply(ctx) {
   const service = new MessageEdit(ctx)
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact', path: OP_PATH,
-    handler: async (req, res) => {
-      const admission = ctx.connection.admit(req)
-      if ('rejection' in admission || admission.peer.principal.kind !== 'owner') {
-        res.writeHead('rejection' in admission ? admission.rejection : 403)
+    handler: async (req, res, peer) => {
+      if (peer?.principal?.kind !== 'owner') {
+        res.writeHead(peer === undefined ? 401 : 403)
         res.end()
         return
       }
