@@ -38,8 +38,8 @@
     "README.md"
   ],
   "engines": {
-    "node": "^22.19.0 || >=24.0.0",
-    "dsh": ">=0.2.2-rc.4 <0.3.0"
+    "node": "^24.22.3 || >=26.13.1",
+    "dsh": ">=0.2.3-alpha.2 <0.3.0"
   },
   "publishConfig": {
     "access": "public"
@@ -58,6 +58,7 @@
         "@deepseek-ai/dsh-client-ui-tool",
         "@deepseek-ai/dsh-client-ui-workspace",
         "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-session-status",
         "@deepseek-ai/dsh-api-session-controller",
         "@deepseek-ai/dsh-client-ui-context-menu",
         "@deepseek-ai/dsh-api-workspace-controller"

@@ -341,7 +341,7 @@ window.__ModuleLoader__.load({
 `
 
     return {
-      inject: ['slots', 'locale', 'sessions', 'layout', 'uiWorkspace', 'uiSession', 'workspaces', 'contextMenus'],
+      inject: ['slots', 'locale', 'sessions', 'layout', 'uiWorkspace', 'uiSession', 'uiSession.sessionStatus', 'workspaces', 'contextMenus'],
       apply(ctx) {
         for (const [lang, messages] of Object.entries(copy)) ctx.effect(() => ctx.locale.register(NS, lang, messages), `${NS}: ${lang}`)
         ctx.effect(() => {

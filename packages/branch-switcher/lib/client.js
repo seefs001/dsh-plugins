@@ -180,8 +180,10 @@ window.__ModuleLoader__.load({
           }
           async function worktree() {
             setPending(true); setError(null)
-            try { await props.request(branch) }
-            catch (failure) { if (mounted.current) setError(failure.message) }
+            try {
+              const result = await props.request(branch ?? null, null)
+              if (result && result.ok === false) throw new Error(result.error?.message ?? 'Worktree request failed')
+            } catch (failure) { if (mounted.current) setError(failure.message) }
             finally { if (mounted.current) setPending(false) }
           }
           function keys(event) {
@@ -193,7 +195,10 @@ window.__ModuleLoader__.load({
               : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length
             event.preventDefault(); buttons[next].focus()
           }
-          if (panel?.worktree.request || panel?.worktree.creation) return h(props.original, props)
+          if (panel?.worktree.request || panel?.worktree.creation) {
+            const { original: Original, ...originalProps } = props
+            return h(Original, originalProps)
+          }
           if (!panel?.worktree.editable || panel.worktree.blocker === 'not-git' || state?.state !== 'ready') return null
           const worktreeBlocked = panel.worktree.blocker !== null
           return h('span', { className: 'dbs-root', 'data-branch-switcher': '' },

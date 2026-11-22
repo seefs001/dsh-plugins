@@ -99,9 +99,9 @@ export async function apply(ctx, config) {
   })
 
   const rejected = (req, res) => {
-    const rejection = ctx.connection.requestRejection(req)
-    if (rejection === undefined) return false
-    res.statusCode = rejection
+    const admission = ctx.connection.admit(req)
+    if (!('rejection' in admission) && admission.peer.principal.kind === 'owner') return false
+    res.statusCode = 'rejection' in admission ? admission.rejection : 403
     res.end()
     return true
   }

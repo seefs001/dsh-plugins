@@ -222,12 +222,13 @@ window.__ModuleLoader__.load({
       'bash', 'pwsh', 'grep', 'glob', 'web_search', 'web_fetch', 'grok_search', 'openai_search',
       'subagent', 'subagent_fork', 'spawn_teammate', 'wait_agent', 'send_message', 'interrupt_agent',
       'job_output', 'terminal_read', 'workflow', 'ralph', 'lsp',
-      'cordis_inspect_list', 'cordis_inspect_query', 'cordis_inspect_self',
+      'cordis_inspect', 'cordis_inspect_self',
       'session_event_read', 'session_event_search', 'session_event_trace', 'session_search', 'session_trace',
     ]
     const LIST_CAP = 50
     const MAX_LINE_JUMPS = 6
     const SPILL_MARK = ' Full formatted result stored at: '
+    const CLAUDE_SPILL_MARK = 'full output saved to '
 
     const settledText = block => ('kind' in block ? resultText(block) : null)
     const metaOf = block => (typeof block.meta === 'object' && block.meta !== null && !Array.isArray(block.meta) ? block.meta : undefined)
@@ -236,11 +237,20 @@ window.__ModuleLoader__.load({
       const text = settledText(block)
       if (text === null) return undefined
       const at = text.lastIndexOf(SPILL_MARK)
-      if (at < 0) return undefined
-      const rest = text.slice(at + SPILL_MARK.length)
-      const end = rest.indexOf('. ')
-      const path = (end < 0 ? rest.replace(/\)\s*$/, '') : rest.slice(0, end)).trim()
-      return /^(?:\/|[A-Za-z]:[\\/])/.test(path) ? path : undefined
+      if (at >= 0) {
+        const rest = text.slice(at + SPILL_MARK.length)
+        const end = rest.indexOf('. ')
+        const path = (end < 0 ? rest.replace(/\)\s*$/, '') : rest.slice(0, end)).trim()
+        if (/^(?:\/|[A-Za-z]:[\\/])/.test(path)) return path
+      }
+      const claudeAt = text.lastIndexOf(CLAUDE_SPILL_MARK)
+      if (claudeAt >= 0) {
+        const rest = text.slice(claudeAt + CLAUDE_SPILL_MARK.length)
+        const end = rest.search(/[\]\r\n]/u)
+        const path = (end < 0 ? rest : rest.slice(0, end)).trim()
+        if (/^(?:\/|[A-Za-z]:[\\/])/.test(path)) return path
+      }
+      return undefined
     }
 
     function subagentChild(toolName, block) {
@@ -667,14 +677,29 @@ window.__ModuleLoader__.load({
       const normalized = path.replace(/\\/g, '/').replace(/^(?:\.\/)+/, '')
       return `dsh-resource://file/session/${encodeSegment(sessionId)}/${normalized.split('/').map(encodeSegment).join('/')}`
     }
+    function joinCwd(cwd, rel) {
+      const rawBase = typeof cwd === 'string' ? cwd.replace(/\\/g, '/') : ''
+      const base = rawBase.replace(/\/+$/, '') || (rawBase.startsWith('/') ? '/' : '')
+      if (!base) return rel.replace(/^(?:\.\/)+/, '')
+      const joined = base.endsWith('/') ? `${base}${rel}` : `${base}/${rel}`
+      const prefixMatch = /^(?:[A-Za-z]:\/|\/\/[^/]+\/[^/]+\/|\/)/.exec(joined)
+      const prefix = prefixMatch ? prefixMatch[0] : ''
+      const parts = []
+      for (const segment of joined.slice(prefix.length).split('/')) {
+        if (!segment || segment === '.') continue
+        if (segment === '..') {
+          if (parts.length > 0 && parts[parts.length - 1] !== '..') parts.pop()
+          else if (!prefix) parts.push('..')
+        } else {
+          parts.push(segment)
+        }
+      }
+      return `${prefix}${parts.join('/')}`
+    }
     function fileAddressFor(sessionId, cwd, path) {
       const normalized = path.replace(/\\/g, '/')
       const absolute = normalized.startsWith('/') || /^[A-Za-z]:\//.test(normalized) || normalized.startsWith('//')
-      if (!absolute) return sessionFileAddress(sessionId, normalized)
-      const root = cwd === undefined ? '' : cwd.replace(/\\/g, '/').replace(/\/+$/, '')
-      if (root !== '' && normalized === root) return sessionFileAddress(sessionId, '')
-      if (root !== '' && normalized.startsWith(`${root}/`)) return sessionFileAddress(sessionId, normalized.slice(root.length + 1))
-      return sessionFileAddress(sessionId, normalized)
+      return sessionFileAddress(sessionId, absolute ? normalized : joinCwd(cwd, normalized))
     }
   },
 })

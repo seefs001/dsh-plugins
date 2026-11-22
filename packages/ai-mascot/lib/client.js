@@ -251,7 +251,7 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots', 'locale', 'modelDirectories'],
+      inject: ['slots', 'locale', 'modelDirectories', 'uiSession.sessionStatus'],
       apply(ctx) {
         const bridge = createBridge()
         ctx.effect(() => () => bridge.dispose(), 'ai-mascot: activity')

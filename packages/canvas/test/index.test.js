@@ -84,7 +84,7 @@ function createHarness() {
       async open() { return domain },
     },
     connection: {
-      requestRejection: () => undefined,
+      admit: () => ({ peer: { principal: { kind: 'owner' } } }),
     },
     webServer: {
       register(route) {

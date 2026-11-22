@@ -7,7 +7,7 @@ const PACKAGES = join(ROOT, 'packages')
 const DOCS_PLUGINS = join(ROOT, 'apps', 'docs', 'content', 'docs', 'plugins')
 const LOCALES = ['en', 'zh']
 const REQUIRED = ['name', 'version', 'description', 'keywords', 'license', 'repository', 'type', 'exports', 'files', 'engines', 'dsh']
-const EXPECTED_DSH_ENGINE = '>=0.2.2-rc.4 <0.3.0'
+const EXPECTED_DSH_ENGINE = '>=0.2.3-alpha.2 <0.3.0'
 const FORBIDDEN_PACKAGE_DOCS = ['DESIGN.md', 'ARCHITECTURE.md', 'PASEO-PARITY.md']
 const LEGACY_TEXT = /\b(?:dsh[-_]inbox|llm-pi-ai\/model-defaults)\b/
 

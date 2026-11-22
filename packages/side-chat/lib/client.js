@@ -242,7 +242,7 @@ window.__ModuleLoader__.load({
             setReference(null)
             setError('')
             async function attach() {
-              acquired = ctx.sessions.retain(id, { source: KIND, signal: controller.signal })
+              acquired = ctx.sessions.retain(id, { source: KIND, facets: { conversation: true }, signal: controller.signal })
               await acquired.ready
               if (active) setReference(acquired)
             }

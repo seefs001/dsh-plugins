@@ -90,7 +90,7 @@ export function apply(ctx) {
       handler: async (req, res) => {
         const admission = ctx.connection.admit(req)
         if ('rejection' in admission) return sendJson(res, admission.rejection, { message: 'Authentication required' })
-        if (admission.peer !== ctx.connection.browserPeer) return sendJson(res, 403, { message: 'Browser owner access required' })
+        if (admission.peer.principal.kind !== 'owner') return sendJson(res, 403, { message: 'Browser owner access required' })
         if (req.method !== method) {
           res.setHeader('allow', method)
           return sendJson(res, 405, { message: `${method} only` })

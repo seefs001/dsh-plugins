@@ -17,11 +17,15 @@ const primitives = {
 test('tool-lens extracts grep line jumps, lsp locations, hosted search links, and extended subagents', () => {
   const { id, plugin } = loadClient(clientPath, { '@deepseek-ai/dsh-client-ui-primitives': primitives })
   assert.equal(id, 'dsh-tool-lens')
-  const { AUGMENTED, searchFiles, lspLocations, webLinks, subagentChild } = plugin._internal
+  const { AUGMENTED, fileAddressFor, searchFiles, lspLocations, webLinks, subagentChild } = plugin._internal
 
-  for (const key of ['subagent_fork', 'spawn_teammate', 'wait_agent', 'pwsh', 'ralph', 'cordis_inspect_self', 'grok_search', 'openai_search']) {
+  for (const key of ['subagent_fork', 'spawn_teammate', 'wait_agent', 'pwsh', 'ralph', 'cordis_inspect', 'cordis_inspect_self', 'grok_search', 'openai_search']) {
     assert.ok(AUGMENTED.includes(key))
   }
+
+  assert.equal(fileAddressFor('s1', '/repo', '/repo/a.js'), 'dsh-resource://file/session/s1//repo/a.js')
+  assert.equal(fileAddressFor('s1', '/repo/worktree', './src/../lib/a.js'), 'dsh-resource://file/session/s1//repo/worktree/lib/a.js')
+  assert.equal(fileAddressFor('s1', undefined, './src/a.js'), 'dsh-resource://file/session/s1/src/a.js')
 
   const grepFiles = searchFiles({
     kind: 'tool-result',

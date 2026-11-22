@@ -20,9 +20,9 @@ export function apply(ctx) {
     kind: 'exact',
     path: '/workspace-manager/check',
     handler: async (req, res) => {
-      const rejection = ctx.connection.requestRejection(req)
-      if (rejection !== undefined) {
-        res.statusCode = rejection
+      const admission = ctx.connection.admit(req)
+      if ('rejection' in admission || admission.peer.principal.kind !== 'owner') {
+        res.statusCode = 'rejection' in admission ? admission.rejection : 403
         res.end()
         return
       }
