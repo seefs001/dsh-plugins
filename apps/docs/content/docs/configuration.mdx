@@ -19,6 +19,7 @@ description: 各插件的配置、storage domain、凭据、会话日志与浏�
 | `会话整理` | 已读序号、暂缓时间、归置状态与自动归置偏好 | Host `session_lifecycle` storage domain |
 | `会话整理` | 可选摘要配置、每日限额与最新 100 条缓存 | Host `session_lifecycle_summary` storage domain |
 | `会话分组` | 分组、成员、顺序与组内置顶 | Host `session_groups` storage domain |
+| `画布` | 会话开关、交互状态（上限 200 键 / 256 KB）与修订历史（最近 25 次）；源码文件 | Host `canvas` storage domain + 工作区 `.canvas.tsx` |
 | `Wait, what? 回复解释` | 专用解释模型与推理强度 | `cordis.patch.yml` |
 | `Wait, what? 回复解释` | 最近 200 份解释缓存 | Host `message_actions` storage domain |
 | `ACP 会话集成` | 提供方、会话绑定、运行摘要、事件分块、共享与脚本记录 | Host `acp_workbench` storage domain |
