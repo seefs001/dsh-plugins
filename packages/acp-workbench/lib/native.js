@@ -3,6 +3,7 @@ import { isAbsolute, join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { applyLateCompactions, cliParentOf, createTrace, cursorTaskToolUpdate, foldEvents, foldTerminal, mergePermissionToolCall, mergeToolUpdate, namedPlan } from './trace.js'
 import { connectionNotices } from './notices.js'
+import { installContinuations } from './continuations.js'
 import {
   advertisedModes,
   extractLegacyOverrides,
@@ -952,6 +953,7 @@ export class NativeAcp {
 
   async initialize() {
     this.syncProviders()
+    installContinuations(this, isRoute)
     // external: DSH workingDirectory falls back to header.cwd when a worktree path is missing
     this.disposers.push(this.ctx.on('working-directory/access', async ({ agent, path, signal }, next) => {
       if (path === null && isRoute(agent.model.current()?.provider)) await this.guardDirectory(agent, this.cwd(agent), signal)

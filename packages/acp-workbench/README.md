@@ -12,6 +12,8 @@
 | **DSH 委派子任务** | 保留普通 DSH 主模型，调用 `subagent_cursor`、`subagent_antigravity` 或 `subagent_acp_claude_code` | 由 DSH 主模型拆解任务、并行委派并用 `send_message` 续聊，父会话直接审批 |
 | **ACP 工作台**（左侧栏） | 提供方与模型目录管理中心 | 配置本机 CLI 提供方、检测协议能力、拉取与筛选展示在 DSH 模型选择器中的模型 |
 
+父代理用 `send_message` 给自己的 ACP 子代理补充要求时，回执只确认 DSH 已接收。正在运行的外部 CLI 不会被打断；补充要求留给下一次 ACP 请求。要改变当前请求，请由用户在工作台使用实时引导，且 CLI 必须声明支持该能力。
+
 ## 安装与配置
 
 ### 1. 安装插件
