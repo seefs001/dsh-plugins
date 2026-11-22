@@ -33,13 +33,17 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 ### 2. 配置本机 CLI
 
 1. 在终端完成目标 CLI 的安装与登录。
-2. 打开侧栏 **ACP 工作台 → 提供方**，核对默认命令或新增提供方：
+2. 打开侧栏 **ACP 工作台 → 提供方**，核对默认命令或点击 **新增提供方** 从内置预设模板（Cursor、Antigravity、Claude Code、Codex、Gemini CLI、OpenCode、GitHub Copilot）一键填入：
 
-| ID | 名称 | 默认命令（优先 `~/.local/bin/`，否则取 `PATH`） | 默认参数 |
-| --- | --- | --- | --- |
-| `cursor` | Cursor | `cursor-agent` | `["acp"]` |
-| `antigravity` | Antigravity | `agy` | `["acp"]` |
-| `claude-code` | Claude Code | `claude-agent-acp` | `[]` |
+| ID | 名称 | 默认命令（优先 `~/.local/bin/` 或 `~/.bun/bin/`，否则取 `PATH`） | 默认参数 | 默认预置 |
+| --- | --- | --- | --- | --- |
+| `cursor` | Cursor | `cursor-agent` | `["acp"]` | 是 |
+| `antigravity` | Antigravity | `agy` | `["acp"]` | 是 |
+| `claude-code` | Claude Code | `claude-agent-acp` | `[]` | 是 |
+| `codex` | Codex | `codex-acp` | `[]` | 模板 |
+| `gemini` | Gemini CLI | `gemini` | `["--acp"]` | 模板 |
+| `opencode` | OpenCode | `opencode` | `["acp"]` | 模板 |
+| `copilot` | GitHub Copilot | `copilot` | `["--acp"]` | 模板 |
 
 3. 在左侧选中提供方后，可直接在右侧顶部一键执行：
    - **刷新模型**：拉取全部可用模型及各自属性（Cursor 支持通过 `cursor/list_available_models` 一次性获取完整参数化模型目录），默认全部出现在 DSH 模型选择器中，可按关键词与能力标签筛选并隐藏不需要的模型。
@@ -61,7 +65,7 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 
 采用左侧提供方列表 + 右侧模型目录主区设计：
 
-- **提供方概览**：左侧显示各 CLI 提供方的可见/总模型数、命令行预览与活跃连接状态；支持顶部一键新增提供方。
+- **提供方概览与预设模板**：左侧显示各 CLI 提供方的可见/总模型数、命令行预览与活跃连接状态；顶部 **新增提供方** 与 **CLI 配置** 内置常见 ACP CLI 预设模板，可一键填入默认命令与参数（已有同名 ID 时自动避重）。
 - **模型目录筛选与可见性管理**：按名称/ID 搜索，支持按 `全部 / 已显示 / 已隐藏 / 思考 / Fast / 多上下文` 标签快速过滤，直观展示思考强度、上下文窗口、Fast、图片输入与输出上限，支持全部显示/全部隐藏与顶部未保存更改提示。
 - **按需展开的配置与诊断**：命令行参数与工作目录覆盖收纳在可折叠的 **CLI 配置** 面板，协议能力与原始 JSON 诊断收纳在可关闭的 **检查能力** 面板，不干扰模型目录浏览。
 

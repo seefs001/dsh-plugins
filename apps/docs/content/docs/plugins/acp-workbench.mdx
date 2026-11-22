@@ -28,11 +28,15 @@ description: 在 DSH 会话中直接运行 Cursor、Antigravity、Claude Code �
 
 在终端完成目标 CLI 的安装与登录：
 
-| 默认提供方 | 默认可执行文件 | 默认参数 |
-| --- | --- | --- |
-| Cursor（`cursor`） | `cursor-agent`（优先 `~/.local/bin/`，否则取 `PATH`） | `["acp"]` |
-| Antigravity（`antigravity`） | `agy` | `["acp"]` |
-| Claude Code（`claude-code`） | `claude-agent-acp` | `[]` |
+| 预设提供方 / 模板 | 默认可执行文件 | 默认参数 | 说明 |
+| --- | --- | --- | --- |
+| Cursor（`cursor`） | `cursor-agent`（优先 `~/.local/bin/` 或 `~/.bun/bin/`，否则取 `PATH`） | `["acp"]` | 默认预置 |
+| Antigravity（`antigravity`） | `agy` | `["acp"]` | 默认预置 |
+| Claude Code（`claude-code`） | `claude-agent-acp` | `[]` | 默认预置 |
+| Codex（`codex`） | `codex-acp` | `[]` | 新增/配置模板 |
+| Gemini CLI（`gemini`） | `gemini` | `["--acp"]` | 新增/配置模板 |
+| OpenCode（`opencode`） | `opencode` | `["acp"]` | 新增/配置模板 |
+| GitHub Copilot（`copilot`） | `copilot` | `["--acp"]` | 新增/配置模板 |
 
 </Step>
 <Step>
@@ -50,7 +54,7 @@ description: 在 DSH 会话中直接运行 Cursor、Antigravity、Claude Code �
 
 打开左侧栏 **ACP 工作台 → 提供方**：
 
-1. 核对或新增提供方的名称、可执行文件和参数。
+1. 核对默认提供方，或点击 **新增提供方** / 展开 **CLI 配置** 使用预设模板一键填入常见 ACP CLI 的命令与参数（新增时如 ID 已存在会自动生成不冲突的后缀）。
 2. 填写一个项目的绝对工作目录。
 3. 点击 **检查能力**：运行 ACP `initialize` 查看协议版本、登录方式与支持的能力。
 4. 点击 **刷新模型**：通过空会话拉取候选模型及上下文、思考强度等元信息。

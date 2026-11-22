@@ -1,8 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
 import { realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { isAbsolute, join } from 'node:path'
+import { isAbsolute } from 'node:path'
 import { AcpConnection, RpcError } from './transport.js'
 import { WorkbenchStore } from './store.js'
 import { advertisedModels, advertisedModes, inputModalities } from './models.js'
@@ -12,6 +11,7 @@ import { rememberNotice } from './notices.js'
 import { formFields, formResponse, urlElicitation, urlResponse } from './forms.js'
 import { activityOf } from './activity.js'
 import { anchorCompaction, cliParentOf } from './trace.js'
+import { defaultProviders, resolveProviderTemplates } from './templates.js'
 
 export { advertisedModels }
 
@@ -21,13 +21,6 @@ const str = (value, name, max = 1000) => {
   if (typeof value !== 'string' || !value.trim() || value.length > max) throw new Error(`${name} must be non-empty text (max ${max})`)
   return value.trim()
 }
-const cli = name => existsSync(join(homedir(), '.local/bin', name)) ? join(homedir(), '.local/bin', name) : name
-const DEFAULT_PROVIDERS = [
-  { id: 'cursor', label: 'Cursor', command: cli('cursor-agent'), args: ['acp'], models: [] },
-  { id: 'antigravity', label: 'Antigravity', command: cli('agy'), args: ['acp'], models: [] },
-  // external: @agentclientprotocol/claude-agent-acp serves ACP on stdio without CLI arguments
-  { id: 'claude-code', label: 'Claude Code', command: cli('claude-agent-acp'), args: [], models: [] },
-]
 const MAX_MODELS = 200
 const MAX_HIDDEN_MODELS = 500
 const MAX_PROBE_MODELS = 24
@@ -64,7 +57,7 @@ export class Workbench {
   async initialize() {
     const global = this.store.domain.global.get()
     if (!global.initialized) {
-      for (const provider of DEFAULT_PROVIDERS) {
+      for (const provider of defaultProviders()) {
         if (!this.store.providers.has(provider.id)) await this.store.saveProvider(provider)
       }
       await this.store.domain.global.set({ ...global, initialized: true })
@@ -112,6 +105,7 @@ export class Workbench {
     }
     return {
       providers: [...this.store.providers.values()],
+      providerTemplates: resolveProviderTemplates(),
       activeByProvider,
       authByProvider: Object.fromEntries(this.authByProvider),
       defaultCwd: recentCwd || homedir(),

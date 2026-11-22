@@ -96,6 +96,9 @@ window.__ModuleLoader__.load({
       truncated: '… {n} characters in total', copy: 'Copy', copied: 'Copied', wrap: 'Wrap lines', unwrap: 'Do not wrap', code: 'Code',
       expandLines: 'Show {n} more lines', collapseLines: 'Show less', expandLinesAria: 'Show {n} hidden lines', collapseLinesAria: 'Hide expanded lines',
       providerList: 'Providers', addProvider: 'New provider', editProvider: 'Edit provider', newProviderTitle: 'New provider',
+      providerTemplates: 'Preset templates', providerTemplatesHint: 'Click a template to prefill command and arguments, then customize as needed.',
+      providerTemplatesEditHint: 'Click a template to apply its default command and arguments while keeping this provider’s ID and name.',
+      templateAdded: 'Added', templateBlank: 'Blank',
       fieldId: 'ID', fieldLabel: 'Display name', fieldCommand: 'Executable', fieldCommandHint: 'Absolute path or a name on PATH.',
       fieldArgs: 'Arguments', fieldArgsHint: 'JSON array of strings, for example ["acp"]. Do not put secrets here.',
       save: 'Save', saved: 'Saved', remove: 'Remove', removeConfirm: 'Remove this provider configuration? Its records are kept.',
@@ -227,6 +230,9 @@ window.__ModuleLoader__.load({
       truncated: '… 共 {n} 个字符', copy: '复制', copied: '已复制', wrap: '自动换行', unwrap: '取消换行', code: '代码',
       expandLines: '再显示 {n} 行', collapseLines: '收起', expandLinesAria: '显示隐藏的 {n} 行', collapseLinesAria: '收起展开的行',
       providerList: '提供方', addProvider: '新增提供方', editProvider: '编辑提供方', newProviderTitle: '新增提供方',
+      providerTemplates: '预设模板', providerTemplatesHint: '点击模板一键填入默认命令与参数，可继续按需修改。',
+      providerTemplatesEditHint: '点击模板可套用默认命令与参数（保留当前 ID 与显示名称）。',
+      templateAdded: '已添加', templateBlank: '空白配置',
       fieldId: 'ID', fieldLabel: '显示名称', fieldCommand: '可执行文件', fieldCommandHint: '绝对路径或 PATH 中的名称。',
       fieldArgs: '参数', fieldArgsHint: 'JSON 字符串数组，例如 ["acp"]。请勿填写密钥。',
       save: '保存', saved: '已保存', remove: '删除', removeConfirm: '删除此提供方配置？其执行记录仍然保留。',
@@ -452,6 +458,16 @@ window.__ModuleLoader__.load({
 .aw-box{display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);min-width:0}
 .aw-box-head{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 .aw-box-head h2,.aw-box-head h3{font-size:14px;font-weight:500;line-height:20px}
+.aw-templates{display:flex;flex-direction:column;gap:8px;min-width:0}
+.aw-templates-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.aw-templates-title{font-size:12px;font-weight:500;color:var(--dsw-alias-label-secondary)}
+.aw-template-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.aw-template{display:flex;flex-direction:column;gap:3px;min-width:0;padding:8px 10px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s,border-color .15s}
+@media (hover:hover){.aw-template:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3)}}
+.aw-template:disabled{opacity:.55;cursor:default}
+.aw-template[aria-pressed=true]{border-color:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));background:color-mix(in srgb,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)) 8%,var(--dsw-alias-bg-layer-1))}
+.aw-template-top{display:flex;align-items:center;gap:6px;min-width:0}
+.aw-template-cmd{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
 .aw-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .aw-form .aw-wide{grid-column:1/-1}
 @container (max-width:560px){.aw-form{grid-template-columns:minmax(0,1fr)}}
@@ -2630,7 +2646,7 @@ window.__ModuleLoader__.load({
         ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))
 
         function useWorkbench() {
-          const [data, setData] = React.useState({ providers: EMPTY, activeByProvider: {}, authByProvider: {}, defaultCwd: '', storageError: null })
+          const [data, setData] = React.useState({ providers: EMPTY, providerTemplates: EMPTY, activeByProvider: {}, authByProvider: {}, defaultCwd: '', storageError: null })
           const [ready, setReady] = React.useState(false)
           const [error, setError] = React.useState('')
           const kick = React.useRef(null)
@@ -2665,6 +2681,30 @@ window.__ModuleLoader__.load({
         }
 
         const blankProvider = () => ({ id: '', label: '', command: '', args: '["acp"]' })
+        const FALLBACK_PROVIDER_TEMPLATES = [
+          { id: 'cursor', label: 'Cursor', bin: 'cursor-agent', command: 'cursor-agent', args: ['acp'] },
+          { id: 'antigravity', label: 'Antigravity', bin: 'agy', command: 'agy', args: ['acp'] },
+          { id: 'claude-code', label: 'Claude Code', bin: 'claude-agent-acp', command: 'claude-agent-acp', args: [] },
+          { id: 'codex', label: 'Codex', bin: 'codex-acp', command: 'codex-acp', args: [] },
+          { id: 'gemini', label: 'Gemini CLI', bin: 'gemini', command: 'gemini', args: ['--acp'] },
+          { id: 'opencode', label: 'OpenCode', bin: 'opencode', command: 'opencode', args: ['acp'] },
+          { id: 'copilot', label: 'GitHub Copilot', bin: 'copilot', command: 'copilot', args: ['--acp'] },
+        ]
+        const nextTemplateIdentity = (template, existingIds) => {
+          if (!existingIds.has(template.id)) return { id: template.id, label: template.label }
+          let suffix = 2
+          while (existingIds.has(`${template.id}-${suffix}`)) suffix += 1
+          return { id: `${template.id}-${suffix}`, label: `${template.label} ${suffix}` }
+        }
+        const templateMatchesDraft = (template, draft) => {
+          let args
+          try { args = JSON.parse(draft.args) } catch { return false }
+          if (!Array.isArray(args)) return false
+          const cmd = draft.command.trim()
+          const cmdBase = cmd.split(/[\\/]/u).at(-1)
+          const sameCmd = cmd === template.command || (template.bin && cmdBase === template.bin)
+          return sameCmd && JSON.stringify(args) === JSON.stringify(template.args)
+        }
         const formatTokenCount = n => {
           if (!Number.isFinite(n) || n <= 0) return ''
           if (n >= 1_000_000) return `${+(n / 1_000_000).toFixed(1)}M`
@@ -2719,13 +2759,35 @@ window.__ModuleLoader__.load({
             h(Json, { label: tt('rawResult'), payload: info }))
         }
 
-        function ProviderForm({ saved, draft, busy, notice, probeCwd, defaultCwd, onChange, onProbeCwd, onSave, onRemove, onCancel }) {
+        function ProviderForm({ saved, draft, templates, existingIds, busy, notice, probeCwd, defaultCwd, onApplyTemplate, onResetBlank, onChange, onProbeCwd, onSave, onRemove, onCancel }) {
           const tt = useT()
+          const isBlank = !draft.id && !draft.label && !draft.command && draft.args === '["acp"]'
           return h('form', { className: 'aw-box', onSubmit: onSave },
             h('div', { className: 'aw-box-head' },
               h('h3', { className: 'aw-grow' }, saved ? tt('editProvider') : tt('newProviderTitle')),
               onCancel ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy, onClick: onCancel }, tt(saved ? 'hideConfig' : 'cancelNew')) : null),
             h('p', { className: 'aw-note' }, tt('providerHint'), ' ', tt('warning')),
+            templates?.length ? h('div', { className: 'aw-templates' },
+              h('div', { className: 'aw-templates-head' },
+                h('span', { className: 'aw-templates-title' }, tt('providerTemplates')),
+                h('span', { className: 'aw-note aw-grow' }, tt(saved ? 'providerTemplatesEditHint' : 'providerTemplatesHint')),
+                !saved ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy || isBlank, onClick: onResetBlank }, tt('templateBlank')) : null),
+              h('div', { className: 'aw-template-grid', role: 'group', 'aria-label': tt('providerTemplates') },
+                templates.map(template => {
+                  const active = templateMatchesDraft(template, draft)
+                  const added = !saved && existingIds?.has(template.id)
+                  const preview = [template.bin || template.command, ...template.args].join(' ')
+                  const fullCmd = [template.command, ...template.args].join(' ')
+                  return h('button', {
+                    key: template.id, type: 'button', className: 'aw-template',
+                    'aria-pressed': active, disabled: busy, title: fullCmd,
+                    onClick: () => onApplyTemplate(template),
+                  },
+                  h('span', { className: 'aw-template-top' },
+                    h('span', { className: 'aw-strong aw-ellipsis aw-grow' }, template.label),
+                    added ? h(Tag, { tone: 'quiet' }, tt('templateAdded')) : null),
+                  h('span', { className: 'aw-template-cmd aw-mono aw-ellipsis' }, preview))
+                }))) : null,
             h('div', { className: 'aw-form' },
               h('label', { className: 'aw-field' }, h('span', null, tt('fieldLabel')), h(Input, { className: 'aw-input', value: draft.label, required: true, onChange: onChange('label') })),
               h('label', { className: 'aw-field' }, h('span', null, tt('fieldId')), h(Input, { className: 'aw-input aw-mono', value: draft.id, required: true, pattern: '[a-z][a-z0-9-]*', disabled: !!saved, onChange: onChange('id') })),
@@ -2771,8 +2833,10 @@ window.__ModuleLoader__.load({
                 outputLabel ? h('span', { className: 'aw-pill' }, `${tt('ctxOutput')}: ${outputLabel}`) : null) : null))
         }
 
-        function ProviderWorkbench({ providers, activeByProvider, authByProvider, defaultCwd, run, busy, creating, setCreating }) {
+        function ProviderWorkbench({ providers, providerTemplates, activeByProvider, authByProvider, defaultCwd, run, busy, creating, setCreating }) {
           const tt = useT()
+          const templates = providerTemplates?.length ? providerTemplates : FALLBACK_PROVIDER_TEMPLATES
+          const existingIds = React.useMemo(() => new Set(providers.map(provider => provider.id)), [providers])
           const [editing, setEditing] = React.useState(providers[0]?.id ?? '')
           const [draft, setDraft] = React.useState(() => providers[0] ? { ...providers[0], args: JSON.stringify(providers[0].args) } : blankProvider())
           const [showConfig, setShowConfig] = React.useState(false)
@@ -2838,6 +2902,16 @@ window.__ModuleLoader__.load({
           })
 
           const changeField = key => event => { setDraft(old => ({ ...old, [key]: event.target.value })); setNotice('') }
+          const applyTemplate = template => {
+            if (saved) {
+              setDraft(old => ({ ...old, command: template.command, args: JSON.stringify(template.args) }))
+            } else {
+              const { id, label } = nextTemplateIdentity(template, existingIds)
+              setDraft({ id, label, command: template.command, args: JSON.stringify(template.args) })
+            }
+            setNotice('')
+          }
+          const resetBlank = () => { setDraft(blankProvider()); setNotice('') }
           const saveProvider = async event => {
             event.preventDefault()
             let args
@@ -2930,7 +3004,8 @@ window.__ModuleLoader__.load({
             h('div', { className: 'aw-stack' },
               creating || !saved
                 ? h(ProviderForm, {
-                  saved: null, draft, busy, notice, probeCwd, defaultCwd: activeWorkspacePath || defaultCwd,
+                  saved: null, draft, templates, existingIds, busy, notice, probeCwd, defaultCwd: activeWorkspacePath || defaultCwd,
+                  onApplyTemplate: applyTemplate, onResetBlank: resetBlank,
                   onChange: changeField, onProbeCwd: setProbeCwd, onSave: saveProvider,
                   onCancel: providers.length ? () => selectProvider(providers.find(p => p.id === editing) ?? providers[0]) : null,
                 })
@@ -2953,7 +3028,8 @@ window.__ModuleLoader__.load({
                       modes.map(mode => h('span', { key: mode.value, className: 'aw-pill' }, mode.name ?? mode.value))) : null,
                     statusBanner ? h('p', { className: 'aw-note', role: 'status' }, statusBanner) : null),
                   showConfig ? h(ProviderForm, {
-                    saved, draft, busy, notice, probeCwd, defaultCwd: activeWorkspacePath || defaultCwd,
+                    saved, draft, templates, existingIds, busy, notice, probeCwd, defaultCwd: activeWorkspacePath || defaultCwd,
+                    onApplyTemplate: applyTemplate, onResetBlank: resetBlank,
                     onChange: changeField, onProbeCwd: setProbeCwd, onSave: saveProvider, onRemove: removeProvider,
                     onCancel: () => setShowConfig(false),
                   }) : null,
@@ -3021,6 +3097,7 @@ window.__ModuleLoader__.load({
               ? (view.error ? null : h('p', { className: 'aw-empty', role: 'status' }, tt('loading')))
               : h(ProviderWorkbench, {
                 providers: view.data.providers,
+                providerTemplates: view.data.providerTemplates,
                 activeByProvider: view.data.activeByProvider,
                 authByProvider: view.data.authByProvider,
                 defaultCwd: view.data.defaultCwd,
