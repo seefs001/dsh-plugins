@@ -64,7 +64,6 @@ export class HubBridge {
     this.journal = options.journal ?? { add() {} }
     this.watched = new Set()
     this.observingDirectory = false
-    this.callNames = new Map()
     this.pendingCreates = new Map()
     this.closed = false
   }
@@ -112,6 +111,13 @@ export class HubBridge {
     const { type, requestId } = message
     try {
       switch (type) {
+        case 'project.list.request': {
+          const paths = this.permissions.includes('hub.execute') ? this.config.sharedProjectPaths ?? [] : []
+          const projects = [...new Set(paths.filter(path => isAbsolute(path)))].map(path => ({
+            projectId: path, projectDisplayName: basename(path) || path, projectRootPath: path,
+          }))
+          return this.reply('project.list.response', requestId, { projects })
+        }
         case 'get_providers_snapshot_request': return await this.providersSnapshot(message)
         case 'refresh_providers_snapshot_request': return this.reply('refresh_providers_snapshot_response', requestId, { acknowledged: true })
         case 'hub.execution.agent.validate.request': return await this.validate(message)
@@ -454,7 +460,7 @@ export class HubBridge {
     this.publishUpdate(sessionId)
   }
 
-  onSessionEvent(sessionId, event) {
+  onSessionEvent(sessionId, event, resultToolName) {
     switch (event.type) {
       case 'turn/start':
         return this.stream(sessionId, { type: 'turn_started' })
@@ -477,16 +483,11 @@ export class HubBridge {
         return
       }
       case 'tool/call': {
-        const calls = this.callNames.get(sessionId) ?? new Map()
-        calls.set(event.data.callId, event.data.name)
-        this.callNames.set(sessionId, calls)
         return this.stream(sessionId, { type: 'timeline', item: toolItem(event.data.callId, event.data.name, 'running', event.data.arguments) })
       }
       case 'tool/result': {
         const callId = event.data.message.toolCallId
-        const calls = this.callNames.get(sessionId)
-        const name = calls?.get(callId) ?? 'tool'
-        calls?.delete(callId)
+        const name = resultToolName ?? 'tool'
         const failed = event.data.message.isError === true
         return this.stream(sessionId, { type: 'timeline', item: toolItem(callId, name, failed ? 'failed' : 'completed', undefined, failed ? textOf(event.data.message.content).slice(0, 2000) || 'failed' : null) })
       }

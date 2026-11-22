@@ -6,3 +6,4 @@
         defaultMode: ''
         agentPreset: ''
         listWorkspaces: true
+        sharedProjectPaths: []

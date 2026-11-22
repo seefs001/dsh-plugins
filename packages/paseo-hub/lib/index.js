@@ -40,6 +40,8 @@ export const Config = Schema.object({
     .description('Fallback mode when a Hub agent omits agent.mode; empty uses the default permission preset.'),
   agentPreset: Schema.string().default('')
     .description('Agent preset for Hub sessions; empty uses the deployment default.'),
+  sharedProjectPaths: Schema.array(Schema.string().min(1)).default([])
+    .description('Absolute project directories to suggest to the connected Hub. Empty shares none; this does not restrict the run directory.'),
   listWorkspaces: Schema.boolean().default(true)
     .description('Add each Hub run directory to the sidebar workspace list.'),
 })
@@ -513,6 +515,8 @@ export function apply(ctx, config) {
   let journal
   const api = new HubApi(ctx.credentials, { add: entry => journal?.add(entry) })
   const fibers = new Map()
+  const toolCalls = new WeakMap()
+  const outcomeWrites = new Map()
   let closing = false
   const ready = ctx.storageDomain.open(DOMAIN_SPEC).then(async domain => {
     if (closing) return domain
@@ -529,6 +533,7 @@ export function apply(ctx, config) {
     await connector?.stop()
     await Promise.allSettled(Array.from(fibers.values(), fiber => fiber?.dispose?.()))
     fibers.clear()
+    await Promise.allSettled(outcomeWrites.values())
     await ready.then(domain => domain.close())
   }, 'paseo-hub: connector')
 
@@ -558,18 +563,34 @@ export function apply(ctx, config) {
 
   ctx.on('session/event', (session, event) => {
     const sessionId = session?.header?.id
-    if (sessionId === undefined || store?.bySession(sessionId) === undefined) return
-    connector?.bridge?.onSessionEvent(sessionId, event)
-    void recordOutcome(sessionId, event)
+    if (closing || sessionId === undefined || store?.bySession(sessionId) === undefined) return
+    let toolName
+    if (event.type === 'tool/call') {
+      const calls = toolCalls.get(session) ?? new Map()
+      calls.set(event.data.callId, event.data.name)
+      toolCalls.set(session, calls)
+    } else if (event.type === 'tool/result') {
+      const calls = toolCalls.get(session)
+      toolName = calls?.get(event.data.message.toolCallId)
+      calls?.delete(event.data.message.toolCallId)
+    } else if (event.type === 'turn/end') {
+      toolCalls.delete(session)
+    }
+    connector?.bridge?.onSessionEvent(sessionId, event, toolName)
+    const finished = event.type === 'tool/result' && toolName === `mcp__${HUB_SERVER}__finish_execution` && event.data.message.isError !== true
+    if (!finished && event.type !== 'turn/start' && event.type !== 'turn/end') return
+    const next = (outcomeWrites.get(sessionId) ?? Promise.resolve()).then(() => recordOutcome(sessionId, event))
+    outcomeWrites.set(sessionId, next)
+    void next.then(() => { if (outcomeWrites.get(sessionId) === next) outcomeWrites.delete(sessionId) })
   })
 
   async function recordOutcome(sessionId, event) {
     try {
       if (event.type === 'turn/start') {
         await store.patch(sessionId, run => ({ turns: (run.turns ?? 0) + 1, lastActivityAt: new Date().toISOString() }))
-      } else if (event.type === 'tool/call' && event.data?.name === `mcp__${HUB_SERVER}__finish_execution`) {
+      } else if (event.type === 'tool/result') {
         await store.patch(sessionId, () => ({ outcome: 'finished', finishedAt: new Date().toISOString() }))
-        journal.add({ kind: 'run.finished', message: 'The run called finish_execution', sessionId })
+        journal.add({ kind: 'run.finished', message: 'Hub accepted finish_execution', sessionId })
       } else if (event.type === 'turn/end') {
         const reason = event.data?.reason
         const now = new Date().toISOString()

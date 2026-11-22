@@ -5,10 +5,10 @@ description: 将 DSH Host 作为 daemon 接入 Paseo Hub 在本地运行触发�
 
 <PluginFacts slug="paseo-hub" />
 
-将当前 DSH Host 注册为 [Paseo Hub](https://github.com/getpaseo/hub) 的 daemon。接入后，Hub 来自 GitHub、Slack、Discord、Linear、Telegram、定时或手动触发的任务会在本机跑成原生 DSH 会话；同时内置组织 API 控制台与 Agent 工具。
+将当前 DSH Host 注册为 [Paseo Hub](https://github.com/getpaseo/hub) 的 daemon。接入后，Hub 来自 GitHub、Slack、Discord、Linear、Telegram、Webhook、定时或手动触发的任务会在本机跑成原生 DSH 会话；同时内置组织 API 控制台与 Agent 工具。
 
 <Callout type="info" title="前置要求">
-需要已启用 `dsh` provider 的 Paseo Hub（在 `UNATTENDED_PROVIDERS` 中加入 `"dsh"`），以及 `@deepseek-ai/dsh-permission-presets` 和 `@deepseek-ai/dsh-storage-domain`（默认 profile 已包含）。
+需要支持 daemon 上报 provider 的 Paseo Hub（或已支持 `dsh` 的旧版 Hub），以及 `@deepseek-ai/dsh-permission-presets` 和 `@deepseek-ai/dsh-storage-domain`（默认 profile 已包含）。
 </Callout>
 
 ## 安装
@@ -18,7 +18,7 @@ description: 将 DSH Host 作为 daemon 接入 Paseo Hub 在本地运行触发�
 ## 接入与触发器写法
 
 1. 在左侧栏打开 **Paseo Hub**，填写 Hub origin（如 `https://hub.example.com`），点击**登录**并在浏览器批准授权码；无浏览器时可用含 `daemons:enroll` 权限的组织 API Key 一次性注册。
-2. 在 Hub 触发器 YAML 中将 `provider` 设为 `dsh`，并指定对应的 DSH 权限预设作为 `mode`：
+2. 在 Hub 触发器 YAML 中将 `provider` 设为 `dsh`，建议显式指定对应的 DSH 权限预设作为 `mode`：
 
 ```yaml
 run:
@@ -27,9 +27,13 @@ run:
     provider: dsh
     model: messages/claude-opus-5-5   # 可选：<DSH provider>/<模型>
     thinkingOptionId: high            # 可选：推理强度
-    mode: workspace-write             # 必填：映射 DSH 权限预设
+    mode: workspace-write             # 可选：映射 DSH 权限预设
   prompt: 修复失败的测试并开 PR。
 ```
+
+新版 Hub 的表单会在 daemon 提供权限模式时要求选择；YAML 可以省略 `mode`，此时插件使用映射后的默认权限预设。无人值守任务建议显式指定。
+
+要在 Hub 的工作目录下拉框中显示项目，在该插件的 Host 配置中设置 `sharedProjectPaths`，例如 `sharedProjectPaths: ["/Users/me/project"]`。默认不公开任何目录，仍可手填绝对路径。这只是目录建议，不限制运行可使用的路径；开启 `listWorkspaces` 也不会把侧栏目录分享给 Hub。
 
 ## 工作台标签页
 

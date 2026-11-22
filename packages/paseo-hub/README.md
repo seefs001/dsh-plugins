@@ -23,7 +23,7 @@ dsh plugin --profile web add "link:$PWD/packages/paseo-hub"
 ## 快速开始
 
 1. 在左侧栏打开 **Paseo Hub**，填入 Hub origin（如 `https://hub.example.com`），点击**登录**并在浏览器批准授权码；无浏览器时可用含 `daemons:enroll` 权限的组织 API Key 一次性注册。
-2. 在 Hub 触发器中把 `provider` 设为 `dsh`，并指定对应的 DSH 权限预设作为 `mode`：
+2. 在 Hub 触发器中把 `provider` 设为 `dsh`，建议显式指定对应的 DSH 权限预设作为 `mode`：
 
 ```yaml
 run:
@@ -32,9 +32,13 @@ run:
     provider: dsh
     model: messages/claude-opus-5-5   # 可选：<DSH provider>/<模型>
     thinkingOptionId: high            # 可选：推理强度
-    mode: workspace-write             # 必填：映射 DSH 权限预设
+    mode: workspace-write             # 可选：映射 DSH 权限预设
   prompt: 修复失败的测试并开 PR。
 ```
+
+新版 Hub 的表单会在 daemon 提供权限模式时要求选择；YAML 可以省略 `mode`，此时插件使用映射后的默认权限预设。无人值守任务建议显式指定。
+
+要在 Hub 的工作目录下拉框中显示项目，在该插件的 Host 配置中设置 `sharedProjectPaths`，例如 `sharedProjectPaths: ["/Users/me/project"]`。默认不公开任何目录，仍可手填绝对路径。这只是目录建议，不限制运行可使用的路径；开启 `listWorkspaces` 也不会把侧栏目录分享给 Hub。
 
 ## 面板与 Agent 工具
 
