@@ -9,6 +9,7 @@ import {
   mapToolResult,
   sanitizeToolName,
 } from '../lib/native-tools.js'
+import { createTrace, foldEvents, mergePermissionToolCall, mergeToolUpdate } from '../lib/trace.js'
 
 test('makeCallId and sanitizeToolName produce wire-safe identifiers', () => {
   const a = makeCallId()
@@ -23,6 +24,8 @@ test('makeCallId and sanitizeToolName produce wire-safe identifiers', () => {
 
 test('hasToolInput and isToolTerminal classify lifecycle state', () => {
   assert.equal(hasToolInput({ status: 'pending', rawInput: {} }), false)
+  assert.equal(hasToolInput({ status: 'pending', rawInput: {}, content: [{ type: 'terminal', terminalId: 'bash-1' }] }), false)
+  assert.equal(hasToolInput({ status: 'pending', rawInput: {}, content: [{ type: 'diff', path: 'a.js', newText: 'x' }] }), true)
   assert.equal(hasToolInput({ status: 'pending', rawInput: { file_path: 'a.js' } }), true)
   assert.equal(hasToolInput({ status: 'pending', locations: [{ path: 'a.js' }] }), true)
   assert.equal(hasToolInput({ status: 'in_progress', rawInput: {} }), true)
@@ -30,6 +33,45 @@ test('hasToolInput and isToolTerminal classify lifecycle state', () => {
   assert.equal(isToolTerminal({ status: 'completed' }), true)
   assert.equal(isToolTerminal({ status: 'failed' }), true)
   assert.equal(isToolTerminal({ status: 'cancelled' }), true)
+})
+
+test('mergeToolUpdate and foldEvents preserve rawInput, locations, _meta, and merge permission toolCall', () => {
+  const initial = {
+    toolCallId: 'bash-1',
+    title: 'Terminal',
+    kind: 'execute',
+    status: 'pending',
+    rawInput: {},
+    content: [{ type: 'terminal', terminalId: 'bash-1' }],
+    _meta: { claudeCode: { toolName: 'Bash' }, terminal_info: { terminal_id: 'bash-1' } },
+  }
+  const withPerm = mergePermissionToolCall(initial, {
+    toolCallId: 'bash-1',
+    title: '`git status`',
+    kind: 'execute',
+    rawInput: { command: 'git status', description: 'Check status' },
+    locations: [{ path: '/repo' }],
+  })
+  assert.deepEqual(withPerm.rawInput, { command: 'git status', description: 'Check status' })
+  assert.equal(withPerm.title, '`git status`')
+
+  const afterEmptyUpdate = mergeToolUpdate(withPerm, {
+    status: 'completed',
+    rawInput: {},
+    locations: [],
+    _meta: { terminal_exit: { terminal_id: 'bash-1', exit_code: 0 } },
+  })
+  assert.deepEqual(afterEmptyUpdate.rawInput, { command: 'git status', description: 'Check status' })
+  assert.deepEqual(afterEmptyUpdate.locations, [{ path: '/repo' }])
+  assert.equal(afterEmptyUpdate._meta.claudeCode.toolName, 'Bash')
+  assert.equal(afterEmptyUpdate._meta.terminal_exit.exit_code, 0)
+
+  const trace = createTrace()
+  foldEvents(trace, [
+    { seq: 1, type: 'notification', data: { turnId: 'turn-1', method: 'session/update', params: { update: { sessionUpdate: 'tool_call', ...initial } } } },
+    { seq: 2, type: 'interaction', data: { id: 'perm-1', kind: 'permission', turnId: 'turn-1', params: { toolCall: { toolCallId: 'bash-1', title: '`git status`', rawInput: { command: 'git status' } }, options: [] } } },
+  ], 'remote-1', 'turn-1')
+  assert.deepEqual(trace.tools.get('bash-1').tool.rawInput, { command: 'git status' })
 })
 
 test('read tool maps arguments, content envelope, and line metadata', () => {

@@ -23,6 +23,40 @@ function taskProgress(trace, update, seq, parent) {
   trace.progressSeq = seq
 }
 export const defined = value => Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null))
+const isPlainObj = value => typeof value === 'object' && value !== null && !Array.isArray(value)
+
+export function mergeToolUpdate(previous, update) {
+  const prev = previous ?? {}
+  const next = defined(update ?? {})
+  const merged = { ...prev, ...next }
+  if (isPlainObj(prev.rawInput) && Object.keys(prev.rawInput).length > 0 && isPlainObj(next.rawInput) && Object.keys(next.rawInput).length === 0) {
+    merged.rawInput = prev.rawInput
+  }
+  if (Array.isArray(prev.locations) && prev.locations.length > 0 && Array.isArray(next.locations) && next.locations.length === 0) {
+    merged.locations = prev.locations
+  }
+  if (isPlainObj(prev._meta) && isPlainObj(next._meta)) {
+    merged._meta = { ...prev._meta, ...defined(next._meta) }
+  }
+  return merged
+}
+
+export function mergePermissionToolCall(previous, call) {
+  if (!isPlainObj(call)) return previous ?? {}
+  const patch = {
+    kind: call.kind,
+    name: call.name,
+    rawInput: call.rawInput,
+    locations: call.locations,
+    _meta: call._meta,
+  }
+  const hasPrevInput = isPlainObj(previous?.rawInput) && Object.keys(previous.rawInput).length > 0
+  const hasCallInput = isPlainObj(call.rawInput) && Object.keys(call.rawInput).length > 0
+  if (typeof call.title === 'string' && call.title.trim() && (hasCallInput || !hasPrevInput)) {
+    patch.title = call.title
+  }
+  return mergeToolUpdate(previous, patch)
+}
 
 function updatePatchFrame(row, update) {
   if (Array.isArray(update.content) && (row.patchFrame || ['edit','move','delete'].includes(update.kind ?? row.tool.kind) || update.content.some(b => b?.type === 'diff'))) {
@@ -186,7 +220,7 @@ export function foldEvents(trace, events, remoteId, runId) {
       if ((update.kind ?? row.tool.kind) === 'fetch' && Array.isArray(update.content)) {
         row.webFrame = update.sessionUpdate === 'tool_call' ? 'launch' : update.status === 'failed' ? 'failure' : update.status === 'completed' || update.rawOutput != null ? 'result' : 'update'
       }
-      row.tool = { ...row.tool, ...defined(foldTerminal(row, update) ?? update) }
+      row.tool = mergeToolUpdate(row.tool, foldTerminal(row, update) ?? update)
       if (parent) row.cliParent = row.cliParent === undefined || row.cliParent === parent ? parent : null
       if (['Agent', 'Task'].includes(update._meta?.claudeCode?.toolName)) row.cliTask = true
     } else if (parent && (kind === 'agent_message_chunk' || kind === 'user_message_chunk')) {
@@ -232,6 +266,10 @@ export function foldEvents(trace, events, remoteId, runId) {
       trace.log.text = (trace.log.text + (data.text ?? '')).slice(-MAX_LOG_CHARS)
     } else if (event.type === 'interaction') {
       const params = data.params ?? {}
+      if (data.kind === 'permission' && params.toolCall?.toolCallId) {
+        const toolRow = trace.tools.get(params.toolCall.toolCallId)
+        if (toolRow) toolRow.tool = mergePermissionToolCall(toolRow.tool, params.toolCall)
+      }
       if (data.kind === 'question') trace.questions.set(data.id, params.questions ?? [])
       trace.rows.push({ kind: 'interaction', seq: event.seq, id: data.id, interaction: data.kind,
         cliParent: cliParentOf(params.toolCall), title: params.toolCall?.title ?? params.name ?? params.title ?? params.message ?? null, toolCallId: params.toolCall?.toolCallId ?? null,

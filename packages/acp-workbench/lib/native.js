@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { isAbsolute, join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { applyLateCompactions, cliParentOf, createTrace, defined, foldEvents, foldTerminal, namedPlan } from './trace.js'
+import { applyLateCompactions, cliParentOf, createTrace, foldEvents, foldTerminal, mergePermissionToolCall, mergeToolUpdate, namedPlan } from './trace.js'
 import { connectionNotices } from './notices.js'
 import {
   advertisedModes,
@@ -49,7 +49,7 @@ const MAX_TOOL_HANDOFF = 4_000
 const MAX_RUN_FILES = 50
 const MAX_CACHED_TRACES = 64
 const DEFAULT_MODEL = 'default'
-const TOOL_INPUT_WAIT_MS = 300
+const TOOL_INPUT_WAIT_MS = 30_000
 const TOOL_BATCH_WINDOW_MS = 25
 const STALE_TOOL_GRACE_MS = 200
 const EXECUTOR_BRIDGE = Symbol.for('dsh-acp-workbench:executor-bridge')
@@ -266,6 +266,23 @@ class AcpTurn {
   }
 
   onEvent(event) {
+    if (event.type === 'interaction' && !event.data.replay && event.data.turnId === this.turnId && event.data.kind === 'permission') {
+      const call = event.data.params?.toolCall
+      if (call?.toolCallId) {
+        const record = this.toolByAcpId.get(call.toolCallId)
+        if (record) {
+          record.tool = mergePermissionToolCall(record.tool, call)
+          if (record.isSubCall) {
+            const parentRecord = this.toolByAcpId.get(record.parentAcpId)
+            if (parentRecord?.callLogged && !record.subStarted && (hasToolInput(record.tool) || record.done)) {
+              this.emitSubCallStart(record, parentRecord)
+            }
+          }
+        }
+      }
+      this.wake()
+      return
+    }
     if (event.type !== 'notification' || event.data.replay || event.data.turnId !== this.turnId) {
       this.wake()
       return
@@ -306,7 +323,7 @@ class AcpTurn {
           if (parentRecord && !parentRecord.isSubCall) parentRecord.subCalls.push(record)
         }
         const folded = foldTerminal(record, update) ?? update
-        record.tool = { ...record.tool, ...defined(folded) }
+        record.tool = mergeToolUpdate(record.tool, folded)
         if (isToolTerminal(record.tool)) record.done = true
         const parentRecord = this.toolByAcpId.get(parent)
         if (parentRecord?.callLogged) {
@@ -337,7 +354,7 @@ class AcpTurn {
         this.queue.push({ kind: 'tool', record })
       }
       const folded = foldTerminal(record, update) ?? update
-      record.tool = { ...record.tool, ...defined(folded) }
+      record.tool = mergeToolUpdate(record.tool, folded)
       if (isToolTerminal(record.tool)) record.done = true
       this.wake()
       return
@@ -531,7 +548,11 @@ class AcpTurn {
         if (!child.subFinished) this.emitSubCallResult(child, record, options)
       }
     }
-    const mapped = record?.mapped ?? { name: entry.block.name, argumentsObj: {}, originalKind: 'other' }
+    let mapped = record?.mapped ?? { name: entry.block.name, argumentsObj: {}, originalKind: 'other' }
+    if (record && !record.syntheticTodo) {
+      const fresh = mapToolCall(record.tool, record.terminal)
+      if (fresh.name === mapped.name) mapped = fresh
+    }
     const result = record?.syntheticTodo
       ? { content: [{ type: 'text', text: 'Updated task list.' }], isError: false }
       : mapToolResult(mapped, record?.tool, record?.terminal, { cwd: this.session?.cwd, ...options })
@@ -661,11 +682,17 @@ class AcpTurn {
         }
 
         if (next.kind === 'tool') {
-          if (!hasToolInput(next.record.tool) && !this.settled && this.queue.length === 1) {
-            next.waitUntil ??= Date.now() + TOOL_INPUT_WAIT_MS
-            if (Date.now() < next.waitUntil) {
-              await this.waitUntil(next.waitUntil, stepSignal)
-              continue
+          if (!hasToolInput(next.record.tool) && !next.record.done && !this.settled) {
+            const hasLaterNonTool = this.queue.some((item, idx) => idx > 0 && item.kind !== 'tool' && item.kind !== 'todo')
+            if (!hasLaterNonTool) {
+              if (pendingCalls.length > 0 && Date.now() >= batchDeadline) break
+              next.waitUntil ??= Date.now() + TOOL_INPUT_WAIT_MS
+              const deadline = pendingCalls.length > 0 ? Math.min(next.waitUntil, batchDeadline) : next.waitUntil
+              if (Date.now() < deadline) {
+                await this.waitUntil(deadline, stepSignal)
+                continue
+              }
+              if (pendingCalls.length > 0) break
             }
           }
           this.queue.shift()

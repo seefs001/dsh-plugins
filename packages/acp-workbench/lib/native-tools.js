@@ -31,7 +31,7 @@ export function hasToolInput(tool) {
   if (tool.status && tool.status !== 'pending') return true
   if (isPlainObject(tool.rawInput) && Object.keys(tool.rawInput).length > 0) return true
   if (Array.isArray(tool.locations) && tool.locations.some(item => typeof item?.path === 'string' && item.path)) return true
-  if (Array.isArray(tool.content) && tool.content.length > 0) return true
+  if (Array.isArray(tool.content) && tool.content.some(block => block && block.type !== 'terminal')) return true
   return false
 }
 

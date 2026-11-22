@@ -452,6 +452,7 @@ window.__ModuleLoader__.load({
 .aw-pill[data-tone=thought]{color:var(--dsw-alias-label-primary)}
 .aw-steer{display:flex;align-items:center;gap:8px;padding:6px 8px}
 .aw-steer .aw-input{flex:1 1 auto;min-width:0}
+.aw-steer button{flex:none;white-space:nowrap}
 .aw-url-link{color:var(--dsw-alias-link,var(--dsw-alias-state-business-primary));text-decoration:underline;overflow-wrap:anywhere;font-size:12px}
 .aw-empty-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:36px 20px;border:.5px dashed var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);text-align:center;color:var(--dsw-alias-label-secondary)}
 .aw-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -526,6 +527,22 @@ window.__ModuleLoader__.load({
     const uniqueEvents = events => [...new Map(events.map(event => [event.seq, event])).values()].toSorted((a, b) => a.seq - b.seq)
     const updateOf = event => event?.data?.method === 'session/update' ? event.data.params?.update ?? null : null
     const defined = value => Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null))
+    const isPlainObj = value => typeof value === 'object' && value !== null && !Array.isArray(value)
+    function mergeToolUpdate(previous, update) {
+      const prev = previous ?? {}, next = defined(update ?? {}), merged = { ...prev, ...next }
+      if (isPlainObj(prev.rawInput) && Object.keys(prev.rawInput).length > 0 && isPlainObj(next.rawInput) && Object.keys(next.rawInput).length === 0) merged.rawInput = prev.rawInput
+      if (Array.isArray(prev.locations) && prev.locations.length > 0 && Array.isArray(next.locations) && next.locations.length === 0) merged.locations = prev.locations
+      if (isPlainObj(prev._meta) && isPlainObj(next._meta)) merged._meta = { ...prev._meta, ...defined(next._meta) }
+      return merged
+    }
+    function mergePermissionToolCall(previous, call) {
+      if (!isPlainObj(call)) return previous ?? {}
+      const patch = { kind: call.kind, name: call.name, rawInput: call.rawInput, locations: call.locations, _meta: call._meta }
+      const hasPrevInput = isPlainObj(previous?.rawInput) && Object.keys(previous.rawInput).length > 0
+      const hasCallInput = isPlainObj(call.rawInput) && Object.keys(call.rawInput).length > 0
+      if (typeof call.title === 'string' && call.title.trim() && (hasCallInput || !hasPrevInput)) patch.title = call.title
+      return mergeToolUpdate(previous, patch)
+    }
     const clock = at => { try { return new Date(at).toLocaleTimeString() } catch { return '' } }
     const stamp = at => { try { return new Date(at).toLocaleString() } catch { return String(at ?? '') } }
     const number = value => { try { return new Intl.NumberFormat().format(value) } catch { return String(value) } }
@@ -701,7 +718,7 @@ window.__ModuleLoader__.load({
           if ((update.kind ?? row.tool.kind) === 'fetch' && Array.isArray(update.content)) {
             row.webFrame = update.sessionUpdate === 'tool_call' ? 'launch' : update.status === 'failed' ? 'failure' : update.status === 'completed' || update.rawOutput != null ? 'result' : 'update'
           }
-          row.tool = { ...row.tool, ...defined(foldTerminal(row, update) ?? update) }
+          row.tool = mergeToolUpdate(row.tool, foldTerminal(row, update) ?? update)
           if (parent) row.cliParent = row.cliParent === undefined || row.cliParent === parent ? parent : null
           if (['Agent', 'Task'].includes(update._meta?.claudeCode?.toolName)) row.cliTask = true
         } else if (kind === 'compaction_update' || kind === 'compaction_summary_chunk') {
@@ -735,7 +752,13 @@ window.__ModuleLoader__.load({
         } else if (event.type === 'stderr') {
           if (previous?.kind === 'stderr') previous.text += data.text ?? ''
           else rows.push({ kind: 'stderr', seq: event.seq, text: data.text ?? '' })
-        } else if (!MESSAGE_UPDATES.has(kind)) rows.push({ kind: 'event', ...event })
+        } else if (!MESSAGE_UPDATES.has(kind)) {
+          if (event.type === 'interaction' && data.kind === 'permission' && data.params?.toolCall?.toolCallId) {
+            const toolRow = tools.get(JSON.stringify([!!data.replay, data.turnId, data.params.toolCall.toolCallId]))
+            if (toolRow) toolRow.tool = mergePermissionToolCall(toolRow.tool, data.params.toolCall)
+          }
+          rows.push({ kind: 'event', ...event })
+        }
       }
       return rows
     }
@@ -2641,7 +2664,7 @@ window.__ModuleLoader__.load({
         ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, CliMenuOption))
         ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({ name: 'conversation.input.overlay', id: 'acp-settings', order: 40 }, CliSettingsOverlay))
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-model-controls', order: 900 }, NativeModelControls))
-        ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'acp-native', order: 40 }, NativeDock))
+        ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'acp-native', order: 40 }, NativeDock))
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, NativeNode))
         ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))
 

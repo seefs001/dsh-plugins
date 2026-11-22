@@ -141,6 +141,20 @@ function createHarness() {
           }
           for (const fn of subscribers.get(record.id) ?? []) fn(event)
         },
+        interact: (kind, params, id = 'perm-1') => {
+          record.eventSeq += 1
+          const event = {
+            type: 'interaction',
+            data: {
+              id,
+              kind,
+              replay: false,
+              turnId: options.turnId,
+              params,
+            },
+          }
+          for (const fn of subscribers.get(record.id) ?? []) fn(event)
+        },
         finish: (stopReason = 'end_turn') => {
           rt.turnId = null
           deferred.resolve({ stopReason })
@@ -775,6 +789,79 @@ test('coerces boolean and on/off select options, builds initialConfigOptions, an
   await h.native.steer('dsh-1', 'Focus on parser.js only')
   assert.deepEqual(steered, [{ id: 'acp-ext-claude', text: 'Focus on parser.js only' }])
 
+  await h.native.close()
+})
+
+test('waits for Claude Code Bash rawInput past terminal placeholder, parallel launch, and permission prompt', async () => {
+  const h = createHarness()
+  await h.native.initialize()
+  const u1 = { id: 'u1', role: 'user', content: [{ type: 'text', text: 'Check repo' }] }
+
+  await h.runTurn([u1], async p => {
+    p.send({
+      sessionUpdate: 'tool_call',
+      toolCallId: 'bash-1',
+      title: 'Terminal',
+      kind: 'execute',
+      status: 'pending',
+      rawInput: {},
+      content: [{ type: 'terminal', terminalId: 'bash-1' }],
+      _meta: { claudeCode: { toolName: 'Bash' }, terminal_info: { terminal_id: 'bash-1', cwd: '/repo' } },
+    })
+    p.send({
+      sessionUpdate: 'tool_call',
+      toolCallId: 'bash-2',
+      title: 'Terminal',
+      kind: 'execute',
+      status: 'pending',
+      rawInput: {},
+      content: [{ type: 'terminal', terminalId: 'bash-2' }],
+      _meta: { claudeCode: { toolName: 'Bash' }, terminal_info: { terminal_id: 'bash-2', cwd: '/repo' } },
+    })
+    await new Promise(resolve => setTimeout(resolve, 350))
+    p.send({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'bash-1',
+      title: '`git status`',
+      status: 'in_progress',
+      rawInput: { command: 'git status', description: 'Check git status' },
+    })
+    p.interact('permission', {
+      toolCall: {
+        toolCallId: 'bash-2',
+        title: '`pnpm test`',
+        kind: 'execute',
+        rawInput: { command: 'pnpm test', description: 'Run tests' },
+      },
+      options: [],
+    })
+    await new Promise(resolve => setTimeout(resolve, 40))
+    p.send({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'bash-1',
+      status: 'completed',
+      rawInput: {},
+      _meta: { terminal_output: { terminal_id: 'bash-1', data: 'clean\n' }, terminal_exit: { terminal_id: 'bash-1', exit_code: 0 } },
+    })
+    p.send({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'bash-2',
+      status: 'completed',
+      rawInput: {},
+      _meta: { terminal_output: { terminal_id: 'bash-2', data: 'pass\n' }, terminal_exit: { terminal_id: 'bash-2', exit_code: 0 } },
+    })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    p.finish('end_turn')
+  })
+
+  const calls = h.sessionEvents
+    .filter(event => event.type === 'tool/call')
+    .map(event => ({ name: event.data.name, args: JSON.parse(event.data.arguments) }))
+
+  assert.deepEqual(calls, [
+    { name: 'bash', args: { command: 'git status', description: 'Check git status', workdir: '/repo' } },
+    { name: 'bash', args: { command: 'pnpm test', description: 'Run tests', workdir: '/repo' } },
+  ])
   await h.native.close()
 })
 
