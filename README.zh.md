@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-34 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
+31 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [在线文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -37,7 +37,6 @@
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
-| [`dsh-session-search`](packages/session-search) | 在侧栏打开搜索面板，按标题、工作区或正文查找历史对话。 | Web |
 | [`dsh-recent-sessions`](packages/recent-sessions) | 将 `@` 菜单中的会话按最近活动倒序排列。 | Web |
 | [`dsh-session-lifecycle`](packages/session-lifecycle) | 按需要你、进行中、暂缓和归置整理会话，集中处理待答请求与轮次结果。 | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | 自定义侧栏会话分组与组内置顶，通过 Host 跨浏览器同步。 | Host + Web |
@@ -50,7 +49,6 @@
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
-| [`dsh-compaction-status`](packages/compaction-status) | 上下文压缩时在输入框上方显示状态和耗时。 | Host + Web |
 | [`dsh-diagram-preview`](packages/diagram-preview) | 在对话中预览 Mermaid、Graphviz、ECharts 和 SVG 图表，并支持切回源码。 | Web |
 | [`dsh-canvas`](packages/canvas) | 按会话按需开启的交互式 React 画布：基于工作区 `.canvas.tsx` 文件，提供 TypeScript 诊断、沙箱热重载、持久化状态、版本对比与宿主联动。 | Host + Web |
 | [`dsh-side-chat`](packages/side-chat) | 在右栏沿用主聊预设独立追问，按需将引用带回主聊草稿。 | Web |
@@ -70,7 +68,6 @@
 | [`dsh-web-access`](packages/web-access) | 提供 `grok_search`（网页与 X）和 `openai_search`，复用已有 Responses provider 的托管搜索。 | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | 提供 `openai_image` 和 `grok_image`，复用已有 Responses provider 生成并保存图片。 | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版工具、MoeJS `codemode`、会话工具选择器与 MCP 刷新。 | Host + Web |
-| [`dsh-work-timeline`](packages/work-timeline) | 会话工作计划、修订过程与产物面板（工具由 `dsh-work-timeline/tools` 导出）。 | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | 共享 Pi 的 `~/.pi/agent/mcp.json` 到 DSH，文件修改自动热同步。 | Host |
 | [`dsh-paseo-hub`](packages/paseo-hub) | 把 DSH Host 注册为 Paseo Hub daemon 运行触发，并提供组织 API 控制台与工具。 | Host + Web |
 | [`dsh-bark-notify`](packages/bark-notify) | 智能体提问、提交计划或请求权限审批时通过 Bark 推送到手机。 | Host + Web |
@@ -100,7 +97,7 @@ dsh plugin --profile web add "link:$PWD/packages/model-reference"
 - **profile 配置（`cordis.patch.yml`）**：`model-reference`、`service-tier`、`auto-review-model`、`message-actions`、`web-access`、`image-gen`、`bark-notify`。
 - **Host storage domain（`~/.dsh/storages`）**：`session_groups`、`roles`、`cheat_sheet`、`auto_review_log`、`message_actions`、`session_lifecycle`、`session_lifecycle_summary`、`pi_tools_defaults`、`paseo_hub`、`acp_workbench`、`canvas`。
 - **DSH credentials**：`bark-notify/device`、`paseo-hub/{daemon,api}`。
-- **会话日志与浏览器存储**：`pi-tools` 工具选择与 `work-timeline` 快照保存在会话日志；`prompt-shortcut` 片段、`ai-mascot` 偏好与 `session-lifecycle` 分区折叠状态保存在浏览器 `localStorage`。
+- **会话日志与浏览器存储**：`pi-tools` 工具选择保存在会话日志；`prompt-shortcut` 片段、`ai-mascot` 偏好与 `session-lifecycle` 分区折叠状态保存在浏览器 `localStorage`。
 
 ## 在线文档
 

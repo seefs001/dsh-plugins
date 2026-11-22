@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-34 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
+31 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation (中文)](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -37,7 +37,6 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 
 | Package | What it does | Runs in |
 |---|---|---|
-| [`dsh-session-search`](packages/session-search) | Search previous conversations by title, workspace, or message text. | Web |
 | [`dsh-recent-sessions`](packages/recent-sessions) | Sort sessions in the `@` reference menu by recent activity, newest first. | Web |
 | [`dsh-session-lifecycle`](packages/session-lifecycle) | Organize sessions into Needs you, Working, Snoozed, and Settled, with a Triage panel for pending requests and turn results. | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | Custom sidebar session groups and per-group pins, synced via the Host. | Host + Web |
@@ -50,7 +49,6 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 
 | Package | What it does | Runs in |
 |---|---|---|
-| [`dsh-compaction-status`](packages/compaction-status) | Show context compaction status and elapsed time above the composer. | Host + Web |
 | [`dsh-diagram-preview`](packages/diagram-preview) | Render Mermaid, Graphviz, ECharts, and SVG blocks in chat, with a toggle back to source. | Web |
 | [`dsh-canvas`](packages/canvas) | Opt-in per-session live React Canvas artifacts from workspace `.canvas.tsx` files, with TypeScript checking, persistent state, revision diffs, and host actions. | Host + Web |
 | [`dsh-side-chat`](packages/side-chat) | Open a separate chat in the sidebar with the main session’s agent preset and bring its reference back to your draft. | Web |
@@ -70,7 +68,6 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | [`dsh-web-access`](packages/web-access) | Provide `grok_search` (web + X) and `openai_search` backed by existing Responses providers. | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | Provide `openai_image` and `grok_image` backed by existing Responses providers. | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | Standalone `pi` preset with Pi coding tools, MoeJS `codemode`, per-session tool selection, saved defaults, and MCP refresh. | Host + Web |
-| [`dsh-work-timeline`](packages/work-timeline) | Session work plan, revision history, and artifact panel (tools exported from `dsh-work-timeline/tools`). | Host + Web |
 | [`dsh-pi-mcp`](packages/pi-mcp) | Share Pi's `~/.pi/agent/mcp.json` with DSH and hot-reload changes. | Host |
 | [`dsh-paseo-hub`](packages/paseo-hub) | Enroll DSH Host as a Paseo Hub daemon and expose an organization API console and tools. | Host + Web |
 | [`dsh-bark-notify`](packages/bark-notify) | Send Bark push notifications for agent questions, plan reviews, and tool approvals. | Host + Web |
@@ -100,7 +97,7 @@ If Plugin Manager reports `applied`, Host changes take effect immediately; if it
 - **Profile config (`cordis.patch.yml`)**: `model-reference`, `service-tier`, `auto-review-model`, `message-actions`, `web-access`, `image-gen`, and `bark-notify` settings.
 - **Host storage domains (`~/.dsh/storages`)**: `session_groups`, `roles`, `cheat_sheet`, `auto_review_log`, `message_actions`, `session_lifecycle`, `session_lifecycle_summary`, `pi_tools_defaults`, `paseo_hub`, `acp_workbench`, and `canvas`.
 - **DSH credentials**: `bark-notify/device` and `paseo-hub/{daemon,api}`.
-- **Session log & `localStorage`**: `pi-tools` selection and `work-timeline` snapshots live in the session log; `prompt-shortcut` snippets, `ai-mascot` preferences, and `session-lifecycle` shelf fold states stay in browser `localStorage`.
+- **Session log & `localStorage`**: `pi-tools` selection lives in the session log; `prompt-shortcut` snippets, `ai-mascot` preferences, and `session-lifecycle` shelf fold states stay in browser `localStorage`.
 
 ## Documentation
 

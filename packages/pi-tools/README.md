@@ -40,11 +40,11 @@ dsh plugin --profile web add "link:$PWD/packages/pi-tools"
 
 `cordis.patch.yml` 在 `pi` 预设内独立挂载了 DSH 原生能力：
 
-- **计划与工作时间线**：独立 `planMode`（`exit_plan_mode`）；同时启用 `dsh-work-timeline` 时自动提供 `work_read` 与 `work_update`。
+- **计划与时间线**：独立 `planMode`（`exit_plan_mode`）；同时启用官方 `@deepseek-ai/dsh-timeline` 时自动透传 `timeline_*` 工具。
 - **子代理、技能与工作流**：`subagent`、`subagent_fork`、`list_subagent_models`、`send_message`、`list_agents`、`wait_agent`、`ask_user_question`、`skill`、`workflow`（DSH PTC）。
 - **后台任务、定时与目标**：`job_*`、`schedule_*`、`create_goal` / `get_goal` / `update_goal`、`/goal`。
 - **联网、展示与扩展**：`web_fetch`、`web_search`，以及默认关闭、按需勾选的 `present`、`office_*`、`plugin_manager`、`plugin_market`、`cordis_inspect`、`session_lifecycle`。
-- **全局工具透传**：`grok_search`、`openai_search`、`openai_image`、`grok_image`、`subagent_antigravity`、`subagent_cursor`、`subagent_acp_claude_code`、`session_lifecycle`。
+- **全局工具透传**：`grok_search`、`openai_search`、`openai_image`、`grok_image`、`subagent_antigravity`、`subagent_cursor`、`subagent_acp_claude_code`、`session_lifecycle`、`timeline_*`。
 - **上下文裁剪与压缩**：内置 `tool-result-pruner` 与 `compaction-basic`（可通过 `DSH_PI_SUMMARY_PROVIDER` / `DSH_PI_SUMMARY_MODEL` 指定摘要模型）。
 
 ### 3. 会话工具选择器与 MCP

@@ -478,7 +478,7 @@ window.__ModuleLoader__.load({
 
     const DSH_SECTIONS = [
       ['agents', ['subagent', 'subagent_fork', 'list_subagent_models', 'send_message', 'list_agents', 'wait_agent', 'workflow']],
-      ['planning', ['work_read', 'work_update', 'create_goal', 'get_goal', 'update_goal', 'exit_plan_mode']],
+      ['planning', ['timeline_tree', 'timeline_tasks', 'timeline_pull', 'timeline_read', 'timeline_reply', 'create_goal', 'get_goal', 'update_goal', 'exit_plan_mode']],
       ['jobs', ['job_list', 'job_output', 'job_kill', 'schedule_create', 'schedule_list', 'schedule_view', 'schedule_edit']],
       ['web', ['web_fetch', 'web_search', 'grok_search', 'openai_search', 'openai_image', 'grok_image']],
       ['files', ['present', 'office_render', 'office_convert', 'office_recalculate']],
@@ -486,7 +486,7 @@ window.__ModuleLoader__.load({
       ['plugins', ['plugin_manager', 'plugin_market', 'cordis_inspect']],
     ]
     const DSH_SECTION_OF = new Map(DSH_SECTIONS.flatMap(([id, names]) => names.map(name => [name, id])))
-    const DSH_PREFIXES = [['job_', 'jobs'], ['schedule_', 'jobs'], ['office_', 'files'], ['subagent', 'agents']]
+    const DSH_PREFIXES = [['job_', 'jobs'], ['schedule_', 'jobs'], ['office_', 'files'], ['subagent', 'agents'], ['timeline_', 'planning']]
     const DSH_ORDER = [...DSH_SECTIONS.map(([id]) => id), 'other']
     const LARGE_CATALOG = 16
 

@@ -6,9 +6,9 @@ export type Surface = 'Host' | 'Web' | 'Host + Web'
 
 export const categories: { id: CategoryId, title: string, description: string }[] = [
   { id: 'models', title: '模型与审查', description: '选模型、切换服务档位、带推理强度、管理角色和定制自动审查模型。' },
-  { id: 'sessions', title: '会话与工作区', description: '会话整理、搜索、自定义分组、工作区清理、切分支、看改动与防休眠。' },
-  { id: 'conversation', title: '对话阅读', description: '压缩状态、图表预览、引用跳转、工具快捷操作、回复解释、消息编辑与 ACP 集成。' },
-  { id: 'tools', title: '工具与集成', description: '搜索与画图工具、话术与技能速查、Pi 预设、工作时间线及外部服务集成。' },
+  { id: 'sessions', title: '会话与工作区', description: '会话整理、自定义分组、工作区清理、切分支、看改动与防休眠。' },
+  { id: 'conversation', title: '对话阅读', description: '图表预览、画布、侧聊、引用跳转、工具快捷操作、回复解释、消息编辑与 ACP 集成。' },
+  { id: 'tools', title: '工具与集成', description: '搜索与画图工具、话术与技能速查、Pi 预设及外部服务集成。' },
 ]
 
 interface Entry {
@@ -27,7 +27,6 @@ const entries: Entry[] = [
   { slug: 'subagent-model', category: 'models', surface: 'Web', summary: '在子代理输入框右下角显示其使用的模型和推理强度。' },
   { slug: 'auto-review-model', category: 'models', surface: 'Host + Web', summary: '为 Auto review 单独指定模型和提示词，并查看当前会话的审查日志。', requires: ['@deepseek-ai/dsh-experimental-auto-review', '@deepseek-ai/dsh-storage-domain'] },
   { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '在侧栏管理带系统提示词与专属技能的角色，并在模型菜单按会话切换。', requires: ['@deepseek-ai/dsh-storage-domain'] },
-  { slug: 'session-search', category: 'sessions', surface: 'Web', summary: '在侧栏打开搜索面板，按标题、工作区或消息正文查找历史对话。' },
   { slug: 'recent-sessions', category: 'sessions', surface: 'Web', summary: '将 @ 菜单中的会话按最近活动时间倒序排列。' },
   { slug: 'session-lifecycle', category: 'sessions', surface: 'Host + Web', summary: '按需要你、进行中、暂缓和归置整理会话，集中查看待答请求与轮次结果。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'session-groups', category: 'sessions', surface: 'Host + Web', summary: '自定义侧栏会话分组与组内置顶，通过 Host 跨浏览器同步。', requires: ['@deepseek-ai/dsh-storage-domain'] },
@@ -35,7 +34,6 @@ const entries: Entry[] = [
   { slug: 'branch-switcher', category: 'sessions', surface: 'Host + Web', summary: '在新会话发送第一条消息前直接切换已有本地 Git 分支。', requires: ['Change requests & worktrees'] },
   { slug: 'git-changes', category: 'sessions', surface: 'Web', summary: '在输入框下方显示当前分支和未提交改动统计，点击打开右侧 diff。', requires: ['Change requests & worktrees'] },
   { slug: 'keep-awake', category: 'sessions', surface: 'Host', summary: 'DSH Host 运行期间阻止 macOS 闲置休眠。', requires: ['macOS'] },
-  { slug: 'compaction-status', category: 'conversation', surface: 'Host + Web', summary: '上下文压缩期间在输入框上方显示状态和耗时。' },
   { slug: 'diagram-preview', category: 'conversation', surface: 'Web', summary: '在对话中渲染 Mermaid、Graphviz、ECharts 和 SVG 图表，并支持切回源码。' },
   { slug: 'canvas', category: 'conversation', surface: 'Host + Web', summary: '按会话按需开启的工作区 .canvas.tsx 交互式 React 画布，支持 TypeScript 诊断、沙箱渲染、持久化状态与版本对比。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'side-chat', category: 'conversation', surface: 'Web', summary: '在右栏用相同预设独立追问，将会话引用带回主聊草稿。' },
@@ -50,7 +48,6 @@ const entries: Entry[] = [
   { slug: 'web-access', category: 'tools', surface: 'Host + Web', summary: '提供 grok_search 和 openai_search，复用已有 Responses provider 的托管搜索。', requires: ['支持托管搜索的 Responses provider'] },
   { slug: 'image-gen', category: 'tools', surface: 'Host + Web', summary: '提供 openai_image 和 grok_image，复用已有 Responses provider 生成并保存图片。', requires: ['支持托管 image_generation 的 Responses provider'] },
   { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 原版工具、MoeJS codemode、会话工具选择器与 MCP 刷新。', requires: ['rg 与 fd'] },
-  { slug: 'work-timeline', category: 'tools', surface: 'Host + Web', summary: '在会话内展示工作计划、修订历史与产物面板，工具由 dsh-work-timeline/tools 导出。' },
   { slug: 'pi-mcp', category: 'tools', surface: 'Host', summary: '共享 Pi 的 ~/.pi/agent/mcp.json 到 DSH，修改文件自动热同步。', requires: ['@deepseek-ai/dsh-mcp-manager'] },
   { slug: 'paseo-hub', category: 'tools', surface: 'Host + Web', summary: '把 DSH Host 注册为 Paseo Hub daemon 运行触发，并提供组织 API 控制台与工具。', requires: ['支持 dsh provider 的 Paseo Hub', '@deepseek-ai/dsh-permission-presets', '@deepseek-ai/dsh-storage-domain'] },
   { slug: 'bark-notify', category: 'tools', surface: 'Host + Web', summary: '智能体提问、提交计划或请求工具审批时通过 Bark 推送到手机。', requires: ['Bark 服务或 Device Key'] },

@@ -181,8 +181,9 @@ window.__ModuleLoader__.load({
           async function worktree() {
             setPending(true); setError(null)
             try {
-              const result = await props.request(branch ?? null, null)
-              if (result && result.ok === false) throw new Error(result.error?.message ?? 'Worktree request failed')
+              const from = branch ? `refs/heads/${branch}` : null
+              const result = await props.request(from, null)
+              if (result && result !== 'accepted' && result !== 'failed') throw new Error(`Worktree request rejected (${result})`)
             } catch (failure) { if (mounted.current) setError(failure.message) }
             finally { if (mounted.current) setPending(false) }
           }

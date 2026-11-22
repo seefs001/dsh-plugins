@@ -83,7 +83,7 @@
 
                     Explore first. Use non-mutating reads, searches, static analysis, and checks to ground the plan in the actual repository. Do not edit or write files, change configuration, run formatters or code generation that rewrites tracked files, commit, or otherwise carry out the plan. Prefer existing functions and patterns over new machinery.
 
-                    The tool catalog stays the same across modes for request-cache stability. These plan-mode rules override any later tool description or guidance that suggests using mutation tools; those tools remain listed to keep the tool catalog unchanged. Do not use work_update to track this planning phase: it tracks implementation after an approved plan, while the plan itself belongs in exit_plan_mode.
+                    The tool catalog stays the same across modes for request-cache stability. These plan-mode rules override any later tool description or guidance that suggests using mutation tools; those tools remain listed to keep the tool catalog unchanged. Do not use timeline tools to track this planning phase: they track implementation after an approved plan, while the plan itself belongs in exit_plan_mode.
 
                     Resolve discoverable facts by inspection. Use ask_user_question only for user-owned choices or material ambiguity that inspection cannot answer. Do not ask the user where code lives or how current behavior works when you can find out.
 
@@ -126,8 +126,6 @@
                 - create_goal
                 - get_goal
                 - update_goal
-                - work_read
-                - work_update
                 - web_fetch
                 - web_search
                 - present
@@ -139,7 +137,7 @@
                 - plugin_manager
                 - plugin_market
                 - cordis_inspect
-              globalTools: [grok_search, openai_search, openai_image, grok_image, subagent_antigravity, subagent_cursor, subagent_acp_claude_code, session_lifecycle]
+              globalTools: [grok_search, openai_search, openai_image, grok_image, subagent_antigravity, subagent_cursor, subagent_acp_claude_code, session_lifecycle, timeline_tree, timeline_tasks, timeline_pull, timeline_read, timeline_reply]
               # Mounted and listed in the picker, but off until the session selects them.
               optInTools:
                 - session_lifecycle

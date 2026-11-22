@@ -28,7 +28,6 @@ description: 各插件的配置、storage domain、凭据、会话日志与浏�
 | `联网搜索` | 搜索工具开关、模型、子工具与超时 | `cordis.patch.yml` |
 | `画图` | 画图后端开关、模型与 `outputDir`；图片输出 | `cordis.patch.yml` + 工作目录文件 + DSH 附件 |
 | `Pi 工具` | 每会话工具选择；预设级默认工具差异 | 会话日志（`plugin:dsh-pi-tools/selection`）+ Host `pi_tools_defaults` |
-| `工作时间线` | 当前计划、修订历史与产物链接 | 会话日志 `work_update` 结果（`meta.dshWorkTimeline`） |
 | `Paseo Hub` | daemon 信息、本机运行（上限 300）与活动日志（上限 1000） | Host `paseo_hub` storage domain |
 | `Paseo Hub` | daemon 凭据与组织 API Key | DSH credentials（`paseo-hub/daemon`、`paseo-hub/api`） |
 | `Bark 通知` | 通知开关、服务器地址、延迟与样式；Device Key | `cordis.patch.yml` + DSH credentials（`bark-notify/device`） |

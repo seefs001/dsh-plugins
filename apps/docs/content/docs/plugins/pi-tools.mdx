@@ -8,7 +8,7 @@ description: 独立的 pi 预设：Pi 编程工具、MoeJS codemode，以及按�
 为 DSH 新增独立的 **`pi`** Agent 预设，把 Pi 编程工具、系统提示词和 MoeJS `codemode` 沙箱接入 DSH 的会话、权限、沙箱、模型路由与 MCP 体系中，不影响默认预设和其他会话。
 
 <Callout type="info" title="环境要求与扩展">
-运行环境中需提供 `rg` 与 `fd`（也可通过 `rgCommand` / `fdCommand` 指定路径）。需要计划时间线和产物面板时，另行启用[工作时间线](/docs/plugins/work-timeline)，`pi` 预设会自动接入。
+运行环境中需提供 `rg` 与 `fd`（也可通过 `rgCommand` / `fdCommand` 指定路径）。需要任务树和进展报告时，另行启用官方 `@deepseek-ai/dsh-timeline`，`pi` 预设会自动透传 `timeline_*` 工具。
 </Callout>
 
 ## 安装
@@ -37,11 +37,11 @@ description: 独立的 pi 预设：Pi 编程工具、MoeJS codemode，以及按�
 
 | 类别 | 工具与功能 |
 | --- | --- |
-| 工作与计划 | 独立 `planMode`（`exit_plan_mode`）；启用工作时间线后自动挂载 `work_read`、`work_update` |
+| 工作与计划 | 独立 `planMode`（`exit_plan_mode`）；启用官方 `@deepseek-ai/dsh-timeline` 后自动透传 `timeline_*` |
 | 子代理与提问 | `subagent`、`subagent_fork`、`list_subagent_models`、`send_message`、`list_agents`、`wait_agent`、`ask_user_question` |
 | 技能、目标与任务 | `skill`、`workflow`（DSH PTC）、`job_*`、`schedule_*`、`create_goal` / `get_goal` / `update_goal`、`/goal` |
 | 联网、展示与扩展 | `web_fetch`、`web_search`，以及按需勾选的 `present`、`office_*`、`plugin_manager`、`plugin_market`、`cordis_inspect`、`session_lifecycle` |
-| 全局工具透传 | `grok_search`、`openai_search`、`openai_image`、`grok_image`、`subagent_antigravity`、`subagent_cursor`、`subagent_acp_claude_code`、`session_lifecycle` |
+| 全局工具透传 | `grok_search`、`openai_search`、`openai_image`、`grok_image`、`subagent_antigravity`、`subagent_cursor`、`subagent_acp_claude_code`、`session_lifecycle`、`timeline_*` |
 | 上下文管理 | `tool-result-pruner` 与 `compaction-basic`（可通过 `DSH_PI_SUMMARY_PROVIDER` / `DSH_PI_SUMMARY_MODEL` 指定摘要模型） |
 
 </Tab>
