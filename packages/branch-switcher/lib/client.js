@@ -87,7 +87,7 @@ window.__ModuleLoader__.load({
         h('path', { d: 'M3.5 3.5 10.5 10.5M10.5 3.5 3.5 10.5' }))
     }
     return {
-      inject: ['slots', 'locale', 'remote', 'remote.commands', 'remote.forgePanel'],
+      inject: ['slots', 'locale', 'remote', 'remote.forgePanel'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, 'en', EN))
         ctx.effect(() => ctx.locale.register(NS, 'zh', ZH))
@@ -99,12 +99,17 @@ window.__ModuleLoader__.load({
         })
         const t = ctx.locale.bind(NS)
         const tf = (key, branch) => t(key).replace('{branch}', () => branch)
-        async function request(sessionId, args) {
-          const response = await ctx.remote.commands.execute(sessionId, `/branch-switcher ${JSON.stringify(args)}`, [])
-          if (!response.ok) throw new Error(response.error.message)
-          const result = response.value?.result
-          if (result?.kind !== 'success') throw new Error(result?.text ?? 'Branch switcher command unavailable')
-          return JSON.parse(result.text)
+        async function request(sessionId, args, signal) {
+          const response = await fetch('branch-switcher/op', {
+            method: 'POST',
+            headers: { accept: 'application/json', 'content-type': 'application/json' },
+            body: JSON.stringify({ ...args, sessionId }),
+            signal,
+          })
+          let data
+          try { data = await response.json() } catch { throw new Error(`HTTP ${response.status}`) }
+          if (!response.ok || !data?.ok) throw new Error(data?.message || `HTTP ${response.status}`)
+          return data.value
         }
         function BranchSeat(props) {
           const panel = props.usePanel(snapshot => snapshot.state)
@@ -120,8 +125,15 @@ window.__ModuleLoader__.load({
           const popup = React.useRef(null)
           const search = React.useRef(null)
           const latestList = React.useRef(0)
+          const listAbort = React.useRef(null)
           const mounted = React.useRef(true)
-          React.useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+          React.useEffect(() => {
+            mounted.current = true
+            return () => {
+              mounted.current = false
+              listAbort.current?.abort()
+            }
+          }, [])
           const readonly = panel?.worktree.blocker === 'read-only'
           const state = panel?.checkout
           const branch = state?.state === 'ready' ? state.checkout.branch : null
@@ -131,9 +143,12 @@ window.__ModuleLoader__.load({
           async function load() {
             const id = ++latestList.current
             const active = () => mounted.current && latestList.current === id
+            listAbort.current?.abort()
+            const controller = new AbortController()
+            listAbort.current = controller
             setLoading(true); setError(null); setListed(null); setCandidate(null)
             try {
-              const result = await request(props.sessionId, { action: 'list' })
+              const result = await request(props.sessionId, { action: 'list' }, controller.signal)
               if (active()) setListed(result)
             } catch (failure) { if (active()) setError(failure.message) }
             finally { if (active()) setLoading(false) }

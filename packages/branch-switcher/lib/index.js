@@ -1,8 +1,10 @@
 export const name = 'branch-switcher'
 export const inject = ['commands', 'tools', 'subprocess', 'sandbox', 'sandboxPolicy', 'workingDirectory']
+export const OP_PATH = '/branch-switcher/op'
 
 const COMMAND = 'branch-switcher'
 const MAX_OUTPUT = 1024 * 1024
+const MAX_BODY = 64 * 1024
 const GIT_ENV = {
   ...Object.fromEntries([
     'GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY',
@@ -99,6 +101,21 @@ export class BranchSwitcher {
   }
 }
 
+async function readBody(req) {
+  const chunks = []
+  let bytes = 0
+  for await (const chunk of req) {
+    bytes += chunk.byteLength
+    if (bytes > MAX_BODY) throw new Error('Request body is too large')
+    chunks.push(chunk)
+  }
+  const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Request body must be a JSON object')
+  }
+  return parsed
+}
+
 export function apply(ctx) {
   const lifetime = new AbortController()
   const service = new BranchSwitcher(lifetime.signal)
@@ -113,6 +130,49 @@ export function apply(ctx) {
     lifetime.abort()
     await Promise.allSettled(tasks)
   }, 'branch-switcher: pending operations')
+  ctx.inject(['webServer', 'connection', 'sessionController'], scope => {
+    scope.effect(() => scope.webServer.register({
+      kind: 'exact',
+      path: OP_PATH,
+      handler: async (req, res) => {
+        const admission = scope.connection.admit(req)
+        if ('rejection' in admission || admission.peer.principal.kind !== 'owner') {
+          res.writeHead('rejection' in admission ? admission.rejection : 403)
+          res.end()
+          return
+        }
+        if (req.method !== 'POST') {
+          res.writeHead(405, { allow: 'POST' })
+          res.end()
+          return
+        }
+        const requestAbort = new AbortController()
+        const onClose = () => { if (!res.writableEnded) requestAbort.abort() }
+        res.on?.('close', onClose)
+        let status = 200
+        let body
+        try {
+          const { sessionId, ...args } = await readBody(req)
+          if (typeof sessionId !== 'string' || !sessionId) throw new Error('sessionId is required')
+          const resolved = await scope.sessionController.resolveAgent(sessionId)
+          if ('error' in resolved || !resolved.agent) {
+            status = 404
+            body = { ok: false, message: resolved.error?.message ?? resolved.error?.code ?? 'Session is unavailable' }
+          } else {
+            body = { ok: true, value: await run(resolved.agent, args, requestAbort.signal) }
+          }
+        } catch (error) {
+          status = 400
+          body = { ok: false, message: error instanceof Error ? error.message : String(error) }
+        } finally {
+          res.off?.('close', onClose)
+        }
+        if (res.writableEnded || res.destroyed) return
+        res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+        res.end(JSON.stringify(body))
+      },
+    }), 'branch-switcher: owner HTTP operations')
+  })
   ctx.effect(() => ctx.commands.register({
     name: COMMAND,
     description: 'List local branches or switch an existing branch before the first message. Switching affects every Session sharing this checkout.',
