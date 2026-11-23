@@ -43,7 +43,7 @@ window.__ModuleLoader__.load({
       return `#model(${parts.join(', ')})`
     }
 
-    const SENT = /#model\(provider=([^,\s()]+), model=([^,\s()]+)(?:, reasoning_effort=([^,\s()]+))?(?:, service_tier=(priority|ultrafast))?\)/gu
+    const SENT = /#model\(provider=([^,\s()]+), model=([^()\r\n]+?)(?:, reasoning_effort=([^,\s()]+))?(?:, service_tier=(priority|ultrafast))?\)/gu
     const sentRule = {
       id: 'model',
       order: 30,
@@ -58,7 +58,10 @@ window.__ModuleLoader__.load({
     }
 
     function chipLabel(data, groups) {
-      const model = groups?.find(g => g.id === data.provider)?.models.find(m => m.id === data.model)
+      const group = groups?.find(g => g.id === data.provider)
+      const baseModel = data.model.replace(/\[[^[\]]*\]$/u, '')
+      const model = group?.models.find(m => m.id === data.model)
+        ?? (baseModel !== data.model ? group?.models.find(m => m.id === baseModel) : undefined)
       const effortName = data.effort === undefined ? undefined : model?.reasoning?.efforts.find(e => e.id === data.effort)?.name ?? data.effort
       return `#${model?.name ?? data.model}${effortName ? ` · ${effortName}` : ''}${data.fast ? ' ⚡' : ''}`
     }
