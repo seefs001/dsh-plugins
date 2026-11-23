@@ -5,6 +5,50 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const NS = 'model-reference'
     const SOURCE = 'model-reference'
+    const HASH_HOST_ID = 'model-reference'
+
+    function hashMenuBus() {
+      if (typeof window === 'undefined') return null
+      if (!window.__DSH_HASH_MENU__) {
+        const sources = new Map()
+        const listeners = new Set()
+        const hosts = new Set()
+        let rev = 0
+        const emit = () => { rev++; listeners.forEach(fn => fn()) }
+        window.__DSH_HASH_MENU__ = {
+          register(source) {
+            sources.set(source.id, source)
+            emit()
+            return () => {
+              if (sources.get(source.id) === source) {
+                sources.delete(source.id)
+                emit()
+              }
+            }
+          },
+          registerHost(hostId) {
+            hosts.add(hostId)
+            emit()
+            return () => {
+              hosts.delete(hostId)
+              emit()
+            }
+          },
+          isActiveHost(hostId) {
+            return hosts.values().next().value === hostId
+          },
+          listSources() {
+            return [...sources.values()].toSorted((a, b) => (a.order ?? 100) - (b.order ?? 100) || a.id.localeCompare(b.id))
+          },
+          subscribe(fn) {
+            listeners.add(fn)
+            return () => listeners.delete(fn)
+          },
+          getSnapshot() { return rev },
+        }
+      }
+      return window.__DSH_HASH_MENU__
+    }
 
     function detectHash(card) {
       const sel = window.getSelection()
@@ -136,9 +180,10 @@ window.__ModuleLoader__.load({
 .mh-anchor{display:none}
 .mh-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:100;box-sizing:border-box;display:flex;flex-direction:column;max-height:320px;overflow-y:auto;padding:4px;border-radius:12px;background:var(--dsw-specific-menu);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);backdrop-filter:var(--dsw-menu-backdrop-filter);box-shadow:var(--dsw-elevation-prominent);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1)}
 .mh-title{padding:5px 8px 2px;font-size:11px;line-height:15px;color:var(--dsw-alias-label-tertiary)}
+.mh-title:not(:first-child){margin-top:4px;padding-top:7px;border-top:.5px solid var(--dsw-alias-border-l1)}
 .mh-item{display:flex;align-items:center;gap:6px;width:100%;min-height:34px;padding:6px 8px;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-align:left;cursor:pointer}
 .mh-item[aria-selected=true]{background:var(--dsw-alias-interactive-bg-hover)}
-.mh-hash{flex:none;width:14px;text-align:center;color:var(--dsw-alias-menu-icon)}
+.mh-hash{flex:none;width:18px;text-align:center;color:var(--dsw-alias-menu-icon)}
 .mh-name{flex:none;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mh-meta{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
 .mh-bolt{display:inline-flex;color:var(--dsw-alias-state-warn-primary)}
@@ -191,16 +236,67 @@ window.__ModuleLoader__.load({
           },
         }, SentModelReference))
 
-        function HashMenu({ sessionId, directory, useInput, inputActions }) {
-          React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
+        const directoryFor = sessionId => {
+          try { return ctx.modelDirectories.directoryFor(sessionId) } catch { return null }
+        }
+        const bus = hashMenuBus()
+        if (bus) {
+          ctx.effect(() => bus.registerHost(HASH_HOST_ID), 'model-reference: hash menu host')
+          ctx.effect(() => bus.register({
+            id: 'models',
+            order: 20,
+            title: () => t('title'),
+            onOpen(sessionId) {
+              prefs.refresh()
+              const directory = directoryFor(sessionId)
+              const s = directory?.store.getSnapshot()
+              if (s && s.groups.length === 0 && s.status !== 'loading') directory.load().catch(() => {})
+            },
+            subscribe(sessionId, listener) {
+              const directory = directoryFor(sessionId)
+              const offs = [
+                prefs.subscribe(listener),
+                ctx.locale.subscribe(listener),
+                directory ? directory.store.subscribe(listener) : null,
+              ].filter(Boolean)
+              return () => { for (const off of offs) off() }
+            },
+            getItems(sessionId, query) {
+              const dir = directoryFor(sessionId)?.store.getSnapshot()
+              if (!dir) return []
+              const p = prefs.get()
+              return match(dir.groups, query).map(it => {
+                const decorated = decorate(it, p, dir.current)
+                return {
+                  key: `model:${decorated.provider}/${decorated.model}`,
+                  prefix: '#',
+                  name: decorated.name,
+                  meta: decorated.effortName,
+                  fast: decorated.fast,
+                  desc: decorated.providerName,
+                  raw: decorated,
+                }
+              })
+            },
+            pick(item, { sessionId, span, inputActions }) {
+              const ref = item.ref
+              const label = `#${item.name}${item.effortName ? ` · ${item.effortName}` : ''}${item.fast ? ' ⚡' : ''}`
+              const reference = { source: SOURCE, ref, label, clipboardText: `#${item.provider}/${item.model}` }
+              const actx = ctx.sessions.scope(sessionId)
+              const ok = actx?.bail(actx, 'slash/input-insert-reference', { reference, span }) === true
+              if (!ok) inputActions.insertText(`${serialize(ref)} `, span)
+            },
+          }), 'model-reference: hash menu source')
+        }
+
+        function HashMenuBody({ sessionId, useInput, inputActions, bus: activeBus, busRev }) {
+          const localeSnap = React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
           const draftRev = useInput(s => s.draftRev)
           const phase = useInput(s => s.phase)
-          const dir = React.useSyncExternalStore(
-            fn => directory ? directory.store.subscribe(fn) : () => {},
-            () => directory ? directory.store.getSnapshot() : null)
           const anchorRef = React.useRef(null)
           const [hit, setHit] = React.useState(null)
           const [index, setIndex] = React.useState(0)
+          const [sourceTick, setSourceTick] = React.useState(0)
           const dismissed = React.useRef(null)
 
           const card = () => anchorRef.current?.closest('[data-composer-card]') ?? null
@@ -218,26 +314,43 @@ window.__ModuleLoader__.load({
           }, [recompute])
 
           const open = hit !== null
-          const p = React.useSyncExternalStore(prefs.subscribe, prefs.get)
+          const sources = React.useMemo(() => activeBus.listSources(), [activeBus, busRev])
           React.useEffect(() => {
-            if (!open) return
-            prefs.refresh()
-            if (directory && dir && dir.groups.length === 0 && dir.status !== 'loading') directory.load().catch(() => {})
-          }, [open])
-          const items = React.useMemo(() => open && dir ? match(dir.groups, hit.query).map(it => decorate(it, p, dir.current)) : [], [open, dir, hit, p])
-          React.useEffect(() => { setIndex(0) }, [hit?.query])
-          const visible = open && items.length > 0
+            if (!open) return undefined
+            const bump = () => setSourceTick(n => n + 1)
+            const offs = sources.map(src => {
+              src.onOpen?.(sessionId)
+              return src.subscribe?.(sessionId, bump)
+            }).filter(Boolean)
+            return () => { for (const off of offs) off() }
+          }, [open, sources, sessionId])
 
-          const pick = React.useCallback(item => {
-            if (!hit) return
+          const { sections, flat } = React.useMemo(() => {
+            if (!open) return { sections: [], flat: [] }
+            const nextSections = []
+            const nextFlat = []
+            for (const source of sources) {
+              const items = source.getItems(sessionId, hit.query)
+              if (!items.length) continue
+              const mapped = items.map(item => {
+                const entry = { source, item, flatIndex: nextFlat.length }
+                nextFlat.push(entry)
+                return entry
+              })
+              nextSections.push({ id: source.id, title: source.title(), items: mapped })
+            }
+            return { sections: nextSections, flat: nextFlat }
+          }, [open, sources, sessionId, hit, sourceTick, localeSnap])
+
+          React.useEffect(() => { setIndex(0) }, [hit?.query])
+          const visible = open && flat.length > 0
+          const activeIndex = visible ? Math.min(index, flat.length - 1) : 0
+
+          const pick = React.useCallback(entry => {
+            if (!hit || !entry) return
             const caret = inputActions.captureInsertion()
             const span = { start: caret.end - hit.length, end: caret.end, draftRev: caret.draftRev }
-            const ref = item.ref
-            const label = `#${item.name}${item.effortName ? ` · ${item.effortName}` : ''}${item.fast ? ' ⚡' : ''}`
-            const reference = { source: SOURCE, ref, label, clipboardText: `#${item.provider}/${item.model}` }
-            const actx = ctx.sessions.scope(sessionId)
-            const ok = actx?.bail(actx, 'slash/input-insert-reference', { reference, span }) === true
-            if (!ok) inputActions.insertText(`${serialize(ref)} `, span)
+            entry.source.pick(entry.item.raw, { sessionId, span, inputActions })
             setHit(null)
           }, [hit, inputActions, sessionId])
 
@@ -247,15 +360,15 @@ window.__ModuleLoader__.load({
           }, [hit])
 
           React.useEffect(() => {
-            if (!visible) return
+            if (!visible) return undefined
             const onKey = ev => {
               if (ev.isComposing || ev.keyCode === 229) return
               const c = card()
               if (!c || !(ev.target instanceof Node) || !c.contains(ev.target)) return
               let handled = true
-              if (ev.key === 'ArrowDown') setIndex(i => (i + 1) % items.length)
-              else if (ev.key === 'ArrowUp') setIndex(i => (i - 1 + items.length) % items.length)
-              else if ((ev.key === 'Enter' || ev.key === 'Tab') && !ev.shiftKey) pick(items[Math.min(index, items.length - 1)])
+              if (ev.key === 'ArrowDown') setIndex(i => (i + 1) % flat.length)
+              else if (ev.key === 'ArrowUp') setIndex(i => (i - 1 + flat.length) % flat.length)
+              else if ((ev.key === 'Enter' || ev.key === 'Tab') && !ev.shiftKey) pick(flat[Math.min(index, flat.length - 1)])
               else if (ev.key === 'Escape') dismiss()
               else handled = false
               if (handled) { ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation() }
@@ -271,38 +384,48 @@ window.__ModuleLoader__.load({
               window.removeEventListener('keydown', onKey, true)
               document.removeEventListener('pointerdown', onDown, true)
             }
-          }, [visible, items, index, pick, dismiss])
+          }, [visible, flat, index, pick, dismiss])
 
           React.useEffect(() => {
-            if (visible) document.getElementById(`mh-opt-${index}`)?.scrollIntoView({ block: 'nearest' })
-          }, [visible, index])
+            if (visible) document.getElementById(`mh-opt-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
+          }, [visible, activeIndex])
 
           return h(React.Fragment, null,
             h('span', { ref: anchorRef, className: 'mh-anchor' }),
-            visible ? h('div', { className: 'mh-menu', role: 'listbox', 'aria-label': t('aria'), 'aria-activedescendant': `mh-opt-${index}` },
-              h('div', { className: 'mh-title', role: 'presentation' }, t('title')),
-              items.map((it, i) => h('button', {
-                key: `${it.provider}/${it.model}`, id: `mh-opt-${i}`, type: 'button', role: 'option',
-                className: 'mh-item', 'aria-selected': i === index,
-                onMouseDown: ev => { ev.preventDefault(); pick(it) },
-                onMouseMove: i === index ? undefined : () => setIndex(i),
-              },
-              h('span', { className: 'mh-hash', 'aria-hidden': true }, '#'),
-              h('span', { className: 'mh-name' }, it.name),
-              it.effortName || it.fast ? h('span', { className: 'mh-meta' },
-                it.effortName ? h('span', null, it.effortName) : null,
-                it.fast ? h('span', { className: 'mh-bolt', role: 'img', 'aria-label': 'fast' }, h(Bolt)) : null) : null,
-              h('span', { className: 'mh-desc' }, it.providerName)))) : null)
+            visible ? h('div', { className: 'mh-menu', role: 'listbox', 'aria-label': t('aria'), 'aria-activedescendant': `mh-opt-${activeIndex}` },
+              sections.map(sec => h(React.Fragment, { key: sec.id },
+                h('div', { className: 'mh-title', role: 'presentation' }, sec.title),
+                sec.items.map(entry => {
+                  const it = entry.item
+                  const i = entry.flatIndex
+                  return h('button', {
+                    key: it.key, id: `mh-opt-${i}`, type: 'button', role: 'option',
+                    className: 'mh-item', 'aria-selected': i === activeIndex,
+                    onMouseDown: ev => { ev.preventDefault(); pick(entry) },
+                    onMouseMove: i === activeIndex ? undefined : () => setIndex(i),
+                  },
+                  h('span', { className: 'mh-hash', 'aria-hidden': true }, it.prefix ?? '#'),
+                  h('span', { className: 'mh-name' }, it.name),
+                  it.meta || it.fast ? h('span', { className: 'mh-meta' },
+                    it.meta ? h('span', null, it.meta) : null,
+                    it.fast ? h('span', { className: 'mh-bolt', role: 'img', 'aria-label': 'fast' }, h(Bolt)) : null) : null,
+                  it.desc ? h('span', { className: 'mh-desc' }, it.desc) : null)
+                })))) : null)
+        }
+
+        function HashMenu(props) {
+          const activeBus = hashMenuBus()
+          const busRev = React.useSyncExternalStore(
+            fn => activeBus ? activeBus.subscribe(fn) : () => {},
+            () => activeBus ? activeBus.getSnapshot() : 0)
+          if (!activeBus || !activeBus.isActiveHost(HASH_HOST_ID)) return null
+          return h(HashMenuBody, { ...props, bus: activeBus, busRev })
         }
 
         ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({
           name: 'conversation.input.overlay', id: 'model-reference', order: 1000,
           label: () => t('title'),
-          inject: sessionId => {
-            let directory = null
-            try { directory = ctx.modelDirectories.directoryFor(sessionId) } catch {}
-            return { sessionId, directory }
-          },
+          inject: sessionId => ({ sessionId }),
         }, HashMenu))
       },
       _internal: { parseRef, serialize, sentRule, chipLabel, match, decorate, restoreEffort, installEffortMemory },

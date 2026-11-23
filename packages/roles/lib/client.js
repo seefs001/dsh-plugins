@@ -3,7 +3,7 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const {
-      Button, Checkbox, CodeBlock, DisclosureRow, Input, JsonBlock, Modal, PathLabel, SegmentedTabs, StateDot, Tag, TextShimmer,
+      Button, Checkbox, CodeBlock, DisclosureRow, Input, JsonBlock, Modal, PathLabel, ReferenceChip, SegmentedTabs, StateDot, Tag, TextShimmer,
       IconCheckOutlineRegular, IconChevronRightOutlineRegular, IconCloseOutlineRegular,
       IconEllipsisOutlineRegular, IconInspectOutlineRegular, IconPlusOutlineRegular, IconRefreshOutlineRegular,
       IconSearchOutlineRegular, IconTrashOutlineRegular, IconUsersOutlineRegular, IconWarningTriangleOutlineRegular,
@@ -12,7 +12,120 @@ window.__ModuleLoader__.load({
     const NS = 'roles'
     const KEY = 'dsh-roles'
     const PANEL_ID = 'roles'
+    const ROLE_REF_SOURCE = 'roles-reference'
+    const HASH_HOST_ID = 'roles'
     const roleLabel = role => `${role.icon ? `${role.icon} ` : ''}${role.name}`
+
+    function sanitizeRoleName(name) {
+      return String(name ?? '').replace(/[()\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()
+    }
+
+    function buildRoleRef(role) {
+      const clean = sanitizeRoleName(role.name)
+      if (!clean) return role.id
+      const params = new URLSearchParams()
+      params.set('name', clean)
+      return `${role.id}?${params.toString()}`
+    }
+
+    function parseRoleRef(ref) {
+      const q = ref.indexOf('?')
+      const id = q < 0 ? ref : ref.slice(0, q)
+      const params = new URLSearchParams(q < 0 ? '' : ref.slice(q + 1))
+      const name = params.get('name') ?? undefined
+      return { id, ...(name ? { name } : {}) }
+    }
+
+    function serializeRoleRef(ref, roles) {
+      const r = parseRoleRef(ref)
+      const live = roles?.find(item => item.id === r.id)
+      const clean = sanitizeRoleName(live?.name ?? r.name)
+      return clean ? `#role(id=${r.id}, name=${clean})` : `#role(id=${r.id})`
+    }
+
+    const ROLE_SENT = /#role\(id=([a-z0-9][a-z0-9_-]{0,63})(?:,\s*name=([^()\r\n]+?))?\)/gu
+    const roleSentRule = {
+      id: 'role',
+      order: 31,
+      match(text, from) {
+        ROLE_SENT.lastIndex = from
+        const m = ROLE_SENT.exec(text)
+        if (!m) return undefined
+        const data = { id: m[1] }
+        if (m[2] !== undefined) data.name = m[2].trim()
+        return { id: 'role', start: m.index, end: m.index + m[0].length, data }
+      },
+    }
+
+    function roleChipLabel(data, roles) {
+      const role = roles?.find(r => r.id === data.id)
+      if (role) return `#${roleLabel(role)}`
+      return `#${data.name || data.id}`
+    }
+
+    function matchRoles(roles, query) {
+      const parts = query.toLowerCase().split(/[\s/]+/).filter(Boolean)
+      if (parts.length === 0) return roles
+      return roles.filter(r => {
+        const hay = `${r.name} ${r.id} ${r.description ?? ''}`.toLowerCase()
+        return parts.every(p => hay.includes(p))
+      })
+    }
+
+    function detectHash(card) {
+      const sel = window.getSelection()
+      if (!card || !sel || sel.rangeCount === 0 || !sel.isCollapsed) return null
+      const node = sel.anchorNode
+      if (!node || node.nodeType !== 3 || !card.contains(node)) return null
+      const m = /(^|\s)#([^\s#]*)$/u.exec((node.textContent ?? '').slice(0, sel.anchorOffset))
+      return m ? { query: m[2], length: m[2].length + 1 } : null
+    }
+
+    function hashMenuBus() {
+      if (typeof window === 'undefined') return null
+      if (!window.__DSH_HASH_MENU__) {
+        const sources = new Map()
+        const listeners = new Set()
+        const hosts = new Set()
+        let rev = 0
+        const emit = () => { rev++; listeners.forEach(fn => fn()) }
+        window.__DSH_HASH_MENU__ = {
+          register(source) {
+            sources.set(source.id, source)
+            emit()
+            return () => {
+              if (sources.get(source.id) === source) {
+                sources.delete(source.id)
+                emit()
+              }
+            }
+          },
+          registerHost(hostId) {
+            hosts.add(hostId)
+            emit()
+            return () => {
+              hosts.delete(hostId)
+              emit()
+            }
+          },
+          isActiveHost(hostId) {
+            return hosts.values().next().value === hostId
+          },
+          listSources() {
+            return [...sources.values()].toSorted((a, b) => (a.order ?? 100) - (b.order ?? 100) || a.id.localeCompare(b.id))
+          },
+          subscribe(fn) {
+            listeners.add(fn)
+            return () => listeners.delete(fn)
+          },
+          getSnapshot() { return rev },
+        }
+      }
+      return window.__DSH_HASH_MENU__
+    }
+
+    const Bolt = () => h('svg', { viewBox: '0 0 16 16', width: 12, height: 12, 'aria-hidden': true },
+      h('path', { d: 'M9.2 1.5 3.5 9h4l-.8 5.5L12.5 7h-4z', fill: 'currentColor', stroke: 'currentColor', strokeWidth: 1.3, strokeLinejoin: 'round' }))
 
     const en = {
       panel: 'Roles',
@@ -126,6 +239,8 @@ window.__ModuleLoader__.load({
       tvInspect: 'Inspect',
       tvResult: 'Result',
       tvCount: '{n} roles',
+      hashTitle: 'Reference a role',
+      hashAria: 'Roles',
     }
     const zh = {
       panel: '角色',
@@ -239,6 +354,8 @@ window.__ModuleLoader__.load({
       tvInspect: '查看',
       tvResult: '结果',
       tvCount: '{n} 个角色',
+      hashTitle: '引用角色',
+      hashAria: '角色',
     }
 
     async function op(body) {
@@ -324,6 +441,18 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.rl-chip:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}}
 .rl-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .rl-chip b{font-weight:500;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis}
+.mh-anchor{display:none}
+.mh-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:100;box-sizing:border-box;display:flex;flex-direction:column;max-height:320px;overflow-y:auto;padding:4px;border-radius:12px;background:var(--dsw-specific-menu);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);backdrop-filter:var(--dsw-menu-backdrop-filter);box-shadow:var(--dsw-elevation-prominent);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1)}
+.mh-title{padding:5px 8px 2px;font-size:11px;line-height:15px;color:var(--dsw-alias-label-tertiary)}
+.mh-title:not(:first-child){margin-top:4px;padding-top:7px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.mh-item{display:flex;align-items:center;gap:6px;width:100%;min-height:34px;padding:6px 8px;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-align:left;cursor:pointer}
+.mh-item[aria-selected=true]{background:var(--dsw-alias-interactive-bg-hover)}
+.mh-hash{flex:none;width:18px;text-align:center;color:var(--dsw-alias-menu-icon)}
+.mh-name{flex:none;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mh-meta{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.mh-bolt{display:inline-flex;color:var(--dsw-alias-state-warn-primary)}
+.mh-desc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font-size:12px;color:var(--dsw-alias-label-tertiary)}
+[data-composer-card] span[title^="#"]>span[aria-hidden="true"]{display:none}
 `
 
     const PAGE_CSS = `
@@ -473,10 +602,11 @@ window.__ModuleLoader__.load({
     const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
     return {
-      inject: ['slots', 'locale', 'layout'],
+      inject: ['slots', 'locale', 'layout', 'inputTriggers', 'sessions', 'uiConversation'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'roles: dictionaries')
         ctx.effect(() => {
+          if (typeof document === 'undefined') return undefined
           const style = document.createElement('style')
           style.textContent = MENU_CSS + PAGE_CSS
           document.head.append(style)
@@ -484,6 +614,200 @@ window.__ModuleLoader__.load({
         }, 'roles: styles')
         const t = ctx.locale.bind(NS)
         const useLocale = () => React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
+
+        // external: DSH attaches reference codecs through inputTriggers.registerSource('@')
+        ctx.effect(() => ctx.inputTriggers.registerSource({
+          trigger: '@', name: ROLE_REF_SOURCE, showGroupTitle: false, order: 1001,
+          candidates: async () => [],
+          onPick: () => undefined,
+          codec: {
+            clipboardText: ref => `#${parseRoleRef(ref).id}`,
+            serialize: ref => Promise.resolve(serializeRoleRef(ref, store.get().roles)),
+          },
+        }), 'roles: reference codec source')
+
+        ctx.uiConversation.userText.register(roleSentRule)
+        function SentRoleReference({ node, raw }) {
+          const { roles } = useRoles()
+          return h(ReferenceChip, { label: roleChipLabel(node.data, roles), title: raw })
+        }
+        ctx.slots.inject('conversation.user.text.node', () => ctx.slots.register({
+          name: 'conversation.user.text.node', key: 'role', priority: 100,
+        }, SentRoleReference))
+
+        const bus = hashMenuBus()
+        if (bus) {
+          ctx.effect(() => bus.registerHost(HASH_HOST_ID), 'roles: hash menu host')
+          ctx.effect(() => bus.register({
+            id: 'roles',
+            order: 10,
+            title: () => t('hashTitle'),
+            onOpen() {
+              if (store.get().status === 'error') store.reload()
+            },
+            subscribe(_sessionId, listener) {
+              const offStore = store.subscribe(listener)
+              const offLocale = ctx.locale.subscribe(listener)
+              return () => { offStore(); offLocale() }
+            },
+            getItems(_sessionId, query) {
+              return matchRoles(store.get().roles, query).map(role => ({
+                key: `role:${role.id}`,
+                prefix: role.icon || '#',
+                name: role.name,
+                desc: role.description || role.id,
+                raw: role,
+              }))
+            },
+            pick(role, { sessionId, span, inputActions }) {
+              const ref = buildRoleRef(role)
+              const label = `#${roleLabel(role)}`
+              const reference = { source: ROLE_REF_SOURCE, ref, label, clipboardText: `#${role.id}` }
+              const actx = ctx.sessions.scope(sessionId)
+              const ok = actx?.bail(actx, 'slash/input-insert-reference', { reference, span }) === true
+              if (!ok) inputActions.insertText(`${serializeRoleRef(ref, store.get().roles)} `, span)
+            },
+          }), 'roles: hash menu source')
+        }
+
+        function HashMenuBody({ sessionId, useInput, inputActions, bus: activeBus, busRev }) {
+          const localeSnap = useLocale()
+          const draftRev = useInput(s => s.draftRev)
+          const phase = useInput(s => s.phase)
+          const anchorRef = React.useRef(null)
+          const [hit, setHit] = React.useState(null)
+          const [index, setIndex] = React.useState(0)
+          const [sourceTick, setSourceTick] = React.useState(0)
+          const dismissed = React.useRef(null)
+
+          const card = () => anchorRef.current?.closest('[data-composer-card]') ?? null
+          const recompute = React.useCallback(() => {
+            if (phase !== 'plain' && phase !== 'claimed') { setHit(null); return }
+            const found = detectHash(card())
+            if (!found) { dismissed.current = null; setHit(null); return }
+            if (dismissed.current === found.query) { setHit(null); return }
+            setHit(prev => prev && prev.query === found.query && prev.length === found.length ? prev : found)
+          }, [phase])
+          React.useEffect(() => { const id = requestAnimationFrame(recompute); return () => cancelAnimationFrame(id) }, [recompute, draftRev])
+          React.useEffect(() => {
+            document.addEventListener('selectionchange', recompute)
+            return () => document.removeEventListener('selectionchange', recompute)
+          }, [recompute])
+
+          const open = hit !== null
+          const sources = React.useMemo(() => activeBus.listSources(), [activeBus, busRev])
+          React.useEffect(() => {
+            if (!open) return undefined
+            const bump = () => setSourceTick(n => n + 1)
+            const offs = sources.map(src => {
+              src.onOpen?.(sessionId)
+              return src.subscribe?.(sessionId, bump)
+            }).filter(Boolean)
+            return () => { for (const off of offs) off() }
+          }, [open, sources, sessionId])
+
+          const { sections, flat } = React.useMemo(() => {
+            if (!open) return { sections: [], flat: [] }
+            const nextSections = []
+            const nextFlat = []
+            for (const source of sources) {
+              const items = source.getItems(sessionId, hit.query)
+              if (!items.length) continue
+              const mapped = items.map(item => {
+                const entry = { source, item, flatIndex: nextFlat.length }
+                nextFlat.push(entry)
+                return entry
+              })
+              nextSections.push({ id: source.id, title: source.title(), items: mapped })
+            }
+            return { sections: nextSections, flat: nextFlat }
+          }, [open, sources, sessionId, hit, sourceTick, localeSnap])
+
+          React.useEffect(() => { setIndex(0) }, [hit?.query])
+          const visible = open && flat.length > 0
+          const activeIndex = visible ? Math.min(index, flat.length - 1) : 0
+
+          const pick = React.useCallback(entry => {
+            if (!hit || !entry) return
+            const caret = inputActions.captureInsertion()
+            const span = { start: caret.end - hit.length, end: caret.end, draftRev: caret.draftRev }
+            entry.source.pick(entry.item.raw, { sessionId, span, inputActions })
+            setHit(null)
+          }, [hit, inputActions, sessionId])
+
+          const dismiss = React.useCallback(() => {
+            if (hit) dismissed.current = hit.query
+            setHit(null)
+          }, [hit])
+
+          React.useEffect(() => {
+            if (!visible) return undefined
+            const onKey = ev => {
+              if (ev.isComposing || ev.keyCode === 229) return
+              const c = card()
+              if (!c || !(ev.target instanceof Node) || !c.contains(ev.target)) return
+              let handled = true
+              if (ev.key === 'ArrowDown') setIndex(i => (i + 1) % flat.length)
+              else if (ev.key === 'ArrowUp') setIndex(i => (i - 1 + flat.length) % flat.length)
+              else if ((ev.key === 'Enter' || ev.key === 'Tab') && !ev.shiftKey) pick(flat[Math.min(index, flat.length - 1)])
+              else if (ev.key === 'Escape') dismiss()
+              else handled = false
+              if (handled) { ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation() }
+            }
+            const onDown = ev => {
+              const c = card()
+              if (!(ev.target instanceof Node) || c?.contains(ev.target)) return
+              dismiss()
+            }
+            window.addEventListener('keydown', onKey, true)
+            document.addEventListener('pointerdown', onDown, true)
+            return () => {
+              window.removeEventListener('keydown', onKey, true)
+              document.removeEventListener('pointerdown', onDown, true)
+            }
+          }, [visible, flat, index, pick, dismiss])
+
+          React.useEffect(() => {
+            if (visible) document.getElementById(`mh-opt-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
+          }, [visible, activeIndex])
+
+          return h(React.Fragment, null,
+            h('span', { ref: anchorRef, className: 'mh-anchor' }),
+            visible ? h('div', { className: 'mh-menu', role: 'listbox', 'aria-label': t('hashAria'), 'aria-activedescendant': `mh-opt-${activeIndex}` },
+              sections.map(sec => h(React.Fragment, { key: sec.id },
+                h('div', { className: 'mh-title', role: 'presentation' }, sec.title),
+                sec.items.map(entry => {
+                  const it = entry.item
+                  const i = entry.flatIndex
+                  return h('button', {
+                    key: it.key, id: `mh-opt-${i}`, type: 'button', role: 'option',
+                    className: 'mh-item', 'aria-selected': i === activeIndex,
+                    onMouseDown: ev => { ev.preventDefault(); pick(entry) },
+                    onMouseMove: i === activeIndex ? undefined : () => setIndex(i),
+                  },
+                  h('span', { className: 'mh-hash', 'aria-hidden': true }, it.prefix ?? '#'),
+                  h('span', { className: 'mh-name' }, it.name),
+                  it.meta || it.fast ? h('span', { className: 'mh-meta' },
+                    it.meta ? h('span', null, it.meta) : null,
+                    it.fast ? h('span', { className: 'mh-bolt', role: 'img', 'aria-label': 'fast' }, h(Bolt)) : null) : null,
+                  it.desc ? h('span', { className: 'mh-desc' }, it.desc) : null)
+                })))) : null)
+        }
+
+        function HashMenu(props) {
+          const activeBus = hashMenuBus()
+          const busRev = React.useSyncExternalStore(
+            fn => activeBus ? activeBus.subscribe(fn) : () => {},
+            () => activeBus ? activeBus.getSnapshot() : 0)
+          if (!activeBus || !activeBus.isActiveHost(HASH_HOST_ID)) return null
+          return h(HashMenuBody, { ...props, bus: activeBus, busRev })
+        }
+
+        ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({
+          name: 'conversation.input.overlay', id: 'roles-hash-menu', order: 1001,
+          label: () => t('hashTitle'),
+          inject: sessionId => ({ sessionId }),
+        }, HashMenu))
         const nav = { roleId: null, seq: 0, listeners: new Set() }
         const navStore = {
           subscribe: fn => { nav.listeners.add(fn); return () => nav.listeners.delete(fn) },
@@ -1356,6 +1680,7 @@ window.__ModuleLoader__.load({
           locale: NS,
         }, ConfigLink))
       },
+      _internal: { parseRoleRef, serializeRoleRef, roleSentRule, roleChipLabel, matchRoles },
     }
   },
 })

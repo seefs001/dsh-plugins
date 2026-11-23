@@ -222,6 +222,8 @@ export function renderRolePrompt(role) {
   return lines.join('\n')
 }
 
+export const ROLE_REFERENCE_HINT = 'When a user message includes `#role(id=<roleId>, name=<name>)`, it references a role from the `roles` library without switching the current session\'s role. Call the `roles` tool with `{ action: "get", roleId }` when you need that role\'s prompt or skills to follow it or pass them to a subagent.'
+
 function sendJson(res, status, payload, headers = {}) {
   res.statusCode = status
   res.setHeader('content-type', 'application/json; charset=utf-8')
@@ -372,6 +374,13 @@ export function apply(ctx) {
       const sessionId = (agent ?? scope)?.session?.id
       return typeof sessionId === 'string' ? renderRolePrompt(roleOfSession(sessionId)) : ''
     },
+  })
+
+  ctx.systemPrompt.section({
+    name: 'roles:reference-hint',
+    order: 6,
+    interpolate: false,
+    text: () => ROLE_REFERENCE_HINT,
   })
 
   const streams = new Set()
