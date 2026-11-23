@@ -252,7 +252,8 @@ export class Workbench {
     const hiddenModels = [...new Set(rawHidden.map(item => item.trim()))]
     const provider = { id, label: str(raw.label, 'label', 100), command, args: raw.args, models: cleanModels,
       ...(hiddenModels.length ? { hiddenModels } : {}),
-      ...(previous?.advertised ? { advertised: previous.advertised } : {}) }
+      ...(previous?.advertised ? { advertised: previous.advertised } : {}),
+      ...(previous?.defaults ? { defaults: previous.defaults } : {}) }
     await this.store.saveProvider(provider)
     this.changed()
     return provider

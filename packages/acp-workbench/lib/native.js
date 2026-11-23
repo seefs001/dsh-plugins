@@ -900,12 +900,65 @@ export class NativeAcp {
 
   preferenceKey(sessionId, route) { return `${sessionId}:${route}` }
 
-  preferencesOf(sessionId, route, binding) {
+  isTopLevelSession(sessionId, binding) {
+    if (binding?.native?.parentSessionId) return false
+    const agent = sessionId ? this.ctx.agents.get(sessionId) : null
+    return agent?.session?.header?.origin !== 'subagent'
+  }
+
+  providerDefaultsOf(route, modelId) {
+    if (!isRoute(route)) return { mode: undefined, options: {} }
+    const providerRecord = this.manager.store.providers.get(route.slice(ACP_ROUTE_PREFIX.length))
+    const defaults = providerRecord?.defaults
+    if (!defaults || typeof defaults !== 'object') return { mode: undefined, options: {} }
+    const modelOptions = modelId && modelId !== DEFAULT_MODEL ? defaults.byModel?.[modelId] : undefined
+    return {
+      mode: typeof defaults.mode === 'string' && defaults.mode ? defaults.mode : undefined,
+      options: { ...defaults.options, ...modelOptions },
+    }
+  }
+
+  preferencesOf(sessionId, route, binding, modelId) {
     if (!sessionId || !route) return { mode: undefined, options: {} }
+    const defaults = this.isTopLevelSession(sessionId, binding)
+      ? this.providerDefaultsOf(route, modelId)
+      : { mode: undefined, options: {} }
     const stored = this.sessionOptions.get(this.preferenceKey(sessionId, route))
     const fallback = binding?.native?.preferences
-    const base = stored ?? fallback
-    return { mode: base?.mode, options: { ...base?.options } }
+    const own = stored ?? fallback
+    return {
+      mode: own?.mode ?? defaults.mode,
+      options: { ...defaults.options, ...own?.options },
+    }
+  }
+
+  async saveProviderDefaults(route, patch, modelId) {
+    if (!isRoute(route)) return
+    const providerId = route.slice(ACP_ROUTE_PREFIX.length)
+    const providerRecord = this.manager.store.providers.get(providerId)
+    if (!providerRecord) return
+    const prev = providerRecord.defaults ?? {}
+    const nextOptions = { ...prev.options }
+    const nextByModel = prev.byModel ? structuredClone(prev.byModel) : {}
+    let nextMode = prev.mode
+    if (patch.mode !== undefined) nextMode = patch.mode
+    if (patch.configId !== undefined) {
+      nextOptions[patch.configId] = patch.value
+      if (modelId && modelId !== DEFAULT_MODEL) {
+        nextByModel[modelId] = { ...nextByModel[modelId], [patch.configId]: patch.value }
+      }
+    }
+    const defaults = {
+      ...(nextMode ? { mode: nextMode } : {}),
+      ...(Object.keys(nextOptions).length ? { options: nextOptions } : {}),
+      ...(Object.keys(nextByModel).length ? { byModel: nextByModel } : {}),
+    }
+    const updated = { ...providerRecord, defaults }
+    if (typeof this.manager.store.saveProvider === 'function') {
+      await this.manager.store.saveProvider(updated)
+    } else {
+      this.manager.store.providers.set(providerId, updated)
+    }
   }
 
   async savePreferences(sessionId, route, next, binding) {
@@ -1136,7 +1189,7 @@ export class NativeAcp {
     let controls = null
     if (isRoute(selected?.provider)) {
       const providerRecord = this.manager.store.providers.get(selected.provider.slice(ACP_ROUTE_PREFIX.length))
-      const prefs = this.preferencesOf(sessionId, selected.provider, binding)
+      const prefs = this.preferencesOf(sessionId, selected.provider, binding, selected.model)
       const connected = !!binding && !!runtime
       const liveModelOption = binding?.configOptions?.find(item => item?.category === 'model' && item.type !== 'boolean')
       const liveModelId = liveModelOption?.currentValue ?? binding?.models?.currentModelId ?? null
@@ -1334,16 +1387,27 @@ export class NativeAcp {
     const route = session.native?.route
     const owner = session.native?.sessionId
     if (route && owner) {
-      const prefs = this.preferencesOf(owner, route, session)
-      if (op.modeId !== undefined) prefs.mode = op.modeId
-      else if (op.configId !== undefined) {
+      const agent = this.ctx.agents.get(owner)
+      const selectedModel = agent?.model.current()?.model
+      const prefs = this.preferencesOf(owner, route, session, selectedModel)
+      let defaultPatch = null
+      if (op.modeId !== undefined) {
+        prefs.mode = op.modeId
+        defaultPatch = { mode: op.modeId }
+      } else if (op.configId !== undefined) {
         const option = session.configOptions?.find(item => item?.id === op.configId)
-        if (option?.category === 'mode') prefs.mode = op.value
-        else if (option?.category !== 'model' && option?.category !== 'thought_level') {
+        if (option?.category === 'mode') {
+          prefs.mode = op.value
+          defaultPatch = { mode: op.value }
+        } else if (option?.category !== 'model' && option?.category !== 'thought_level') {
           prefs.options = { ...prefs.options, [op.configId]: op.value }
+          defaultPatch = { configId: op.configId, value: op.value }
         }
       }
       await this.savePreferences(owner, route, prefs, session)
+      if (defaultPatch && this.isTopLevelSession(owner, session)) {
+        await this.saveProviderDefaults(route, defaultPatch, selectedModel)
+      }
     }
     return result
   }
@@ -1354,18 +1418,25 @@ export class NativeAcp {
     const agent = this.ctx.agents.get(dshSessionId)
     if (this.closing || (agent && agent.status !== 'idle')) throw new Error('Wait until the current turn finishes before changing CLI options')
     const binding = this.sessions(dshSessionId, false).findLast(s => s.native.route === route && !s.native.retired)
-    const prefs = this.preferencesOf(dshSessionId, route, binding)
+    const selectedModel = agent?.model.current()?.model
+    const prefs = this.preferencesOf(dshSessionId, route, binding, selectedModel)
+    let defaultPatch = null
     if (modeId !== undefined) {
       if (typeof modeId !== 'string' || !modeId.trim()) throw new Error('modeId must be a non-empty string')
       prefs.mode = modeId.trim()
+      defaultPatch = { mode: prefs.mode }
     } else if (configId !== undefined) {
       if (typeof configId !== 'string' || !configId.trim()) throw new Error('configId must be a non-empty string')
       if (typeof value !== 'string' && typeof value !== 'boolean') throw new Error('Option value must be a string or boolean')
       prefs.options = { ...prefs.options, [configId]: value }
+      defaultPatch = { configId, value }
     } else {
       throw new Error('Specify modeId or configId to update')
     }
     await this.savePreferences(dshSessionId, route, prefs, binding)
+    if (defaultPatch && this.isTopLevelSession(dshSessionId, binding)) {
+      await this.saveProviderDefaults(route, defaultPatch, selectedModel)
+    }
 
     if (binding && !binding.archived && binding.state === 'idle' && this.manager.runtimes.has(binding.id)) {
       if (modeId !== undefined) {
@@ -1458,7 +1529,11 @@ export class NativeAcp {
   }
 
   bindingIdentity(agent, route) {
-    const prefs = this.sessionOptions.get(this.preferenceKey(agent.id, route))
+    const effective = this.preferencesOf(agent.id, route, null, agent.model.current()?.model)
+    const hasPrefs = Boolean(effective.mode || Object.keys(effective.options).length)
+    const prefs = hasPrefs
+      ? { ...(effective.mode ? { mode: effective.mode } : {}), options: { ...effective.options } }
+      : null
     return {
       sessionId: agent.id,
       parentSessionId: agent.session.header.origin === 'subagent' ? agent.session.header.parentSession : undefined,
@@ -1491,7 +1566,7 @@ export class NativeAcp {
 
   initialConfigOptionsFor(session, model, effort) {
     const provider = this.manager.provider(session.providerId)
-    const prefs = this.preferencesOf(session.native?.sessionId, session.native?.route, session)
+    const prefs = this.preferencesOf(session.native?.sessionId, session.native?.route, session, model)
     const legacy = model && model !== DEFAULT_MODEL ? extractLegacyOverrides(model, provider) : { baseId: '', effort: undefined, options: {} }
     const effectiveEffort = effort ?? legacy.effort
     const mergedOptions = { ...legacy.options, ...prefs.options }
@@ -1519,7 +1594,7 @@ export class NativeAcp {
 
   async applyModel(session, model, effort) {
     const provider = this.manager.provider(session.providerId)
-    const prefs = this.preferencesOf(session.native?.sessionId, session.native?.route, session)
+    const prefs = this.preferencesOf(session.native?.sessionId, session.native?.route, session, model)
     const legacy = model && model !== DEFAULT_MODEL ? extractLegacyOverrides(model, provider) : { baseId: '', effort: undefined, options: {} }
     const effectiveEffort = effort ?? legacy.effort
     const mergedOptions = { ...legacy.options, ...prefs.options }

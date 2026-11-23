@@ -4,9 +4,9 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const {
-      Button, CodeBlock, DiffBlock, DisclosureRow, Input, JsonBlock, MarkdownText, Modal, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, TextShimmer, WebBlock, diffTotals,
-      IconBranchOutlineRegular, IconBrowseOutlineRegular, IconChecklistOutlineRegular, IconClockOutlineRegular, IconCodeOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconInspectOutlineRegular, IconPlayOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular, IconUsersOutlineRegular,
-      IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular,
+      Button, CodeBlock, DiffBlock, DisclosureRow, Input, JsonBlock, MarkdownText, Menu, Modal, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, TextShimmer, Tooltip, WebBlock, diffTotals, extractMarkdownPlainText,
+      IconBranchOutlineRegular, IconBrowseOutlineRegular, IconCheckOutlineRegular, IconChecklistOutlineRegular, IconClockOutlineRegular, IconCloseOutlineRegular, IconCodeOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconInspectOutlineRegular, IconPlayOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular, IconUsersOutlineRegular,
+      IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular,
       IconWarningTriangleOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const NS = 'acp-workbench'
@@ -148,6 +148,11 @@ window.__ModuleLoader__.load({
       'tool.semanticSearch': 'Semantic search', 'tool.workflow': 'Workflow', 'tool.task': 'Task', 'tool.schedule': 'Schedule',
       'tool.swarm': 'Swarm', 'tool.subagents': 'Subagents', 'tool.defineSubagent': 'Define subagent', 'tool.monitor': 'Monitor',
       'tool.openPlanFile': 'Open plan file', 'tool.inspect': 'Inspect', 'tool.stopped': 'Stopped',
+      qRecommended: 'Recommended', qCustomPlaceholder: 'Type your answer', qNext: 'Next', qPrev: 'Previous question', qNextAria: 'Next question', qSubmit: 'Submit',
+      qMinimize: 'Collapse the question card', qMaximize: 'Expand the question card', qCancel: 'Dismiss all questions',
+      qIncomplete: 'Please complete this question first.', qUnanswered: 'Please select an option or enter a custom answer.', qRangeInvalid: 'Enter a value within the allowed range.',
+      qYes: 'Yes', qNo: 'No', approvalWaiting: 'Waiting for approval', planReviewHeader: 'Plan review', planApprove: 'Approve', planReject: 'Reject',
+      onLabel: 'On', offLabel: 'Off',
     }
     const zh = {
       panel: 'ACP 工作台', panelHint: '管理本机 ACP CLI 提供方、检测协议能力，并配置出现在 DSH 模型选择器中的模型。',
@@ -286,6 +291,11 @@ window.__ModuleLoader__.load({
       'tool.semanticSearch': '语义搜索', 'tool.workflow': '工作流', 'tool.task': '任务', 'tool.schedule': '定时任务',
       'tool.swarm': '多代理协作', 'tool.subagents': '子代理管理', 'tool.defineSubagent': '定义子代理', 'tool.monitor': '监控',
       'tool.openPlanFile': '打开计划文件', 'tool.inspect': '查看', 'tool.stopped': '已中止',
+      qRecommended: '推荐', qCustomPlaceholder: '输入你的答案', qNext: '下一题', qPrev: '上一题', qNextAria: '下一题', qSubmit: '提交',
+      qMinimize: '收起问题卡片', qMaximize: '展开问题卡片', qCancel: '放弃整组问题',
+      qIncomplete: '请先完成这道问题。', qUnanswered: '请选择一个选项或填写自定义答案。', qRangeInvalid: '请输入符合范围要求的数值。',
+      qYes: '是', qNo: '否', approvalWaiting: '等待审批', planReviewHeader: '计划待审', planApprove: '同意执行', planReject: '拒绝',
+      onLabel: '开启', offLabel: '关闭',
     }
 
     const CSS = `
@@ -299,7 +309,7 @@ window.__ModuleLoader__.load({
 .aw-ellipsis{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .aw-row{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 .aw-grow{flex:1 1 auto;min-width:0}
-.aw-file-hit{display:grid;text-align:start;gap:2px;width:100%;padding:6px 8px;background:none;color:inherit;border:1px solid transparent;border-radius:6px;font:inherit;cursor:pointer;overflow-wrap:anywhere}
+.aw-file-hit{display:grid;text-align:start;gap:2px;width:100%;padding:6px 8px;background:none;color:inherit;border:.5px solid transparent;border-radius:var(--dsw-radius-sm,8px);font:inherit;cursor:pointer;overflow-wrap:anywhere}
 .aw-directory-list{display:grid;gap:2px}.aw-dir-entry{grid-template-columns:4em minmax(0,1fr) auto;align-items:center;gap:8px}.aw-dir-entry:disabled{cursor:default}
 .aw-file-hit:hover,.aw-file-hit[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l2)}
 .aw-strong{font-weight:500}
@@ -308,29 +318,32 @@ window.__ModuleLoader__.load({
 .aw-warn{display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
 .aw-warn>svg{flex:none;margin-top:1px;color:var(--dsw-alias-state-warn-primary)}
 .aw-mono{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;overflow-wrap:anywhere}
-.aw-select{height:28px;max-width:200px;min-width:0;padding:0 8px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-base);color:inherit;font:inherit;font-size:12px;text-overflow:ellipsis}
-.aw-select:disabled{opacity:.55}
+.aw-select{height:30px;max-width:220px;min-width:0;padding:0 24px 0 10px;border-radius:var(--dsw-radius-md,10px);border:.5px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-overflow:ellipsis;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;background-size:12px 12px}
+.aw-select:disabled{color:var(--dsw-alias-label-dimmed);opacity:.6;cursor:default}
+.aw-menu-item-copy{display:flex;flex-direction:column;gap:2px;min-width:0;max-width:260px;white-space:normal}
+.aw-menu-item-label{font-size:13px;line-height:18px;font-weight:400;color:inherit}
+.aw-menu-item-desc{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .aw-field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .aw-field>span:first-child{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .aw-field .aw-input{width:100%}
-.aw-textarea{width:100%;min-height:60px;resize:vertical;padding:8px 10px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-base);color:inherit;font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:18px}
+.aw-textarea{width:100%;min-height:60px;resize:vertical;padding:8px 12px;border-radius:var(--dsw-radius-lg,12px);border:.5px solid var(--dsw-alias-border-l4);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:18px;outline:none;transition:border-color 120ms ease}
+.aw-textarea:focus{border-color:var(--dsw-alias-state-business-primary)}
 .aw-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
 .aw-confirm-body{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);max-height:50vh;overflow:auto}
-.aw-toggle{display:inline-grid;place-items:center;flex:none;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
+.aw-toggle{display:inline-grid;place-items:center;flex:none;width:28px;height:28px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
 @media (hover:hover){.aw-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 
-.aw-dock{container-type:inline-size;display:flex;flex-direction:column;gap:6px;flex:none;margin:0 auto;
-  width:calc(100% - 2 * var(--dsh-composer-side-clearance,16px) - 4 * var(--dsh-composer-dock-inset,8px));
-  max-width:calc(var(--dsh-composer-card-max-width,760px) - 4 * var(--dsh-composer-dock-inset,8px))}
-.aw-card{position:relative;isolation:isolate;border-radius:var(--dsw-radius-md,12px);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-panel)}
+.aw-dock{container-type:inline-size;display:flex;flex-direction:column;gap:8px;flex:none;margin:0 auto;
+  width:calc(100% - 2 * var(--dsh-composer-side-clearance,16px) - 32px);
+  max-width:var(--dsh-chat-content-width,calc(var(--dsh-composer-card-max-width,760px) - 32px))}
+.aw-card{position:relative;isolation:isolate;border-radius:var(--dsw-radius-lg,12px);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-panel);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}
 .aw-card::before{content:'';position:absolute;z-index:-1;inset:0;border-radius:inherit;pointer-events:none;background:var(--dsw-specific-menu,var(--dsw-alias-bg-base));backdrop-filter:var(--dsw-menu-backdrop-filter)}
-.aw-card[data-tone=warn]{--dsw-elevation-stroke-color:var(--dsw-alias-state-warn-primary)}
+.aw-card[data-tone=warn]{--dsw-elevation-stroke-color:var(--dsw-alias-state-warn-secondary)}
 .aw-bar{display:flex;align-items:center;gap:8px;min-height:36px;padding:4px 6px 4px 12px;min-width:0}
 .aw-bar-title{font-weight:500;white-space:nowrap}
 .aw-quiet .aw-bar{min-height:32px;padding-left:4px}
 .aw-quiet .aw-label{font-size:12px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}
 .aw-info{display:flex;flex-direction:column;gap:6px;padding:0 4px 6px}
-.aw-pills{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
 .aw-panel{display:flex;flex-direction:column;gap:14px;padding:12px;border-top:.5px solid var(--dsw-alias-border-l1);max-height:min(46vh,440px);overflow-y:auto;overscroll-behavior:contain}
 .aw-section{display:flex;flex-direction:column;gap:8px;min-width:0}
 .aw-section>h3{font-size:12px;font-weight:500;line-height:18px;color:var(--dsw-alias-label-tertiary)}
@@ -341,39 +354,100 @@ window.__ModuleLoader__.load({
 .aw-notice{min-width:0;border-inline-start:2px solid var(--dsw-alias-label-tertiary);padding-inline-start:6px;overflow-wrap:anywhere}.aw-notice[data-level=warning]{border-color:var(--dsw-alias-state-warn-primary)}.aw-notice[data-level=error]{border-color:var(--dsw-alias-state-error-primary)}.aw-batch-choice{display:flex;align-items:center;gap:8px;padding-block:4px;min-width:0;overflow-wrap:anywhere}.aw-batch-choice input{flex:none}.aw-connection-notices{min-width:0}.aw-connection-notices>.aw-section{margin-inline-start:8px}
 .aw-compact-summary{display:grid;gap:4px;max-height:18rem;overflow:auto;overflow-wrap:anywhere;overscroll-behavior:contain}
 .aw-usage-meter{width:50px;height:5px;border-radius:4px;background:var(--dsw-alias-border-l1);overflow:hidden}.aw-usage-meter>i{display:block;height:100%;background:var(--dsw-alias-label-secondary)}.aw-usage-meta,.aw-usage-detail{font-variant-numeric:tabular-nums}.aw-usage-detail{display:grid;gap:5px;padding:6px 12px 8px 30px}.aw-usage-detail dl{display:grid;grid-template-columns:max-content 1fr;gap:3px 14px;margin:0}.aw-usage-detail dd{margin:0}
-.aw-switch{display:inline-flex;align-items:center;gap:8px;font-size:12px}
+.aw-switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;line-height:20px}
 .aw-bar-error{padding:0 12px 8px}
 @container (max-width:560px){.aw-bar .aw-hide-narrow{display:none}}
 
-.aw-ask{display:flex;flex-direction:column;gap:10px;padding:12px 14px;min-width:0}
-.aw-ask-inline{border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-state-warn-primary)}
-.aw-ask-head{display:flex;align-items:center;gap:8px;font-weight:500}
-.aw-ask-head>svg{color:var(--dsw-alias-state-warn-primary);flex:none}
-.aw-ask-body{display:flex;flex-direction:column;gap:8px;min-width:0;max-height:min(40vh,360px);overflow:auto}
-.aw-ask-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.aw-ask-actions:has(.aw-permit-option){align-items:flex-start;gap:10px 16px}
-.aw-ask-actions .aw-reason{flex:1 1 160px;max-width:280px}
-.aw-permit-option{display:inline-flex;align-items:flex-start;flex-direction:column;gap:2px;max-width:100%}.aw-permit-option small{color:var(--dsw-alias-label-secondary);font-size:11px}.aw-permit-context{border-inline-start:2px solid var(--dsw-alias-border-l2);padding-inline-start:10px}
-.aw-question{display:flex;flex-direction:column;gap:4px}
-.aw-form-field{padding:8px 0;border:0}.aw-form-hint{display:block}.aw-form-field textarea{resize:vertical}
-.aw-question legend{font-weight:500;margin-bottom:4px}
-.aw-option{display:flex;align-items:flex-start;gap:8px;padding:5px 8px;border-radius:8px;cursor:pointer}
-@media (hover:hover){.aw-option:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-.aw-option input{margin:3px 0 0;flex:none}
+.aw-icon-btn{display:grid;place-items:center;flex:none;width:24px;height:24px;padding:0;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;transition:background-color 120ms ease,color 120ms ease}
+@media (hover:hover){.aw-icon-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.aw-icon-btn:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
+
+.aw-q-card{display:flex;flex-direction:column;width:100%;max-height:min(60vh,520px);padding:0 0 10px;border:0;border-radius:var(--dsw-radius-xl,16px);background:var(--dsw-specific-input-major);--dsw-elevation-stroke-color:var(--dsw-alias-border-l2-darkmode-thin,var(--dsw-alias-border-l2));box-shadow:var(--dsw-elevation-panel);color:var(--dsw-alias-label-primary);overflow:hidden;--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}
+.aw-q-card[data-inline=true]{border:.5px solid var(--dsw-alias-border-l2);box-shadow:none}
+.aw-q-card[data-minimized=true]{max-height:none;padding-bottom:0}
+.aw-q-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-shrink:0;padding:18px 20px 0 24px}
+.aw-q-card[data-minimized=true] .aw-q-head{padding-bottom:14px}
+.aw-q-heading{flex:1;min-width:0}
+.aw-q-eyebrow{margin-bottom:4px;color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:16px}
+.aw-q-head-actions{display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:auto}
+.aw-q-title{margin:0;font-size:16px;line-height:22px;font-weight:500;color:var(--dsw-alias-label-primary);overflow-wrap:anywhere;white-space:pre-wrap}
+.aw-q-card[data-minimized=true] .aw-q-title{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.aw-q-body{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.aw-q-title-wrap{flex-shrink:0;margin:4px 24px 0}
+.aw-q-desc{flex-shrink:0;margin:6px 24px 0;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px;overflow-wrap:anywhere;white-space:pre-wrap}
+.aw-q-options{display:flex;flex-direction:column;gap:2px;margin:8px 0 0;padding:4px 12px}
+.aw-q-option-wrap{display:flex;flex-direction:column;gap:4px}
+.aw-q-option-row{position:relative;width:100%;min-height:40px;flex-shrink:0;border:.5px solid transparent;border-radius:var(--dsw-radius-md,10px);background:transparent;transition:background-color 120ms ease,border-color 120ms ease}
+@media (hover:hover){.aw-q-option-row[data-interactive=true]:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.aw-q-option-row[data-selected=true]{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l2)}
+.aw-q-option{display:flex;align-items:flex-start;gap:8px;width:100%;min-width:0;min-height:40px;padding:8px 12px 8px 8px;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.aw-q-option:disabled{cursor:default}
+.aw-q-num{display:grid;place-items:center;flex:0 0 20px;width:20px;height:20px;margin-top:2px;border-radius:var(--dsw-radius-xs,4px);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:500;line-height:18px}
+.aw-q-check{display:grid;place-items:center;flex:0 0 20px;width:20px;height:20px;margin-top:2px}
+.aw-q-check::before{content:'';grid-area:1/1;width:14px;height:14px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-xs,4px);transition:background-color 120ms ease,border-color 120ms ease}
+.aw-q-check>svg{grid-area:1/1}
+.aw-q-check[data-checked=true]{color:var(--dsw-alias-label-primary-foreground)}
+.aw-q-check[data-checked=true]::before{border-color:var(--dsw-alias-label-primary);background:var(--dsw-alias-label-primary)}
+.aw-q-copy{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
+.aw-q-line{display:flex;max-width:100%;align-items:baseline;flex-wrap:wrap;gap:2px 6px}
+.aw-q-label{font-size:14px;line-height:24px;font-weight:500;color:var(--dsw-alias-label-primary);overflow-wrap:anywhere}
+.aw-q-badge{padding:0 4px;border-radius:var(--dsw-radius-xs,4px);background:var(--dsw-specific-sidebar-nav-item-active-accent);color:var(--dsw-alias-button-info-fill);font-size:11px;line-height:18px;font-weight:600;white-space:nowrap}
+.aw-q-opt-desc{display:block;color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px;font-weight:400;overflow-wrap:anywhere;white-space:pre-wrap}
+.aw-q-preview{margin:0 12px 4px 36px}
+.aw-q-custom-row{display:flex;align-items:flex-start;gap:8px;width:100%;min-height:40px;flex-shrink:0;padding:8px 12px 8px 8px;border:.5px solid transparent;border-radius:var(--dsw-radius-md,10px);transition:background-color 120ms ease,border-color 120ms ease}
+@media (hover:hover){.aw-q-custom-row:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.aw-q-custom-row:focus-within:not([data-yielded=true]),.aw-q-custom-row[data-active=true]{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l2)}
+.aw-q-field{display:grid;min-width:0;--dsh-answer-field-padding:0}
+.aw-q-field>*{grid-area:1/1;min-width:0;padding:var(--dsh-answer-field-padding);font:inherit;font-size:14px;line-height:24px;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
+.aw-q-field-mirror{box-sizing:content-box;max-height:144px;overflow:hidden;visibility:hidden}
+.aw-q-field-input{resize:none;overflow-y:auto;border:0;outline:none;background:transparent;color:var(--dsw-alias-label-primary);caret-color:var(--dsw-alias-state-business-primary)}
+.aw-q-field-input::placeholder{color:var(--dsw-alias-label-caption)}
+.aw-q-inline{flex:1}
+.aw-q-block{min-height:64px;flex-shrink:0;margin:0 12px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-bg-module-platform);--dsh-answer-field-padding:8px 12px;transition:border-color 120ms ease}
+.aw-q-block:focus-within{border-color:var(--dsw-alias-state-business-primary)}
+.aw-q-num-wrap{margin:0 12px}
+.aw-q-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;margin-top:12px;padding:0 24px 0 19px}
+.aw-q-pager{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.aw-q-progress{padding:0 4px;color:var(--dsw-alias-label-secondary);font-size:14px;line-height:24px;font-weight:500;white-space:nowrap;word-spacing:-2px;font-variant-numeric:tabular-nums}
+.aw-q-feedback{flex:1;min-height:16px;color:var(--dsw-alias-state-error-primary);font-size:11px;line-height:16px;text-align:right;overflow-wrap:anywhere}
+.aw-q-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+
+.aw-approval-card{display:flex;flex-direction:column;overflow:hidden;width:100%;border:1px solid var(--dsw-alias-state-warn-secondary);border-radius:var(--dsw-radius-xl,16px);background:var(--dsw-specific-input-major);box-shadow:var(--dsw-shadow-lv2);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}
+.aw-approval-card[data-inline=true]{box-shadow:none}
+.aw-approval-strip{display:flex;align-items:center;gap:8px;flex-shrink:0;padding:10px 14px 10px 16px;background:var(--dsw-alias-state-warn-tertiary);color:var(--dsw-alias-state-warn-primary);font-size:13px;line-height:18px;font-weight:500}
+.aw-approval-strip .aw-icon-btn{margin-left:auto;color:var(--dsw-alias-state-warn-primary)}
+.aw-approval-body{display:flex;flex-direction:column;gap:8px;min-width:0;max-height:var(--dsh-composer-text-max-height,min(40vh,360px));overflow-y:auto;overscroll-behavior:contain;padding:12px 16px 0}
+.aw-approval-body .aw-call-detail{padding:0}
+.aw-approval-headline{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:500;line-height:22px;overflow-wrap:anywhere}
+.aw-approval-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:14px 16px}
+.aw-approval-hint{margin-right:auto;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
+@media (hover:hover){.aw-btn-reject:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);--dsh-button-outline-color:transparent}}
+.aw-permit-context{border-inline-start:2px solid var(--dsw-alias-border-l2);padding-inline-start:10px}
+
+.aw-plan-card{display:flex;flex-direction:column;overflow:hidden;width:100%;border:0;border-radius:var(--dsw-radius-xl,16px);background:var(--dsw-specific-input-major);--dsw-elevation-stroke-color:var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-panel);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}
+.aw-plan-card[data-inline=true]{border:.5px solid var(--dsw-alias-border-l2);box-shadow:none}
+.aw-plan-strip{display:flex;align-items:center;gap:8px;flex-shrink:0;padding:12px 14px 12px 16px;background:var(--dsw-alias-state-warn-tertiary);color:var(--dsw-alias-state-warn-primary);font-size:14px;line-height:20px;font-weight:500}
+.aw-plan-strip .aw-icon-btn{margin-left:auto;color:var(--dsw-alias-state-warn-primary)}
+.aw-plan-body{display:flex;flex-direction:column;gap:8px;min-width:0;max-height:min(45vh,380px);overflow-y:auto;overscroll-behavior:contain;padding:14px 16px 8px}
+.aw-plan-title{font-size:15px;font-weight:500;line-height:22px;color:var(--dsw-alias-label-primary)}
+.aw-plan-overview{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}
+.aw-plan-footer{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:8px 16px 12px}
+.aw-plan-footer .aw-reason{flex:1 1 180px;max-width:320px;margin-right:auto}
 
 .aw-child{border-top:.5px solid var(--dsw-alias-border-l1)}
 .aw-child-body{padding:0 12px 10px}
+.aw-child-ask{padding:0 12px 10px}
 
-.aw-review-patch{overflow:auto;max-width:100%;font:12px/1.55 ui-monospace,monospace}.aw-patch-line{display:grid;grid-template-columns:4em 4em minmax(max-content,1fr);min-width:max-content}.aw-patch-line>span,.aw-patch-line>button{text-align:end;padding:0 6px;color:var(--dsw-alias-label-tertiary)}.aw-patch-line>button{font:inherit;background:none;border:0;cursor:pointer;text-decoration:underline}.aw-patch-line>code{font:inherit;white-space:pre;padding-inline-start:7px}.aw-patch-line[data-side=add]{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 10%,transparent)}.aw-patch-line[data-side=del]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent)}.aw-patch-hunk{color:var(--dsw-alias-label-secondary);white-space:pre;padding:3px 0}.aw-review-preview{border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:10px;min-width:0}
+.aw-review-patch{overflow:auto;max-width:100%;font:12px/1.55 ui-monospace,monospace}.aw-patch-line{display:grid;grid-template-columns:4em 4em minmax(max-content,1fr);min-width:max-content}.aw-patch-line>span,.aw-patch-line>button{text-align:end;padding:0 6px;color:var(--dsw-alias-label-tertiary)}.aw-patch-line>button{font:inherit;background:none;border:0;cursor:pointer;text-decoration:underline}.aw-patch-line>code{font:inherit;white-space:pre;padding-inline-start:7px}.aw-patch-line[data-side=add]{background:var(--dsw-alias-code-diff-added)}.aw-patch-line[data-side=del]{background:var(--dsw-alias-code-diff-deleted)}.aw-patch-hunk{color:var(--dsw-alias-label-secondary);white-space:pre;padding:3px 0}.aw-review-preview{border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:10px;min-width:0}
 .aw-task-lane{min-width:0;border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:8px;margin-inline-start:5px}.aw-task-origin{font-size:11px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}.aw-task-nav{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}.aw-task-nav>.aw-strong{overflow-wrap:anywhere}.aw-task-scope{display:grid;gap:4px;padding:7px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.aw-task-progress{min-width:0;font-size:13px}.aw-task-progress .aw-text{max-height:12em;overflow:auto}
 .aw-trace{margin:2px 0;min-width:0}
 .aw-trace-head{display:flex;align-items:center;gap:8px;min-height:28px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
-.aw-trace-toggle{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;min-height:28px;padding:0 6px;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.aw-trace-toggle{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;min-height:28px;padding:0 6px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
 @media (hover:hover){.aw-trace-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 .aw-trace-chevron{flex:none;margin-left:auto;color:var(--dsw-alias-label-tertiary)}
 .aw-trace-body{display:flex;flex-direction:column;gap:8px;padding:4px 0 6px;min-width:0}
 .aw-trace-foot{display:flex;justify-content:flex-end;padding-top:2px}
-.aw-reply-toggle{display:flex;align-items:center;gap:8px;width:100%;min-height:28px;padding:0 6px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;text-align:left;cursor:pointer}
+.aw-reply-toggle{display:flex;align-items:center;gap:8px;width:100%;min-height:28px;padding:0 6px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;text-align:left;cursor:pointer}
 @media (hover:hover){.aw-reply-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 .aw-reply-toggle[data-open=true]{width:fit-content;padding:0 8px}
 .aw-reply-clamped{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
@@ -390,10 +464,10 @@ window.__ModuleLoader__.load({
 .aw-call-view{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.aw-call-run{max-width:100%;min-width:0}.aw-call-run-body{margin-inline-start:8px;padding-inline-start:12px;border-inline-start:.5px solid var(--dsw-alias-border-l1);display:grid;gap:3px}.aw-run-summary{display:inline-flex;align-items:baseline;gap:7px;min-width:0;max-width:100%;flex-wrap:wrap;color:var(--dsw-alias-label-secondary);font-size:12px}.aw-run-summary .aw-ellipsis{max-width:22em;min-width:0;color:var(--dsw-alias-label-tertiary)}
 .aw-call-focus{font-family:var(--ds-font-family-code,ui-monospace,monospace)}.aw-call-status,.aw-exit,.aw-count,.aw-diff-totals{flex:none;white-space:nowrap;font-size:11px;font-variant-numeric:tabular-nums}.aw-call-status{display:inline-flex;align-items:center;gap:4px}.aw-call-status[data-quiet=true]{color:var(--dsw-alias-label-tertiary)}
 .aw-call[data-state=failed] :is(.aw-exit,.aw-call-status),.aw-diff-totals span:last-child{color:var(--dsw-alias-state-error-primary)}.aw-diff-totals span:first-child{color:var(--dsw-alias-state-success-primary)}
-.aw-code-window,.aw-output{max-height:18rem;overflow:auto;overscroll-behavior:contain}.aw-tech{font-size:12px;color:var(--dsw-alias-label-secondary)}.aw-tech>summary{cursor:pointer;width:fit-content}.aw-tech[open]>summary{margin-block-end:6px}
+.aw-code-window,.aw-output{max-height:18rem;overflow:auto;overscroll-behavior:contain}.aw-tech{font-size:12px;color:var(--dsw-alias-label-secondary)}.aw-tech>summary{cursor:pointer;width:fit-content;color:var(--dsw-alias-label-tertiary)}.aw-tech[open]>summary{margin-block-end:6px}
 .aw-params:not(:empty){display:grid;gap:3px}.aw-params>div{display:grid;grid-template-columns:minmax(4em,max-content) minmax(0,1fr);gap:8px;font-size:12px}.aw-params dt{color:var(--dsw-alias-label-secondary)}.aw-params dd{white-space:pre-wrap;overflow-wrap:anywhere;max-height:8rem;overflow:auto}.aw-call-detail audio{max-width:100%}
 .aw-mcp{min-width:0;display:grid;gap:8px}.aw-mcp-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;overflow-wrap:anywhere}.aw-mcp-data{display:grid;gap:4px;min-width:0}.aw-mcp-data dl{margin:0;display:grid;gap:2px}.aw-mcp-data dl>div{display:grid;grid-template-columns:minmax(4em,27%) minmax(0,1fr);gap:8px;border-block-end:1px solid var(--dsw-alias-border-l1);padding-block:3px}.aw-mcp-data dt,.aw-mcp-data dd{min-width:0;overflow-wrap:anywhere;margin:0}.aw-mcp-data dt{color:var(--dsw-alias-label-secondary)}.aw-mcp-value{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 ui-monospace,monospace}.aw-mcp-content{display:grid;gap:6px;min-width:0}.aw-mcp-grid{overflow-x:auto;max-width:100%}.aw-mcp-grid table{border-collapse:collapse;font-size:12px;width:100%}.aw-mcp-grid th,.aw-mcp-grid td{text-align:start;vertical-align:top;overflow-wrap:anywhere;min-width:3em;max-width:30em;padding:4px 6px;border-block-end:1px solid var(--dsw-alias-border-l1)}.aw-mcp-grid th{color:var(--dsw-alias-label-secondary);font-weight:500}.aw-mcp-grid th[scope=row]{width:2.5em;min-width:2em}
-.aw-plan>ol{display:grid;gap:4px}.aw-ask-body .aw-call-detail{padding:0}
+.aw-plan>ol{display:grid;gap:4px}
 .aw-text{white-space:pre-wrap;overflow-wrap:anywhere}
 .aw-plan{display:flex;flex-direction:column;gap:4px;padding:4px 0 4px 4px}
 .aw-plan-id{min-width:0;max-width:24ch;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--dsw-alias-label-tertiary);font-size:11px}
@@ -404,80 +478,81 @@ window.__ModuleLoader__.load({
 .aw-event{display:flex;align-items:center;gap:8px;min-height:24px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);min-width:0;overflow-wrap:anywhere}
 .aw-event[data-tone=error]{color:var(--dsw-alias-state-error-primary)}
 .aw-event>svg{flex:none}
-.aw-log{margin:0;max-height:240px;overflow:auto;padding:8px 10px;border-radius:8px;background:var(--dsw-alias-bg-layer-1);white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--ds-font-family-code,ui-monospace,Menlo,monospace);font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}
-.aw-msg{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:10px;background:var(--dsw-alias-bg-layer-1);min-width:0}
-.aw-msg[data-role=user]{background:var(--dsw-alias-bg-layer-2);margin-left:32px}
+.aw-log{margin:0;max-height:240px;overflow:auto;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-markdown-code-block);white-space:pre-wrap;overflow-wrap:anywhere;font:var(--dsw-font-markdown-code-block-small,12px/18px var(--ds-font-family-code,ui-monospace,Menlo,monospace));color:var(--dsw-alias-label-secondary)}
+.aw-msg{display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-card-fill);min-width:0}
+.aw-msg[data-role=user]{background:var(--dsw-specific-bubble);border-color:transparent;margin-left:32px}
 .aw-msg-head{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
-.aw-img{max-width:100%;max-height:360px;border-radius:8px}
+.aw-img{max-width:100%;max-height:360px;border-radius:var(--dsw-radius-md,10px)}
 
 .aw-page{container-type:inline-size;display:flex;flex-direction:column;height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;background:var(--dsw-alias-bg-base)}
-.aw-page-inner{display:flex;flex-direction:column;gap:20px;width:min(100%,1080px);margin:0 auto;padding:28px clamp(20px,3.5vw,44px) 56px}
+.aw-page-inner{display:flex;flex-direction:column;gap:20px;width:min(100%,960px);margin:0 auto;padding:28px clamp(24px,4vw,48px) 56px}
 [data-platform=darwin] .aw-page-inner{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
-@media (max-width:767px){.aw-page-inner{padding:20px 16px 48px}[data-platform=darwin] .aw-page-inner{padding-top:calc(20px + var(--dsh-frame-top-clearance,0px))}}
-.aw-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
-.aw-head h1{font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+@media (max-width:767px){.aw-page-inner{padding:20px 20px 48px}[data-platform=darwin] .aw-page-inner{padding-top:calc(20px + var(--dsh-frame-top-clearance,0px))}}
+.aw-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.aw-head h1{font-size:20px;line-height:28px;font-weight:500}
+.aw-head .aw-note{margin-top:4px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}
 .aw-head-actions{display:flex;align-items:center;gap:10px;flex:none}
 .aw-live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}
-.aw-banner{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:var(--dsw-alias-bg-layer-1);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
-.aw-banner[data-tone=error]{color:var(--dsw-alias-state-error-primary)}
+.aw-banner{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-bg-module-platform);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
+.aw-banner[data-tone=error]{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}
 .aw-banner>svg{flex:none;margin-top:1px}
 .aw-banner-text{display:flex;flex-direction:column;gap:4px;min-width:0}
 .aw-hub{display:grid;grid-template-columns:minmax(220px,260px) minmax(0,1fr);gap:20px;align-items:start}
 @container (max-width:740px){.aw-hub{grid-template-columns:minmax(0,1fr)}}
-.aw-rail{display:flex;flex-direction:column;gap:6px;min-width:0;position:sticky;top:16px}
+.aw-rail{display:flex;flex-direction:column;gap:4px;min-width:0;position:sticky;top:16px}
 @container (max-width:740px){.aw-rail{position:static}}
-.aw-prov{display:flex;flex-direction:column;gap:5px;width:100%;padding:10px 12px;border:.5px solid transparent;border-radius:var(--dsw-radius-md,12px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0;transition:background-color .15s,border-color .15s}
+.aw-prov{display:flex;flex-direction:column;gap:4px;width:100%;padding:10px 12px;border:.5px solid transparent;border-radius:var(--dsw-radius-md,10px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0;transition:background-color 120ms ease}
 @media (hover:hover){.aw-prov:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-.aw-prov[aria-current=true]{background:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-border-l2)}
+.aw-prov[aria-current=true]{background:var(--dsw-specific-sidebar-nav-item-active)}
 .aw-prov-top{display:flex;align-items:center;gap:6px;min-width:0}
 .aw-prov-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
-.aw-hero{display:flex;flex-direction:column;gap:12px;padding:16px 18px;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);min-width:0}
+.aw-item-sub{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.aw-hero{display:flex;flex-direction:column;gap:12px;padding:16px 18px;border-radius:var(--dsw-radius-xl,16px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-card-fill);min-width:0}
 .aw-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .aw-hero-title{display:flex;flex-direction:column;gap:4px;min-width:0}
-.aw-hero-title h2{font-size:16px;font-weight:600;line-height:22px}
+.aw-hero-title h2{font-size:16px;font-weight:500;line-height:24px}
 .aw-hero-cmd{display:inline-flex;align-items:center;gap:6px;max-width:100%;font-size:12px;color:var(--dsw-alias-label-secondary)}
 .aw-hero-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:none}
 .aw-catalog-head{display:flex;flex-direction:column;gap:10px}
 .aw-catalog-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .aw-catalog-bar .aw-input{flex:1 1 220px}
 .aw-chips{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.aw-chip{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
+.aw-chip{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;transition:background-color 120ms ease,border-color 120ms ease,color 120ms ease}
 @media (hover:hover){.aw-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
-.aw-chip[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-2));border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font-weight:500}
-.aw-dirty{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 10%,var(--dsw-alias-bg-layer-1));border:.5px solid color-mix(in srgb,var(--dsw-alias-state-warn-primary) 35%,var(--dsw-alias-border-l2));font-size:12px}
-.aw-catalog{display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);overflow:hidden;min-width:0}
-.aw-model-row{display:flex;align-items:flex-start;gap:12px;padding:11px 14px;cursor:pointer;min-width:0;border-top:.5px solid var(--dsw-alias-border-l1);transition:background-color .12s,opacity .12s}
+.aw-chip[aria-pressed=true]{background:var(--dsw-specific-sidebar-nav-item-active);border-color:var(--dsw-alias-border-l3);color:var(--dsw-alias-label-primary);font-weight:500}
+.aw-dirty{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-state-warn-tertiary);border:.5px solid var(--dsw-alias-state-warn-secondary);color:var(--dsw-alias-label-primary);font-size:12px}
+.aw-catalog{display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-xl,16px);background:var(--dsw-alias-card-fill);overflow:hidden;min-width:0}
+.aw-model-row{display:flex;align-items:center;gap:12px;padding:12px 16px;min-width:0;border-top:.5px solid var(--dsw-alias-border-l1);transition:background-color 120ms ease,opacity 120ms ease}
 .aw-model-row:first-child{border-top:0}
 @media (hover:hover){.aw-model-row:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-.aw-model-row[data-hidden=true]{opacity:.56}
-.aw-model-row input{margin:4px 0 0;flex:none}
+.aw-model-row[data-hidden=true] .aw-model-body{opacity:.52}
 .aw-model-body{display:flex;flex-direction:column;gap:4px;flex:1 1 auto;min-width:0}
 .aw-model-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}
-.aw-model-name{font-weight:500;color:var(--dsw-alias-label-primary)}
+.aw-model-name{font-size:14px;line-height:20px;font-weight:500;color:var(--dsw-alias-label-primary)}
 .aw-model-id{font-size:11px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}
-.aw-model-desc{font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary)}
-.aw-pills{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:2px}
-.aw-pill{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:999px;font-size:11px;line-height:17px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l1);white-space:nowrap}
-.aw-pill[data-tone=fast]{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 10%,transparent);border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 28%,transparent)}
-.aw-pill[data-tone=accent]{color:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));background:color-mix(in srgb,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)) 10%,transparent);border-color:color-mix(in srgb,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)) 28%,transparent)}
+.aw-model-desc{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.aw-pills{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:2px;min-width:0}
+.aw-pill{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:999px;font-size:11px;line-height:17px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-module-platform);border:.5px solid var(--dsw-alias-border-l1);white-space:nowrap}
+.aw-pill[data-tone=fast]{color:var(--dsw-alias-state-warn-primary);background:var(--dsw-alias-state-warn-tertiary);border-color:transparent}
+.aw-pill[data-tone=accent]{color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-state-business-tertiary);border-color:transparent}
 .aw-pill[data-tone=thought]{color:var(--dsw-alias-label-primary)}
 .aw-steer{display:flex;align-items:center;gap:8px;padding:6px 8px}
 .aw-steer .aw-input{flex:1 1 auto;min-width:0}
 .aw-steer button{flex:none;white-space:nowrap}
 .aw-url-link{color:var(--dsw-alias-link,var(--dsw-alias-state-business-primary));text-decoration:underline;overflow-wrap:anywhere;font-size:12px}
-.aw-empty-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:36px 20px;border:.5px dashed var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);text-align:center;color:var(--dsw-alias-label-secondary)}
+.aw-empty-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:36px 20px;border:.5px dashed var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-xl,16px);background:var(--dsw-alias-card-fill);text-align:center;color:var(--dsw-alias-label-secondary)}
 .aw-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
-.aw-box{display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);min-width:0}
+.aw-box{display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:var(--dsw-radius-xl,16px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-card-fill);min-width:0}
 .aw-box-head{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 .aw-box-head h2,.aw-box-head h3{font-size:14px;font-weight:500;line-height:20px}
 .aw-templates{display:flex;flex-direction:column;gap:8px;min-width:0}
 .aw-templates-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .aw-templates-title{font-size:12px;font-weight:500;color:var(--dsw-alias-label-secondary)}
 .aw-template-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
-.aw-template{display:flex;flex-direction:column;gap:3px;min-width:0;padding:8px 10px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s,border-color .15s}
+.aw-template{display:flex;flex-direction:column;gap:3px;min-width:0;padding:8px 10px;border-radius:var(--dsw-radius-md,10px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color 120ms ease,border-color 120ms ease}
 @media (hover:hover){.aw-template:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3)}}
 .aw-template:disabled{opacity:.55;cursor:default}
-.aw-template[aria-pressed=true]{border-color:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));background:color-mix(in srgb,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)) 8%,var(--dsw-alias-bg-layer-1))}
+.aw-template[aria-pressed=true]{border-color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-state-business-tertiary)}
 .aw-template-top{display:flex;align-items:center;gap:6px;min-width:0}
 .aw-template-cmd{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
 .aw-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -492,35 +567,37 @@ window.__ModuleLoader__.load({
 :is(.aw-dock,.aw-options) .aw-found{max-height:12rem;overflow:auto;overscroll-behavior:contain}
 .aw-menu-option{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:100%;height:34px;padding:0 8px;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:400;line-height:20px;text-align:start;white-space:nowrap;cursor:pointer;outline:none}
 .aw-menu-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:end;color:var(--dsw-alias-label-tertiary)}
-.aw-menu-option>svg{flex:none;color:var(--dsw-alias-menu-icon)}
+.aw-menu-option>svg{flex:none;color:var(--dsw-alias-label-tertiary)}
 .aw-menu-option:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
 @media (hover:hover){.aw-menu-option:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .aw-options{position:fixed;position-area:top span-left;align-self:end;justify-self:end;inset:auto;margin:0 0 8px;
-  width:min(420px,anchor-size(width));max-height:min(22rem,calc(100% - 8px - max(12px,var(--dsh-frame-overlay-top,12px))));
-  padding:12px;border:0;border-radius:var(--dsw-radius-lg);background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));
+  width:min(420px,anchor-size(width));max-height:min(24rem,calc(100% - 8px - max(12px,var(--dsh-frame-overlay-top,12px))));
+  padding:14px;border:0;border-radius:var(--dsw-radius-xl,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));
   backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);
+  --dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);
   overflow:auto;overscroll-behavior:contain;pointer-events:auto}
 .aw-options:not(:popover-open){display:none}
-.aw-found li{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:8px;min-width:0}
+.aw-found li{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:var(--dsw-radius-sm,8px);min-width:0}
 @media (hover:hover){.aw-found li:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .aw-empty{padding:24px 12px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px}
 :is(.aw-dock,.aw-options) details>summary{cursor:pointer;font-size:12px;color:var(--dsw-alias-label-secondary)}
-.aw-tb{display:inline-flex;align-items:center;gap:2px;flex:none}
-.aw-tb-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 7px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:18px;white-space:nowrap;cursor:pointer;transition:background-color .15s,color .15s}
-.aw-tb-btn:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}
-.aw-tb-btn:disabled{opacity:.55;cursor:default}
-.aw-tb-btn:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:-2px}
-.aw-tb-btn[data-active=true]{color:var(--dsw-alias-state-warn-primary)}
+.aw-tb{display:inline-flex;align-items:center;gap:4px;flex:none}
+.aw-tb-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 6px 0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);outline:none;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;line-height:20px;font-weight:400;white-space:nowrap;cursor:pointer;transition:background-color 120ms ease,color 120ms ease}
+@media (hover:hover){.aw-tb-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
+.aw-tb-btn:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
+.aw-tb-btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
+.aw-tb-btn[data-active=true]{background:var(--dsw-alias-state-business-tertiary);color:var(--dsw-alias-state-business-primary);font-weight:500}
+.aw-tb-btn[data-active=true][data-tone=fast]{background:var(--dsw-alias-state-warn-tertiary);color:var(--dsw-alias-state-warn-primary)}
+.aw-tb-btn[data-tone=plan]{background:var(--dsw-alias-state-business-tertiary);color:var(--dsw-alias-state-business-primary);font-weight:500}
+@media (hover:hover){.aw-tb-btn[data-tone=plan]:hover:not(:disabled),.aw-tb-btn[data-active=true]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-business-tertiary),var(--dsw-alias-state-business-primary) 6%)}.aw-tb-btn[data-active=true][data-tone=fast]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-warn-tertiary),var(--dsw-alias-state-warn-primary) 8%)}}
 .aw-tb-icon{width:28px;padding:0}
-.aw-tb-pop{position:fixed;inset:auto;margin:0;box-sizing:border-box;min-width:136px;max-width:min(240px,calc(100vw - 16px));padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-elevation-prominent);font-size:13px;overflow:auto}
-.aw-tb-item{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:30px;padding:4px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;font-size:13px;text-align:left;cursor:pointer}
-.aw-tb-item[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-2))}
-.aw-tb-item:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.aw-tb-item:focus-visible{outline:2px solid var(--dsw-alias-link,var(--dsw-alias-brand-primary));outline-offset:-2px}
+.aw-tb-chev{display:inline-flex;flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms ease}
+.aw-tb-btn[data-tone=plan] .aw-tb-chev{color:currentColor}
+.aw-tb-chev[data-open=true]{transform:rotate(180deg)}
 .aw-v2-trace{display:flex;flex-direction:column;gap:6px;margin-top:4px;min-width:0}
-.aw-v2-trace-btn{display:inline-flex;align-items:center;align-self:flex-start;gap:6px;height:24px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:11px;line-height:16px;cursor:pointer;transition:background-color .15s,color .15s,border-color .15s}
-@media (hover:hover){.aw-v2-trace-btn:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3);color:var(--dsw-alias-label-primary)}}
-.aw-v2-trace-btn[aria-expanded=true]{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l3)}
+.aw-v2-trace-btn{display:inline-flex;align-items:center;align-self:flex-start;gap:6px;height:24px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:var(--dsw-alias-turn-trigger-bg);color:var(--dsw-alias-label-tertiary);font:inherit;font-size:11px;line-height:16px;cursor:pointer;transition:background-color 120ms ease,color 120ms ease,border-color 120ms ease}
+@media (hover:hover){.aw-v2-trace-btn:hover{background:var(--dsw-alias-turn-trigger-bg-hover);border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary)}}
+.aw-v2-trace-btn[aria-expanded=true]{background:var(--dsw-alias-turn-trigger-bg-hover);color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2)}
 .aw-tv-card{display:flex;flex-direction:column;min-width:0}
 .aw-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
 .aw-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
@@ -534,10 +611,12 @@ window.__ModuleLoader__.load({
 .aw-tv-files{display:flex;flex-wrap:wrap;gap:6px}
 .aw-tv-file{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (hover:hover){.aw-tv-file:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
-.aw-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:2px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.aw-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .aw-tv-inspect:focus-visible{opacity:1}
 @media (hover:hover){.aw-tv-card:hover .aw-tv-inspect{opacity:1}.aw-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.aw-tv-inspect{opacity:1}}
+@media (max-width:720px){.aw-q-head{padding:12px 12px 0 18px}.aw-q-title-wrap,.aw-q-desc{margin-inline:18px}.aw-q-options{padding:4px 8px}.aw-q-title{font-size:15px;line-height:21px}.aw-q-option,.aw-q-custom-row{padding:8px 6px}.aw-q-footer{padding:0 12px}}
+@media (prefers-reduced-motion:reduce){.aw-q-option-row,.aw-q-custom-row,.aw-tb-btn,.aw-tb-chev{transition:none}}
 `
 
     const ACTIVE_RUN = new Set(['preparing', 'running', 'waiting', 'canceling'])
@@ -1135,12 +1214,12 @@ window.__ModuleLoader__.load({
         const description = typeof option.description === 'string' ? option.description.trim() : ''
         if (option.type === 'boolean') entries.push({ id: option.id, label, description, category: option.category, kind: 'boolean', value: !!option.currentValue, op: value => ({ configId: option.id, value }) })
         else entries.push({ id: option.id, label, description, category: option.category, kind: 'select', value: option.currentValue ?? '',
-          options: (option.options ?? []).flatMap(group => group.options ?? [group]).map(item => ({ value: item.value, label: item.name ?? String(item.value) })),
+          options: (option.options ?? []).flatMap(group => group.options ?? [group]).map(item => ({ value: item.value, label: item.name ?? String(item.value), description: typeof item.description === 'string' ? item.description.trim() : '' })),
           op: value => ({ configId: option.id, value }) })
       }
       if (!entries.some(entry => entry.category === 'mode') && session.modes?.availableModes?.length) {
         entries.push({ id: '__mode', label: t('mode'), category: 'mode', kind: 'select', value: session.modes.currentModeId ?? '',
-          options: session.modes.availableModes.map(mode => ({ value: mode.id, label: mode.name ?? mode.id })), op: value => ({ modeId: value }) })
+          options: session.modes.availableModes.map(mode => ({ value: mode.id, label: mode.name ?? mode.id, description: typeof mode.description === 'string' ? mode.description.trim() : '' })), op: value => ({ modeId: value }) })
       }
       if (!entries.some(entry => entry.category === 'model') && session.models?.availableModels?.length) {
         entries.push({ id: '__model', label: t('model'), category: 'model', kind: 'select', value: session.models.currentModelId ?? '',
@@ -1921,7 +2000,7 @@ window.__ModuleLoader__.load({
           if (!['allow_once','reject_once','allow_always','reject_always'].includes(option.kind)) return null
           return t(option.kind.startsWith('allow') ? 'permitGrant' : 'permitRefuse') + ' · ' + t(option.kind.endsWith('once') ? 'permitScopeOnce' : 'permitScopeRemember')
         }
-        function PermissionBody({ item, sessionId, cwd }) {
+        function PermissionBody({ item, sessionId, cwd, showCallId = false }) {
           const [previous, setPrevious] = React.useState(false), call = item.params?.toolCall ?? {}, face = toolFace(call, null, true)
           const seq = item.callStartSeq, earlier = sessionId && item.turnId && call.toolCallId && Number.isSafeInteger(seq) && seq > 0 && seq < item.requestSeq
           const input = call.rawInput, hasInput = input != null && (typeof input !== 'object' || Object.keys(input).length > 0)
@@ -1930,8 +2009,10 @@ window.__ModuleLoader__.load({
           const inlineCommand = backtickTitle && !face.command ? backtickTitle : null
           const details = face.mcp || hasInput || call.rawOutput != null || face.targets.length || face.blocks.length
           return h(React.Fragment, null,
-            h('strong', { className: 'aw-text' }, heading),
-            h('div', { className: 'aw-note' }, [call.toolCallId && `${t('permitCallId')}: ${call.toolCallId}`, cwd && `${t('permitCwd')}: ${cwd}`].filter(Boolean).join(' · ')),
+            h('div', { className: 'aw-approval-headline' }, heading),
+            cwd || (showCallId && call.toolCallId) ? h('div', { className: 'aw-row aw-note' },
+              cwd ? h(PathLabel, { path: cwd }) : null,
+              showCallId && call.toolCallId ? h('span', { className: 'aw-mono' }, `${t('permitCallId')}: ${call.toolCallId}`) : null) : null,
             inlineCommand ? h('pre', { className: 'aw-log aw-command' }, inlineCommand) : null,
             details ? h(ToolDetails, { tool: call, face, cwd, approval: true, patchFrame: { stage: 'permission', rawKey: 'rawInput' } }) : !inlineCommand ? h('p', { className: 'aw-note' }, t('permitEmpty')) : null,
             earlier ? h('div', { className: 'aw-section' }, h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': previous, onClick: () => setPrevious(!previous) }, t('permitLaunch'))),
@@ -1951,7 +2032,7 @@ window.__ModuleLoader__.load({
             const chosen = options.find(option => option.optionId === outcome?.optionId)
             const choice = data?.optionName ?? chosen?.name ?? outcome?.optionId ?? (outcome?.outcome === 'cancelled' ? t('decision.cancelled') : null)
             return h('div', { className: 'aw-section aw-permit-context' }, h(Tag, { tone: 'quiet' }, t('permitReadOnly')),
-              h(PermissionBody, { item: { ...item, requestSeq: event.seq }, sessionId, cwd }),
+              h(PermissionBody, { item: { ...item, requestSeq: event.seq }, sessionId, cwd, showCallId: true }),
               h('div', { className: 'aw-row', role: 'group', 'aria-label': t('permitOptions') }, options.map(o => h(Tag, { key: o.optionId, tone: 'quiet' }, [o.name ?? o.optionId, permissionScope(o)].filter(Boolean).join(' · ')))),
               choice ? h('span', { className: 'aw-note' }, t(data.automatic === 'full-access' ? 'permitAutoSelection' : 'permitSelection', { choice })) : receipt?.kind === 'expired' || receipt?.type === 'interaction-expired' ? h('span', { className: 'aw-note' }, t('event.expired')) : null)
           }
@@ -1959,139 +2040,602 @@ window.__ModuleLoader__.load({
             id && (sessionId || row.data) ? h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': open, onClick: () => setOpen(!open) }, t('permitPast')) : null),
             open ? row.data ? render(row) : h(PinnedPermissionEvent, { key: `${sessionId}:${row.seq}`, sessionId, seq: row.seq, render }) : null)
         }
-        function FormField({ field, value, set, disabled, group }) {
-          const tt = useT(), f = field, multi = f.kind === 'multiple'
-          const limits = f.kind === 'number'
-            ? [f.min != null && tt('formMin', { n: f.min }), f.max != null && tt('formMax', { n: f.max })].filter(Boolean)
-            : [f.min > 0 && tt('formMin', { n: f.min }), f.max != null && tt('formMax', { n: f.max })].filter(Boolean)
-          return h('fieldset', { className: 'aw-question aw-form-field', disabled }, h('legend', null, f.title, ' ', h('small', { className: 'aw-note' }, tt(f.required ? 'formRequired' : 'formOptional'))),
-            f.description && h('p', { className: 'aw-note' }, f.description), limits.length > 0 && h('p', { className: 'aw-note' }, limits.join(' · ')),
-            f.kind === 'boolean'
-              ? h('label', { className: 'aw-option' },
-                h('input', { type: 'checkbox', checked: Boolean(value), onChange: e => set(e.target.checked) }),
-                h('span', null, f.title))
-              : f.kind === 'number'
-                ? h(Input, {
-                  type: 'number',
-                  className: 'aw-input',
-                  step: f.integer ? 1 : 'any',
-                  min: f.min ?? undefined,
-                  max: f.max ?? undefined,
-                  'aria-label': f.title,
-                  value: value === undefined ? '' : String(value),
-                  onChange: e => {
-                    const raw = e.target.value.trim()
-                    if (!raw) return set(undefined)
-                    const parsed = Number(raw)
-                    set(Number.isFinite(parsed) ? parsed : raw)
-                  },
-                })
-                : f.kind === 'text'
-                  ? h('textarea', { className: 'aw-input', rows: 2, 'aria-label': f.title, value: value ?? '', onChange: e => set(e.target.value || undefined) })
-                  : f.choices.map(c => {
-                    const checked = multi ? (value ?? EMPTY).includes(c.value) : value === c.value
-                    return h('div', { className: 'aw-section', key: c.value }, h('label', { className: 'aw-option' }, h('input', { type: multi ? 'checkbox' : 'radio', name: group, checked,
-                      onChange: e => { if (!multi) return set(c.value); const next = e.target.checked ? [...(value ?? EMPTY), c.value] : value.filter(v => v !== c.value); set(next.length ? next : undefined) } }),
-                      h('span', null, c.label, c.description && h('small', { className: 'aw-note aw-form-hint' }, c.description))),
-                      c.preview && h('details', { className: 'aw-tech' }, h('summary', null, tt('formPreview')), h('pre', { className: 'aw-log' }, c.preview)))
+
+        function parseRecommendedLabel(raw) {
+          const text = typeof raw === 'string' ? raw : ''
+          const lead = /^\s*(?:\((?:recommended|推荐)\)|（(?:recommended|推荐)）)\s*/iu
+          const trail = /\s*(?:\((?:recommended|推荐)\)|（(?:recommended|推荐)）)\s*$/iu
+          if (lead.test(text)) return { label: text.replace(lead, '').trim(), recommended: true }
+          if (trail.test(text)) return { label: text.replace(trail, '').trim(), recommended: true }
+          return { label: text, recommended: false }
+        }
+
+        function isImeComposing(event) {
+          return Boolean(event.nativeEvent?.isComposing || event.keyCode === 229)
+        }
+
+        function AnswerField({ variant, value, placeholder, disabled, autoFocus, ariaLabel, onChange, onKeyDown }) {
+          return h('div', { className: `aw-q-field ${variant === 'inline' ? 'aw-q-inline' : 'aw-q-block'}` },
+            h('div', { 'aria-hidden': true, className: 'aw-q-field-mirror' }, `${value}\n`),
+            h('textarea', {
+              autoFocus,
+              className: 'aw-q-field-input',
+              value,
+              disabled,
+              rows: 1,
+              placeholder,
+              'aria-label': ariaLabel,
+              onChange,
+              onKeyDown,
+            }))
+        }
+
+        function buildQuestionPages(item) {
+          const params = item.params ?? {}
+          if (item.kind === 'question') {
+            return (params.questions ?? EMPTY).map(question => ({
+              id: question.id,
+              kind: question.allowMultiple ? 'multiple' : 'single',
+              field: null,
+              otherField: null,
+              eyebrow: params.title || undefined,
+              title: question.prompt ?? question.title ?? '',
+              description: question.description ?? '',
+              required: true,
+              choices: (question.options ?? EMPTY).map(option => ({
+                value: option.id,
+                label: option.label ?? option.id,
+                description: option.description ?? '',
+              })),
+              min: 1,
+              max: null,
+            }))
+          }
+          const fields = item.fields ?? EMPTY
+          const byId = new Map(fields.map(field => [field.id, field]))
+          const consumed = new Set()
+          const schemaTitle = firstText(params.requestedSchema?.title)
+          const pages = []
+          for (const field of fields) {
+            if (consumed.has(field.id)) continue
+            let otherField = null
+            if (field.kind === 'single' || field.kind === 'multiple') {
+              const candidate = byId.get(`${field.id}_other`)
+              if (candidate && candidate.kind === 'text' && !candidate.required) {
+                otherField = candidate
+                consumed.add(candidate.id)
+              }
+            }
+            pages.push({
+              id: field.id,
+              kind: field.kind,
+              field,
+              otherField,
+              eyebrow: schemaTitle || undefined,
+              title: field.title,
+              description: field.description ?? '',
+              required: field.required,
+              choices: field.choices ?? EMPTY,
+              min: field.min,
+              max: field.max,
+              integer: field.integer,
+            })
+          }
+          return pages
+        }
+
+        function initialQuestionValues(item, pages) {
+          const init = new Map()
+          for (const page of pages) {
+            if (page.field) {
+              const f = page.field
+              if (f.defaultValue !== undefined) init.set(f.id, f.defaultValue)
+              else if (f.kind === 'boolean' && f.required) init.set(f.id, false)
+              else if (f.kind === 'single' && page.choices.length && parseRecommendedLabel(page.choices[0].label).recommended) {
+                init.set(f.id, page.choices[0].value)
+              } else if (f.kind === 'multiple') {
+                const rec = page.choices.filter(c => parseRecommendedLabel(c.label).recommended).map(c => c.value)
+                if (rec.length) init.set(f.id, rec)
+              }
+              if (page.otherField?.defaultValue !== undefined) init.set(page.otherField.id, page.otherField.defaultValue)
+            } else if (page.kind === 'single' && page.choices.length && parseRecommendedLabel(page.choices[0].label).recommended) {
+              init.set(page.id, page.choices[0].value)
+            } else if (page.kind === 'multiple') {
+              const rec = page.choices.filter(c => parseRecommendedLabel(c.label).recommended).map(c => c.value)
+              if (rec.length) init.set(page.id, rec)
+            }
+          }
+          return init
+        }
+
+        function validateQuestionPage(item, page, values) {
+          if (item.kind === 'question') {
+            const v = values.get(page.id)
+            const has = page.kind === 'multiple' ? Array.isArray(v) && v.length > 0 : typeof v === 'string' && v.length > 0
+            return has ? null : 'qUnanswered'
+          }
+          const f = page.field
+          if (!f) return null
+          if (page.otherField && values.has(page.otherField.id)) {
+            const ov = values.get(page.otherField.id)
+            if (typeof ov !== 'string') return 'qIncomplete'
+            const olen = Array.from(ov).length
+            if (olen < page.otherField.min || (page.otherField.max != null && olen > page.otherField.max)) return 'qRangeInvalid'
+          }
+          if (!values.has(f.id)) return f.required ? 'qUnanswered' : null
+          const v = values.get(f.id)
+          if (f.kind === 'boolean') return typeof v === 'boolean' ? null : 'qIncomplete'
+          if (f.kind === 'number') {
+            if (typeof v !== 'number' || !Number.isFinite(v) || (f.integer && !Number.isInteger(v))) return 'qRangeInvalid'
+            if ((f.min != null && v < f.min) || (f.max != null && v > f.max)) return 'qRangeInvalid'
+            return null
+          }
+          if (f.kind === 'single') return f.choices.some(c => c.value === v) ? null : 'qIncomplete'
+          if (f.kind === 'multiple') {
+            if (!Array.isArray(v)) return 'qIncomplete'
+            if (v.length < f.min || (f.max != null && v.length > f.max)) return 'qRangeInvalid'
+            return null
+          }
+          const len = typeof v === 'string' ? Array.from(v).length : 0
+          if (len < f.min || (f.max != null && len > f.max)) return 'qRangeInvalid'
+          return null
+        }
+
+        function pageHasAnswer(page, values) {
+          const v = values.get(page.id)
+          const otherText = page.otherField && typeof values.get(page.otherField.id) === 'string'
+            ? values.get(page.otherField.id).trim() : ''
+          if (page.kind === 'boolean') return values.has(page.id)
+          if (page.kind === 'number') return typeof v === 'number' && Number.isFinite(v)
+          if (page.kind === 'text') return typeof v === 'string' && v.trim() !== ''
+          if (page.kind === 'multiple') return (Array.isArray(v) && v.length > 0) || otherText !== ''
+          return (typeof v === 'string' && v !== '') || otherText !== ''
+        }
+
+        function QuestionCard({ item, send, disabled, inline }) {
+          const tt = useT()
+          const headingId = React.useId()
+          const bodyRef = React.useRef(null)
+          const pages = React.useMemo(() => buildQuestionPages(item), [item])
+          const [index, setIndex] = React.useState(0)
+          const [minimized, setMinimized] = React.useState(false)
+          const [values, setValues] = React.useState(() => initialQuestionValues(item, pages))
+          const [feedback, setFeedback] = React.useState(null)
+          const isForm = item.kind === 'form'
+          const params = item.params ?? {}
+          const safeIndex = pages.length ? Math.min(index, pages.length - 1) : 0
+          const page = pages[safeIndex] ?? null
+
+          const goTo = nextIndex => {
+            if (nextIndex === safeIndex) return
+            if (bodyRef.current) bodyRef.current.scrollTop = 0
+            setIndex(nextIndex)
+            setFeedback(null)
+          }
+
+          const updateValues = mutator => {
+            setValues(previous => {
+              const next = new Map(previous)
+              mutator(next)
+              return next
+            })
+            setFeedback(null)
+          }
+
+          const submitValues = currentValues => {
+            for (let i = 0; i < pages.length; i++) {
+              const err = validateQuestionPage(item, pages[i], currentValues)
+              if (err) {
+                goTo(i)
+                setFeedback(pages.length > 1 && i !== safeIndex ? 'qIncomplete' : err)
+                return
+              }
+            }
+            if (isForm) {
+              const content = {}
+              for (const [k, v] of currentValues.entries()) {
+                if (typeof v === 'string' && v.trim() === '') {
+                  const field = (item.fields ?? EMPTY).find(itemField => itemField.id === k)
+                  if (!field?.required && (field?.min ?? 0) === 0) continue
+                }
+                content[k] = v
+              }
+              send({ formAction: 'accept', content })
+            } else {
+              send({
+                answers: pages.map(p => {
+                  const v = currentValues.get(p.id)
+                  const selectedOptionIds = p.kind === 'multiple'
+                    ? (Array.isArray(v) ? v : EMPTY)
+                    : (typeof v === 'string' && v ? [v] : EMPTY)
+                  return { questionId: p.id, selectedOptionIds }
+                }),
+              })
+            }
+          }
+
+          const selectOption = choiceValue => {
+            if (!page || disabled) return
+            let nextValues
+            setValues(previous => {
+              const next = new Map(previous)
+              if (page.kind === 'multiple') {
+                const current = Array.isArray(next.get(page.id)) ? next.get(page.id) : EMPTY
+                const updated = current.includes(choiceValue)
+                  ? current.filter(v => v !== choiceValue)
+                  : [...current, choiceValue]
+                if (updated.length) next.set(page.id, updated)
+                else next.delete(page.id)
+              } else {
+                next.set(page.id, choiceValue)
+                if (page.otherField) next.delete(page.otherField.id)
+              }
+              nextValues = next
+              return next
+            })
+            setFeedback(null)
+            if (page.kind === 'single' && safeIndex < pages.length - 1) {
+              goTo(safeIndex + 1)
+            }
+            return nextValues
+          }
+
+          const handleContinue = () => {
+            if (!page) { submitValues(values); return }
+            const err = validateQuestionPage(item, page, values)
+            if (err) { setFeedback(err); return }
+            if (safeIndex < pages.length - 1) {
+              goTo(safeIndex + 1)
+              return
+            }
+            submitValues(values)
+          }
+
+          const handleSkip = () => {
+            if (!isForm) { send({ skip: true }); return }
+            if (!page || page.required) { send({ formAction: 'decline' }); return }
+            const next = new Map(values)
+            next.delete(page.id)
+            if (page.otherField) next.delete(page.otherField.id)
+            setValues(next)
+            setFeedback(null)
+            if (safeIndex < pages.length - 1) {
+              goTo(safeIndex + 1)
+              return
+            }
+            submitValues(next)
+          }
+
+          const headerEyebrow = page?.eyebrow ?? (isForm && pages.length !== 1 && params.message ? params.message : undefined)
+          const titleText = page ? page.title : (params.message ?? tt(isForm ? 'form' : 'question'))
+          const otherValue = page?.otherField && typeof values.get(page.otherField.id) === 'string'
+            ? values.get(page.otherField.id) : ''
+          const selectedSingle = page?.kind === 'single' ? values.get(page.id) : undefined
+          const selectedMulti = page?.kind === 'multiple' && Array.isArray(values.get(page.id)) ? values.get(page.id) : EMPTY
+          const limits = page && isForm
+            ? (page.kind === 'number'
+              ? [page.min != null && tt('formMin', { n: page.min }), page.max != null && tt('formMax', { n: page.max })].filter(Boolean)
+              : [page.min > 0 && tt('formMin', { n: page.min }), page.max != null && tt('formMax', { n: page.max })].filter(Boolean))
+            : EMPTY
+          const descriptionText = [page?.description, limits.length ? limits.join(' · ') : '', !page && params.requestedSchema?.description].filter(Boolean).join('\n')
+          const canContinue = !disabled && (!page || (validateQuestionPage(item, page, values) === null && (isForm || pageHasAnswer(page, values))))
+
+          return h('section', {
+            className: 'aw-q-card',
+            'data-inline': inline || undefined,
+            'data-minimized': minimized || undefined,
+            'aria-labelledby': headingId,
+          },
+          h('header', { className: 'aw-q-head' },
+            headerEyebrow || minimized ? h('div', { className: 'aw-q-heading' },
+              headerEyebrow ? h('div', { className: 'aw-q-eyebrow' }, headerEyebrow) : null,
+              minimized ? h('h2', { className: 'aw-q-title', id: headingId }, titleText) : null) : null,
+            h('div', { className: 'aw-q-head-actions' },
+              h('button', {
+                type: 'button', className: 'aw-icon-btn',
+                'aria-label': tt(minimized ? 'qMaximize' : 'qMinimize'),
+                title: tt(minimized ? 'qMaximize' : 'qMinimize'),
+                'aria-expanded': !minimized,
+                disabled,
+                onClick: () => setMinimized(v => !v),
+              }, h(minimized ? IconChevronUpOutlineRegular : IconChevronDownOutlineRegular, { size: 18 })),
+              h('button', {
+                type: 'button', className: 'aw-icon-btn',
+                'aria-label': tt('qCancel'),
+                title: tt('qCancel'),
+                disabled,
+                onClick: () => send({ cancel: true }),
+              }, h(IconCloseOutlineRegular, { size: 15 })))),
+          !minimized ? h(React.Fragment, null,
+            h('div', { ref: bodyRef, className: 'aw-q-body' },
+              h('div', { className: 'aw-q-title-wrap' },
+                h('h2', { className: 'aw-q-title', id: headingId }, titleText)),
+              descriptionText ? h('p', { className: 'aw-q-desc' }, descriptionText) : null,
+              page ? h('div', {
+                className: 'aw-q-options',
+                role: page.kind === 'multiple' ? 'group' : page.kind === 'single' ? 'radiogroup' : undefined,
+              },
+              page.kind === 'single' || page.kind === 'multiple'
+                ? h(React.Fragment, null,
+                  page.choices.map((choice, optionIndex) => {
+                    const selected = page.kind === 'multiple' ? selectedMulti.includes(choice.value) : selectedSingle === choice.value
+                    const parsed = parseRecommendedLabel(choice.label)
+                    return h('div', { key: choice.value, className: 'aw-q-option-wrap' },
+                      h('div', {
+                        className: 'aw-q-option-row',
+                        'data-interactive': !disabled || undefined,
+                        'data-selected': (selected && page.kind === 'single') || undefined,
+                      },
+                      h('button', {
+                        type: 'button',
+                        className: 'aw-q-option',
+                        role: page.kind === 'multiple' ? 'checkbox' : 'radio',
+                        'aria-checked': selected,
+                        disabled,
+                        onClick: () => selectOption(choice.value),
+                        onKeyDown: event => {
+                          if (event.key !== 'Enter') return
+                          event.preventDefault()
+                          handleContinue()
+                        },
+                      },
+                      page.kind === 'multiple'
+                        ? h('span', { className: 'aw-q-check', 'data-checked': selected || undefined, 'aria-hidden': true },
+                          selected ? h(IconCheckOutlineRegular, { size: 12 }) : null)
+                        : h('span', { className: 'aw-q-num', 'aria-hidden': true }, String(optionIndex + 1)),
+                      h('span', { className: 'aw-q-copy' },
+                        h('span', { className: 'aw-q-line' },
+                          h('span', { className: 'aw-q-label' }, parsed.label),
+                          parsed.recommended ? h('span', { className: 'aw-q-badge' }, tt('qRecommended')) : null),
+                        choice.description ? h('span', { className: 'aw-q-opt-desc' }, choice.description) : null))),
+                      choice.preview ? h('details', { className: 'aw-tech aw-q-preview' },
+                        h('summary', null, tt('formPreview')),
+                        h('pre', { className: 'aw-log' }, choice.preview)) : null)
                   }),
-            f.kind === 'single' && !f.required && value !== undefined && h(Button, { size: 'sm', variant: 'ghost', disabled, onClick: () => set(undefined) }, tt('clearField')))
+                  page.otherField ? h('div', {
+                    className: 'aw-q-custom-row',
+                    'data-active': otherValue !== '' || undefined,
+                    'data-yielded': (page.kind === 'single' && selectedSingle !== undefined && otherValue === '') || undefined,
+                  },
+                  page.kind === 'multiple'
+                    ? h('span', { className: 'aw-q-check', 'data-checked': otherValue !== '' || undefined, 'aria-hidden': true },
+                      otherValue !== '' ? h(IconCheckOutlineRegular, { size: 12 }) : null)
+                    : h('span', { className: 'aw-q-num', 'aria-hidden': true }, h(IconEditOutlineRegular, { size: 12 })),
+                  h(AnswerField, {
+                    variant: 'inline',
+                    value: otherValue,
+                    disabled,
+                    placeholder: tt('qCustomPlaceholder'),
+                    ariaLabel: page.otherField.title || tt('qCustomPlaceholder'),
+                    onChange: event => {
+                      const nextText = event.target.value
+                      updateValues(next => {
+                        if (nextText) next.set(page.otherField.id, nextText)
+                        else next.delete(page.otherField.id)
+                        if (page.kind === 'single' && !page.required && nextText !== '') next.delete(page.id)
+                      })
+                    },
+                    onKeyDown: event => {
+                      if (event.key !== 'Enter' || event.shiftKey || isImeComposing(event)) return
+                      event.preventDefault()
+                      handleContinue()
+                    },
+                  })) : null)
+                : page.kind === 'boolean'
+                  ? [true, false].map((boolVal, idx) => {
+                    const selected = values.get(page.id) === boolVal
+                    return h('div', {
+                      key: String(boolVal),
+                      className: 'aw-q-option-row',
+                      'data-interactive': !disabled || undefined,
+                      'data-selected': selected || undefined,
+                    },
+                    h('button', {
+                      type: 'button',
+                      className: 'aw-q-option',
+                      role: 'radio',
+                      'aria-checked': selected,
+                      disabled,
+                      onClick: () => {
+                        updateValues(next => next.set(page.id, boolVal))
+                        if (safeIndex < pages.length - 1) goTo(safeIndex + 1)
+                      },
+                    },
+                    h('span', { className: 'aw-q-num', 'aria-hidden': true }, String(idx + 1)),
+                    h('span', { className: 'aw-q-copy' }, h('span', { className: 'aw-q-line' }, h('span', { className: 'aw-q-label' }, tt(boolVal ? 'qYes' : 'qNo'))))))
+                  })
+                  : page.kind === 'number'
+                    ? h('div', { className: 'aw-q-num-wrap' },
+                      h(Input, {
+                        type: 'number',
+                        className: 'aw-input',
+                        step: page.integer ? 1 : 'any',
+                        min: page.min ?? undefined,
+                        max: page.max ?? undefined,
+                        disabled,
+                        'aria-label': page.title,
+                        value: values.has(page.id) ? String(values.get(page.id)) : '',
+                        onChange: event => {
+                          const raw = event.target.value.trim()
+                          updateValues(next => {
+                            if (!raw) { next.delete(page.id); return }
+                            const parsed = Number(raw)
+                            next.set(page.id, Number.isFinite(parsed) ? parsed : raw)
+                          })
+                        },
+                      }))
+                    : h(AnswerField, {
+                      variant: 'block',
+                      autoFocus: !disabled && pages.length === 1,
+                      value: typeof values.get(page.id) === 'string' ? values.get(page.id) : '',
+                      disabled,
+                      placeholder: tt('qCustomPlaceholder'),
+                      ariaLabel: page.title,
+                      onChange: event => {
+                        const nextText = event.target.value
+                        updateValues(next => {
+                          if (nextText) next.set(page.id, nextText)
+                          else next.delete(page.id)
+                        })
+                      },
+                      onKeyDown: event => {
+                        if (event.key !== 'Enter' || event.shiftKey || isImeComposing(event)) return
+                        event.preventDefault()
+                        handleContinue()
+                      },
+                    })) : null),
+            h('footer', { className: 'aw-q-footer' },
+              pages.length > 0 ? h('div', { className: 'aw-q-pager' },
+                h('button', {
+                  type: 'button', className: 'aw-icon-btn',
+                  'aria-label': tt('qPrev'), title: tt('qPrev'),
+                  disabled: disabled || safeIndex === 0,
+                  onClick: () => goTo(safeIndex - 1),
+                }, h(IconChevronLeftOutlineRegular, { size: 15 })),
+                h('span', { className: 'aw-q-progress' }, `${safeIndex + 1} / ${pages.length}`),
+                h('button', {
+                  type: 'button', className: 'aw-icon-btn',
+                  'aria-label': tt('qNextAria'), title: tt('qNextAria'),
+                  disabled: disabled || safeIndex >= pages.length - 1,
+                  onClick: () => goTo(safeIndex + 1),
+                }, h(IconChevronRightOutlineRegular, { size: 15 }))) : h('div'),
+              h('div', { className: 'aw-q-feedback', role: 'status' }, feedback ? tt(feedback) : null),
+              h('div', { className: 'aw-q-actions' },
+                h(Button, { variant: 'outline', disabled, onClick: handleSkip },
+                  tt(isForm && (!page || page.required) ? 'formDecline' : 'skip')),
+                h(Button, { variant: 'primary', disabled: !canContinue, onClick: handleContinue },
+                  tt(safeIndex < pages.length - 1 ? 'qNext' : 'qSubmit'))))) : null)
+        }
+
+        function PermissionCard({ item, sessionId, cwd, send, disabled, inline }) {
+          const tt = useT()
+          const params = item.params ?? {}
+          const options = params.options ?? EMPTY
+          const allowOnceOptions = options.filter(o => o.kind === 'allow_once')
+          const singleAllow = allowOnceOptions.length === 1 ? allowOnceOptions[0] : null
+          const rejectOnce = options.find(o => o.kind === 'reject_once') ?? options.find(o => o.kind?.startsWith('reject')) ?? null
+          const hasAlways = options.some(o => o.kind?.endsWith('always'))
+          const ordered = [...options].toSorted((a, b) => {
+            const rank = kind => kind === 'reject_always' ? 0 : kind === 'reject_once' ? 1 : kind === 'allow_always' ? 2 : kind === 'allow_once' ? 4 : 3
+            return rank(a.kind) - rank(b.kind)
+          })
+          const onKeyDown = event => {
+            if (disabled || event.defaultPrevented || event.repeat || isImeComposing(event)) return
+            const el = event.target
+            if (el?.closest?.('input, textarea, select, [contenteditable="true"], [contenteditable=""]')) return
+            if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
+            if (event.key === 'Enter' && singleAllow && !el?.closest?.('button, a[href], [role="button"], summary')) {
+              event.preventDefault()
+              event.stopPropagation()
+              send({ optionId: singleAllow.optionId })
+            } else if (event.key === 'Escape') {
+              event.preventDefault()
+              event.stopPropagation()
+              if (rejectOnce) send({ optionId: rejectOnce.optionId })
+              else send({ cancel: true })
+            }
+          }
+          return h('section', {
+            className: 'aw-approval-card',
+            'data-inline': inline || undefined,
+            'aria-label': tt('approvalWaiting'),
+            onKeyDown,
+          },
+          h('div', { className: 'aw-approval-strip' },
+            h(StateDot, { state: disabled ? 'ongoing' : 'warning' }),
+            h('span', null, tt('approvalWaiting')),
+            h('button', {
+              type: 'button', className: 'aw-icon-btn',
+              'aria-label': tt('dismiss'), title: tt('dismiss'),
+              disabled, onClick: () => send({ cancel: true }),
+            }, h(IconCloseOutlineRegular, { size: 15 }))),
+          h('div', { className: 'aw-approval-body', tabIndex: 0 },
+            h(PermissionBody, { item, sessionId, cwd })),
+          h('div', { className: 'aw-approval-actions' },
+            hasAlways ? h('span', { className: 'aw-approval-hint' }, tt('permanent')) : null,
+            ordered.map(option => {
+              const isReject = option.kind?.startsWith('reject')
+              const isPrimary = option.kind === 'allow_once'
+              const scopeHint = [permissionScope(option), option.kind?.endsWith('always') ? tt('permanent') : null].filter(Boolean).join(' · ')
+              return h(Button, {
+                key: option.optionId,
+                variant: isPrimary ? 'primary' : 'outline',
+                className: isReject ? 'aw-btn-reject' : undefined,
+                disabled,
+                title: scopeHint || undefined,
+                onClick: () => send({ optionId: option.optionId }),
+              }, option.name ?? option.optionId)
+            })))
+        }
+
+        function PlanCard({ item, send, disabled, inline }) {
+          const tt = useT()
+          const labels = useDiffLabels()
+          const [reason, setReason] = React.useState('')
+          const params = item.params ?? {}
+          const mdLabels = React.useMemo(() => ({
+            code: { copyLabel: labels.copy, copiedLabel: labels.copied, toolbarLabels: labels },
+            footnotes: '',
+          }), [labels])
+          const heading = params.name || (params.plan && extractMarkdownPlainText ? extractMarkdownPlainText(params.plan, { mode: 'first-line' }) : '') || tt('planReviewHeader')
+          return h('section', {
+            className: 'aw-plan-card',
+            'data-inline': inline || undefined,
+            'aria-label': tt('planReviewHeader'),
+          },
+          h('div', { className: 'aw-plan-strip' },
+            h(StateDot, { state: disabled ? 'ongoing' : 'warning' }),
+            h('span', null, tt('planReviewHeader')),
+            h('button', {
+              type: 'button', className: 'aw-icon-btn',
+              'aria-label': tt('dismiss'), title: tt('dismiss'),
+              disabled, onClick: () => send({ cancel: true }),
+            }, h(IconCloseOutlineRegular, { size: 15 }))),
+          h('div', { className: 'aw-plan-body' },
+            h('h3', { className: 'aw-plan-title' }, heading),
+            params.overview ? h('p', { className: 'aw-plan-overview' }, params.overview) : null,
+            params.plan ? h('div', { className: 'aw-tv-panel' },
+              h('div', { className: 'aw-tv-prose' }, h(MarkdownText, { text: params.plan, labels: mdLabels }))) : null),
+          h('div', { className: 'aw-plan-footer' },
+            h(Input, { className: 'aw-reason', value: reason, disabled, placeholder: tt('rejectReason'), 'aria-label': tt('rejectReason'), onChange: event => setReason(event.target.value) }),
+            h(Button, { variant: 'outline', className: 'aw-btn-reject', disabled, onClick: () => send({ accept: false, ...(reason.trim() ? { reason: reason.trim() } : {}) }) }, tt('planReject')),
+            h(Button, { variant: 'primary', disabled, onClick: () => send({ accept: true }) }, tt('planApprove'))))
+        }
+
+        function UrlCard({ item, send, disabled, inline }) {
+          const tt = useT()
+          const params = item.params ?? {}
+          const href = item.urlInfo?.url ?? params.url
+          return h('section', {
+            className: 'aw-approval-card',
+            'data-inline': inline || undefined,
+            'aria-label': tt('urlElicitation'),
+          },
+          h('div', { className: 'aw-approval-strip' },
+            h(StateDot, { state: disabled ? 'ongoing' : 'warning' }),
+            h('span', null, tt('urlElicitation')),
+            h('button', {
+              type: 'button', className: 'aw-icon-btn',
+              'aria-label': tt('dismiss'), title: tt('dismiss'),
+              disabled, onClick: () => send({ cancel: true }),
+            }, h(IconCloseOutlineRegular, { size: 15 }))),
+          h('div', { className: 'aw-approval-body' },
+            h('div', { className: 'aw-approval-headline' }, item.urlInfo?.message ?? params.message),
+            href ? h('div', { className: 'aw-log' },
+              h('a', { className: 'aw-url-link aw-mono', href, target: '_blank', rel: 'noopener noreferrer' }, href)) : null),
+          h('div', { className: 'aw-approval-actions' },
+            h('span', { className: 'aw-approval-hint' }, tt('urlHelp')),
+            h(Button, { variant: 'outline', className: 'aw-btn-reject', disabled, onClick: () => send({ formAction: 'decline' }) }, tt('urlDecline')),
+            href ? h('a', { className: 'aw-url-link', href, target: '_blank', rel: 'noopener noreferrer' }, tt('urlOpen')) : null,
+            h(Button, { variant: 'primary', disabled, onClick: () => send({ formAction: 'accept' }) }, tt('urlAccept'))))
         }
 
         function InteractionCard({ item, sessionId, cwd, run, disabled, inline }) {
-          const tt = useT(), scopeId = React.useId()
-          const [answers, setAnswers] = React.useState({})
-          const [values, setValues] = React.useState(() => {
-            const init = new Map()
-            for (const f of item.fields ?? EMPTY) {
-              if (f.defaultValue !== undefined) init.set(f.id, f.defaultValue)
-              else if (f.kind === 'boolean' && f.required) init.set(f.id, false)
-            }
-            return init
-          })
-          const [reason, setReason] = React.useState('')
-          const params = item.params ?? {}
           const send = response => run({ action: 'respond', sessionId, interactionId: item.id, ...response })
-          let body
-          let actions
-          let note = null
-          if (item.kind === 'permission') {
-            const options = params.options ?? EMPTY
-            body = h(PermissionBody, { item, sessionId, cwd })
-            actions = options.map((option, i) => h('span', { key: option.optionId, className: 'aw-permit-option' }, h(Button, {
-              size: 'sm', disabled, 'aria-describedby': `${scopeId}-${i}`, onClick: () => send({ optionId: option.optionId }),
-              variant: option.kind === 'allow_once' ? 'primary' : 'outline',
-              title: option.kind?.endsWith('always') ? tt('permanent') : undefined,
-            }, option.name ?? option.optionId), h('small', { id: `${scopeId}-${i}` }, permissionScope(option))))
-            if (options.some(option => option.kind?.endsWith('always'))) note = tt('permanent')
-          } else if (item.kind === 'url') {
-            const href = item.urlInfo?.url ?? params.url
-            body = h('div', { className: 'aw-section' },
-              h('strong', null, item.urlInfo?.message ?? params.message),
-              href ? h('a', { className: 'aw-url-link aw-mono', href, target: '_blank', rel: 'noopener noreferrer' }, href) : null)
-            actions = [
-              href ? h('a', { key: 'open', className: 'aw-url-link', href, target: '_blank', rel: 'noopener noreferrer' }, tt('urlOpen')) : null,
-              h(Button, { key: 'accept', size: 'sm', variant: 'primary', disabled, onClick: () => send({ formAction: 'accept' }) }, tt('urlAccept')),
-              h(Button, { key: 'decline', size: 'sm', variant: 'ghost', disabled, onClick: () => send({ formAction: 'decline' }) }, tt('urlDecline')),
-            ].filter(Boolean)
-            note = tt('urlHelp')
-          } else if (item.kind === 'form') {
-            const fields = item.fields ?? EMPTY, invalid = fields.some(f => {
-              if (!values.has(f.id)) return f.required
-              const v = values.get(f.id)
-              if (f.kind === 'boolean') return typeof v !== 'boolean'
-              if (f.kind === 'number') {
-                if (typeof v !== 'number' || !Number.isFinite(v) || (f.integer && !Number.isInteger(v))) return true
-                return (f.min != null && v < f.min) || (f.max != null && v > f.max)
-              }
-              const length = Array.isArray(v) ? v.length : Array.from(v).length
-              return length < f.min || (f.max != null && length > f.max)
-            })
-            body = h('div', { className: 'aw-section' }, h('strong', null, params.message),
-              params.requestedSchema?.title && h('span', null, params.requestedSchema.title), params.requestedSchema?.description && h('p', { className: 'aw-note' }, params.requestedSchema.description), fields.map((field, i) => h(FormField, { key: field.id, field, disabled, group: scopeId + ':' + i, value: values.get(field.id),
-              set: v => setValues(previous => { const next = new Map(previous); if (v === undefined) next.delete(field.id); else next.set(field.id, v); return next }) })))
-            actions = [h(Button, { key: 'submit', size: 'sm', variant: 'primary', disabled: disabled || invalid, onClick: () => send({ formAction: 'accept', content: Object.fromEntries(values) }) }, tt('formSubmit')),
-              h(Button, { key: 'decline', size: 'sm', variant: 'ghost', disabled, onClick: () => send({ formAction: 'decline' }) }, tt('formDecline'))]
-            note = tt('formHelp')
-          } else if (item.kind === 'plan') {
-            body = [
-              params.name ? h('span', { key: 'name', className: 'aw-strong' }, params.name) : null,
-              params.overview ? h('p', { key: 'overview', className: 'aw-note' }, params.overview) : null,
-              params.plan ? h('pre', { key: 'plan', className: 'aw-log' }, params.plan) : null,
-            ]
-            actions = [
-              h(Button, { key: 'approve', size: 'sm', variant: 'primary', disabled, onClick: () => send({ accept: true }) }, tt('approve')),
-              h(Input, { key: 'reason', className: 'aw-reason', value: reason, disabled, placeholder: tt('rejectReason'), 'aria-label': tt('rejectReason'), onChange: event => setReason(event.target.value) }),
-              h(Button, { key: 'reject', size: 'sm', variant: 'outline', disabled, onClick: () => send({ accept: false, ...(reason.trim() ? { reason: reason.trim() } : {}) }) }, tt('reject')),
-            ]
-          } else {
-            const questions = params.questions ?? EMPTY
-            body = [
-              params.title ? h('span', { key: 'title', className: 'aw-strong' }, params.title) : null,
-              ...questions.map(question => h('fieldset', { key: question.id, className: 'aw-question' }, h('legend', null, question.prompt ?? question.title ?? ''),
-                (question.options ?? EMPTY).map(option => h('label', { key: option.id, className: 'aw-option' },
-                  h('input', {
-                    type: question.allowMultiple ? 'checkbox' : 'radio', name: `${item.id}-${question.id}`, disabled,
-                    checked: (answers[question.id] ?? EMPTY).includes(option.id),
-                    onChange: event => setAnswers(old => ({ ...old, [question.id]: question.allowMultiple
-                      ? event.target.checked ? [...(old[question.id] ?? []), option.id] : (old[question.id] ?? []).filter(id => id !== option.id)
-                      : [option.id] })),
-                  }),
-                  h('span', null, option.label ?? option.id, option.description ? h('span', { className: 'aw-note', style: { display: 'block' } }, option.description) : null))))),
-            ]
-            actions = [
-              h(Button, { key: 'answer', size: 'sm', variant: 'primary', disabled: disabled || questions.some(question => !answers[question.id]?.length),
-                onClick: () => send({ answers: questions.map(question => ({ questionId: question.id, selectedOptionIds: answers[question.id] ?? [] })) }) }, tt('answer')),
-              h(Button, { key: 'skip', size: 'sm', variant: 'ghost', disabled, onClick: () => send({ skip: true }) }, tt('skip')),
-            ]
-          }
-          const title = tt(item.kind === 'plan' ? 'kind.plan' : item.kind === 'url' ? 'urlElicitation' : item.kind)
-          return h('section', { className: inline ? 'aw-ask aw-ask-inline' : 'aw-card aw-ask', 'data-tone': 'warn', 'aria-label': title },
-            h('div', { className: 'aw-ask-head' }, h(IconWarningTriangleOutlineRegular, { size: 16 }), h('span', null, title)),
-            h('div', { className: 'aw-ask-body' }, body),
-            h('div', { className: 'aw-ask-actions' }, actions, h('span', { className: 'aw-grow' }),
-              h(Button, { size: 'sm', variant: 'ghost', disabled, onClick: () => send({ cancel: true }) }, tt('dismiss'))),
-            note ? h('p', { className: 'aw-note' }, note) : null)
+          if (item.kind === 'permission') return h(PermissionCard, { item, sessionId, cwd, send, disabled, inline })
+          if (item.kind === 'plan') return h(PlanCard, { item, send, disabled, inline })
+          if (item.kind === 'url') return h(UrlCard, { item, send, disabled, inline })
+          return h(QuestionCard, { item, send, disabled, inline })
         }
 
         function ConfigControl({ entry, disabled, onChange, compact }) {
@@ -2379,7 +2923,8 @@ window.__ModuleLoader__.load({
               h('span', { className: 'aw-grow' }), h(OpenConversation, { session: child }),
               child.activity.stopId ? h(Button, { size: 'sm', variant: 'ghost', disabled: !canWrite || view.busy || child.state === 'canceling', onClick: () => view.run(stopOperation(child)) }, tt('stop')) : null,
               latest ? h(Toggle, { open: expanded, label: tt(expanded ? 'collapse' : 'expand'), onClick: () => setExpanded(!expanded) }) : null),
-            child.interactions.map(item => h(InteractionCard, { key: item.id, item, sessionId: child.id, cwd: child.cwd, run: view.run, disabled: view.busy || !canWrite, inline: true })),
+            child.interactions.length ? h('div', { className: 'aw-child-ask aw-section' },
+              child.interactions.map(item => h(InteractionCard, { key: item.id, item, sessionId: child.id, cwd: child.cwd, run: view.run, disabled: view.busy || !canWrite, inline: true }))) : null,
             expanded && latest ? h('div', { className: 'aw-child-body' }, h(NativeTrace, { sessionId, openFile: makeOpenFile(child.native?.sessionId ?? sessionId, child.cwd), reference: { sessionId: child.id, turnId: latest.id } })) : null)
         }
 
@@ -2493,14 +3038,14 @@ window.__ModuleLoader__.load({
             ...(controls.modes?.options?.length > 1 ? [{
               id: '__draft_mode', label: tt('mode'), category: 'mode', kind: 'select',
               value: controls.mode ?? controls.modes.options[0].value,
-              options: controls.modes.options.map(item => ({ value: item.value, label: item.name ?? item.value })),
+              options: controls.modes.options.map(item => ({ value: item.value, label: item.name ?? item.value, description: item.description ?? '' })),
               op: value => ({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, modeId: value }),
             }] : []),
             ...(controls.options ?? []).map(option => option.type === 'boolean'
-              ? { id: `__draft_${option.id}`, label: option.name ?? option.id, category: option.category, kind: 'boolean', value: Boolean(controls.values?.[option.id]),
+              ? { id: `__draft_${option.id}`, label: option.name ?? option.id, description: option.description ?? '', category: option.category, kind: 'boolean', value: Boolean(controls.values?.[option.id]),
                   op: value => ({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: option.id, value }) }
-              : { id: `__draft_${option.id}`, label: option.name ?? option.id, category: option.category, kind: 'select', value: controls.values?.[option.id] ?? option.defaultValue ?? '',
-                  options: (option.choices ?? []).map(item => ({ value: item.value, label: item.name ?? item.value })),
+              : { id: `__draft_${option.id}`, label: option.name ?? option.id, description: option.description ?? '', category: option.category, kind: 'select', value: controls.values?.[option.id] ?? option.defaultValue ?? '',
+                  options: (option.choices ?? []).map(item => ({ value: item.value, label: item.name ?? item.value, description: item.description ?? '' })),
                   op: value => ({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: option.id, value }) }),
           ] : []
           const entries = info ? configEntries(info, tt).filter(e => e.category !== 'model' && (e.category !== 'thought_level' || view.data.selected?.model === 'default')) : []
@@ -2510,7 +3055,8 @@ window.__ModuleLoader__.load({
               popover: 'auto', role: 'dialog', 'aria-label': title, tabIndex: -1,
               onToggle: e => { if (e.target === e.currentTarget && e.newState === 'closed') view.setOptions(null) } },
             h('div', { className: 'aw-row' }, h('strong', { className: 'aw-grow' }, title), binding ? h(Status, { state: binding.state }) : null,
-              h(Button, { size: 'sm', variant: 'ghost', onClick: close }, tt('hideOptions'))),
+              h('button', { type: 'button', className: 'aw-icon-btn', 'aria-label': tt('hideOptions'), title: tt('hideOptions'), onClick: close },
+                h(IconCloseOutlineRegular, { size: 15 }))),
             binding ? h('p', { className: 'aw-note aw-ellipsis', title: binding.cwd }, binding.title, ' · ', binding.cwd) : null,
             h(WorkspaceTools, { sessionId }),
             h(ForkOrigin, { binding }), binding?.native.imported ? h(PreviousMessages, { binding }) : null,
@@ -2746,45 +3292,42 @@ window.__ModuleLoader__.load({
             }))
         }
 
-        function ToolbarSelect({ label, description, value, options, disabled, onSelect }) {
-          const button = React.useRef(null)
-          const popup = React.useRef(null)
-          const id = React.useId()
+        function ToolbarSelect({ label, description, value, options, disabled, tone, onSelect }) {
+          const [open, setOpen] = React.useState(false)
           const current = options.find(item => item.value === value) ?? options[0]
           const display = current?.name ?? value ?? ''
-          const tooltip = description ? `${label}: ${display} — ${description}` : `${label}: ${display}`
-          const position = event => {
-            const panel = popup.current
-            if (!panel) return
-            const anchor = event.currentTarget.getBoundingClientRect()
-            const width = Math.min(200, window.innerWidth - 16)
-            const above = anchor.top - 14
-            const below = window.innerHeight - anchor.bottom - 14
-            const openAbove = above >= 120 || above >= below
-            panel.style.left = `${Math.max(8, Math.min(anchor.right - width, window.innerWidth - width - 8))}px`
-            panel.style.top = openAbove ? 'auto' : `${anchor.bottom + 6}px`
-            panel.style.bottom = openAbove ? `${window.innerHeight - anchor.top + 6}px` : 'auto'
-            panel.style.maxHeight = `${Math.max(0, openAbove ? above : below)}px`
-          }
-          return h(React.Fragment, null,
-            h('button', {
-              ref: button, type: 'button', className: 'aw-tb-btn', disabled,
-              'aria-label': `${label}: ${display}`, title: tooltip,
-              'aria-haspopup': 'dialog', popovertarget: id, onClick: position,
-            }, h('span', null, display), h(IconChevronDownOutlineRegular, { size: 12, 'aria-hidden': true })),
-            h('div', { ref: popup, id, className: 'aw-tb-pop', popover: 'auto', role: 'dialog', 'aria-label': label },
-              options.map(option => {
-                const active = option.value === value
-                return h('button', {
-                  key: option.value, type: 'button', className: 'aw-tb-item', 'aria-pressed': active, disabled,
-                  title: option.description || undefined,
-                  onClick: () => {
-                    popup.current?.hidePopover()
-                    button.current?.focus()
-                    if (!active) onSelect(option.value)
-                  },
-                }, h('span', null, option.name ?? option.value), active ? h('span', { 'aria-hidden': true }, '✓') : null)
-              })))
+          const tooltip = description ? `${label}: ${display} — ${description}` : current?.description ? `${label}: ${display} — ${current.description}` : `${label}: ${display}`
+          const items = options.map(option => ({
+            id: option.value,
+            label: option.description
+              ? h('span', { className: 'aw-menu-item-copy' },
+                h('span', { className: 'aw-menu-item-label' }, option.name ?? option.value),
+                h('span', { className: 'aw-menu-item-desc' }, option.description))
+              : (option.name ?? option.value),
+          }))
+          return h(Menu, {
+            open: open && !disabled,
+            items,
+            selectedId: value,
+            onSelect: id => { setOpen(false); if (id !== value) onSelect(id) },
+            onClose: () => setOpen(false),
+            side: 'top',
+            portal: true,
+            anchor: h('button', {
+              type: 'button',
+              className: 'aw-tb-btn',
+              'data-tone': tone || undefined,
+              disabled,
+              'aria-label': `${label}: ${display}`,
+              'aria-haspopup': 'menu',
+              'aria-expanded': open && !disabled,
+              title: tooltip,
+              onClick: () => setOpen(v => !v),
+            },
+            h('span', { className: 'aw-ellipsis' }, display),
+            h('span', { className: 'aw-tb-chev', 'data-open': open && !disabled, 'aria-hidden': true },
+              h(IconChevronDownOutlineRegular, { size: 12 }))),
+          })
         }
 
         function NativeModelControls({ sessionId, useAccess }) {
@@ -2801,29 +3344,37 @@ window.__ModuleLoader__.load({
           const extraOptions = options.filter(item => item.id !== 'context' && item.id !== 'fast' && (item.type === 'boolean' || item.choices?.length > 1))
           if (!modes && !contextOpt && !fastOpt && !extraOptions.length) return null
 
+          const currentMode = modes ? (controls.mode ?? modes.options[0].value) : null
+          const isPlanMode = typeof currentMode === 'string' && currentMode.toLowerCase() === 'plan'
+
           const renderToggle = (opt, iconOnly) => {
             const pair = opt.type === 'select' ? booleanSelectPair(opt.choices) : null
             const rawValue = controls.values?.[opt.id] ?? opt.defaultValue
             const active = opt.type === 'boolean' ? Boolean(rawValue) : pair ? rawValue === pair.on : rawValue === 'true' || rawValue === 'on'
             const nextValue = opt.type === 'boolean' ? !active : pair ? (active ? pair.off : pair.on) : (active ? 'false' : 'true')
             const name = opt.name || opt.id
-            const statusText = `${name}: ${active ? 'On' : 'Off'}`
-            const tooltip = opt.description ? `${statusText} — ${opt.description}` : statusText
-            return h('button', {
-              key: opt.id, type: 'button',
+            const statusText = `${name}: ${tt(active ? 'onLabel' : 'offLabel')}`
+            const tooltip = opt.description ? `${statusText} · ${opt.description}` : statusText
+            const btn = h('button', {
+              type: 'button',
               className: iconOnly ? 'aw-tb-btn aw-tb-icon' : 'aw-tb-btn',
-              disabled, 'data-active': active, 'aria-pressed': active,
-              'aria-label': statusText, title: tooltip,
+              disabled,
+              'data-active': active,
+              'data-tone': opt.id === 'fast' ? 'fast' : undefined,
+              'aria-pressed': active,
+              'aria-label': statusText,
               onClick: () => view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: opt.id, value: nextValue }),
             }, iconOnly ? h(FastBolt, { on: active }) : h('span', null, name))
+            return Tooltip ? h(Tooltip, { key: opt.id, label: tooltip, side: 'top', portal: true }, btn) : React.cloneElement(btn, { key: opt.id, title: tooltip })
           }
 
           return h('div', { className: 'acpw aw-tb' },
             modes ? h(ToolbarSelect, {
               label: tt('mode'),
-              value: controls.mode ?? modes.options[0].value,
+              value: currentMode,
               options: modes.options,
               disabled,
+              tone: isPlanMode ? 'plan' : undefined,
               onSelect: modeId => view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, modeId }),
             }) : null,
             contextOpt ? h(ToolbarSelect, {
@@ -3211,8 +3762,7 @@ window.__ModuleLoader__.load({
             : model.contextWindow ? formatTokenCount(model.contextWindow) : ''
           const outputLabel = model.maxTokens ? formatTokenCount(model.maxTokens) : ''
           const efforts = model.reasoning?.efforts ?? EMPTY
-          return h('label', { className: 'aw-model-row', 'data-hidden': hidden },
-            h('input', { type: 'checkbox', checked: !hidden, disabled: busy, onChange: event => onToggle(model.id, event.target.checked) }),
+          return h('div', { className: 'aw-model-row', 'data-hidden': hidden },
             h('div', { className: 'aw-model-body' },
               h('div', { className: 'aw-model-head' },
                 h('span', { className: 'aw-model-name' }, model.name ?? model.id),
@@ -3225,7 +3775,8 @@ window.__ModuleLoader__.load({
                 ultracodeOpt ? h('span', { className: 'aw-pill', 'data-tone': 'accent', title: ultracodeOpt.description || undefined }, tt('modelUltracode')) : null,
                 extraOpts.map(opt => h('span', { key: opt.id, className: 'aw-pill', title: opt.description || undefined }, opt.name ?? opt.id)),
                 hasImage ? h('span', { className: 'aw-pill' }, tt('modalityImage')) : null,
-                outputLabel ? h('span', { className: 'aw-pill' }, `${tt('ctxOutput')}: ${outputLabel}`) : null) : null))
+                outputLabel ? h('span', { className: 'aw-pill' }, `${tt('ctxOutput')}: ${outputLabel}`) : null) : null),
+            h(Switch, { checked: !hidden, disabled: busy, label: model.name ?? model.id, onChange: checked => onToggle(model.id, checked) }))
         }
 
         function ProviderWorkbench({ providers, providerTemplates, activeByProvider, authByProvider, defaultCwd, run, busy, creating, setCreating }) {
