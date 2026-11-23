@@ -95,6 +95,15 @@ test('isInteractivePermission protects multi-choice approvals and interactive to
       { optionId: 'allow-2', kind: 'allow_always' },
       { optionId: 'reject', kind: 'reject_once' },
     ],
+  }), false)
+
+  assert.equal(isInteractivePermission({
+    toolCall: { name: 'Bash', kind: 'execute' },
+    options: [
+      { optionId: 'allow-1', kind: 'allow_once' },
+      { optionId: 'allow-2', kind: 'allow_once' },
+      { optionId: 'reject', kind: 'reject_once' },
+    ],
   }), true)
 
   assert.equal(isInteractivePermission({

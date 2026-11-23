@@ -9,7 +9,7 @@ const KNOWN_CLAUDE_CONTEXT = [
   { match: /\bclaude[-_ ]?sonnet[-_ ]+5\b|\bsonnet\s+5\b/iu, size: 200_000 },
 ]
 
-const INTERACTIVE_TOOLS = new Set(['ExitPlanMode', 'AskUserQuestion'])
+const INTERACTIVE_TOOLS = new Set(['EnterPlanMode', 'ExitPlanMode', 'AskUserQuestion'])
 
 const ADAPTERS = {
   cursor: {
@@ -113,8 +113,8 @@ export function extractAgentMeta(info, sessionResult) {
 
 export function isInteractivePermission(params) {
   const options = Array.isArray(params?.options) ? params.options : []
-  const allowCount = options.filter(item => typeof item?.kind === 'string' && item.kind.startsWith('allow')).length
-  if (allowCount > 1) return true
+  const allowOnceCount = options.filter(item => item?.kind === 'allow_once').length
+  if (allowOnceCount > 1) return true
   const tool = params?.toolCall
   if (!tool) return false
   if (tool.kind === 'switch_mode') return true

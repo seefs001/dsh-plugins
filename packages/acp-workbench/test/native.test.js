@@ -668,6 +668,15 @@ test('autoApprove blocks multi-allow choosers and ExitPlanMode even in full-acce
       { optionId: 'allow-always', kind: 'allow_always' },
       { optionId: 'reject', kind: 'reject_once' },
     ],
+  }), 'allow-once')
+
+  assert.equal(h.native.autoApprove(acpSession, {
+    toolCall: { name: 'Bash', kind: 'execute' },
+    options: [
+      { optionId: 'allow-a', kind: 'allow_once' },
+      { optionId: 'allow-b', kind: 'allow_once' },
+      { optionId: 'reject', kind: 'reject_once' },
+    ],
   }), null)
 
   assert.equal(h.native.autoApprove(acpSession, {
