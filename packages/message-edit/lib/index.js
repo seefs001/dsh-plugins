@@ -36,6 +36,8 @@ export function editedContent(content, text) {
 
 const sameMessage = (event, rpcId) => event.type === 'user/message'
   && event.data.source?.kind === 'user' && event.data.source.rpcId === rpcId
+const isEmptyRetryMessage = message => message?.source?.kind === 'retry' && (message.content?.length ?? 0) === 0
+const isEmptyRetryEvent = event => event.type === 'user/message' && isEmptyRetryMessage(event.data)
 
 export function locate(events, rpcId) {
   const index = events.findIndex(e => sameMessage(e, rpcId) && e.surfaceOp === 'append')
@@ -100,28 +102,77 @@ export class MessageEdit {
   async list({ sessionId }) {
     const events = await this.events(sessionId)
     const edited = Object.create(null)
-    const surfaceToRpcId = new Map()
+    const hiddenRanges = []
+    const hiddenSeqs = []
+    const surface = []
+    const surfaceToMeta = new Map()
+    let awaitingEditRetry = false
+    let pendingTailEdit = null
     for (const e of events) {
-      if (e.surfaceOp === 'append' && e.type === 'user/message' && e.data.source?.kind === 'user') {
-        surfaceToRpcId.set(e.seq, e.data.source.rpcId)
+      if (e.type === 'agent/inbox/spliced') {
+        if (pendingTailEdit && (e.data.inserted ?? []).some(isEmptyRetryMessage)) {
+          hiddenRanges.push([pendingTailEdit.originalSeq, pendingTailEdit.replaceSeq])
+          pendingTailEdit = null
+          awaitingEditRetry = true
+        }
+        continue
+      }
+      if (e.surfaceOp === 'append') {
+        surface.push(e.seq)
+        if (e.type === 'user/message' && e.data.source?.kind === 'user') {
+          surfaceToMeta.set(e.seq, { rpcId: e.data.source.rpcId, originalSeq: e.seq })
+          awaitingEditRetry = false
+          pendingTailEdit = null
+        } else if (isEmptyRetryEvent(e) && (awaitingEditRetry || pendingTailEdit)) {
+          if (pendingTailEdit) {
+            hiddenRanges.push([pendingTailEdit.originalSeq, pendingTailEdit.replaceSeq])
+            pendingTailEdit = null
+          }
+          hiddenSeqs.push(e.seq)
+          awaitingEditRetry = false
+        } else if (e.type === 'assistant/message') {
+          awaitingEditRetry = false
+          pendingTailEdit = null
+        }
       } else if (isReplace(e)) {
-        for (const seq of e.sourceEventSeqs ?? []) {
-          const rpcId = surfaceToRpcId.get(seq)
-          if (rpcId === undefined) continue
-          surfaceToRpcId.delete(seq)
-          if (seq === e.surfaceOp.startSeq && sameMessage(e, rpcId)) {
-            surfaceToRpcId.set(e.seq, rpcId)
-            edited[rpcId] = { text: textOf(e.data.content), inContext: true, time: e.time }
-          } else if (edited[rpcId]) edited[rpcId].inContext = false
+        const startIdx = surface.indexOf(e.surfaceOp.startSeq)
+        const endIdx = surface.indexOf(e.surfaceOp.endSeq)
+        const shadowed = startIdx >= 0 && endIdx >= startIdx
+          ? surface.slice(startIdx, endIdx + 1)
+          : (e.sourceEventSeqs ?? [])
+        const clearedTail = startIdx >= 0 && endIdx === surface.length - 1
+        if (startIdx >= 0 && endIdx >= startIdx) surface.splice(startIdx, endIdx - startIdx + 1, e.seq)
+        let editMeta = null
+        for (const seq of shadowed) {
+          const meta = surfaceToMeta.get(seq)
+          if (meta === undefined) continue
+          surfaceToMeta.delete(seq)
+          if (seq === e.surfaceOp.startSeq && sameMessage(e, meta.rpcId)) {
+            surfaceToMeta.set(e.seq, meta)
+            edited[meta.rpcId] = { text: textOf(e.data.content), inContext: true, time: e.time }
+            editMeta = meta
+          } else if (edited[meta.rpcId]) edited[meta.rpcId].inContext = false
+        }
+        if (editMeta) {
+          if (shadowed.length > 1) {
+            hiddenRanges.push([editMeta.originalSeq, e.seq])
+            awaitingEditRetry = true
+            pendingTailEdit = null
+          } else if (clearedTail) {
+            pendingTailEdit = { originalSeq: editMeta.originalSeq, replaceSeq: e.seq }
+            awaitingEditRetry = false
+          }
         }
       }
     }
-    return { edited }
+    return { edited, hiddenRanges, hiddenSeqs }
   }
 
-  async rewrite({ sessionId, rpcId, text, clearLater = true }) {
+  async rewrite({ sessionId, rpcId, text, clearLater = true, autoContinue = clearLater }) {
     checkText(text)
     if (typeof clearLater !== 'boolean') throw new Error('clearLater must be a boolean')
+    if (typeof autoContinue !== 'boolean') throw new Error('autoContinue must be a boolean')
+    if (autoContinue && !clearLater) throw new Error('autoContinue requires clearLater')
     const agent = await this.agent(sessionId)
     const session = agent.session
     if (!session || typeof agent.runMaintenance !== 'function') throw new Error('This session cannot be edited in place')
@@ -135,20 +186,39 @@ export class MessageEdit {
         const index = nodes.indexOf(found.current.seq)
         if (index < 0) throw new Error('This message is no longer in the model context')
         const replaced = clearLater ? nodes.slice(index) : [found.current.seq]
-        if (textOf(found.current.data.content) === text && replaced.length === 1) return { seq: found.current.seq, unchanged: true }
+        if (textOf(found.current.data.content) === text && replaced.length === 1 && !autoContinue) {
+          return { seq: found.current.seq, originalSeq: found.original.seq, unchanged: true, cleared: false, continued: false }
+        }
         const data = deepFreeze(structuredClone({ ...found.current.data, content: editedContent(found.current.data.content, text) }))
         const event = session.append('user/message', data, {
           surfaceOp: { op: 'replace', startSeq: found.current.seq, endSeq: replaced.at(-1) },
           sourceEventSeqs: replaced,
         })
-        return { seq: event.seq }
+        await this.ctx.sessions.flush(session).catch(error => this.ctx.logger.warn(`message-edit flush: ${error.message}`))
+        let continuationRpcId
+        if (autoContinue) {
+          const { clientTimeZone } = found.original.data.source
+          continuationRpcId = randomUUID()
+          const continuation = deepFreeze(structuredClone({
+            role: 'user',
+            id: randomUUID(),
+            content: [],
+            source: { kind: 'retry', rpcId: continuationRpcId, ...(clientTimeZone ? { clientTimeZone } : {}) },
+          }))
+          agent.followup(continuation)
+        }
+        return {
+          seq: event.seq,
+          originalSeq: found.original.seq,
+          cleared: clearLater,
+          continued: autoContinue,
+          ...(continuationRpcId ? { continuationRpcId } : {}),
+        }
       })
     } catch (error) {
       throw new Error(`The agent is busy; stop it or wait until it finishes (${error.message})`, { cause: error })
     }
-    const result = await task
-    await this.ctx.sessions.flush(session).catch(error => this.ctx.logger.warn(`message-edit flush: ${error.message}`))
-    return result
+    return await task
   }
 
   async send({ sessionId, sourceSessionId, rpcId, text }) {

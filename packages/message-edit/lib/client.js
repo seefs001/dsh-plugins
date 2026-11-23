@@ -9,11 +9,11 @@ window.__ModuleLoader__.load({
       copy: 'Copy', copied: 'Copied', copyFailed: 'Could not copy the message.',
       loading: 'Loading…', working: 'Working…',
       clear: 'Fork and resend', clearHint: 'Creates a new session from just before this message and resends the edited text. The current session stays untouched.',
-      keep: 'Edit in this session', keepHint: 'Updates this message in the current session without switching sessions or triggering a new reply.',
-      clearLater: 'Clear later context', clearLaterHint: 'Checked by default: drops later messages and tool results from model context (uncheck to keep them). Chat history stays visible; completed actions are not undone.',
+      keep: 'Edit in this session', keepHint: 'Updates this message in the current session without switching sessions.',
+      clearLater: 'Clear later messages and resend', clearLaterHint: 'Checked by default: clears later messages and model context, then immediately generates a new reply (uncheck to only rewrite text and keep later history). Completed actions are not undone.',
       keepUnavailable: 'This message has already been compacted or cleared from context, so it can no longer be edited in place.',
       forkUnavailable: 'There is no earlier history to branch from.',
-      submitClear: 'Branch and send', submitKeep: 'Save to context', submitTrim: 'Save and clear later context',
+      submitClear: 'Branch and send', submitKeep: 'Save to context', submitTrim: 'Save and resend',
       edited: 'Edited', compacted: '(no longer in context)',
       empty: 'The message cannot be empty.', unchanged: 'Nothing changed.',
     }
@@ -22,11 +22,11 @@ window.__ModuleLoader__.load({
       copy: '复制', copied: '已复制', copyFailed: '无法复制消息。',
       loading: '正在加载…', working: '正在处理…',
       clear: '分叉并重发', clearHint: '另开一个新会话，从这条消息之前重新发送修改后的内容，原会话保持不变。',
-      keep: '在当前会话修改', keepHint: '直接改写当前会话里的这条消息，不切换会话，也不会自动让模型重新回答。',
-      clearLater: '清空后续上下文', clearLaterHint: '默认勾选，会清掉后面的模型上下文和工具结果（取消勾选则保留）。界面上的历史记录还在，已经做过的操作不会撤回。',
+      keep: '在当前会话修改', keepHint: '在当前会话直接改写这条消息，不切换会话。',
+      clearLater: '清空后续消息并重新回答', clearLaterHint: '默认勾选：隐藏后续消息、清空后续模型上下文并立即重新生成回复（取消勾选则仅改写正文并保留后续内容）。已经做过的操作不会撤回。',
       keepUnavailable: '这条消息已被压缩或从上下文中清空，无法在原处改写。',
       forkUnavailable: '这条消息之前没有可分支的历史。',
-      submitClear: '分支并发送', submitKeep: '保存到上下文', submitTrim: '保存并清空后续上下文',
+      submitClear: '分支并发送', submitKeep: '保存到上下文', submitTrim: '保存并重新回答',
       edited: '已编辑', compacted: '（已不在上下文中）',
       empty: '消息不能为空。', unchanged: '内容没有变化。',
     }
@@ -38,8 +38,9 @@ window.__ModuleLoader__.load({
 .dme-action{display:inline-flex;align-items:center;justify-content:center;width:calc(28px + var(--dsh-content-font-delta,0px));height:calc(28px + var(--dsh-content-font-delta,0px));padding:6px;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:inherit;cursor:pointer}
 .dme-action svg{width:calc(15px + var(--dsh-content-font-delta,0px));height:calc(15px + var(--dsh-content-font-delta,0px))}
 @media(hover:hover){.dme-action:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}
-[data-actions-reveal='hover'] .dme-actions,:is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering']):has(~ :is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering'])) .dme-actions{opacity:0;transition:opacity 80ms ease}
-[data-actions-reveal='hover']:is(:hover,:focus-within) .dme-actions,:is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering']):has(~ :is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering'])):is(:hover,:focus-within) .dme-actions{opacity:1}}
+[data-actions-reveal='hover'] .dme-actions,:is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering']):has(~ :is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering']):not([data-dme-hidden])) .dme-actions{opacity:0;transition:opacity 80ms ease}
+[data-actions-reveal='hover']:is(:hover,:focus-within) .dme-actions,:is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering']):has(~ :is([data-chat-flow-kind='user'],[data-chat-flow-kind='steering']):not([data-dme-hidden])):is(:hover,:focus-within) .dme-actions{opacity:1}}
+[data-dme-hidden]{display:none!important}
 .dme-dialog{box-sizing:border-box;width:min(680px,calc(100vw - 32px));max-height:calc(100dvh - 48px);padding:0;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);--dsw-elevation-stroke-color:var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-prominent);font:inherit;font-size:14px;line-height:1.6;text-align:left}
 .dme-dialog[open]{display:flex;flex-direction:column}
 .dme-dialog::backdrop{background:var(--dsw-alias-bg-mask-1)}
@@ -79,16 +80,123 @@ window.__ModuleLoader__.load({
       return data.value
     }
 
+    const EMPTY_STATE = { edited: {}, hiddenRanges: [], hiddenSeqs: [] }
+    function isSeqInRanges(seq, ranges) {
+      if (typeof seq !== 'number') return false
+      for (const [afterSeq, beforeSeq] of ranges) {
+        if (seq > afterSeq && seq < beforeSeq) return true
+      }
+      return false
+    }
+    function isNodeHidden(node, state, hiddenRetryRpcIds) {
+      if (!node) return false
+      if (isSeqInRanges(node.anchorSeq, state.hiddenRanges)) return true
+      if (state.hiddenSeqs.includes(node.anchorSeq)) return true
+      if (node.kind === 'turn-process' && isSeqInRanges(node.location?.turn?.end?.seq, state.hiddenRanges)) return true
+      if (node.kind === 'turn-trigger' && node.data?.source?.kind === 'retry'
+        && typeof node.data.source.rpcId === 'string' && hiddenRetryRpcIds.has(node.data.source.rpcId)) return true
+      return false
+    }
+
     const lists = new Map()
-    function editsStore(sessionId) {
+    function syncFlow(ctx, flowEl, rec, sessionId, entry, force) {
+      const binding = ctx.sessions.binding?.(sessionId)
+      const conversation = binding && ctx.uiConversation?.binding?.(binding)
+      const chat = conversation?.target?.('chat')?.getSnapshot?.()
+      const grouped = conversation?.snapshot?.getSnapshot?.()?.views?.grouped?.('chat')
+      const { value, hiddenRetryRpcIds } = entry
+      if (!force && rec.lastOrder === chat?.order && rec.lastEntries === grouped?.entries
+        && rec.lastValue === value && rec.lastRetrySize === hiddenRetryRpcIds.size) return
+      rec.lastOrder = chat?.order
+      rec.lastEntries = grouped?.entries
+      rec.lastValue = value
+      rec.lastRetrySize = hiddenRetryRpcIds.size
+      const hiddenNodes = new Set()
+      const hiddenGroups = new Set()
+      const hasHiding = value.hiddenRanges.length > 0 || value.hiddenSeqs.length > 0 || hiddenRetryRpcIds.size > 0
+      if (hasHiding && chat?.nodes) {
+        for (const key of chat.order ?? []) {
+          if (isNodeHidden(chat.nodes.get(key), value, hiddenRetryRpcIds)) hiddenNodes.add(key)
+        }
+        for (const item of grouped?.entries ?? []) {
+          if (item.kind !== 'group') continue
+          const members = grouped.groupSource?.(item.key)?.getSnapshot?.()?.members
+          if (members?.length && members.every(m => hiddenNodes.has(m.key) || isNodeHidden(chat.nodes.get(m.key), value, hiddenRetryRpcIds))) {
+            hiddenGroups.add(item.key)
+          }
+        }
+      }
+      for (const child of flowEl.children) {
+        const nodeKey = child.getAttribute('data-chat-node-key')
+        const groupKey = child.getAttribute('data-chat-group-key')
+        const shouldHide = (nodeKey !== null && hiddenNodes.has(nodeKey))
+          || (groupKey !== null && hiddenGroups.has(groupKey))
+        if (shouldHide) {
+          if (!child.hasAttribute('data-dme-hidden')) child.setAttribute('data-dme-hidden', '')
+        } else if (child.hasAttribute('data-dme-hidden')) {
+          child.removeAttribute('data-dme-hidden')
+        }
+      }
+    }
+    function syncAllFlows(ctx, sessionId, entry, force) {
+      for (const [flowEl, rec] of entry.flows) syncFlow(ctx, flowEl, rec, sessionId, entry, force)
+    }
+    function ensureBinding(ctx, sessionId, entry) {
+      if (entry.bindingCleanup) return
+      const binding = ctx.sessions.binding?.(sessionId)
+      const conversation = binding && ctx.uiConversation?.binding?.(binding)
+      if (!binding || !conversation) return
+      const unsubs = []
+      const chatTarget = conversation.target?.('chat')
+      if (typeof chatTarget?.subscribe === 'function') {
+        unsubs.push(chatTarget.subscribe(() => syncAllFlows(ctx, sessionId, entry, false)))
+      }
+      if (typeof conversation.snapshot?.subscribe === 'function') {
+        unsubs.push(conversation.snapshot.subscribe(() => syncAllFlows(ctx, sessionId, entry, false)))
+      }
+      if (typeof binding.eventSource?.subscribe === 'function') {
+        unsubs.push(binding.eventSource.subscribe(() => {
+          const change = binding.eventSource.getSnapshot?.()?.change
+          if (change?.kind !== 'append') return
+          if (change.entries?.some(({ event }) => event?.type === 'user/message' && event.surfaceOp !== undefined && event.surfaceOp !== 'append')) {
+            void entry.refresh()
+          }
+        }))
+      }
+      entry.bindingCleanup = () => { for (const unsub of unsubs) unsub() }
+    }
+    function disposeStore(entry, restoreDom) {
+      for (const [flowEl, rec] of entry.flows) {
+        rec.observer.disconnect()
+        if (restoreDom) {
+          for (const child of flowEl.children) {
+            if (child.hasAttribute('data-dme-hidden')) child.removeAttribute('data-dme-hidden')
+          }
+        }
+      }
+      entry.flows.clear()
+      entry.bindingCleanup?.()
+      entry.bindingCleanup = null
+    }
+    function maybeDisposeStore(sessionId, entry) {
+      if (entry.listeners.size || entry.flows.size) return
+      disposeStore(entry, false)
+      if (lists.get(sessionId) === entry) lists.delete(sessionId)
+    }
+    function editsStore(ctx, sessionId) {
       let entry = lists.get(sessionId)
       if (!entry) {
-        entry = { value: {}, listeners: new Set(), generation: 0 }
+        entry = { value: EMPTY_STATE, hiddenRetryRpcIds: new Set(), listeners: new Set(), flows: new Map(), generation: 0, bindingCleanup: null }
         entry.refresh = () => {
           const generation = ++entry.generation
           return op({ action: 'list', sessionId }).then(v => {
             if (generation !== entry.generation) return
-            entry.value = v.edited
+            entry.value = {
+              edited: v.edited ?? {},
+              hiddenRanges: Array.isArray(v.hiddenRanges) ? v.hiddenRanges : [],
+              hiddenSeqs: Array.isArray(v.hiddenSeqs) ? v.hiddenSeqs : [],
+            }
+            syncAllFlows(ctx, sessionId, entry, true)
             for (const fn of entry.listeners) fn()
           }).catch(() => {})
         }
@@ -96,6 +204,27 @@ window.__ModuleLoader__.load({
         void entry.refresh()
       }
       return entry
+    }
+    function attachFlow(ctx, sessionId, flowEl) {
+      const entry = editsStore(ctx, sessionId)
+      ensureBinding(ctx, sessionId, entry)
+      let rec = entry.flows.get(flowEl)
+      if (!rec) {
+        const observer = new MutationObserver(() => syncFlow(ctx, flowEl, rec, sessionId, entry, true))
+        rec = { refs: 0, observer, lastOrder: null, lastEntries: null, lastValue: null, lastRetrySize: -1 }
+        entry.flows.set(flowEl, rec)
+        observer.observe(flowEl, { childList: true })
+      }
+      rec.refs++
+      syncFlow(ctx, flowEl, rec, sessionId, entry, true)
+      return () => {
+        rec.refs--
+        if (rec.refs <= 0) {
+          rec.observer.disconnect()
+          entry.flows.delete(flowEl)
+          maybeDisposeStore(sessionId, entry)
+        }
+      }
     }
 
     // external: dsh child-slot declarations have a single owner, so mirror conversation.chat.user.before into a private slot
@@ -132,7 +261,7 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots', 'locale', 'sessions', 'uiWorkspace'],
+      inject: ['slots', 'locale', 'sessions', 'uiWorkspace', 'uiConversation'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, 'en', EN), 'message-edit: en')
         ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'message-edit: zh')
@@ -143,7 +272,10 @@ window.__ModuleLoader__.load({
           document.head.appendChild(style)
           return () => style.remove()
         }, 'message-edit: styles')
-        ctx.effect(() => () => lists.clear(), 'message-edit: edit cache')
+        ctx.effect(() => () => {
+          for (const entry of lists.values()) disposeStore(entry, true)
+          lists.clear()
+        }, 'message-edit: edit cache')
         const useLocale = () => React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
 
         function Dialog({ sessionId, rpcId, onClose, onDone }) {
@@ -182,8 +314,8 @@ window.__ModuleLoader__.load({
             setBusy(true); setError('')
             try {
               if (mode === 'keep') {
-                await op({ action: 'rewrite', sessionId, rpcId, text, clearLater })
-                if (alive.current) onDone(text)
+                const result = await op({ action: 'rewrite', sessionId, rpcId, text, clearLater, autoContinue: clearLater })
+                if (alive.current) onDone(text, result)
               } else {
                 const childId = await ctx.sessions.fork({ sessionId, atSeq: info.forkAt, increaseTitle: true })
                 await op({ action: 'send', sessionId: childId, sourceSessionId: sessionId, rpcId, text })
@@ -226,17 +358,24 @@ window.__ModuleLoader__.load({
 
         function UserMessage({ node, sessionId, loadImage, renderFactorySlot, renderSlotChain }) {
           useLocale()
+          const rowRef = React.useRef(null)
           const data = node.data
           const rpcId = data.source?.kind === 'user' ? data.source.rpcId : undefined
           const subscribe = React.useCallback(fn => {
-            const store = editsStore(sessionId)
+            const store = editsStore(ctx, sessionId)
             store.listeners.add(fn)
             return () => {
               store.listeners.delete(fn)
-              if (!store.listeners.size && lists.get(sessionId) === store) lists.delete(sessionId)
+              maybeDisposeStore(sessionId, store)
             }
           }, [sessionId])
-          const edited = React.useSyncExternalStore(subscribe, () => lists.get(sessionId)?.value[rpcId])
+          const edited = React.useSyncExternalStore(subscribe, () => lists.get(sessionId)?.value.edited[rpcId])
+          React.useLayoutEffect(() => {
+            const seat = rowRef.current?.closest('[data-chat-node-key]')
+            const flowEl = rowRef.current?.closest('[data-slot="conversation.chat.flow"]') ?? seat?.parentElement
+            if (!flowEl) return
+            return attachFlow(ctx, sessionId, flowEl)
+          }, [sessionId])
           const [open, setOpen] = React.useState(false)
           const [copied, setCopied] = React.useState(false)
           const [copyError, setCopyError] = React.useState(false)
@@ -272,7 +411,7 @@ window.__ModuleLoader__.load({
           const clock = date.toDateString() === new Date().toDateString()
             ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-          return h('div', { className: 'dme-row' },
+          return h('div', { ref: rowRef, className: 'dme-row' },
             renderSlotChain('message-edit.user.before', { source: data.source, kind: node.kind }, { fallback: null }),
             renderFactorySlot('conversation.chat.user.content', { content, facts, interactive: true, loadImage }),
             h('div', { className: 'dme-actions' },
@@ -283,10 +422,19 @@ window.__ModuleLoader__.load({
                   copied ? h('path', { d: 'm5 12 4 4L19 6' }) : h(React.Fragment, null, h('rect', { x: 8, y: 8, width: 12, height: 12, rx: 2 }), h('path', { d: 'M16 8V4H4v12h4' })))),
               typeof rpcId === 'string' ? h('button', { type: 'button', className: 'dme-action', title: t('editHint'), 'aria-label': t('editHint'), 'aria-haspopup': 'dialog', onClick: () => setOpen(true) }, h(Pencil)) : null),
             copyError ? h('p', { className: 'dme-error', role: 'alert' }, t('copyFailed')) : null,
-            open ? h(Dialog, { key: JSON.stringify([sessionId, rpcId]), sessionId, rpcId, onClose: () => setOpen(false), onDone: text => {
+            open ? h(Dialog, { key: JSON.stringify([sessionId, rpcId]), sessionId, rpcId, onClose: () => setOpen(false), onDone: (text, result) => {
               const store = lists.get(sessionId)
               if (!store) return
-              store.value = { ...store.value, [rpcId]: { text, inContext: true } }
+              if (typeof result?.continuationRpcId === 'string') store.hiddenRetryRpcIds.add(result.continuationRpcId)
+              const hiddenRanges = result?.cleared && typeof result.originalSeq === 'number' && typeof result.seq === 'number'
+                ? [...store.value.hiddenRanges, [result.originalSeq, result.seq]]
+                : store.value.hiddenRanges
+              store.value = {
+                ...store.value,
+                edited: { ...store.value.edited, [rpcId]: { text, inContext: true } },
+                hiddenRanges,
+              }
+              syncAllFlows(ctx, sessionId, store, true)
               for (const notify of store.listeners) notify()
               setOpen(false)
               void store.refresh()
