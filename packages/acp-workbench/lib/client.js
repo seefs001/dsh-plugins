@@ -351,6 +351,7 @@ window.__ModuleLoader__.load({
 .aw-ask-head>svg{color:var(--dsw-alias-state-warn-primary);flex:none}
 .aw-ask-body{display:flex;flex-direction:column;gap:8px;min-width:0;max-height:min(40vh,360px);overflow:auto}
 .aw-ask-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.aw-ask-actions:has(.aw-permit-option){align-items:flex-start;gap:10px 16px}
 .aw-ask-actions .aw-reason{flex:1 1 160px;max-width:280px}
 .aw-permit-option{display:inline-flex;align-items:flex-start;flex-direction:column;gap:2px;max-width:100%}.aw-permit-option small{color:var(--dsw-alias-label-secondary);font-size:11px}.aw-permit-context{border-inline-start:2px solid var(--dsw-alias-border-l2);padding-inline-start:10px}
 .aw-question{display:flex;flex-direction:column;gap:4px}
@@ -1615,7 +1616,7 @@ window.__ModuleLoader__.load({
           } else if (face.web) {
             body = h(WebReport, { tool, face, frame: webFrame, state, approval, display, labels })
           }
-          if (!body && text) body = ['read', 'search', 'execute'].includes(kind) ? h('div', { className: 'aw-code-window' },
+          if (!body && text) body = !approval && ['read', 'search', 'execute'].includes(kind) ? h('div', { className: 'aw-code-window' },
             h(CodeBlock, { code: text, lang: fileLang || 'text', copyLabel: labels.copy, copiedLabel: labels.copied, toolbarLabels: labels })) : h('div', { className: 'aw-output aw-text' }, text)
           if (patch.files.size > 1) locations = locations.filter(l => !patch.files.has(l.path))
           const propOld = typeof input.old_string === 'string' ? input.old_string : typeof input.Target === 'string' ? input.Target : undefined
@@ -1924,12 +1925,16 @@ window.__ModuleLoader__.load({
           const [previous, setPrevious] = React.useState(false), call = item.params?.toolCall ?? {}, face = toolFace(call, null, true)
           const seq = item.callStartSeq, earlier = sessionId && item.turnId && call.toolCallId && Number.isSafeInteger(seq) && seq > 0 && seq < item.requestSeq
           const input = call.rawInput, hasInput = input != null && (typeof input !== 'object' || Object.keys(input).length > 0)
+          const backtickTitle = call.kind === 'execute' && typeof call.title === 'string' ? /^`([\s\S]+)`$/u.exec(call.title.trim())?.[1] : null
+          const heading = backtickTitle ? t('call.execute') : (call.title || t('tool'))
+          const inlineCommand = backtickTitle && !face.command ? backtickTitle : null
           const details = face.mcp || hasInput || call.rawOutput != null || face.targets.length || face.blocks.length
           return h(React.Fragment, null,
-            h('strong', { className: 'aw-text' }, call.title || t('tool')),
+            h('strong', { className: 'aw-text' }, heading),
             h('div', { className: 'aw-note' }, [call.toolCallId && `${t('permitCallId')}: ${call.toolCallId}`, cwd && `${t('permitCwd')}: ${cwd}`].filter(Boolean).join(' · ')),
-            details ? h(ToolDetails, { tool: call, face, cwd, approval: true, patchFrame: { stage: 'permission', rawKey: 'rawInput' } }) : h('p', { className: 'aw-note' }, t('permitEmpty')),
-            earlier ? h('div', { className: 'aw-section' }, h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': previous, onClick: () => setPrevious(!previous) }, t('permitLaunch')),
+            inlineCommand ? h('pre', { className: 'aw-log aw-command' }, inlineCommand) : null,
+            details ? h(ToolDetails, { tool: call, face, cwd, approval: true, patchFrame: { stage: 'permission', rawKey: 'rawInput' } }) : !inlineCommand ? h('p', { className: 'aw-note' }, t('permitEmpty')) : null,
+            earlier ? h('div', { className: 'aw-section' }, h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'ghost', 'aria-expanded': previous, onClick: () => setPrevious(!previous) }, t('permitLaunch'))),
               previous ? h('div', { className: 'aw-section aw-permit-context' }, h('p', { className: 'aw-note' }, t('permitEarlier')), h(PinnedPermissionEvent, { key: `${sessionId}:${seq}`, sessionId, seq, render: event => {
                 const update = updateOf(event)
                 if (event.type !== 'notification' || event.data.replay || event.data.turnId !== item.turnId || update?.sessionUpdate !== 'tool_call' || update.toolCallId !== call.toolCallId || cliParentOf(update) !== cliParentOf(call)) return null
@@ -2015,7 +2020,7 @@ window.__ModuleLoader__.load({
             body = h(PermissionBody, { item, sessionId, cwd })
             actions = options.map((option, i) => h('span', { key: option.optionId, className: 'aw-permit-option' }, h(Button, {
               size: 'sm', disabled, 'aria-describedby': `${scopeId}-${i}`, onClick: () => send({ optionId: option.optionId }),
-              variant: option.kind === 'allow_once' ? 'primary' : option.kind?.startsWith('reject') ? 'ghost' : 'outline',
+              variant: option.kind === 'allow_once' ? 'primary' : 'outline',
               title: option.kind?.endsWith('always') ? tt('permanent') : undefined,
             }, option.name ?? option.optionId), h('small', { id: `${scopeId}-${i}` }, permissionScope(option))))
             if (options.some(option => option.kind?.endsWith('always'))) note = tt('permanent')
