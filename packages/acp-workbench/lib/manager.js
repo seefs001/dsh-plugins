@@ -25,6 +25,16 @@ const MAX_MODELS = 200
 const MAX_HIDDEN_MODELS = 500
 const MAX_PROBE_MODELS = 24
 const CLIENT_CAPABILITY_META = { parameterizedModelPicker: true }
+const ASYNC_WAKEUP_SETTLE_MS = 1_500
+const ASYNC_WAKEUP_SILENT_SETTLE_MS = 15_000
+const ASYNC_WAKEUP_IDLE_TIMEOUT_MS = 120_000
+
+function isDaemonToolCall(update) {
+  const input = update?.args ?? update?.rawInput
+  if (input && typeof input === 'object' && input.IsDaemon === true) return true
+  if (update?.name === 'schedule' && !(input && typeof input === 'object' && typeof input.DurationSeconds === 'number')) return true
+  return false
+}
 
 export function summary(session, runtime) {
   const { id, providerId, title, cwd, state, remoteId, createdAt, updatedAt, archived, eventSeq, lastError, stopReason } = session
@@ -37,12 +47,15 @@ export function summary(session, runtime) {
 const CLIENT_INFO = { name: 'dsh-acp-workbench', version: '0.2.0' }
 
 export class Workbench {
-  constructor({ domain, subprocess, changed, modelsChanged, log, autoApprove }) {
+  constructor({ domain, subprocess, changed, modelsChanged, log, autoApprove, asyncWakeup }) {
     this.subprocess = subprocess
     this.changed = changed
     this.modelsChanged = modelsChanged
     this.log = log
     this.autoApprove = autoApprove
+    this.asyncWakeupSettleMs = asyncWakeup?.settleMs ?? ASYNC_WAKEUP_SETTLE_MS
+    this.asyncWakeupSilentSettleMs = asyncWakeup?.silentSettleMs ?? ASYNC_WAKEUP_SILENT_SETTLE_MS
+    this.asyncWakeupIdleTimeoutMs = asyncWakeup?.idleTimeoutMs ?? ASYNC_WAKEUP_IDLE_TIMEOUT_MS
     this.runtimes = new Map()
     this.listeners = new Map()
     this.probes = new Set()
@@ -612,10 +625,14 @@ export class Workbench {
     const update = method === 'session/update' ? params.update : null
     if (!update) return
     const starts = runtime.callStarts, callId = update.toolCallId
+    const topLevel = !cliParentOf(update)
     if (starts && !runtime.replaying && typeof callId === 'string' && callId) {
       const parent = cliParentOf(update)
       if (update.sessionUpdate === 'tool_call') starts.set(callId, starts.has(callId) ? null : { seq: event.seq, parent })
       else if (update.sessionUpdate === 'tool_call_update' && parent && starts.has(callId) && starts.get(callId)?.parent !== parent) starts.set(callId, null)
+    }
+    if (!runtime.replaying && runtime.turnId && runtime.adapter?.asyncToolWakeup && topLevel) {
+      this.trackAsyncWakeup(session, runtime, update)
     }
     switch (update.sessionUpdate) {
       case 'notice': if (!runtime.turnId) rememberNotice(runtime, event); break
@@ -674,6 +691,12 @@ export class Workbench {
     else if (normalized === 'cursor/create_plan') kind = 'plan'
     else throw new RpcError(`Unsupported client method: ${method}`, -32601)
     if (!runtime.turnId) throw new RpcError('Interactive requests require an active prompt', -32600)
+    if (runtime.deferredEnd) {
+      clearTimeout(runtime.deferredEnd.settleTimer)
+      clearTimeout(runtime.deferredEnd.wakeupTimer)
+      runtime.deferredEnd.settleTimer = null
+      runtime.deferredEnd.wakeupTimer = null
+    }
     const id = randomUUID()
     const interaction = { id, kind, method, params, turnId: runtime.turnId, createdAt: now() }
     const launch = kind === 'permission' && runtime.callStarts?.get(params.toolCall?.toolCallId)
@@ -741,6 +764,86 @@ export class Workbench {
     return { answered: op.interactionId }
   }
 
+  clearDeferredTimers(state) {
+    if (!state) return
+    clearTimeout(state.settleTimer)
+    clearTimeout(state.wakeupTimer)
+    state.settleTimer = null
+    state.wakeupTimer = null
+  }
+
+  clearDeferredEnd(runtime) {
+    if (!runtime?.deferredEnd) return
+    this.clearDeferredTimers(runtime.deferredEnd)
+    runtime.deferredEnd = null
+  }
+
+  armDeferredTimer(session, runtime, state, kind, delayMs) {
+    this.clearDeferredTimers(state)
+    state[kind] = setTimeout(() => {
+      state[kind] = null
+      if (!this.isCurrent(session, runtime) || runtime.canceling || runtime.deferredEnd !== state) return
+      if (runtime.interactions.size > 0 || (runtime.openBackgroundCalls?.size ?? 0) > 0) return
+      void state.finish()
+    }, delayMs)
+  }
+
+  trackAsyncWakeup(session, runtime, update) {
+    const open = runtime.openBackgroundCalls
+    const callId = typeof update.toolCallId === 'string' && update.toolCallId ? update.toolCallId : null
+    const state = runtime.deferredEnd
+    switch (update.sessionUpdate) {
+      case 'tool_call':
+        if (callId && open) {
+          if (isDaemonToolCall(update) || update.status === 'completed' || update.status === 'failed') open.delete(callId)
+          else open.add(callId)
+        }
+        if (state) {
+          this.clearDeferredTimers(state)
+          state.hasMessageOutput = false
+        }
+        break
+      case 'tool_call_update':
+        if (callId && open && (update.status === 'completed' || update.status === 'failed' || isDaemonToolCall(update))) {
+          open.delete(callId)
+        }
+        if (state) {
+          this.clearDeferredTimers(state)
+          state.hasMessageOutput = false
+          if (
+            (update.status === 'completed' || update.status === 'failed')
+            && (open?.size ?? 0) === 0
+            && runtime.interactions.size === 0
+          ) {
+            this.armDeferredTimer(session, runtime, state, 'wakeupTimer', this.asyncWakeupIdleTimeoutMs)
+          }
+        }
+        break
+      case 'agent_thought_chunk':
+        if (state) this.clearDeferredTimers(state)
+        break
+      case 'agent_message_chunk':
+        if (state) {
+          this.clearDeferredTimers(state)
+          state.hasMessageOutput = true
+        }
+        break
+      case 'usage_update':
+        if (state) {
+          if ((open?.size ?? 0) === 0 && runtime.interactions.size === 0) {
+            const delay = state.hasMessageOutput ? this.asyncWakeupSettleMs : this.asyncWakeupSilentSettleMs
+            this.armDeferredTimer(session, runtime, state, 'settleTimer', delay)
+          } else {
+            this.clearDeferredTimers(state)
+            state.hasMessageOutput = false
+          }
+        }
+        break
+      default:
+        break
+    }
+  }
+
   expire(session, runtime, reason) {
     for (const [id, pending] of runtime.interactions) {
       pending.resolve(pending.public.kind === 'form' || pending.public.kind === 'url' ? { action: 'cancel' } : { outcome: { outcome: 'cancelled' } })
@@ -763,6 +866,8 @@ export class Workbench {
     if (runtime.turnId) throw new Error('A prompt is already in progress')
     runtime.turnId = options.turnId ?? randomUUID()
     runtime.callStarts = new Map()
+    runtime.openBackgroundCalls = runtime.adapter?.asyncToolWakeup ? new Set() : null
+    runtime.deferredEnd = null
     runtime.canceling = false
     const turnId = runtime.turnId
     session.stopReason = null
@@ -773,30 +878,79 @@ export class Workbench {
       await this.transition(session, 'running')
     } catch (error) { await this.failed(session, runtime, error); throw error }
     if (!this.isCurrent(session, runtime) || runtime.canceling) throw new Error('Prompt canceled before sending')
-    const completion = runtime.connection.request('session/prompt', { sessionId: session.remoteId, prompt: options.content ?? [{ type: 'text', text }] }, 0)
-    runtime.completion = completion.then(async result => {
-      if (!this.isCurrent(session, runtime)) return
+    const rpc = runtime.connection.request('session/prompt', { sessionId: session.remoteId, prompt: options.content ?? [{ type: 'text', text }] }, 0)
+    const deferred = Promise.withResolvers()
+    runtime.completion = deferred.promise
+    let finished = false
+    const finishTurn = async result => {
+      if (finished || !this.isCurrent(session, runtime) || runtime.turnId !== turnId) return result
+      finished = true
       clearTimeout(runtime.cancelTimer)
+      this.clearDeferredEnd(runtime)
       this.expire(session, runtime, 'turn-finished')
       session.stopReason = result.stopReason ?? null
       runtime.turnId = null
       runtime.canceling = false
+      runtime.openBackgroundCalls = null
       this.record(session, 'turn-result', { turnId, ...result })
       await this.transition(session, 'idle')
       return result
+    }
+    rpc.then(async result => {
+      if (!this.isCurrent(session, runtime) || runtime.turnId !== turnId) {
+        deferred.resolve(result)
+        return
+      }
+      // external: Antigravity ACP resolves session/prompt with end_turn when the model yields to await a non-daemon background tool, then resumes asynchronously on completion
+      if (
+        runtime.adapter?.asyncToolWakeup
+        && !runtime.canceling
+        && result?.stopReason === 'end_turn'
+        && (runtime.openBackgroundCalls?.size ?? 0) > 0
+      ) {
+        runtime.deferredEnd = {
+          turnId,
+          result,
+          hasMessageOutput: false,
+          settleTimer: null,
+          wakeupTimer: null,
+          finish: async override => {
+            try { deferred.resolve(await finishTurn(override ?? result)) }
+            catch (error) { deferred.reject(error) }
+          },
+          abort: error => {
+            this.clearDeferredEnd(runtime)
+            if (!finished) {
+              finished = true
+              deferred.reject(error)
+            }
+          },
+        }
+        this.log?.(`ACP deferred end_turn for ${turnId}: awaiting ${runtime.openBackgroundCalls.size} background tool(s)`)
+        return
+      }
+      try { deferred.resolve(await finishTurn(result)) }
+      catch (error) { deferred.reject(error) }
     }, async error => {
       if (this.agentRejected(session, runtime, error) && runtime.turnId === turnId) {
+        finished = true
         clearTimeout(runtime.cancelTimer)
+        this.clearDeferredEnd(runtime)
         this.expire(session, runtime, 'turn-error')
         runtime.turnId = null
         runtime.canceling = false
+        runtime.openBackgroundCalls = null
         session.turnError = error.message
         this.record(session, 'turn-error', { turnId, message: error.message, code: error.code })
         try { await this.transition(session, 'idle') } catch (failure) { await this.failed(session, runtime, failure) }
-        throw error
+        deferred.reject(error)
+        return
       }
       await this.failed(session, runtime, error)
-      throw error
+      if (!finished) {
+        finished = true
+        deferred.reject(error)
+      }
     })
     runtime.completion.catch(error => this.log?.(`ACP prompt: ${error.message}`))
     return { accepted: true, sessionId: session.id, turnId }
@@ -876,22 +1030,32 @@ export class Workbench {
     if (session.state === 'starting') return this.disconnect(session)
     if (!runtime.turnId) return
     const turnId = runtime.turnId
+    const deferred = runtime.deferredEnd
     runtime.canceling = true
+    this.clearDeferredEnd(runtime)
     this.expire(session, runtime, 'user-cancel')
     try { await this.transition(session, 'canceling') } catch (error) { await this.disconnect(session, 'cancel-persistence-failed'); throw error }
     if (!this.isCurrent(session, runtime) || !runtime.canceling || runtime.turnId !== turnId) return
+    try { runtime.connection.notify('session/cancel', { sessionId: session.remoteId }) } catch (error) { await this.failed(session, runtime, error); throw error }
+    if (deferred) {
+      await deferred.finish({ ...deferred.result, stopReason: 'cancelled' })
+      return
+    }
     runtime.cancelTimer = setTimeout(() => {
       if (runtime.turnId === turnId && runtime.canceling) void this.disconnect(session, 'cancel-timeout').catch(error => this.log?.(error.message))
     }, 5_000)
-    try { runtime.connection.notify('session/cancel', { sessionId: session.remoteId }) } catch (error) { await this.failed(session, runtime, error); throw error }
   }
 
   async failed(session, runtime, error) {
     if (runtime.shutdown) return runtime.shutdown
     if (!this.isCurrent(session, runtime)) return
+    const deferred = runtime.deferredEnd
     runtime.closing = true
     clearTimeout(runtime.cancelTimer)
+    this.clearDeferredEnd(runtime)
     this.expire(session, runtime, 'connection-failed')
+    runtime.openBackgroundCalls = null
+    deferred?.abort(error instanceof Error ? error : new Error(String(error)))
     session.lastError = error.message ?? String(error)
     runtime.shutdown = (async () => {
       try {
@@ -910,9 +1074,13 @@ export class Workbench {
     const runtime = this.runtimes.get(session.id)
     if (!runtime) return
     if (runtime.shutdown) return runtime.shutdown
+    const deferred = runtime.deferredEnd
     runtime.closing = true
     clearTimeout(runtime.cancelTimer)
+    this.clearDeferredEnd(runtime)
     this.expire(session, runtime, reason)
+    runtime.openBackgroundCalls = null
+    deferred?.abort(new Error(`Session disconnected: ${reason}`))
     runtime.shutdown = (async () => {
       try {
         await runtime.spawnReady

@@ -23,6 +23,7 @@ const ADAPTERS = {
     catalogMode: 'config-variants',
     mapDefaultToAuto: false,
     probePerModelConfig: false,
+    asyncToolWakeup: true,
   },
   'claude-code': {
     id: 'claude-code',
