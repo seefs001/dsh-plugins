@@ -13,6 +13,93 @@ export const SET_PATH = '/pi-mcp/set'
 const RELOAD_DELAY_MS = 300
 const MAX_BODY_BYTES = 16 * 1024
 
+function canonicalize(value, seen) {
+  if (value === null || typeof value !== 'object') {
+    if (typeof value === 'number' && !Number.isFinite(value)) return 'null'
+    if (value === undefined || typeof value === 'function' || typeof value === 'symbol') return 'null'
+    return JSON.stringify(value)
+  }
+  if (typeof value.toJSON === 'function') return canonicalize(value.toJSON(), seen)
+  if (seen.has(value)) return '"[Circular]"'
+  seen.add(value)
+  try {
+    if (Array.isArray(value)) {
+      return `[${value.map(item => canonicalize(item, seen)).join(',')}]`
+    }
+    const parts = []
+    for (const key of Object.keys(value).toSorted()) {
+      const item = value[key]
+      if (item === undefined || typeof item === 'function' || typeof item === 'symbol') continue
+      parts.push(`${JSON.stringify(key)}:${canonicalize(item, seen)}`)
+    }
+    return `{${parts.join(',')}}`
+  } finally {
+    seen.delete(value)
+  }
+}
+
+export function entrySignature(entry) {
+  return canonicalize(entry, new Set())
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+export async function reconcileServers(active, entries, { register, logger, isDisposed } = {}) {
+  const removed = []
+  const updated = []
+  const added = []
+  const kept = []
+  const failed = []
+  const nextSignatures = new Map()
+  for (const [server, entry] of entries) {
+    nextSignatures.set(server, entrySignature(entry))
+  }
+  const toDispose = []
+  for (const [server, record] of active) {
+    const nextSig = nextSignatures.get(server)
+    if (nextSig !== undefined && nextSig === record.signature) {
+      kept.push(server)
+      continue
+    }
+    active.delete(server)
+    toDispose.push({ server, record, replaced: nextSig !== undefined })
+  }
+  for (const { server, record, replaced } of toDispose) {
+    try {
+      await record.dispose?.()
+    } catch (error) {
+      logger?.warn?.(`pi-mcp: cannot dispose "${server}": ${errorMessage(error)}`)
+    }
+    if (!replaced) removed.push(server)
+  }
+  if (isDisposed?.()) return { kept, added, updated, removed, failed }
+  const replacedSet = new Set(toDispose.filter(item => item.replaced).map(item => item.server))
+  for (const [server, entry] of entries) {
+    if (active.has(server)) continue
+    if (isDisposed?.()) break
+    const signature = nextSignatures.get(server)
+    try {
+      const dispose = register(server, entry)
+      if (isDisposed?.()) {
+        try {
+          await dispose?.()
+        } catch {}
+        break
+      }
+      active.set(server, { signature, dispose })
+      if (replacedSet.has(server)) updated.push(server)
+      else added.push(server)
+      logger?.info?.(`pi-mcp: registered "${server}" (${entry.transport})`)
+    } catch (error) {
+      failed.push({ server, error: errorMessage(error) })
+      logger?.warn?.(`pi-mcp: cannot register "${server}": ${errorMessage(error)}`)
+    }
+  }
+  return { kept, added, updated, removed, failed }
+}
+
 export function piConfigPath(env = process.env) {
   return join(env.PI_CODING_AGENT_DIR || join(homedir(), '.pi', 'agent'), 'mcp.json')
 }
@@ -58,20 +145,12 @@ async function readJsonBody(req) {
 export async function apply(ctx, config = {}) {
   const logger = ctx.logger
   const file = piConfigPath()
-  const envDisabled = new Set(resolveEnvDisabled())
   let configDisabled = normalizeDisabledList(config?.disabledServers)
   const active = new Map()
   let lastSnapshot = { file, exists: false, error: null, servers: [] }
   let disposed = false
   let timer
   let running = Promise.resolve()
-
-  const combinedDisabled = () => [...new Set([...configDisabled, ...envDisabled])]
-
-  const unregister = server => {
-    active.get(server)?.dispose()
-    active.delete(server)
-  }
 
   const read = async () => {
     let text
@@ -90,7 +169,8 @@ export async function apply(ctx, config = {}) {
       lastSnapshot = { file, exists: true, error: 'invalid JSON', servers: [] }
       throw new Error('invalid JSON', { cause: error })
     }
-    const disabledList = combinedDisabled()
+    const envDisabled = new Set(resolveEnvDisabled())
+    const disabledList = [...new Set([...configDisabled, ...envDisabled])]
     const disabledSet = new Set(disabledList)
     const { entries, skipped } = convertConfig(parsed, {
       disabledServers: disabledList,
@@ -125,28 +205,25 @@ export async function apply(ctx, config = {}) {
   }
 
   const reconcile = async () => {
+    if (disposed) return
     let entries
     try {
       entries = await read()
     } catch (error) {
-      logger.warn(`pi-mcp: cannot read ${file}; keeping current servers: ${error.message}`)
+      logger.warn(`pi-mcp: cannot read ${file}; keeping current servers: ${errorMessage(error)}`)
       return
     }
     if (disposed) return
-    for (const [server, { key }] of active) {
-      const next = entries.get(server)
-      if (!next || JSON.stringify(next) !== key) unregister(server)
-    }
-    for (const [server, entry] of entries) {
-      if (active.has(server)) continue
-      try {
-        const dispose = ctx.mcpManager.register(server, entry)
-        active.set(server, { key: JSON.stringify(entry), dispose })
-        logger.info(`pi-mcp: registered "${server}" (${entry.transport})`)
-      } catch (error) {
-        logger.warn(`pi-mcp: cannot register "${server}": ${error.message}`)
-      }
-    }
+    await reconcileServers(active, entries, {
+      register: (server, entry) => ctx.mcpManager.register(server, entry),
+      logger,
+      isDisposed: () => disposed,
+    })
+  }
+
+  const enqueue = () => {
+    running = running.then(reconcile, reconcile)
+    return running
   }
 
   const statePayload = () => ({
@@ -161,7 +238,7 @@ export async function apply(ctx, config = {}) {
   const schedule = () => {
     clearTimeout(timer)
     timer = setTimeout(() => {
-      running = running.then(reconcile)
+      void enqueue()
     }, RELOAD_DELAY_MS)
   }
 
@@ -180,7 +257,14 @@ export async function apply(ctx, config = {}) {
       disposed = true
       clearTimeout(timer)
       watcher?.close()
-      for (const server of active.keys()) unregister(server)
+      for (const [server, record] of active) {
+        active.delete(server)
+        try {
+          record.dispose?.()
+        } catch (error) {
+          logger?.warn?.(`pi-mcp: cannot dispose "${server}": ${errorMessage(error)}`)
+        }
+      }
     }
   }, 'pi-mcp: watch mcp.json')
 
@@ -199,7 +283,8 @@ export async function apply(ctx, config = {}) {
         }
         const url = new URL(req.url ?? '/', 'http://127.0.0.1')
         if (url.searchParams.get('reload') === '1') {
-          running = running.then(reconcile)
+          clearTimeout(timer)
+          enqueue()
         }
         await running
         sendJson(res, 200, statePayload())
@@ -227,16 +312,15 @@ export async function apply(ctx, config = {}) {
           if (entry && editor) {
             await editor.edit(entry, current => ({ ...current, disabledServers: nextDisabled }))
           }
-          running = running.then(reconcile)
-          await running
+          clearTimeout(timer)
+          await enqueue()
           sendJson(res, 200, statePayload())
         } catch (error) {
-          sendJson(res, 400, { message: error instanceof Error ? error.message : String(error) })
+          sendJson(res, 400, { message: errorMessage(error) })
         }
       },
     }), 'pi-mcp: set route')
   })
 
-  running = reconcile()
-  await running
+  await enqueue()
 }

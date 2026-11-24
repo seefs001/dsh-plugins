@@ -10,6 +10,7 @@ import { messagesPrefillTransform } from './messages-prefill.js'
 import { PiExecutor } from './executor.js'
 import { runGrep } from './search.js'
 import { apply as registerSkillContext } from './skill-context.js'
+import { reconcileOwnTools } from './reconcile.js'
 
 export { Config }
 export const name = 'pi-tools'
@@ -237,9 +238,18 @@ export async function apply(ctx, rawConfig = {}) {
   const definitions = piDefinitions(ctx.workingDirectory.defaultDirectory, config)
   const loadout = new PiLoadout(ctx, config, state, definitions, selection)
   const executor = new PiExecutor(ctx, config, loadout)
-  for (const tool of createTools(ctx, config, executor)) {
-    ctx.tools.register(tool, { when: ({ agent }) => loadout.enabled(tool.name, agent) })
-  }
+  const ownTools = new Map()
+  reconcileOwnTools(ownTools, createTools(ctx, config, executor), {
+    register: (tool, options) => ctx.tools.register(tool, options),
+    optionsOf: tool => ({ when: ({ agent }) => loadout.enabled(tool.name, agent) }),
+    logger: ctx.logger,
+  })
+  ctx.effect(() => () => {
+    for (const record of ownTools.values()) {
+      try { record.dispose?.() } catch {}
+    }
+    ownTools.clear()
+  }, 'pi-tools: own tool registrations')
   ctx.tools.setExecutor(executor)
   ctx.systemPrompt.section({
     name: 'pi-tools:persona',

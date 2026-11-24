@@ -77,20 +77,22 @@ export function convertConfig(document, options = {}) {
   const seen = new Set()
   for (const [name, raw] of Object.entries(servers)) {
     if (disabled.has(name)) continue
+    let entry
+    try {
+      entry = convertServer(name, raw)
+    } catch (error) {
+      skipped.push({ name, reason: error.message })
+      continue
+    }
+    if (!entry) continue
     const key = name.replaceAll('-', '_')
     if (seen.has(key)) {
       skipped.push({ name, reason: 'duplicates another server name after "-"/"_" normalization' })
       continue
     }
     seen.add(key)
-    try {
-      const entry = convertServer(name, raw)
-      if (!entry) continue
-      if (eager.has(name)) entry.toolLoading = 'eager'
-      entries.set(name, entry)
-    } catch (error) {
-      skipped.push({ name, reason: error.message })
-    }
+    if (eager.has(name)) entry.toolLoading = 'eager'
+    entries.set(name, entry)
   }
   return { entries, skipped }
 }
