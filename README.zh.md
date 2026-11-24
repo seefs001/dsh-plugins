@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-33 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
+34 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [在线文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -25,6 +25,7 @@
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
+| [`dsh-model-favorites`](packages/model-favorites) | 在模型列表中为常用模型加星收藏，顶部自动置顶收藏分组，并在模型菜单中一键切换与排序。 | Host + Web |
 | [`dsh-model-reference`](packages/model-reference) | 输入 `#` 插入模型标签，携带该模型上次的推理强度和快速模式。 | Host + Web |
 | [`dsh-service-tier`](packages/service-tier) | 为 OpenAI Responses 请求切换快速（`priority`）或超快（`ultrafast`）档位。 | Host + Web |
 | [`dsh-remember-model`](packages/remember-model) | 记住顶层会话刚选好的模型和推理强度，新建会话自动沿用。 | Host |
@@ -97,7 +98,7 @@ dsh plugin --profile web add "link:$PWD/packages/model-reference"
 ## 配置与数据存储
 
 - **profile 配置（`cordis.patch.yml`）**：`model-reference`、`service-tier`、`remember-model`（可选 `onlyAfterTurn`）、`auto-review-model`、`github-panel`（`hosts`）、`message-actions`、`web-access`、`image-gen`、`pi-mcp`（`disabledServers` / `eagerServers`）、`bark-notify`。
-- **Host storage domain（`~/.dsh/storages`）**：`session_groups`、`roles`、`cheat_sheet`、`prompt_shortcut`、`auto_review_log`、`message_actions`、`session_lifecycle`、`session_lifecycle_summary`、`pi_tools_defaults`、`paseo_hub`、`acp_workbench`、`canvas`。
+- **Host storage domain（`~/.dsh/storages`）**：`model_favorites`、`session_groups`、`roles`、`cheat_sheet`、`prompt_shortcut`、`auto_review_log`、`message_actions`、`session_lifecycle`、`session_lifecycle_summary`、`pi_tools_defaults`、`paseo_hub`、`acp_workbench`、`canvas`。
 - **DSH credentials**：`bark-notify/device`、`paseo-hub/{daemon,api}`。
 - **会话日志与浏览器存储**：`pi-tools` 工具选择保存在会话日志；浏览器 `localStorage` 保存前端 UI 偏好（`ai-mascot` 偏好、`session-lifecycle` 与 `session-groups` 折叠状态、`github-panel` 会话隐藏提及、`pi-tools` 视图模式、`paseo-hub` 分页大小、`acp-workbench` 轨迹/回复折叠状态），并在无 Host 存储域时作为 `prompt-shortcut` 的本地回退。
 

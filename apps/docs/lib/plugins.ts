@@ -20,6 +20,7 @@ interface Entry {
 }
 
 const entries: Entry[] = [
+  { slug: 'model-favorites', category: 'models', surface: 'Host + Web', summary: '在模型列表中加星收藏常用模型，顶部置顶收藏分组并支持模型菜单一键切换与排序。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'model-reference', category: 'models', surface: 'Host + Web', summary: '输入 # 插入模型标签，携带该模型上次的推理强度和快速模式。' },
   { slug: 'service-tier', category: 'models', surface: 'Host + Web', summary: '为 OpenAI Responses 请求切换快速（priority）或超快（ultrafast）档位。', requires: ['openai-responses provider'] },
   { slug: 'remember-model', category: 'models', surface: 'Host', summary: '记住顶层会话刚选好的模型和推理强度，新建会话自动沿用。' },

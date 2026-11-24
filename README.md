@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-33 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
+34 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation (中文)](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -25,6 +25,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 
 | Package | What it does | Runs in |
 |---|---|---|
+| [`dsh-model-favorites`](packages/model-favorites) | Star models in the model list to pin a Favorites section at the top and switch favorites directly from the model menu. | Host + Web |
 | [`dsh-model-reference`](packages/model-reference) | Type `#` in the composer to insert a model chip carrying that model's last reasoning effort and fast mode. | Host + Web |
 | [`dsh-service-tier`](packages/service-tier) | Switch `priority` (Fast) or `ultrafast` service tiers for OpenAI Responses requests. | Host + Web |
 | [`dsh-remember-model`](packages/remember-model) | Remembers the model and reasoning effort picked in top-level sessions as new-session defaults. | Host |
@@ -97,7 +98,7 @@ If Plugin Manager reports `applied`, Host changes take effect immediately; if it
 ## Configuration and storage
 
 - **Profile config (`cordis.patch.yml`)**: `model-reference`, `service-tier`, `remember-model` (optional `onlyAfterTurn`), `auto-review-model`, `github-panel` (`hosts`), `message-actions`, `web-access`, `image-gen`, `pi-mcp` (`disabledServers`, `eagerServers`), and `bark-notify` settings.
-- **Host storage domains (`~/.dsh/storages`)**: `session_groups`, `roles`, `cheat_sheet`, `prompt_shortcut`, `auto_review_log`, `message_actions`, `session_lifecycle`, `session_lifecycle_summary`, `pi_tools_defaults`, `paseo_hub`, `acp_workbench`, and `canvas`.
+- **Host storage domains (`~/.dsh/storages`)**: `model_favorites`, `session_groups`, `roles`, `cheat_sheet`, `prompt_shortcut`, `auto_review_log`, `message_actions`, `session_lifecycle`, `session_lifecycle_summary`, `pi_tools_defaults`, `paseo_hub`, `acp_workbench`, and `canvas`.
 - **DSH credentials**: `bark-notify/device` and `paseo-hub/{daemon,api}`.
 - **Session log and `localStorage`**: `pi-tools` selection lives in the session log; browser `localStorage` holds UI preferences (`ai-mascot`, `session-lifecycle` and `session-groups` fold states, `github-panel` hidden mentions, `pi-tools` picker view, `paseo-hub` page size, `acp-workbench` trace/reply collapse) and acts as a fallback for `prompt-shortcut` when Host storage is unavailable.
 
