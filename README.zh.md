@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-32 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
+33 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [在线文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -72,6 +72,7 @@
 | [`dsh-pi-mcp`](packages/pi-mcp) | 共享 Pi 的 `~/.pi/agent/mcp.json` 到 DSH，修改热同步并在插件页开关各服务。 | Host + Web |
 | [`dsh-paseo-hub`](packages/paseo-hub) | 把 DSH Host 注册为 Paseo Hub daemon 运行触发，并提供组织 API 控制台与工具。 | Host + Web |
 | [`dsh-bark-notify`](packages/bark-notify) | 智能体提问、提交计划或请求权限审批时通过 Bark 推送到手机。 | Host + Web |
+| [`dsh-config-backup`](packages/config-backup) | 将 Host 与插件中对话无关的配置与数据导出为单个可迁移文件（支持可选 AES-256-GCM 加密），并在侧栏页面以差异预览方式仅还原当前已装插件。 | Host + Web |
 
 ## 安装
 

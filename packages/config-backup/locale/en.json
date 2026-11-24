@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Config backup",
+    "description": "Export conversation-independent Host and plugin configs into one portable file and restore with diff preview onto installed plugins."
+  }
+}

@@ -1,0 +1,52 @@
+---
+title: 配置备份
+description: 将 Host 与插件中对话无关的配置和数据导出为单个可迁移文件，并在侧栏页面以差异预览方式仅还原当前已装插件。
+---
+
+<PluginFacts slug="config-backup" />
+
+用于跨机器或切换 profile 时迁移 Host 级配置与插件数据，自动过滤会话日志和本地缓存。
+
+## 安装
+
+<InstallCommand slug="config-backup" />
+
+## 备份范围
+
+- **插件与宿主配置覆写（`cordis.patch.yml`）**：通过 `configEditor` 仅导出用户显式改动项。声明为 `role("secret")` 的密钥字段默认脱敏剥离，导入时保留目标机已有密钥。
+- **对话无关的 `storageDomain`**：
+  - 默认勾选：`roles`（仅角色库）、`cheat_sheet`、`pi_tools_defaults`（`presets` 表）、`prompt_shortcut`、`acp_workbench`（`global` 与 `providers` 表）、`paseo_hub`（`global`）、`workspace`、`schedule`。
+  - 默认不勾选（可选）：`session_groups`、`session_lifecycle` 以及其他未收录的已打开数据域。
+  - 始终排除：缓存与会话产物（`session_projcache`、`dsh-context`、`auto_review_log`、`message_actions`、`forge_panel_change_requests`、`canvas`、`session_lifecycle_summary`）。
+- **全局文件**：`~/.dsh/AGENTS.md` 与非空的 `~/.dsh/cordis.patch.yml`。
+- **凭据文件（手动开启）**：`~/.dsh/.credentials.yaml` 与 `~/.dsh/.env` 默认不导出；导入时默认也不勾选，需显式确认覆盖。
+
+## 使用步骤
+
+<Steps>
+<Step>
+
+### 导出单文件备份
+
+在左侧栏打开 **配置备份**，切换到 **导出备份**。按需勾选配置项、数据域与全局文件；跨机迁移时建议保持 **主目录路径归一化（`{{$HOME}}`）** 开启。如需包含密钥或凭据，请设置加密口令（AES-256-GCM），点击 **导出备份文件** 下载 `.json`。
+
+</Step>
+<Step>
+
+### 导入并预览差异
+
+在目标机器或新 profile 中切换到 **导入恢复**，拖入或选择备份 `.json`（加密文件需先输入口令解密）。页面会按项展示 **新增**、**已修改**、**无变化** 与 **未安装 · 跳过** 状态，点击 **查看差异** 可展开字段级或行级变更。
+
+</Step>
+<Step>
+
+### 仅还原已装插件
+
+选择表记录恢复方式（**合并写入** 保留本机额外记录，或 **完全替换** 与备份一致），勾选需要应用的条目后点击 **应用所选恢复** 并确认。当前 profile 未安装的插件与未激活的数据域会自动跳过，不会强行写入脏文件。
+
+</Step>
+</Steps>
+
+<Callout type="info" title="重启提示">
+数据域通过运行中的 `storageDomain` 热写回内存和磁盘；部分带有额外内存缓存的插件（如 `acp_workbench`、`paseo_hub`、`workspace`、`schedule`）在恢复完成后会提示重启 DSH Host 以完成全量同步。
+</Callout>

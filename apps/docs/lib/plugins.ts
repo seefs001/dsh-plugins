@@ -52,6 +52,7 @@ const entries: Entry[] = [
   { slug: 'pi-mcp', category: 'tools', surface: 'Host + Web', summary: '共享 Pi 的 ~/.pi/agent/mcp.json 到 DSH，修改自动热同步并支持在插件页开关服务器。', requires: ['@deepseek-ai/dsh-mcp-manager'] },
   { slug: 'paseo-hub', category: 'tools', surface: 'Host + Web', summary: '把 DSH Host 注册为 Paseo Hub daemon 运行触发，并提供组织 API 控制台与工具。', requires: ['支持 dsh provider 的 Paseo Hub', '@deepseek-ai/dsh-permission-presets', '@deepseek-ai/dsh-storage-domain'] },
   { slug: 'bark-notify', category: 'tools', surface: 'Host + Web', summary: '智能体提问、提交计划或请求工具审批时通过 Bark 推送到手机。', requires: ['Bark 服务或 Device Key'] },
+  { slug: 'config-backup', category: 'tools', surface: 'Host + Web', summary: '导出 Host 与插件中对话无关的配置和数据为单文件，并在侧栏页面通过差异预览仅还原已装插件。' },
 ]
 
 export interface PluginInfo extends Entry {

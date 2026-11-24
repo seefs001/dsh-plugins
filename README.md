@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-32 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
+33 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation (中文)](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -72,6 +72,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | [`dsh-pi-mcp`](packages/pi-mcp) | Share Pi's `~/.pi/agent/mcp.json` with DSH, hot-reload changes, and toggle servers in Plugins settings. | Host + Web |
 | [`dsh-paseo-hub`](packages/paseo-hub) | Enroll DSH Host as a Paseo Hub daemon and expose an organization API console and tools. | Host + Web |
 | [`dsh-bark-notify`](packages/bark-notify) | Send Bark push notifications for agent questions, plan reviews, and tool approvals. | Host + Web |
+| [`dsh-config-backup`](packages/config-backup) | Export conversation-independent Host and plugin configs into one portable file (optional AES-256-GCM encryption) and restore with diff preview onto installed plugins. | Host + Web |
 
 ## Install
 
