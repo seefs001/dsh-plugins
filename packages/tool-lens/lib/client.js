@@ -26,13 +26,13 @@ window.__ModuleLoader__.load({
 .dtl-error{color:var(--dsw-alias-state-error-primary)}
 .dtl-stopped{color:var(--dsw-alias-state-warn-label)}
 .dtl-link{gap:4px;flex:0 1 auto;min-width:0;border-radius:4px}
-.dtl-link .dtl-summary{text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;transition:text-decoration-color .1s,color .1s}
+.dtl-link .dtl-summary{text-decoration:underline dotted;text-decoration-color:currentColor;text-decoration-thickness:1px;text-underline-offset:3px}
 .dtl-link-icon{display:inline-flex;flex:none;opacity:0;transition:opacity .1s}
 .dtl-link-icon svg{width:12px;height:12px}
 @media (hover:hover){
   .dtl-row:hover .dtl-link-icon{opacity:.7}
-  .dtl-link:hover .dtl-summary{color:var(--dsw-alias-label-primary);text-decoration-color:currentColor}
-  .dtl-link:hover .dtl-link-icon{opacity:1;color:var(--dsw-alias-label-primary)}
+  .dtl-link:hover .dtl-summary{color:var(--dsw-alias-label-secondary)}
+  .dtl-link:hover .dtl-link-icon{opacity:1;color:var(--dsw-alias-label-secondary)}
 }
 @media (hover:none){.dtl-link-icon{opacity:.7}}
 .dtl-link:focus-visible .dtl-link-icon{opacity:1}
@@ -48,19 +48,21 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.dtl-panel-action:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 .dtl-pre{min-height:0;margin:0;padding:10px 12px 12px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;
   font:var(--dsw-font-markdown-code-block-small);color:var(--dsw-alias-label-secondary)}
+.dtl-pre::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.dtl-pre::-webkit-scrollbar-track{margin:6px 0}
 .dtl-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
 .dtl-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;
-  border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);
-  color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+  border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);
+  color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .dtl-inspect:focus-visible{opacity:1}
 @media (hover:hover){.dtl-card:hover .dtl-inspect{opacity:1}.dtl-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.dtl-inspect{opacity:1}}
 .dtl-wrap{position:relative}
 .dtl-float{position:absolute;top:0;right:0;display:flex;align-items:center;gap:4px;height:calc(24px + var(--dsh-content-font-delta,0px));
-  padding-left:20px;background:linear-gradient(to right,transparent,var(--dsw-alias-bg-base) 18px);opacity:0;transition:opacity .1s}
+  padding-left:20px;background:linear-gradient(to right,transparent,var(--dsw-alias-bg-base) 18px);opacity:0;transition:opacity 100ms ease}
 .dtl-wrap:hover>.dtl-float,.dtl-wrap:focus-within>.dtl-float,.dtl-wrap[data-open]>.dtl-float{opacity:1}
 @media (hover:none){.dtl-float{opacity:1}}
-.dtl-chip{display:inline-flex;align-items:center;gap:4px;max-width:220px;height:20px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l4);
+.dtl-chip{display:inline-flex;align-items:center;gap:4px;max-width:220px;height:20px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l3);
   border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .dtl-chip svg{flex:none;width:12px;height:12px}
@@ -163,12 +165,22 @@ window.__ModuleLoader__.load({
         : {}
 
       let summary
-      if (state === 'stopped') summary = h('span', { className: 'dtl-summary dtl-stopped' }, t('skill.stopped'))
-      else if (state === 'error' && output !== null) summary = h('span', { className: 'dtl-summary dtl-error' }, firstLine(output))
+      if (state === 'stopped') summary = h('span', { className: 'dtl-summary dtl-stopped' }, h(TextShimmer, null, t('skill.stopped')))
+      else if (state === 'error' && output !== null) summary = h('span', { className: 'dtl-summary dtl-error' }, h(TextShimmer, null, firstLine(output)))
       else if (canOpen) {
-        summary = h('button', { type: 'button', className: 'dtl-btn dtl-link', title: t('skill.open'), ...contextProps, onClick: openFile },
-          h('span', { className: 'dtl-summary' }, h(TextShimmer, null, name)),
-          h('span', { className: 'dtl-link-icon' }, h(IconSidePanel)))
+        summary = h('button', {
+          type: 'button',
+          className: 'dtl-btn dtl-link',
+          title: t('skill.open'),
+          ...contextProps,
+          onClick: openFile,
+          onKeyDown: event => {
+            if (event.key === 'Enter' || event.key === ' ') event.stopPropagation()
+            contextProps?.onKeyDown?.(event)
+          },
+        },
+        h('span', { className: 'dtl-summary' }, h(TextShimmer, null, name)),
+        h('span', { className: 'dtl-link-icon' }, h(IconSidePanel)))
       } else {
         summary = h('span', { className: 'dtl-summary' }, h(TextShimmer, null, name))
       }
@@ -185,7 +197,7 @@ window.__ModuleLoader__.load({
           keepContentWhenOpen: true,
           onToggle: toggle,
           collapsedContent: h(React.Fragment, null,
-            h('span', { className: 'dtl-sep', 'aria-hidden': true }),
+            h('span', { className: 'dtl-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
             summary,
             missing ? h('span', { className: 'dtl-hint', role: 'status' }, t('skill.notFound')) : null),
         },
@@ -196,7 +208,7 @@ window.__ModuleLoader__.load({
               canOpen ? h('button', { type: 'button', className: 'dtl-btn dtl-panel-action', ...contextProps, onClick: openFile }, h(IconSidePanel), t('skill.openShort')) : null),
             h('pre', { className: 'dtl-pre', 'data-error': state === 'error' || undefined }, output)),
           inspect === undefined ? null : h('button', { type: 'button', className: 'dtl-inspect', onClick: inspect },
-            h(IconInspectOutlineRegular, { size: 12 }), t('skill.inspect'))) : null))
+            h(IconInspectOutlineRegular), t('skill.inspect'))) : null))
     }
 
     function createSkillResolver(ctx) {

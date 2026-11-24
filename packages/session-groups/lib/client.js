@@ -4,7 +4,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const ReactDOM = require('react-dom')
     const {
-      Button, Checkbox, DisclosureRow, Input, JsonBlock, Modal, StateDot, Tag, TextShimmer,
+      Button, Checkbox, DisclosureRow, Input, Modal, StateDot, Tag, TextShimmer,
       IconChevronDownOutlineRegular, IconChevronUpOutlineRegular,
       IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderCloseRegular, IconFolderOpenRegular,
       IconInspectOutlineRegular, IconPinFillRegular, IconPinOutlineRegular, IconPlusOutlineRegular, IconSearchOutlineRegular,
@@ -85,7 +85,8 @@ window.__ModuleLoader__.load({
       selectSession: 'Select {title}',
       tvStopped: 'Stopped',
       tvInspect: 'Inspect',
-      tvResult: 'Result',
+      tvInput: 'IN',
+      tvOutput: 'OUT',
       tvGroupsCount: '{n} groups',
     }
     const ZH = {
@@ -158,7 +159,8 @@ window.__ModuleLoader__.load({
       selectSession: '选择 {title}',
       tvStopped: '已中止',
       tvInspect: '查看',
-      tvResult: '结果',
+      tvInput: '输入',
+      tvOutput: '输出',
       tvGroupsCount: '{n} 个分组',
     }
 
@@ -366,14 +368,19 @@ window.__ModuleLoader__.load({
 .sg-tv{display:flex;flex-direction:column}
 .sg-tv-row{min-width:0}
 .sg-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
-.sg-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.sg-tv-summary{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .sg-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
 .sg-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.sg-tv-tag{flex:none;margin-left:6px}
-.sg-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
-.sg-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
-.sg-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
-.sg-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.sg-tv-body{display:flex;flex-direction:column;min-width:0}
+.sg-tv-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.sg-tv-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.sg-tv-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.sg-tv-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.sg-tv-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
+.sg-tv-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.sg-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.sg-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
+.sg-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .sg-tv-inspect:focus-visible{opacity:1}
 @media (hover:hover){.sg-tv:hover .sg-tv-inspect{opacity:1}.sg-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.sg-tv-inspect{opacity:1}}
@@ -1451,18 +1458,21 @@ window.__ModuleLoader__.load({
               : block.error?.code === 'interrupted' ? 'stopped'
                 : block.isError ? 'error' : 'ok'
           const running = state === 'preparing' || state === 'running'
-          let summary = ''
-          if (state === 'stopped') summary = t('tvStopped')
-          else if (state === 'error') summary = text.split('\n')[0] || ''
+          let detail = ''
+          if (state === 'stopped') detail = t('tvStopped')
+          else if (state === 'error') detail = text.split('\n')[0] || ''
           else {
             const parts = []
             if (typeof args.name === 'string' && args.name) parts.push(args.name)
             else if (typeof args.groupId === 'string' && args.groupId) parts.push(args.groupId)
             if (typeof args.pinned === 'boolean') parts.push(args.pinned ? 'pinned' : 'unpinned')
             if (Array.isArray(payload?.groups)) parts.push(tf('tvGroupsCount', { n: payload.groups.length }))
-            summary = parts.join(' · ')
+            detail = parts.join(' · ')
           }
-          const expandable = Boolean(text)
+          const summary = state === 'error' || state === 'stopped' ? detail : [action, detail].filter(Boolean).join(' · ')
+          const inputText = Object.keys(args).length > 0 ? JSON.stringify(args, null, 2) : ''
+          const outputText = payload !== null ? JSON.stringify(payload, null, 2) : text
+          const expandable = state !== 'preparing' && Boolean(inputText || outputText)
           const open = expanded && expandable
           return h('div', { className: 'sg-tv', 'data-tool': 'session_groups', 'data-state': state },
             h(DisclosureRow, {
@@ -1475,19 +1485,22 @@ window.__ModuleLoader__.load({
               expandOnRowClick: true,
               keepContentWhenOpen: true,
               onToggle: toggle,
-              collapsedContent: state === 'preparing' ? null : h(React.Fragment, null,
-                action ? h(Tag, { className: 'sg-tv-tag', tone: state === 'error' ? 'error' : 'outline' }, action) : null,
-                summary ? h(React.Fragment, null,
-                  h('span', { className: 'sg-tv-sep', 'aria-hidden': true }),
-                  h('span', { className: `sg-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
-                    h(TextShimmer, null, summary))) : null),
+              collapsedContent: state === 'preparing' || !summary ? null : h(React.Fragment, null,
+                h('span', { className: 'sg-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
+                h('span', { className: `sg-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+                  h(TextShimmer, null, summary))),
             },
             open ? h('div', { className: 'sg-tv-body' },
-              payload !== null
-                ? h(JsonBlock, { label: t('tvResult'), payload, defaultOpen: true })
-                : h('pre', { className: 'sg-tv-pre', 'data-error': state === 'error' || undefined }, text),
+              h('div', { className: 'sg-tv-io' },
+                inputText ? h('div', { className: 'sg-tv-io-sec' },
+                  h('span', { className: 'sg-tv-io-label' }, t('tvInput')),
+                  h('span', { className: 'sg-tv-io-text' }, inputText)) : null,
+                inputText && outputText ? h('span', { className: 'sg-tv-io-div', 'aria-hidden': true }) : null,
+                outputText ? h('div', { className: 'sg-tv-io-sec' },
+                  h('span', { className: 'sg-tv-io-label' }, t('tvOutput')),
+                  h('span', { className: 'sg-tv-io-text', 'data-error': state === 'error' || undefined }, outputText)) : null),
               inspect ? h('button', { type: 'button', className: 'sg-tv-inspect', onClick: inspect },
-                h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+                h(IconInspectOutlineRegular), t('tvInspect')) : null) : null))
         }
 
         ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({

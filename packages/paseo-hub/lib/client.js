@@ -218,6 +218,8 @@ window.__ModuleLoader__.load({
       tvWrite: 'Paseo Hub write',
       tvStopped: 'Stopped',
       tvInspect: 'Inspect',
+      tvInput: 'IN',
+      tvOutput: 'OUT',
     }
 
     const ZH = {
@@ -424,6 +426,8 @@ window.__ModuleLoader__.load({
       tvWrite: 'Paseo Hub 写入',
       tvStopped: '已中止',
       tvInspect: '查看',
+      tvInput: '输入',
+      tvOutput: '输出',
     }
 
     const CSS = `
@@ -575,14 +579,19 @@ window.__ModuleLoader__.load({
 .ph-tv{display:flex;flex-direction:column}
 .ph-tv-row{min-width:0}
 .ph-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
-.ph-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.ph-tv-summary{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .ph-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
 .ph-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.ph-tv-tag{flex:none;margin-left:6px}
-.ph-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
-.ph-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
-.ph-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
-.ph-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.ph-tv-body{display:flex;flex-direction:column;min-width:0}
+.ph-tv-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.ph-tv-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.ph-tv-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.ph-tv-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.ph-tv-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
+.ph-tv-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.ph-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.ph-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
+.ph-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .ph-tv-inspect:focus-visible{opacity:1}
 @media (hover:hover){.ph-tv:hover .ph-tv-inspect{opacity:1}.ph-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.ph-tv-inspect{opacity:1}}
@@ -1570,8 +1579,11 @@ window.__ModuleLoader__.load({
           const parsed = parseHubCall(phase, block)
           const running = parsed.state === 'preparing' || parsed.state === 'running'
           const write = toolName === 'paseo_hub_write'
-          const summary = parsed.state === 'stopped' ? t('tvStopped') : hubSummary(parsed)
-          const expandable = Boolean(parsed.text)
+          const detail = parsed.state === 'stopped' ? t('tvStopped') : hubSummary(parsed)
+          const summary = parsed.state === 'error' || parsed.state === 'stopped' ? detail : [parsed.action, detail].filter(Boolean).join(' · ')
+          const inputText = Object.keys(parsed.args).length > 0 ? JSON.stringify(parsed.args, null, 2) : ''
+          const outputText = parsed.payload !== null ? JSON.stringify(parsed.payload, null, 2) : parsed.text
+          const expandable = parsed.state !== 'preparing' && Boolean(inputText || outputText)
           const open = expanded && expandable
           return h('div', { className: 'ph-tv', 'data-tool': toolName, 'data-state': parsed.state },
             h(DisclosureRow, {
@@ -1584,19 +1596,22 @@ window.__ModuleLoader__.load({
               expandOnRowClick: true,
               keepContentWhenOpen: true,
               onToggle: toggle,
-              collapsedContent: parsed.state === 'preparing' ? null : h(React.Fragment, null,
-                parsed.action ? h(Tag, { className: 'ph-tv-tag', tone: parsed.state === 'error' ? 'error' : 'outline' }, parsed.action) : null,
-                summary ? h(React.Fragment, null,
-                  h('span', { className: 'ph-tv-sep', 'aria-hidden': true }),
-                  h('span', { className: `ph-tv-summary${parsed.state === 'error' ? ' is-err' : parsed.state === 'stopped' ? ' is-stop' : ''}` },
-                    h(TextShimmer, null, summary))) : null),
+              collapsedContent: parsed.state === 'preparing' || !summary ? null : h(React.Fragment, null,
+                h('span', { className: 'ph-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
+                h('span', { className: `ph-tv-summary${parsed.state === 'error' ? ' is-err' : parsed.state === 'stopped' ? ' is-stop' : ''}` },
+                  h(TextShimmer, null, summary))),
             },
             open ? h('div', { className: 'ph-tv-body' },
-              parsed.payload !== null
-                ? h(JsonBlock, { label: t('apiResult'), payload: parsed.payload, defaultOpen: true, truncatedLabel: t('truncated') })
-                : h('pre', { className: 'ph-tv-pre', 'data-error': parsed.state === 'error' || undefined }, parsed.text),
+              h('div', { className: 'ph-tv-io' },
+                inputText ? h('div', { className: 'ph-tv-io-sec' },
+                  h('span', { className: 'ph-tv-io-label' }, t('tvInput')),
+                  h('span', { className: 'ph-tv-io-text' }, inputText)) : null,
+                inputText && outputText ? h('span', { className: 'ph-tv-io-div', 'aria-hidden': true }) : null,
+                outputText ? h('div', { className: 'ph-tv-io-sec' },
+                  h('span', { className: 'ph-tv-io-label' }, t('tvOutput')),
+                  h('span', { className: 'ph-tv-io-text', 'data-error': parsed.state === 'error' || undefined }, outputText)) : null),
               inspect ? h('button', { type: 'button', className: 'ph-tv-inspect', onClick: inspect },
-                h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+                h(IconInspectOutlineRegular), t('tvInspect')) : null) : null))
         }
 
         for (const key of ['paseo_hub', 'paseo_hub_write']) {

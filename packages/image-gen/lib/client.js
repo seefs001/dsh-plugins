@@ -8,7 +8,6 @@ window.__ModuleLoader__.load({
       IconBrowseOutlineRegular,
       IconInspectOutlineRegular,
       Switch,
-      Tag,
       TextShimmer,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
@@ -25,6 +24,7 @@ window.__ModuleLoader__.load({
       imageSingle: '1 image',
       stopped: 'Stopped',
       inspect: 'Inspect',
+      output: 'OUT',
       revisedPrompt: 'Prompt used',
       openFile: 'Open image file',
       generatedHeading: 'Generated images',
@@ -56,6 +56,7 @@ window.__ModuleLoader__.load({
       imageSingle: '1 张图片',
       stopped: '已中止',
       inspect: '查看',
+      output: '输出',
       revisedPrompt: '实际提示词',
       openFile: '打开图片文件',
       generatedHeading: '生成的图片',
@@ -110,18 +111,24 @@ window.__ModuleLoader__.load({
 .ig-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .ig-summary.ig-err{color:var(--dsw-alias-state-error-primary)}
 .ig-summary.ig-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.ig-tag{flex:none;margin-left:6px}
-.ig-body{display:flex;flex-direction:column;gap:8px;margin:4px 0 4px 4px}
-.ig-meta-list{display:flex;flex-direction:column;gap:4px}
-.ig-meta-item{display:flex;flex-direction:column;gap:2px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
-.ig-file-link{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:0;border:0;background:none;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;text-align:left}
+.ig-suffix{flex:none;margin-left:4px;white-space:nowrap;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.ig-body{display:flex;flex-direction:column;min-width:0}
+.ig-image-body{margin:4px 0 4px 4px}
+.ig-meta-list{margin-top:4px;display:flex;flex-direction:column;gap:4px;font:var(--dsw-font-markdown-code-block-small);color:var(--dsw-alias-label-tertiary)}
+.ig-meta-item{display:flex;flex-direction:column;gap:2px}
+.ig-file-link{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left}
 .ig-file-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ig-file-size{flex:none;color:var(--dsw-alias-label-caption);font-size:11px}
+.ig-file-size{flex:none;color:var(--dsw-alias-label-caption)}
 @media (hover:hover){.ig-file-link:hover{color:var(--dsw-alias-label-primary)}.ig-file-link:hover .ig-file-path{text-decoration:underline;text-underline-offset:3px}}
-.ig-revised{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
-.ig-revised-label{color:var(--dsw-alias-label-caption);margin-right:6px;font-size:11px}
-.ig-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-state-error-primary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
-.ig-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.ig-revised{margin-top:2px;color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xs-13);overflow-wrap:anywhere}
+.ig-revised-label{color:var(--dsw-alias-label-caption);margin-right:6px}
+.ig-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.ig-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.ig-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.ig-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.ig-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.ig-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-state-error-primary)}
+.ig-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .ig-inspect:focus-visible{opacity:1}
 @media (hover:hover){.ig-card:hover .ig-inspect{opacity:1}.ig-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.ig-inspect{opacity:1}}
@@ -340,36 +347,40 @@ window.__ModuleLoader__.load({
               onToggle: toggle,
               collapsedContent: parsed.state === 'preparing' ? null : h(React.Fragment, null,
                 summary ? h(React.Fragment, null,
-                  h('span', { className: 'ig-sep', 'aria-hidden': true }),
+                  h('span', { className: 'ig-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
                   h('span', { className: `ig-summary${parsed.state === 'error' ? ' ig-err' : parsed.state === 'stopped' ? ' ig-stop' : ''}` },
                     h(TextShimmer, null, summary))) : null,
-                countLabel ? h(Tag, { className: 'ig-tag' }, countLabel) : null),
+                countLabel ? h(TextShimmer, { className: 'ig-suffix' }, summary ? `· ${countLabel}` : countLabel) : null),
             },
             open ? h('div', { className: 'ig-body' },
-              gallery.length > 0 && renderSlot && loadImage
-                ? renderSlot(`image-gen.${toolName}.images`, { images: gallery, loadImage, align: 'start' })
-                : null,
-              parsed.images.length > 0 ? h('div', { className: 'ig-meta-list' },
-                parsed.images.map((image, index) => {
-                  const dims = formatDimensions(image)
-                  return h('div', { key: `${image.path}:${index}`, className: 'ig-meta-item' },
-                    h('button', {
-                      type: 'button',
-                      className: 'ig-file-link',
-                      title: `${t('openFile')}: ${image.path}`,
-                      ...getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: image.path } })),
-                      onClick: event => { event.stopPropagation(); openFile(image.path) },
-                    },
-                    h(FileTypeIcon, { path: image.path, size: 14 }),
-                    h('span', { className: 'ig-file-path' }, shortPath(image.path, cwd, home)),
-                    dims ? h('span', { className: 'ig-file-size' }, dims) : null),
-                    image.revisedPrompt ? h('div', { className: 'ig-revised' },
-                      h('span', { className: 'ig-revised-label' }, t('revisedPrompt')),
-                      image.revisedPrompt) : null)
-                })) : null,
-              parsed.state === 'error' && parsed.text ? h('pre', { className: 'ig-pre' }, parsed.text) : null,
+              parsed.images.length > 0 ? h('div', { className: 'ig-image-body' },
+                gallery.length > 0 && renderSlot && loadImage
+                  ? renderSlot(`image-gen.${toolName}.images`, { images: gallery, loadImage, align: 'start' })
+                  : null,
+                h('div', { className: 'ig-meta-list' },
+                  parsed.images.map((image, index) => {
+                    const dims = formatDimensions(image)
+                    return h('div', { key: `${image.path}:${index}`, className: 'ig-meta-item' },
+                      h('button', {
+                        type: 'button',
+                        className: 'ig-file-link',
+                        title: `${t('openFile')}: ${image.path}`,
+                        ...getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: image.path } })),
+                        onClick: event => { event.stopPropagation(); openFile(image.path) },
+                      },
+                      h(FileTypeIcon, { path: image.path, size: 14 }),
+                      h('span', { className: 'ig-file-path' }, shortPath(image.path, cwd, home)),
+                      dims ? h('span', { className: 'ig-file-size' }, dims) : null),
+                      image.revisedPrompt ? h('div', { className: 'ig-revised' },
+                        h('span', { className: 'ig-revised-label' }, t('revisedPrompt')),
+                        image.revisedPrompt) : null)
+                  }))) : null,
+              parsed.state === 'error' && parsed.text ? h('div', { className: 'ig-io' },
+                h('div', { className: 'ig-io-sec' },
+                  h('span', { className: 'ig-io-label' }, t('output')),
+                  h('span', { className: 'ig-io-text' }, parsed.text))) : null,
               inspect ? h('button', { type: 'button', className: 'ig-inspect', onClick: inspect },
-                h(IconInspectOutlineRegular, { size: 12 }), t('inspect')) : null) : null))
+                h(IconInspectOutlineRegular), t('inspect')) : null) : null))
         }
 
         for (const key of ['openai_image', 'grok_image']) {

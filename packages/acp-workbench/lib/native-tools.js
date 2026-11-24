@@ -91,7 +91,9 @@ function webAction(tool, input) {
   const name = firstText(tool.name, tool._meta?.claudeCode?.toolName)
   const same = !tool.name || !tool._meta?.claudeCode?.toolName || tool.name === tool._meta.claudeCode.toolName
   const url = firstText(input.url, input.Url)
-  const query = firstText(input.query, input.Query, input.SearchTerm)
+  const rawQuery = firstText(input.query, input.Query, input.SearchTerm)
+  const domain = firstText(input.domain, input.Domain)
+  const query = rawQuery && domain && !/\bsite:/iu.test(rawQuery) ? `${rawQuery} site:${domain}` : rawQuery
   const mode = same && (name === 'WebSearch' || name === 'search_web')
     ? 'search'
     : same && (name === 'WebFetch' || name === 'read_url_content')
@@ -305,10 +307,42 @@ export function mapToolCall(tool, terminal) {
   const path = kind !== 'fetch' ? pathFromTool(tool ?? {}, input) : undefined
   const command = commandFromInput(input, terminal, kind)
 
-  if (rawName === 'TodoWrite' || rawName === 'todo_write') {
-    const todos = mapPlanTodos(input.todos ?? [])
+  if (rawName === 'TodoWrite' || rawName === 'todo_write' || rawName === 'update_steps') {
+    const todos = mapPlanTodos(input.todos ?? input.steps ?? [])
     const argsObj = { todos }
     return { name: 'todo_write', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'plan' }
+  }
+
+  if (rawName === 'manage_task') {
+    const action = firstText(input.Action, input.action)?.toLowerCase()
+    const jobId = firstText(input.TaskId, input.taskId, input.job_id)
+    if (action === 'list') {
+      return { name: 'job_list', argumentsObj: {}, argumentsJson: '{}', originalKind: 'other' }
+    }
+    if (action === 'status' && jobId) {
+      const argsObj = { job_id: jobId }
+      return { name: 'job_output', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'other' }
+    }
+    if (action === 'kill' && jobId) {
+      const argsObj = { job_id: jobId }
+      return { name: 'job_kill', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'other' }
+    }
+  }
+
+  if (rawName === 'manage_subagents') {
+    const action = firstText(input.Action, input.action)?.toLowerCase()
+    if (action === 'list') {
+      return { name: 'list_agents', argumentsObj: {}, argumentsJson: '{}', originalKind: 'other' }
+    }
+    if (action === 'kill' || action === 'kill_all') {
+      const ids = textList(input.ConversationIds ?? input.conversationIds)
+      const target = action === 'kill_all' ? 'all' : ids.join(', ')
+      const argsObj = {
+        ...(target ? { agent: target } : {}),
+        ...(ids.length > 1 ? { agent_ids: ids } : {}),
+      }
+      return { name: 'interrupt_agent', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'other' }
+    }
   }
 
   if (rawName === 'Skill') {
@@ -384,7 +418,13 @@ export function mapToolCall(tool, terminal) {
       const offset = positiveInt(input.offset ?? input.start_line ?? input.StartLine)
       const endLine = positiveInt(input.end_line ?? input.EndLine)
       const limit = positiveInt(input.limit) ?? (offset && endLine && endLine >= offset ? endLine - offset + 1 : undefined)
-      const argsObj = { file_path: target, ...(offset ? { offset } : {}), ...(limit ? { limit } : {}) }
+      const byteOffset = positiveInt(input.ByteOffset ?? input.byte_offset)
+      const argsObj = {
+        file_path: target,
+        ...(offset ? { offset } : {}),
+        ...(limit ? { limit } : {}),
+        ...(byteOffset ? { byte_offset: byteOffset } : {}),
+      }
       return { name: 'read', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'read' }
     }
   }
@@ -402,7 +442,12 @@ export function mapToolCall(tool, terminal) {
     ))
   if (isWrite && path) {
     const content = input.content ?? input.Content ?? input.CodeContent ?? input.file_text ?? input.file_content ?? input.contents ?? ''
-    const argsObj = { file_path: path, content: typeof content === 'string' ? content : '' }
+    const append = input.Append === true || input.append === true
+    const argsObj = {
+      file_path: path,
+      content: typeof content === 'string' ? content : '',
+      ...(append ? { append: true } : {}),
+    }
     return { name: 'write', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'write' }
   }
 
@@ -805,7 +850,7 @@ export function mapToolResult(mappedCall, tool, terminal, { cwd, aborted = false
       } else if (name === 'edit' && typeof argumentsObj.new_string === 'string') {
         diffs = [{ path: filePath, oldText: argumentsObj.old_string || null, newText: argumentsObj.new_string }]
       } else if (name === 'write' && typeof argumentsObj.content === 'string') {
-        diffs = [{ path: filePath, oldText: null, newText: argumentsObj.content }]
+        diffs = [{ path: filePath, oldText: argumentsObj.append === true ? '' : null, newText: argumentsObj.content }]
       }
     }
     const meta = {
@@ -882,7 +927,7 @@ export function mapToolResult(mappedCall, tool, terminal, { cwd, aborted = false
 }
 
 function normalizeTodoStatus(raw) {
-  if (raw === 'completed' || raw === 'done') return 'completed'
+  if (raw === 'completed' || raw === 'done' || raw === 'skipped') return 'completed'
   if (raw === 'in_progress' || raw === 'active' || raw === 'running') return 'in_progress'
   return 'pending'
 }
@@ -892,10 +937,16 @@ export function mapPlanTodos(entries) {
   const seen = new Set()
   const todos = []
   for (const entry of entries) {
-    const content = typeof entry?.content === 'string' ? entry.content.trim()
+    const base = typeof entry?.content === 'string' ? entry.content.trim()
       : typeof entry?.text === 'string' ? entry.text.trim()
         : typeof entry?.title === 'string' ? entry.title.trim() : ''
-    if (!content || seen.has(content)) continue
+    if (!base) continue
+    const content = entry.status === 'skipped' && !/\(skipped\)$/iu.test(base)
+      ? `${base} (skipped)`
+      : entry.status === 'failed' && !/\(failed\)$/iu.test(base)
+        ? `${base} (failed)`
+        : base
+    if (seen.has(content)) continue
     seen.add(content)
     todos.push({ content, status: normalizeTodoStatus(entry.status) })
   }

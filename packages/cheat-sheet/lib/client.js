@@ -4,7 +4,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const ReactDOM = require('react-dom')
     const {
-      DisclosureRow, JsonBlock, Tag, TextShimmer,
+      DisclosureRow, TextShimmer,
       IconInspectOutlineRegular, IconSkillOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
@@ -72,7 +72,8 @@ window.__ModuleLoader__.load({
         countUnknown: 'Count unavailable',
         tvStopped: 'Stopped',
         tvInspect: 'Inspect',
-        tvResult: 'Result',
+        tvInput: 'IN',
+        tvOutput: 'OUT',
         tvPinsCount: '{n} pinned',
       },
       zh: {
@@ -135,7 +136,8 @@ window.__ModuleLoader__.load({
         countUnknown: '次数暂不可用',
         tvStopped: '已中止',
         tvInspect: '查看',
-        tvResult: '结果',
+        tvInput: '输入',
+        tvOutput: '输出',
         tvPinsCount: '{n} 个置顶',
       },
     }
@@ -219,14 +221,19 @@ window.__ModuleLoader__.load({
 .dcs-tv{display:flex;flex-direction:column}
 .dcs-tv-row{min-width:0}
 .dcs-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
-.dcs-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.dcs-tv-summary{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .dcs-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
 .dcs-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.dcs-tv-tag{flex:none;margin-left:6px}
-.dcs-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
-.dcs-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
-.dcs-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
-.dcs-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.dcs-tv-body{display:flex;flex-direction:column;min-width:0}
+.dcs-tv-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.dcs-tv-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.dcs-tv-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.dcs-tv-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.dcs-tv-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
+.dcs-tv-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.dcs-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.dcs-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
+.dcs-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .dcs-tv-inspect:focus-visible{opacity:1}
 @media(hover:hover){.dcs-tv:hover .dcs-tv-inspect{opacity:1}.dcs-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media(hover:none){.dcs-tv-inspect{opacity:1}}
@@ -658,15 +665,18 @@ window.__ModuleLoader__.load({
               : block.error?.code === 'interrupted' ? 'stopped'
                 : block.isError ? 'error' : 'ok'
           const running = state === 'preparing' || state === 'running'
-          let summary = ''
-          if (state === 'stopped') summary = t('tvStopped')
-          else if (state === 'error') summary = text.split('\n')[0] || ''
+          let detail = ''
+          if (state === 'stopped') detail = t('tvStopped')
+          else if (state === 'error') detail = text.split('\n')[0] || ''
           else if (typeof args.name === 'string' && args.name) {
-            summary = `${args.name}${typeof args.pinned === 'boolean' ? ` · ${args.pinned ? 'pinned' : 'unpinned'}` : ''}`
+            detail = `${args.name}${typeof args.pinned === 'boolean' ? ` · ${args.pinned ? 'pinned' : 'unpinned'}` : ''}`
           } else if (Array.isArray(payload?.pinned)) {
-            summary = t('tvPinsCount', { n: payload.pinned.length })
+            detail = t('tvPinsCount', { n: payload.pinned.length })
           }
-          const expandable = Boolean(text)
+          const summary = state === 'error' || state === 'stopped' ? detail : [action, detail].filter(Boolean).join(' · ')
+          const inputText = Object.keys(args).length > 0 ? JSON.stringify(args, null, 2) : ''
+          const outputText = payload !== null ? JSON.stringify(payload, null, 2) : text
+          const expandable = state !== 'preparing' && Boolean(inputText || outputText)
           const open = expanded && expandable
           return h('div', { className: 'dcs-tv', 'data-tool': 'cheat_sheet', 'data-state': state },
             h(DisclosureRow, {
@@ -679,19 +689,22 @@ window.__ModuleLoader__.load({
               expandOnRowClick: true,
               keepContentWhenOpen: true,
               onToggle: toggle,
-              collapsedContent: state === 'preparing' ? null : h(React.Fragment, null,
-                action ? h(Tag, { className: 'dcs-tv-tag', tone: state === 'error' ? 'error' : 'outline' }, action) : null,
-                summary ? h(React.Fragment, null,
-                  h('span', { className: 'dcs-tv-sep', 'aria-hidden': true }),
-                  h('span', { className: `dcs-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
-                    h(TextShimmer, null, summary))) : null),
+              collapsedContent: state === 'preparing' || !summary ? null : h(React.Fragment, null,
+                h('span', { className: 'dcs-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
+                h('span', { className: `dcs-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+                  h(TextShimmer, null, summary))),
             },
             open ? h('div', { className: 'dcs-tv-body' },
-              payload !== null
-                ? h(JsonBlock, { label: t('tvResult'), payload, defaultOpen: true })
-                : h('pre', { className: 'dcs-tv-pre', 'data-error': state === 'error' || undefined }, text),
+              h('div', { className: 'dcs-tv-io' },
+                inputText ? h('div', { className: 'dcs-tv-io-sec' },
+                  h('span', { className: 'dcs-tv-io-label' }, t('tvInput')),
+                  h('span', { className: 'dcs-tv-io-text' }, inputText)) : null,
+                inputText && outputText ? h('span', { className: 'dcs-tv-io-div', 'aria-hidden': true }) : null,
+                outputText ? h('div', { className: 'dcs-tv-io-sec' },
+                  h('span', { className: 'dcs-tv-io-label' }, t('tvOutput')),
+                  h('span', { className: 'dcs-tv-io-text', 'data-error': state === 'error' || undefined }, outputText)) : null),
               inspect ? h('button', { type: 'button', className: 'dcs-tv-inspect', onClick: inspect },
-                h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+                h(IconInspectOutlineRegular), t('tvInspect')) : null) : null))
         }
 
         ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({

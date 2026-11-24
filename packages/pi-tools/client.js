@@ -36,7 +36,7 @@ window.__ModuleLoader__.load({
       sectionInteraction: 'Skills and questions', sectionPlugins: 'Plugins', sectionOther: 'Other DSH tools',
       sectionMcpResources: 'MCP resources', sectionMcpServer: 'Server {server}',
       codemode: 'Script', tool_search: 'Tool search', edit: 'Edit', write: 'Write', read: 'Read', grep: 'Search', find: 'Find files', ls: 'List directory', bash: 'Shell',
-      input: 'Input', output: 'Output', editDiff: 'Edit', diff: 'Applied diff', loaded: 'Loaded tools',
+      input: 'IN', output: 'OUT', editDiff: 'Edit', diff: 'Applied diff', loaded: 'Loaded tools',
       inspect: 'Inspect', open: 'Open file', noCalls: 'No tool calls',
       stepProgress: '{done}/{total} steps', stepsFailed: '{count} failed',
       streamingKb: '{kb} KB',
@@ -71,31 +71,37 @@ window.__ModuleLoader__.load({
       ok: '成功', error: '失败', running: '运行中', stopped: '已中止',
     }
     const css = `
-.pi-tools-card{min-width:0;color:var(--dsw-alias-label-tertiary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.pi-tools-card{display:flex;flex-direction:column;min-width:0}
 [data-chat-call-id] > :not([data-subcalls]):has([data-pi-fold-steps="closed"]) ~ [data-subcalls]{display:none}
-.pi-tools-row{min-width:0;color:var(--dsw-alias-label-tertiary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
-.pi-tools-sep{flex:none;width:2px;height:2px;margin:0 6px;border-radius:1px;background:var(--dsw-alias-label-caption)}
-.pi-tools-file{flex:0 1 auto;min-width:0;max-width:100%;margin:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;text-align:left;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;transition:text-decoration-color .1s,color .1s}
-@media(hover:hover){.pi-tools-file:hover{color:var(--dsw-alias-label-primary);text-decoration-color:currentColor}}
+.pi-tools-row{min-width:0}
+.pi-tools-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.pi-tools-file{flex:0 1 auto;min-width:0;max-width:100%;margin:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px));cursor:pointer;text-align:left;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-decoration:underline dotted;text-decoration-color:currentColor;text-decoration-thickness:1px;text-underline-offset:3px}
 .pi-tools-file:focus-visible,.pi-tools-inspect:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px;border-radius:var(--dsw-radius-xs,4px)}
-.pi-tools-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.pi-tools-suffix{flex:none;margin-left:6px;font-size:12px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;white-space:nowrap}
-.pi-tools-tag{flex:none;margin-left:6px}
-.pi-tools-diff-added{color:var(--dsw-alias-state-success-primary)}
-.pi-tools-diff-removed{color:var(--dsw-alias-state-error-primary)}
+.pi-tools-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.pi-tools-suffix{flex:none;margin-left:4px;white-space:nowrap;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px));font-variant-numeric:tabular-nums}
+.pi-tools-diff-stat{margin-left:10px;font-family:var(--ds-font-family-code);font-size:calc(var(--dsh-content-font-size-secondary,13px) - 2px);transform:translateY(.5px)}
+.pi-tools-row[aria-expanded=true] .pi-tools-diff-added{color:var(--dsw-alias-state-success-primary)}
+.pi-tools-row[aria-expanded=true] .pi-tools-diff-removed{color:var(--dsw-alias-state-error-primary)}
+@media(hover:hover){.pi-tools-row:hover .pi-tools-diff-added{color:var(--dsw-alias-state-success-primary)}.pi-tools-row:hover .pi-tools-diff-removed{color:var(--dsw-alias-state-error-primary)}}
 .pi-tools-error{color:var(--dsw-alias-state-error-primary)}
 .pi-tools-stopped{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.pi-tools-body{display:flex;flex-direction:column;gap:8px;margin:6px 0 8px 20px;min-width:0;color:var(--dsw-alias-label-primary)}
-.pi-tools-io{display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-layer-1));overflow:hidden}
-.pi-tools-io-sec{display:flex;flex-direction:column;gap:4px;padding:8px 12px}
-.pi-tools-io-label{font-size:11px;line-height:16px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--dsw-alias-label-caption)}
-.pi-tools-io-pre{margin:0;max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:calc(var(--dsh-content-font-size-secondary,13px) - 1px)/1.6 var(--ds-font-family-code,monospace);color:var(--dsw-alias-label-secondary)}
-.pi-tools-io-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
-.pi-tools-loaded{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
-.pi-tools-note{font-size:12px;overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary)}
-.pi-tools-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;line-height:16px;cursor:pointer}
-.pi-tools-inspect svg{width:12px;height:12px}
-@media(hover:hover){.pi-tools-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid,var(--dsw-alias-interactive-bg-hover));color:var(--dsw-alias-label-primary)}}
+.pi-tools-body{display:flex;flex-direction:column;min-width:0}
+.pi-tools-block{margin:4px 0 4px 4px}
+.pi-tools-terminal{margin:4px 0 4px 4px;--dsl-terminal-font:var(--dsw-font-markdown-code-block-small);--dsl-terminal-line-height:18px;--dsl-terminal-output-max-height:224px;--dsl-terminal-command-whitespace:pre-wrap;border:.5px solid var(--dsw-alias-border-l1)}
+.pi-tools-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.pi-tools-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.pi-tools-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.pi-tools-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.pi-tools-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
+.pi-tools-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.pi-tools-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.pi-tools-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
+.pi-tools-loaded{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 4px 4px;padding:0;list-style:none}
+.pi-tools-note{margin:4px 0 4px 4px;font:var(--dsw-font-xs-13);overflow-wrap:anywhere;color:var(--dsw-alias-label-tertiary)}
+.pi-tools-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
+.pi-tools-inspect:focus-visible{opacity:1}
+@media(hover:hover){.pi-tools-card:hover .pi-tools-inspect{opacity:1}.pi-tools-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media(hover:none){.pi-tools-inspect{opacity:1}}
 .pi-tools-picker{width:min(720px,100%);max-height:100%}
 .pi-tools-picker .pi-tools-error{margin:10px 0 0;font-size:13px}
 .pi-tools-picker .pi-tools-notice{margin:10px 0 0;font-size:13px;color:var(--dsw-alias-label-secondary)}
@@ -131,9 +137,8 @@ window.__ModuleLoader__.load({
 .pi-tools-option-tag{padding:0 5px;border:0.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-xs,4px);color:var(--dsw-alias-label-tertiary);font:11px/16px var(--dsw-font-family,inherit)}
 .pi-tools-option-description{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 @media(hover:hover){.pi-tools-simple-row:hover,.pi-tools-option-label:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-@media(prefers-reduced-motion:reduce){.pi-tools-section-chevron,.pi-tools-toggle-chevron{transition:none}}
+@media(prefers-reduced-motion:reduce){.pi-tools-section-chevron,.pi-tools-inspect{transition:none}}
 @media(max-width:560px){.pi-tools-options-count{margin-left:0;flex-basis:100%}.pi-tools-option-label{padding-left:12px}.pi-tools-section-family{display:none}.pi-tools-options-list{max-height:min(46vh,520px)}}
-@media(max-width:520px){.pi-tools-body{margin-left:0}.pi-tools-badge{margin-left:0}.pi-tools-file{flex-basis:100%}}
 `
 
     function isPiCall(owner) {
@@ -253,21 +258,27 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function stepTags(children, running, t) {
+    function stepSuffix(children, running, t) {
       if (!children?.length) return null
       const failed = children.filter(child => child.isError).length
+      const progress = running ? t('stepProgress', {
+        done: children.filter(child => child.kind === 'tool-result').length, total: children.length,
+      }) : ''
+      if (!progress && !failed) return null
       return h(React.Fragment, null,
-        running ? h(Tag, { className: 'pi-tools-tag' }, t('stepProgress', {
-          done: children.filter(child => child.kind === 'tool-result').length, total: children.length,
-        })) : null,
-        failed ? h(Tag, { className: 'pi-tools-tag', tone: 'error' }, t('stepsFailed', { count: failed })) : null)
+        progress ? h(TextShimmer, { className: 'pi-tools-suffix' }, `· ${progress}`) : null,
+        failed ? h(TextShimmer, { className: 'pi-tools-suffix pi-tools-error' }, `· ${t('stepsFailed', { count: failed })}`) : null)
     }
 
-    function ioPanel(label, text, isError) {
+    function ioCard(sections) {
+      const visible = sections.filter(item => item && item.text)
+      if (!visible.length) return null
       return h('div', { className: 'pi-tools-io' },
-        h('div', { className: 'pi-tools-io-sec' },
-          h('span', { className: 'pi-tools-io-label' }, label),
-          h('pre', { className: 'pi-tools-io-pre', 'data-error': isError || undefined }, text)))
+        visible.map((item, index) => h(React.Fragment, { key: item.label },
+          index > 0 ? h('span', { className: 'pi-tools-io-div', 'aria-hidden': true }) : null,
+          h('div', { className: 'pi-tools-io-sec' },
+            h('span', { className: 'pi-tools-io-label' }, item.label),
+            h('span', { className: 'pi-tools-io-text', 'data-error': item.isError || undefined }, item.text)))))
     }
 
     function PiRow({ toolName, phase, block, cwd, home, sessionId, openFile, inspect, expanded, toggle, useContextMenu, t, ct }) {
@@ -319,40 +330,48 @@ window.__ModuleLoader__.load({
       else if (toolName === 'ls') summary = path ? pathLabel(path, cwd, home) : '.'
       else if (toolName === 'bash') summary = firstLine(commandInput)
 
-      const isFileTool = (toolName === 'edit' || toolName === 'write' || toolName === 'read') && Boolean(path) && state !== 'error' && state !== 'stopped'
+      const settledWithCue = state === 'error' || state === 'stopped'
+      const isFileTool = (toolName === 'edit' || toolName === 'write' || toolName === 'read') && Boolean(path) && !settledWithCue
       const hasBody = state !== 'preparing' && Boolean(
         diffs || readLines || searchMatches || searchPaths || (toolName === 'bash' && (commandInput || text))
         || codeInput || queryInput || loaded.length || typeof details.diff === 'string' || text,
       )
       const open = expanded && hasBody
+      const fileContextProps = isFileTool
+        ? getTriggerProps(() => ({ kind: 'file', value: { sessionId, path, ...(line ? { line } : {}) } }))
+        : undefined
 
-      const collapsedContent = h(React.Fragment, null,
+      const collapsedContent = state === 'preparing' ? null : h(React.Fragment, null,
         isFileTool ? h(React.Fragment, null,
-          h('span', { className: 'pi-tools-sep', 'aria-hidden': true }),
+          h('span', { className: 'pi-tools-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
           h('button', {
             type: 'button',
             className: 'pi-tools-file',
             title: `${t('open')}: ${path}${line ? `:${line}` : ''}`,
-            ...getTriggerProps(() => ({ kind: 'file', value: { sessionId, path, ...(line ? { line } : {}) } })),
+            ...fileContextProps,
             onClick: event => { event.stopPropagation(); openFile(path, line ? { line } : undefined) },
+            onKeyDown: event => {
+              if (event.key === 'Enter' || event.key === ' ') event.stopPropagation()
+              fileContextProps?.onKeyDown?.(event)
+            },
           }, h(TextShimmer, null, `${pathLabel(path, cwd, home)}${line && toolName !== 'write' ? `:${line}` : ''}`)))
           : summary ? h(React.Fragment, null,
-            h('span', { className: 'pi-tools-sep', 'aria-hidden': true }),
+            h('span', { className: 'pi-tools-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
             h('span', { className: `pi-tools-summary${state === 'error' ? ' pi-tools-error' : state === 'stopped' ? ' pi-tools-stopped' : ''}` },
               h(TextShimmer, null, summary))) : null,
-        kb !== null ? h('span', { className: 'pi-tools-suffix' }, t('streamingKb', { kb })) : null,
-        totals && state === 'ok' ? h('span', { className: 'pi-tools-suffix' },
+        !settledWithCue && kb !== null ? h(TextShimmer, { className: 'pi-tools-suffix' }, t('streamingKb', { kb })) : null,
+        !settledWithCue && totals && state === 'ok' ? h(TextShimmer, { className: 'pi-tools-suffix pi-tools-diff-stat' },
           h('span', { className: 'pi-tools-diff-added' }, `+${totals.added}`), ' ',
           h('span', { className: 'pi-tools-diff-removed' }, `-${totals.removed}`)) : null,
-        toolName === 'codemode' ? stepTags(block?.subCalls, running, t) : null,
-        elapsed ? h('span', { className: 'pi-tools-suffix' }, elapsed) : null)
+        !settledWithCue && toolName === 'codemode' ? stepSuffix(block?.subCalls, running, t) : null,
+        !settledWithCue && elapsed ? h(TextShimmer, { className: 'pi-tools-suffix' }, `· ${elapsed}`) : null)
 
       let body = null
       if (open) {
         if (diffs) {
-          body = h(DiffBlock, { diffs, labels: labels.diff, maxLines: 12 })
+          body = h(DiffBlock, { diffs, labels: labels.diff, maxLines: 12, className: 'pi-tools-block' })
         } else if (toolName === 'edit' && typeof details.diff === 'string') {
-          body = h(CodeBlock, { code: details.diff, lang: 'diff', diff: true, copyLabel: ct('copy'), copiedLabel: ct('copied'), toolbarLabels: labels.code })
+          body = h(CodeBlock, { code: details.diff, lang: 'diff', diff: true, copyLabel: ct('copy'), copiedLabel: ct('copied'), toolbarLabels: labels.code, className: 'pi-tools-block' })
         } else if (toolName === 'read' && readLines) {
           body = h(ReadBlock, {
             label: pathLabel(meta.path || path, cwd, home),
@@ -361,11 +380,12 @@ window.__ModuleLoader__.load({
             lang: languageForPath(meta.path || path),
             labels: labels.read,
             maxLines: 12,
+            className: 'pi-tools-block',
           })
         } else if (searchMatches) {
-          body = h(SearchBlock, { kind: 'matches', files: searchMatches, total: meta.total ?? searchMatches.length, truncated: Boolean(meta.truncated), labels: labels.search, maxLines: 10 })
+          body = h(SearchBlock, { kind: 'matches', files: searchMatches, total: meta.total ?? searchMatches.length, truncated: Boolean(meta.truncated), labels: labels.search, maxLines: 10, className: 'pi-tools-block' })
         } else if (searchPaths) {
-          body = h(SearchBlock, { kind: 'paths', paths: searchPaths, total: meta.total ?? searchPaths.length, truncated: Boolean(meta.truncated), labels: labels.search, maxLines: 10 })
+          body = h(SearchBlock, { kind: 'paths', paths: searchPaths, total: meta.total ?? searchPaths.length, truncated: Boolean(meta.truncated), labels: labels.search, maxLines: 10, className: 'pi-tools-block' })
         } else if (toolName === 'bash') {
           body = h(TerminalBlock, {
             command: commandInput,
@@ -374,20 +394,23 @@ window.__ModuleLoader__.load({
             output: text,
             running,
             labels: labels.terminal,
-            maxLines: 20,
+            maxLines: Infinity,
+            className: 'pi-tools-terminal',
           })
         } else if (toolName === 'codemode') {
           body = h(React.Fragment, null,
-            codeInput ? h(CodeBlock, { code: codeInput, lang: 'javascript', copyLabel: ct('copy'), copiedLabel: ct('copied'), toolbarLabels: labels.code }) : null,
+            codeInput ? h(CodeBlock, { code: codeInput, lang: 'javascript', copyLabel: ct('copy'), copiedLabel: ct('copied'), toolbarLabels: labels.code, className: 'pi-tools-block' }) : null,
             settled && !calls.length && !block.isError ? h('div', { className: 'pi-tools-note' }, t('noCalls')) : null,
-            text ? ioPanel(t('output'), text, state === 'error') : null)
+            text ? ioCard([{ label: t('output'), text, isError: state === 'error' }]) : null)
         } else if (toolName === 'tool_search') {
           body = h(React.Fragment, null,
-            queryInput ? ioPanel(t('input'), queryInput, false) : null,
             loaded.length ? h('ul', { className: 'pi-tools-loaded' }, loaded.map(name => h('li', { key: name }, h(Tag, null, name)))) : null,
-            text ? ioPanel(t('output'), text, state === 'error') : null)
+            ioCard([
+              queryInput ? { label: t('input'), text: queryInput, isError: false } : null,
+              text ? { label: t('output'), text, isError: state === 'error' } : null,
+            ]))
         } else if (text) {
-          body = ioPanel(t('output'), text, state === 'error')
+          body = ioCard([{ label: t('output'), text, isError: state === 'error' }])
         }
       }
 
@@ -412,7 +435,7 @@ window.__ModuleLoader__.load({
       open ? h('div', { className: 'pi-tools-body' },
         body,
         inspect ? h('button', { type: 'button', className: 'pi-tools-inspect', onClick: inspect },
-          h(IconInspectOutlineRegular, { size: 12 }), t('inspect')) : null) : null))
+          h(IconInspectOutlineRegular), t('inspect')) : null) : null))
     }
 
     const OPTIONS_PATH = 'pi-tools/options'

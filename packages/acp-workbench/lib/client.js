@@ -165,6 +165,9 @@ window.__ModuleLoader__.load({
       qIncomplete: 'Please complete this question first.', qUnanswered: 'Please select an option or enter a custom answer.', qRangeInvalid: 'Enter a value within the allowed range.',
       qYes: 'Yes', qNo: 'No', approvalWaiting: 'Waiting for approval', planReviewHeader: 'Plan review', planApprove: 'Approve', planReject: 'Reject',
       onLabel: 'On', offLabel: 'Off',
+      waitNext: 'Waiting for {name} next step', waitNextElapsed: 'Waiting for {name} next step · {duration}',
+      waitNextGeneric: 'Waiting for external agent', waitNextGenericElapsed: 'Waiting for external agent · {duration}',
+      waitSec: '{s}s', waitMinSec: '{m}m {s}s',
     }
     const zh = {
       panel: 'ACP 工作台', panelHint: '管理本机 ACP CLI 提供方、检测协议能力，并配置出现在 DSH 模型选择器中的模型。',
@@ -320,6 +323,9 @@ window.__ModuleLoader__.load({
       qIncomplete: '请先完成这道问题。', qUnanswered: '请选择一个选项或填写自定义答案。', qRangeInvalid: '请输入符合范围要求的数值。',
       qYes: '是', qNo: '否', approvalWaiting: '等待审批', planReviewHeader: '计划待审', planApprove: '同意执行', planReject: '拒绝',
       onLabel: '开启', offLabel: '关闭',
+      waitNext: '正在等待 {name} 下一步', waitNextElapsed: '正在等待 {name} 下一步 · {duration}',
+      waitNextGeneric: '正在等待外部代理下一步', waitNextGenericElapsed: '正在等待外部代理下一步 · {duration}',
+      waitSec: '{s}秒', waitMinSec: '{m}分{s}秒',
     }
 
     const CSS = `
@@ -642,22 +648,42 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.aw-v2-trace-btn:hover{background:var(--dsw-alias-turn-trigger-bg-hover);border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary)}}
 .aw-v2-trace-btn[aria-expanded=true]{background:var(--dsw-alias-turn-trigger-bg-hover);color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2)}
 .aw-tv-card{display:flex;flex-direction:column;min-width:0}
+.aw-tv-row{min-width:0}
 .aw-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
 .aw-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.aw-tv-suffix{flex:none;margin-left:4px;white-space:nowrap;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px));font-variant-numeric:tabular-nums}
+.aw-tv-diff-stat{margin-left:10px;font-family:var(--ds-font-family-code);font-size:calc(var(--dsh-content-font-size-secondary,13px) - 2px);transform:translateY(.5px)}
+.aw-tv-row[aria-expanded=true] .aw-tv-diff-added{color:var(--dsw-alias-state-success-primary)}
+.aw-tv-row[aria-expanded=true] .aw-tv-diff-removed{color:var(--dsw-alias-state-error-primary)}
+@media (hover:hover){.aw-tv-row:hover .aw-tv-diff-added{color:var(--dsw-alias-state-success-primary)}.aw-tv-row:hover .aw-tv-diff-removed{color:var(--dsw-alias-state-error-primary)}}
 .aw-tv-error{color:var(--dsw-alias-state-error-primary)}
 .aw-tv-stopped{color:var(--dsw-alias-state-warn-label)}
-.aw-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px;min-width:0}
-.aw-tv-panel{display:flex;flex-direction:column;gap:8px;max-height:320px;padding:10px 12px;overflow:auto;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block)}
-.aw-tv-pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:var(--dsw-font-markdown-code-block-small);color:var(--dsw-alias-label-secondary)}
-.aw-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
+.aw-tv-exit{flex:none;margin-left:8px;gap:5px}
+.aw-tv-exit-dot{flex:none;width:4px;height:4px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-error-primary)}
+.aw-tv-tag{flex:none;margin-left:6px}
+.aw-tv-body{display:flex;flex-direction:column;min-width:0}
+.aw-tv-block{margin:4px 0 4px 4px}
+.aw-tv-panel{display:flex;flex-direction:column;gap:8px;max-height:320px;margin:4px 0 4px 4px;padding:10px 12px;overflow:auto;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block)}
+.aw-tv-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.aw-tv-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.aw-tv-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.aw-tv-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.aw-tv-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
+.aw-tv-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.aw-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.aw-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .aw-tv-prose{font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);min-width:0}
-.aw-tv-files{display:flex;flex-wrap:wrap;gap:6px}
+.aw-tv-files{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 4px 4px}
 .aw-tv-file{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (hover:hover){.aw-tv-file:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
-.aw-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
+.aw-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .aw-tv-inspect:focus-visible{opacity:1}
 @media (hover:hover){.aw-tv-card:hover .aw-tv-inspect{opacity:1}.aw-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.aw-tv-inspect{opacity:1}}
+.aw-wait{display:flex;align-items:center;gap:6px;max-width:100%;color:var(--dsw-alias-label-tertiary);font-size:var(--dsh-content-font-size,14px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.aw-wait-icon{display:inline-flex;flex:none;align-items:center;justify-content:center;width:calc(16px + var(--dsh-content-font-delta,0px));height:calc(16px + var(--dsh-content-font-delta,0px));color:inherit}
+.aw-wait-icon>svg{width:calc(14px + var(--dsh-content-font-delta,0px));height:calc(14px + var(--dsh-content-font-delta,0px))}
+.aw-wait-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
 @media (max-width:720px){.aw-q-head{padding:12px 12px 0 18px}.aw-q-title-wrap,.aw-q-desc{margin-inline:18px}.aw-q-options{padding:4px 8px}.aw-q-title{font-size:15px;line-height:21px}.aw-q-option,.aw-q-custom-row{padding:8px 6px}.aw-q-footer{padding:0 12px}}
 @media (prefers-reduced-motion:reduce){.aw-q-option-row,.aw-q-custom-row,.aw-tb-btn,.aw-tb-chev{transition:none}}
 `
@@ -1799,19 +1825,29 @@ window.__ModuleLoader__.load({
             return diffs.length && !(face.write && patchFrame?.stage === 'launch' && diffs.every(b => b.oldText == null)) ? diffTotals(diffs.map(b => ({ ...b, oldText: b.oldText ?? null }))) : null
           }, [face, patchFrame])
           const expandable = !!(face.mcp || terminal || face.blocks.length || targets.length || focus || tool.rawInput !== undefined || tool.rawOutput !== undefined)
+          const failed = state === 'failed'
+          const exitLabel = face.signal ? t('terminalSignal', { signal: face.signal }) : exitCode !== undefined && exitCode !== 0 ? t('exitCode', { n: exitCode }) : null
+          const countParts = [
+            task ? t('cliCalls', { n: task.calls }) : '',
+            targets.length > 1 ? t('pathMore', { n: targets.length - 1 }) : '',
+          ].filter(Boolean).join(' · ')
           return h('div', { className: 'aw-call', 'data-state': state }, h(DisclosureRow, {
+            rowClassName: 'aw-tv-row',
             icon: h(task ? IconBranchOutlineRegular : kindIcons.get(kind) ?? IconInfoOutlineRegular, { size: 14 }), title, open, expandable, onToggle: toggle,
             headerAccessory: task && onTask ? h(Button, { variant: 'ghost', size: 'sm', onClick: onTask, 'data-cli-open': task.row.seq, 'aria-label': `${t('cliOnly')}: ${task.title}` }, t('cliOnly')) : null,
             expandOnRowClick: expandable, keepContentWhenOpen: true, running: live && state === 'in_progress',
-            collapsedContent: h('span', { className: 'aw-call-meta' },
-              summary ? h('span', { className: 'aw-ellipsis aw-call-focus', title: summary }, summary) : null,
-              task ? h('span', { className: 'aw-count' }, t('cliCalls', { n: task.calls })) : null,
-              targets.length > 1 ? h('span', { className: 'aw-count' }, t('pathMore', { n: targets.length - 1 })) : null,
-              permit ? h('span', { title: permit.choice }, h(Tag, { tone: ['permitDenied', 'permitLive'].includes(permit.label) ? 'warning' : 'quiet' }, t(permit.label))) : null,
-              patchFrame?.stage === 'launch' && (totals || (face.write && face.blocks.some(validDiff))) ? h(Tag, { tone: 'quiet' }, t('patch.launch')) : null,
-              totals ? h('span', { className: 'aw-diff-totals' }, h('span', null, '+' + totals.added), ' ', h('span', null, '−' + totals.removed)) : null,
-              h('span', { className: 'aw-call-status', 'data-quiet': state === 'completed' }, h(StateDot, { size: 8, state: TOOL_DOT[state] ?? 'idle' }), task ? t('cliLaunchStatus', { status: t('call.' + state) }) : t('call.' + state)),
-              face.signal || (exitCode !== undefined && exitCode !== 0) ? h('span', { className: 'aw-exit' }, face.signal ? t('terminalSignal', { signal: face.signal }) : t('exitCode', { n: exitCode })) : null),
+            collapsedContent: h(React.Fragment, null,
+              summary ? h(React.Fragment, null,
+                h('span', { className: 'aw-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
+                h('span', { className: `aw-tv-summary${failed && !exitLabel ? ' aw-tv-error' : ''}`, title: summary }, h(TextShimmer, null, summary))) : null,
+              exitLabel ? h(Tag, { tone: 'neutral', className: 'aw-tv-exit' }, h('span', { className: 'aw-tv-exit-dot', 'aria-hidden': true }), exitLabel) : null,
+              !failed && countParts ? h(TextShimmer, { className: 'aw-tv-suffix' }, `· ${countParts}`) : null,
+              permit ? h(Tag, { className: 'aw-tv-tag', tone: ['permitDenied', 'permitLive'].includes(permit.label) ? 'warning' : 'quiet' }, t(permit.label)) : null,
+              patchFrame?.stage === 'launch' && (totals || (face.write && face.blocks.some(validDiff))) ? h(Tag, { className: 'aw-tv-tag', tone: 'quiet' }, t('patch.launch')) : null,
+              !failed && totals ? h(TextShimmer, { className: 'aw-tv-suffix aw-tv-diff-stat' },
+                h('span', { className: 'aw-tv-diff-added' }, `+${totals.added}`), ' ',
+                h('span', { className: 'aw-tv-diff-removed' }, `-${totals.removed}`)) : null,
+              failed && !exitLabel && !summary ? h(TextShimmer, { className: 'aw-tv-suffix aw-tv-error' }, t('call.' + state)) : null),
           }, open ? h(ToolDetails, { tool, face, live, cwd, openFile, patchFrame, terminal, webFrame }) : null))
         }
 
@@ -3215,6 +3251,145 @@ window.__ModuleLoader__.load({
             collapsible: true, defaultOpen: !props.node.data.messageId })
         }
 
+        const WAIT_DELAY_MS = 2000
+        const WAIT_CLOCK_MIN_S = 5
+        const waitMatch = event => {
+          const turn = event?.data?.turn
+          if (typeof turn !== 'number') return null
+          return { id: String(turn), role: event.type === 'turn/start' ? 'start' : 'update' }
+        }
+        const waitUpdate = (state, event) => {
+          if (event.type === 'turn/end') {
+            return { ...state, closed: true, phase: 'idle', lastSeq: Math.max(state.lastSeq, event.seq) }
+          }
+          if (event.type === 'assistant/live-chunk') {
+            const chunk = event.data?.chunk
+            if (!chunk) return state
+            if (chunk.type === 'text-delta' && typeof chunk.text === 'string' && chunk.text.trim() !== '') {
+              return { ...state, phase: 'text', lastSeq: Math.max(state.lastSeq, event.seq), lastActivityAt: event.time }
+            }
+            if ((chunk.type === 'reasoning-delta' && typeof chunk.text === 'string' && chunk.text.trim() !== '')
+              || chunk.type === 'tool-call-delta'
+              || (chunk.type === 'block-start' && chunk.blockType === 'tool-call')
+              || (chunk.type === 'block-end' && chunk.block?.type === 'tool-call')) {
+              return { ...state, phase: 'active', lastSeq: Math.max(state.lastSeq, event.seq), lastActivityAt: event.time }
+            }
+            return state
+          }
+          if (event.type === 'tool/call' || event.type === 'tool/result') {
+            return { ...state, phase: 'active', lastSeq: Math.max(state.lastSeq, event.seq), lastActivityAt: event.time }
+          }
+          if (event.type === 'assistant/message') {
+            const blocks = event.data?.message?.content ?? EMPTY
+            if (blocks.some(block => block?.type === 'tool-call')) {
+              return { ...state, phase: 'active', lastSeq: Math.max(state.lastSeq, event.seq), lastActivityAt: event.time }
+            }
+            return state
+          }
+          return state
+        }
+        ctx.uiConversation.events.register({
+          kind: 'acp-wait',
+          target: 'chat',
+          match: {
+            'turn/start': waitMatch,
+            'turn/end': waitMatch,
+            'assistant/live-chunk': waitMatch,
+            'assistant/message': waitMatch,
+            'tool/call': waitMatch,
+            'tool/result': waitMatch,
+          },
+          start: (_context, match) => ({
+            turn: match.event.data.turn,
+            phase: 'idle',
+            lastSeq: match.event.seq,
+            lastActivityAt: match.event.time,
+            closed: false,
+          }),
+          update: (context, match) => waitUpdate(context.state, match.event),
+          publication: match => match.event.type === 'assistant/live-chunk' ? 'animation-frame' : 'immediate',
+          buildViewNode: context => {
+            const state = context.state
+            if (!state || state.closed || state.phase !== 'text') return null
+            const location = context.start?.location ?? context.matches[0]?.location
+            if ((location?.kind === 'turn' || location?.kind === 'step') && location.turn.status === 'closed') return null
+            return {
+              key: context.key,
+              id: context.id,
+              kind: 'acp-wait',
+              target: 'chat',
+              groupTree: 'turn',
+              anchorSeq: Math.floor(state.lastSeq) + 0.9999,
+              location: location ?? { kind: 'unresolved' },
+              visibility: 'visible',
+              data: state,
+            }
+          },
+        })
+
+        function formatWaitDuration(seconds, tt) {
+          const total = Math.max(1, Math.floor(seconds))
+          if (total < 60) return tt('waitSec', { s: total })
+          return tt('waitMinSec', { m: Math.floor(total / 60), s: total % 60 })
+        }
+
+        function AcpWaitNode(props) {
+          const tt = useT()
+          const running = typeof props.useSession === 'function' ? props.useSession(s => s.running) : true
+          const view = useNative(props.sessionId)
+          const data = props.node.data
+          const activityKey = `${data.turn}:${data.lastSeq}:${data.lastActivityAt}`
+          const sinceRef = React.useRef({
+            key: activityKey,
+            at: typeof data.lastActivityAt === 'number' && data.lastActivityAt <= Date.now() && Date.now() - data.lastActivityAt < 3_600_000
+              ? data.lastActivityAt
+              : Date.now(),
+          })
+          if (sinceRef.current.key !== activityKey) {
+            sinceRef.current = { key: activityKey, at: Date.now() }
+          }
+          const since = sinceRef.current.at
+          const [now, setNow] = React.useState(Date.now)
+          const route = view.data?.selected?.provider
+          const isAcp = typeof route === 'string' && route.startsWith('acp-')
+          const binding = isAcp
+            ? view.data?.sessions.findLast(s => s.native?.sessionId === props.sessionId && s.native.route === route && !s.native.retired)
+            : null
+          const activeRun = binding?.native?.runs?.at(-1)
+          const waitingForInput = Boolean(binding?.interactions?.length)
+          const active = Boolean(running && isAcp && !waitingForInput && (!activeRun || ACTIVE_RUN.has(activeRun.state)))
+          React.useEffect(() => {
+            if (!active) return undefined
+            const elapsed = Date.now() - since
+            let interval = null
+            const startTick = () => {
+              setNow(Date.now())
+              interval = setInterval(() => setNow(Date.now()), 1000)
+            }
+            if (elapsed >= WAIT_DELAY_MS) {
+              startTick()
+              return () => { if (interval) clearInterval(interval) }
+            }
+            const timer = setTimeout(startTick, WAIT_DELAY_MS - elapsed)
+            return () => {
+              clearTimeout(timer)
+              if (interval) clearInterval(interval)
+            }
+          }, [active, since])
+          if (!active) return null
+          const elapsedMs = Math.max(0, now - since)
+          if (elapsedMs < WAIT_DELAY_MS) return null
+          const elapsedSec = Math.floor(elapsedMs / 1000)
+          const providerLabel = view.data?.providers.find(p => p.route === route)?.label ?? ''
+          const duration = elapsedSec >= WAIT_CLOCK_MIN_S ? formatWaitDuration(elapsedSec, tt) : ''
+          const label = providerLabel
+            ? (duration ? tt('waitNextElapsed', { name: providerLabel, duration }) : tt('waitNext', { name: providerLabel }))
+            : (duration ? tt('waitNextGenericElapsed', { duration }) : tt('waitNextGeneric'))
+          return h('div', { className: 'acpw aw-wait', role: 'status', 'aria-live': 'polite' },
+            h('span', { className: 'aw-wait-icon', 'aria-hidden': true }, h(IconSparkleRegular, { size: 14 })),
+            h(TextShimmer, { active: true, className: 'aw-wait-text' }, label))
+        }
+
         const collapsedRepliesKey = 'dsh-acp-workbench:collapsed-replies:v1'
         const MAX_COLLAPSED_REPLIES = 300
         let collapsedReplies = new Set()
@@ -3535,6 +3710,7 @@ window.__ModuleLoader__.load({
           const total = Number.isInteger(meta.total) && meta.total >= 0 ? meta.total : paths.length
           return h('div', { className: 'acpw aw-tv-card', 'data-tool': 'grep', 'data-state': 'ok' },
             h(DisclosureRow, {
+              rowClassName: 'aw-tv-row',
               icon: h(IconSearchOutlineRegular, { size: 14 }),
               title: tt('tool.grepPaths'),
               running: false,
@@ -3544,12 +3720,12 @@ window.__ModuleLoader__.load({
               keepContentWhenOpen: true,
               onToggle: toggle,
               collapsedContent: summary ? h(React.Fragment, null,
-                h('span', { className: 'aw-tv-sep', 'aria-hidden': true }),
+                h('span', { className: 'aw-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
                 h('span', { className: 'aw-tv-summary' }, h(TextShimmer, null, summary))) : null,
             },
             expanded ? h('div', { className: 'aw-tv-body' },
-              h(SearchBlock, { kind: 'paths', paths, total, truncated: meta.truncated === true, labels, maxLines: 8 }),
-              inspect ? h('button', { type: 'button', className: 'aw-tv-inspect', onClick: inspect }, h(IconInspectOutlineRegular, { size: 12 }), tt('tool.inspect')) : null) : null))
+              h(SearchBlock, { kind: 'paths', paths, total, truncated: meta.truncated === true, labels, maxLines: 8, className: 'aw-tv-block' }),
+              inspect ? h('button', { type: 'button', className: 'aw-tv-inspect', onClick: inspect }, h(IconInspectOutlineRegular), tt('tool.inspect')) : null) : null))
         }
 
         const ACP_TOOLVIEW_SPECS = {
@@ -3565,11 +3741,11 @@ window.__ModuleLoader__.load({
           TaskList: { icon: IconChecklistOutlineRegular, titleKey: 'tool.task', mode: 'generic' },
           TaskGet: { icon: IconChecklistOutlineRegular, titleKey: 'tool.task', mode: 'generic' },
           TaskStop: { icon: IconChecklistOutlineRegular, titleKey: 'tool.task', mode: 'generic' },
-          schedule: { icon: IconClockOutlineRegular, titleKey: 'tool.schedule', mode: 'generic' },
+          schedule: { icon: IconClockOutlineRegular, titleKey: 'tool.schedule', mode: 'schedule' },
           Monitor: { icon: IconClockOutlineRegular, titleKey: 'tool.monitor', mode: 'generic' },
-          swarm: { icon: IconUsersOutlineRegular, titleKey: 'tool.swarm', mode: 'generic' },
+          swarm: { icon: IconUsersOutlineRegular, titleKey: 'tool.swarm', mode: 'swarm' },
           manage_subagents: { icon: IconUsersOutlineRegular, titleKey: 'tool.subagents', mode: 'generic' },
-          define_subagent: { icon: IconUsersOutlineRegular, titleKey: 'tool.defineSubagent', mode: 'generic' },
+          define_subagent: { icon: IconUsersOutlineRegular, titleKey: 'tool.defineSubagent', mode: 'subagent_def' },
           ListAgents: { icon: IconUsersOutlineRegular, titleKey: 'tool.subagents', mode: 'generic' },
         }
 
@@ -3582,10 +3758,38 @@ window.__ModuleLoader__.load({
           }
           if (mode === 'search') return firstText(args.query, args.Query, args.pattern) || ''
           if (mode === 'workflow') return firstText(args.Description, args.ScriptPath) || ''
+          if (mode === 'schedule') {
+            const timing = firstText(args.CronExpression)
+              ?? (Number.isFinite(args.DurationSeconds) ? `${args.DurationSeconds}s` : undefined)
+            const flags = [args.IsDaemon ? 'daemon' : '', Number.isInteger(args.MaxIterations) ? `×${args.MaxIterations}` : ''].filter(Boolean).join(' ')
+            return [timing, flags, tvFirstLine(args.Prompt)].filter(Boolean).join(' · ')
+          }
+          if (mode === 'swarm') {
+            const action = firstText(args.action)
+            const count = Array.isArray(args.tasks) && args.tasks.length > 0 ? args.tasks.length
+              : Number.isInteger(args.n) && args.n > 1 ? args.n : 0
+            const name = firstText(args.name)
+            const target = name && count > 0 ? `${name} × ${count}` : name
+            const detail = firstText(args.title, args.model) || tvFirstLine(args.brief)
+            return [action, target, detail].filter(Boolean).join(' · ')
+          }
+          if (mode === 'subagent_def') {
+            return [firstText(args.Name, args.name), tvFirstLine(args.Description)].filter(Boolean).join(' · ')
+          }
           const action = firstText(args.action, args.Action)
           const detail = firstText(args.subject, args.name, args.Name, args.TaskId, args.CronExpression, args.Prompt, args.description, args.title)
             ?? (Number.isFinite(args.DurationSeconds) ? `${args.DurationSeconds}s` : undefined)
-          return [action, detail].filter(Boolean).join(' · ')
+          const inputPreview = tvFirstLine(args.Input)
+          return [action, detail, inputPreview].filter(Boolean).join(' · ')
+        }
+
+        function omitKeys(obj, keys) {
+          if (!obj || typeof obj !== 'object') return null
+          const out = {}
+          for (const [k, v] of Object.entries(obj)) {
+            if (!keys.has(k) && v !== undefined && v !== '') out[k] = v
+          }
+          return Object.keys(out).length > 0 ? out : null
         }
 
         function AcpCustomToolRow({ toolName, phase, block, openFile, inspect, useDisclosure }) {
@@ -3607,7 +3811,21 @@ window.__ModuleLoader__.load({
           const planText = mode === 'plan' ? firstText(args?.plan) : undefined
           const memoryPaths = mode === 'memory' && Array.isArray(args?.paths) ? args.paths.filter(p => typeof p === 'string' && p.trim()) : EMPTY
           const workflowScript = mode === 'workflow' ? firstText(args?.Script) : undefined
-          const hasBody = Boolean(planPath || planText || memoryPaths.length || workflowScript || output || (raw && raw !== '{}'))
+          const workflowPath = mode === 'workflow' ? firstText(args?.ScriptPath) : undefined
+          const proseText = planText
+            ?? (mode === 'swarm' ? firstText(args?.brief) : undefined)
+            ?? (mode === 'subagent_def' ? firstText(args?.SystemPrompt) : undefined)
+          const omitted = new Set(
+            mode === 'plan' ? ['plan', 'planFilePath']
+              : mode === 'workflow' ? ['Script', 'ScriptPath']
+                : mode === 'swarm' ? ['brief']
+                  : mode === 'subagent_def' ? ['SystemPrompt']
+                    : [],
+          )
+          const remainingArgs = args ? omitKeys(args, omitted) : null
+          const inputText = remainingArgs ? JSON.stringify(remainingArgs, null, 2)
+            : (!proseText && !workflowScript && !workflowPath && raw && raw !== '{}' ? raw : '')
+          const hasBody = Boolean(planPath || workflowPath || proseText || memoryPaths.length || workflowScript || output || inputText)
           const expandable = state !== 'preparing' && hasBody
           const open = expanded && expandable
           const mdLabels = React.useMemo(() => ({
@@ -3617,37 +3835,46 @@ window.__ModuleLoader__.load({
 
           return h('div', { className: 'acpw aw-tv-card', 'data-tool': toolName, 'data-state': state },
             h(DisclosureRow, {
+              rowClassName: 'aw-tv-row',
               icon: h(IconComp, { size: 14 }),
               title,
               running,
               open,
               expandable,
-              expandOnRowClick: expandable,
+              expandOnRowClick: true,
               keepContentWhenOpen: true,
               onToggle: toggle,
-              collapsedContent: summaryBase ? h(React.Fragment, null,
-                h('span', { className: 'aw-tv-sep', 'aria-hidden': true }),
+              collapsedContent: state === 'preparing' || !summaryBase ? null : h(React.Fragment, null,
+                h('span', { className: 'aw-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
                 h('span', { className: `aw-tv-summary${state === 'error' ? ' aw-tv-error' : state === 'stopped' ? ' aw-tv-stopped' : ''}` },
-                  h(TextShimmer, null, summaryBase))) : null,
+                  h(TextShimmer, null, summaryBase))),
             },
             open ? h('div', { className: 'aw-tv-body' },
               planPath ? h('div', { className: 'aw-tv-files' },
                 openFile
                   ? h('button', { type: 'button', className: 'aw-tv-file', onClick: () => openFile(planPath) }, tt('tool.openPlanFile'), ' · ', planPath)
                   : h(PathLabel, { path: planPath })) : null,
+              workflowPath ? h('div', { className: 'aw-tv-files' },
+                openFile
+                  ? h('button', { type: 'button', className: 'aw-tv-file', title: workflowPath, onClick: () => openFile(workflowPath) }, workflowPath)
+                  : h(PathLabel, { path: workflowPath })) : null,
               memoryPaths.length ? h('div', { className: 'aw-tv-files' },
                 memoryPaths.map(path => openFile
                   ? h('button', { key: path, type: 'button', className: 'aw-tv-file', title: path, onClick: () => openFile(path) }, path)
                   : h(PathLabel, { key: path, path }))) : null,
-              planText ? h('div', { className: 'aw-tv-panel' },
-                h('div', { className: 'aw-tv-prose' }, h(MarkdownText, { text: planText, labels: mdLabels }))) : null,
-              workflowScript ? h('div', { className: 'aw-code-window' },
+              proseText ? h('div', { className: 'aw-tv-panel' },
+                h('div', { className: 'aw-tv-prose' }, h(MarkdownText, { text: proseText, labels: mdLabels }))) : null,
+              workflowScript ? h('div', { className: 'aw-code-window aw-tv-block' },
                 h(CodeBlock, { code: workflowScript, lang: 'python', copyLabel: labels.copy, copiedLabel: labels.copied, toolbarLabels: labels })) : null,
-              !planText && !workflowScript && !output && raw && raw !== '{}' ? h('div', { className: 'aw-tv-panel' },
-                h('pre', { className: 'aw-tv-pre' }, args ? JSON.stringify(args, null, 2) : raw)) : null,
-              output ? h('div', { className: 'aw-tv-panel' },
-                h('pre', { className: 'aw-tv-pre', 'data-error': state === 'error' || undefined }, output)) : null,
-              inspect ? h('button', { type: 'button', className: 'aw-tv-inspect', onClick: inspect }, h(IconInspectOutlineRegular, { size: 12 }), tt('tool.inspect')) : null) : null))
+              inputText || output ? h('div', { className: 'aw-tv-io' },
+                inputText ? h('div', { className: 'aw-tv-io-sec' },
+                  h('span', { className: 'aw-tv-io-label' }, tt('input')),
+                  h('span', { className: 'aw-tv-io-text' }, inputText)) : null,
+                inputText && output ? h('span', { className: 'aw-tv-io-div', 'aria-hidden': true }) : null,
+                output ? h('div', { className: 'aw-tv-io-sec' },
+                  h('span', { className: 'aw-tv-io-label' }, tt('output')),
+                  h('span', { className: 'aw-tv-io-text', 'data-error': state === 'error' || undefined }, output)) : null) : null,
+              inspect ? h('button', { type: 'button', className: 'aw-tv-inspect', onClick: inspect }, h(IconInspectOutlineRegular), tt('tool.inspect')) : null) : null))
         }
 
         ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, CliMenuOption))
@@ -3655,6 +3882,7 @@ window.__ModuleLoader__.load({
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-model-controls', order: 900 }, NativeModelControls))
         ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'acp-native', order: 40 }, NativeDock))
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, NativeNode))
+        ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-wait' }, AcpWaitNode))
         ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))
         ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key: 'grep', priority: GREP_PATHS_PRIORITY, locale: 'conversation' }, GrepPathsRow))
         for (const key of Object.keys(ACP_TOOLVIEW_SPECS)) {

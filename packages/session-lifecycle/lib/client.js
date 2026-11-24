@@ -4,7 +4,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const ReactDOM = require('react-dom')
     const {
-      DisclosureRow, JsonBlock, Tag, TextShimmer,
+      DisclosureRow, TextShimmer,
       IconClockOutlineRegular, IconInspectOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
@@ -43,7 +43,7 @@ window.__ModuleLoader__.load({
         budget: 'Calls today', saving: 'Working…', active: 'Enabled for', loadError: 'Unavailable or access denied', nativeFile: 'Registered deliverable', retrySettings: 'Reload settings',
         directory: 'Working directory (exact match)', modelIssue: 'Last summary failed; showing session status.', catalogIssue: 'Model list unavailable. You can still disable automatic summaries.',
         missing: 'Older conversations without a summary yet: ', recover: 'Load next batch', recovering: 'Loading history…',
-        tvStopped: 'Stopped', tvInspect: 'Inspect', tvResult: 'Result',
+        tvStopped: 'Stopped', tvInspect: 'Inspect', tvInput: 'IN', tvOutput: 'OUT',
       },
       zh: {
         later: '稍后回答的问题', laterAction: '稍后回答', custom: '选择日期和时间…', apply: '确定', cancel: '取消', returned: '最近返回', incomplete: '部分旧会话仍待核对。',
@@ -73,7 +73,7 @@ window.__ModuleLoader__.load({
         budget: '今日已用', saving: '处理中…', active: '当前已启用', loadError: '暂不可用或无权访问', nativeFile: '已登记交付物', retrySettings: '重新读取设置',
         directory: '工作目录（仅此目录）', modelIssue: '上次摘要生成失败，当前仅显示会话状态。', catalogIssue: '模型目录暂不可用，仍可关闭自动摘要。',
         missing: '还没生成结果摘要的旧会话：', recover: '再读一批', recovering: '正在读取…',
-        tvStopped: '已中止', tvInspect: '查看', tvResult: '结果',
+        tvStopped: '已中止', tvInspect: '查看', tvInput: '输入', tvOutput: '输出',
       },
     }
 
@@ -327,14 +327,19 @@ window.__ModuleLoader__.load({
 .sl-tv{display:flex;flex-direction:column}
 .sl-tv-row{min-width:0}
 .sl-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
-.sl-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.sl-tv-summary{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .sl-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
 .sl-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.sl-tv-tag{flex:none;margin-left:6px}
-.sl-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
-.sl-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
-.sl-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
-.sl-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.sl-tv-body{display:flex;flex-direction:column;min-width:0}
+.sl-tv-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.sl-tv-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.sl-tv-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.sl-tv-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.sl-tv-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
+.sl-tv-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.sl-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.sl-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
+.sl-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .sl-tv-inspect:focus-visible{opacity:1}
 @media (hover:hover){.sl-tv:hover .sl-tv-inspect{opacity:1}.sl-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.sl-tv-inspect{opacity:1}}
@@ -923,13 +928,16 @@ window.__ModuleLoader__.load({
               : block.error?.code === 'interrupted' ? 'stopped'
                 : block.isError ? 'error' : 'ok'
           const running = state === 'preparing' || state === 'running'
-          let summary = ''
-          if (state === 'stopped') summary = t('tvStopped')
-          else if (state === 'error') summary = text.split('\n')[0] || ''
-          else if (typeof args.minutes === 'number') summary = `${args.minutes}m`
-          else if (typeof args.until === 'string' && args.until) summary = args.until
-          else if (typeof args.mode === 'string' && args.mode) summary = args.mode
-          const expandable = Boolean(text)
+          let detail = ''
+          if (state === 'stopped') detail = t('tvStopped')
+          else if (state === 'error') detail = text.split('\n')[0] || ''
+          else if (typeof args.minutes === 'number') detail = `${args.minutes}m`
+          else if (typeof args.until === 'string' && args.until) detail = args.until
+          else if (typeof args.mode === 'string' && args.mode) detail = args.mode
+          const summary = state === 'error' || state === 'stopped' ? detail : [action, detail].filter(Boolean).join(' · ')
+          const inputText = Object.keys(args).length > 0 ? JSON.stringify(args, null, 2) : ''
+          const outputText = payload !== null ? JSON.stringify(payload, null, 2) : text
+          const expandable = state !== 'preparing' && Boolean(inputText || outputText)
           const open = expanded && expandable
           return h('div', { className: 'sl-tv', 'data-tool': 'session_lifecycle', 'data-state': state },
             h(DisclosureRow, {
@@ -942,19 +950,22 @@ window.__ModuleLoader__.load({
               expandOnRowClick: true,
               keepContentWhenOpen: true,
               onToggle: toggle,
-              collapsedContent: state === 'preparing' ? null : h(React.Fragment, null,
-                action ? h(Tag, { className: 'sl-tv-tag', tone: state === 'error' ? 'error' : 'outline' }, action) : null,
-                summary ? h(React.Fragment, null,
-                  h('span', { className: 'sl-tv-sep', 'aria-hidden': true }),
-                  h('span', { className: `sl-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
-                    h(TextShimmer, null, summary))) : null),
+              collapsedContent: state === 'preparing' || !summary ? null : h(React.Fragment, null,
+                h('span', { className: 'sl-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
+                h('span', { className: `sl-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+                  h(TextShimmer, null, summary))),
             },
             open ? h('div', { className: 'sl-tv-body' },
-              payload !== null
-                ? h(JsonBlock, { label: t('tvResult'), payload, defaultOpen: true })
-                : h('pre', { className: 'sl-tv-pre', 'data-error': state === 'error' || undefined }, text),
+              h('div', { className: 'sl-tv-io' },
+                inputText ? h('div', { className: 'sl-tv-io-sec' },
+                  h('span', { className: 'sl-tv-io-label' }, t('tvInput')),
+                  h('span', { className: 'sl-tv-io-text' }, inputText)) : null,
+                inputText && outputText ? h('span', { className: 'sl-tv-io-div', 'aria-hidden': true }) : null,
+                outputText ? h('div', { className: 'sl-tv-io-sec' },
+                  h('span', { className: 'sl-tv-io-label' }, t('tvOutput')),
+                  h('span', { className: 'sl-tv-io-text', 'data-error': state === 'error' || undefined }, outputText)) : null),
               inspect ? h('button', { type: 'button', className: 'sl-tv-inspect', onClick: inspect },
-                h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+                h(IconInspectOutlineRegular), t('tvInspect')) : null) : null))
         }
 
         ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({

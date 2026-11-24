@@ -3,7 +3,7 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const {
-      DisclosureRow, JsonBlock, Tag, TextShimmer,
+      DisclosureRow, TextShimmer,
       IconBranchOutlineRegular, IconInspectOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
@@ -18,7 +18,7 @@ window.__ModuleLoader__.load({
       worktree: 'New worktree', worktreeHint: 'Create an isolated checkout when the first message is sent.',
       readonly: 'Branch switching is unavailable in read-only mode.',
       refreshFailed: 'Switched branches, though the panel failed to refresh:', changed: 'Switched to {branch}', choose: 'Switch to {branch}',
-      tvTitle: 'Branch switcher', tvStopped: 'Stopped', tvInspect: 'Inspect', tvResult: 'Result', tvCount: '{n} branches',
+      tvTitle: 'Branch switcher', tvStopped: 'Stopped', tvInspect: 'Inspect', tvInput: 'IN', tvOutput: 'OUT', tvCount: '{n} branches',
     }
     const ZH = {
       switch: '切换分支', search: '搜索本地分支', loading: '正在加载分支…', switching: '正在切换分支…',
@@ -28,7 +28,7 @@ window.__ModuleLoader__.load({
       worktree: '新建工作树', worktreeHint: '发送首条消息时创建独立工作目录。',
       readonly: '只读模式下不能切换分支。',
       refreshFailed: '分支已切换，但面板刷新失败：', changed: '已切换到 {branch}', choose: '切换到 {branch}',
-      tvTitle: '切换分支', tvStopped: '已中止', tvInspect: '查看', tvResult: '结果', tvCount: '{n} 个分支',
+      tvTitle: '切换分支', tvStopped: '已中止', tvInspect: '查看', tvInput: '输入', tvOutput: '输出', tvCount: '{n} 个分支',
     }
     const CSS = `
 .dbs-root{display:inline-flex;flex:none;align-items:center;gap:2px;min-width:0}
@@ -61,14 +61,19 @@ window.__ModuleLoader__.load({
 .dbs-tv{display:flex;flex-direction:column}
 .dbs-tv-row{min-width:0}
 .dbs-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
-.dbs-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.dbs-tv-summary{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .dbs-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
 .dbs-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.dbs-tv-tag{flex:none;margin-left:6px}
-.dbs-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
-.dbs-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
-.dbs-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
-.dbs-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.dbs-tv-body{display:flex;flex-direction:column;min-width:0}
+.dbs-tv-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.dbs-tv-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.dbs-tv-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.dbs-tv-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.dbs-tv-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
+.dbs-tv-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.dbs-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.dbs-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
+.dbs-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .dbs-tv-inspect:focus-visible{opacity:1}
 @media(hover:hover){.dbs-tv:hover .dbs-tv-inspect{opacity:1}.dbs-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media(hover:none){.dbs-tv-inspect{opacity:1}}
@@ -247,16 +252,19 @@ window.__ModuleLoader__.load({
               : block.error?.code === 'interrupted' ? 'stopped'
                 : block.isError ? 'error' : 'ok'
           const running = state === 'preparing' || state === 'running'
-          let summary = ''
-          if (state === 'stopped') summary = t('tvStopped')
-          else if (state === 'error') summary = text.split('\n')[0] || ''
+          let detail = ''
+          if (state === 'stopped') detail = t('tvStopped')
+          else if (state === 'error') detail = text.split('\n')[0] || ''
           else if (action === 'switch' && typeof args.branch === 'string') {
-            summary = typeof args.current === 'string' && args.current ? `${args.current} → ${args.branch}` : args.branch
+            detail = typeof args.current === 'string' && args.current ? `${args.current} → ${args.branch}` : args.branch
           } else if (Array.isArray(payload?.branches)) {
             const count = t('tvCount').replace('{n}', String(payload.branches.length))
-            summary = payload.current ? `${payload.current} · ${count}` : count
+            detail = payload.current ? `${payload.current} · ${count}` : count
           }
-          const expandable = Boolean(text)
+          const summary = state === 'error' || state === 'stopped' ? detail : [action, detail].filter(Boolean).join(' · ')
+          const inputText = Object.keys(args).length > 0 ? JSON.stringify(args, null, 2) : ''
+          const outputText = payload !== null ? JSON.stringify(payload, null, 2) : text
+          const expandable = state !== 'preparing' && Boolean(inputText || outputText)
           const open = expanded && expandable
           return h('div', { className: 'dbs-tv', 'data-tool': 'branch_switcher', 'data-state': state },
             h(DisclosureRow, {
@@ -269,19 +277,22 @@ window.__ModuleLoader__.load({
               expandOnRowClick: true,
               keepContentWhenOpen: true,
               onToggle: toggle,
-              collapsedContent: state === 'preparing' ? null : h(React.Fragment, null,
-                action ? h(Tag, { className: 'dbs-tv-tag', tone: state === 'error' ? 'error' : 'outline' }, action) : null,
-                summary ? h(React.Fragment, null,
-                  h('span', { className: 'dbs-tv-sep', 'aria-hidden': true }),
-                  h('span', { className: `dbs-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
-                    h(TextShimmer, null, summary))) : null),
+              collapsedContent: state === 'preparing' || !summary ? null : h(React.Fragment, null,
+                h('span', { className: 'dbs-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
+                h('span', { className: `dbs-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+                  h(TextShimmer, null, summary))),
             },
             open ? h('div', { className: 'dbs-tv-body' },
-              payload !== null
-                ? h(JsonBlock, { label: t('tvResult'), payload, defaultOpen: true })
-                : h('pre', { className: 'dbs-tv-pre', 'data-error': state === 'error' || undefined }, text),
+              h('div', { className: 'dbs-tv-io' },
+                inputText ? h('div', { className: 'dbs-tv-io-sec' },
+                  h('span', { className: 'dbs-tv-io-label' }, t('tvInput')),
+                  h('span', { className: 'dbs-tv-io-text' }, inputText)) : null,
+                inputText && outputText ? h('span', { className: 'dbs-tv-io-div', 'aria-hidden': true }) : null,
+                outputText ? h('div', { className: 'dbs-tv-io-sec' },
+                  h('span', { className: 'dbs-tv-io-label' }, t('tvOutput')),
+                  h('span', { className: 'dbs-tv-io-text', 'data-error': state === 'error' || undefined }, outputText)) : null),
               inspect ? h('button', { type: 'button', className: 'dbs-tv-inspect', onClick: inspect },
-                h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+                h(IconInspectOutlineRegular), t('tvInspect')) : null) : null))
         }
 
         ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({

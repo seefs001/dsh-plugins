@@ -51,13 +51,33 @@ const MAX_RUN_FILES = 50
 const MAX_CACHED_TRACES = 64
 const DEFAULT_MODEL = 'default'
 const TOOL_INPUT_WAIT_MS = 30_000
-const TOOL_BATCH_WINDOW_MS = 25
+const TOOL_BATCH_WINDOW_MS = 180
+const TOOL_BATCH_MAX_MS = 500
+const TODO_BATCH_WINDOW_MS = 25
 const STALE_TOOL_GRACE_MS = 200
 const EXECUTOR_BRIDGE = Symbol.for('dsh-acp-workbench:executor-bridge')
 const ACTIVE_RUN = new Set(['preparing', 'running', 'waiting', 'canceling'])
 const timestamp = () => new Date().toISOString()
 const isRoute = value => typeof value === 'string' && value.startsWith(ACP_ROUTE_PREFIX)
 const checkpointOf = message => message.source?.replayState?.response?.acp
+
+function preparingToolName(tool, terminal) {
+  const rawName = (tool?.name ?? tool?._meta?.claudeCode?.toolName ?? '').trim()
+  const lower = rawName.toLowerCase()
+  const kind = tool?.kind
+  if (lower === 'write' || lower === 'write_to_file' || lower === 'write_file') return 'write'
+  if (kind === 'read' || lower === 'read' || lower === 'view_file' || lower === 'read_file') return 'read'
+  if (kind === 'edit' || kind === 'delete' || kind === 'move' || lower === 'edit' || lower === 'multiedit' || lower === 'notebookedit' || lower === 'edit_file' || lower === 'replace_file_content' || lower === 'multi_replace_file_content') return 'edit'
+  if (kind === 'execute' || lower === 'bash' || lower === 'powershell' || lower === 'run_command' || lower === 'exec_command') return 'bash'
+  if (lower === 'glob' || lower === 'find_by_name' || lower === 'list_dir' || lower === 'ls') return 'glob'
+  if (kind === 'search' || lower === 'grep' || lower === 'grep_search') return 'grep'
+  if (lower === 'websearch' || lower === 'web_search' || lower === 'search_web') return 'web_search'
+  if (kind === 'fetch' || lower === 'webfetch' || lower === 'web_fetch' || lower === 'read_url_content') return 'web_fetch'
+  if (lower === 'askuserquestion' || lower === 'ask_question') return 'ask_user_question'
+  if (lower === 'agent' || lower === 'task' || lower === 'invoke_subagent') return 'subagent'
+  if (lower === 'todowrite' || lower === 'todo_write' || lower === 'update_steps') return 'todo_write'
+  return mapToolCall(tool, terminal).name
+}
 
 export function fullAccess(ctx, session) {
   const presets = ctx.get?.('permissionPresets')
@@ -710,6 +730,10 @@ class AcpTurn {
       if (entry.record) {
         entry.record.callLogged = true
         this.flushSubCalls(entry.record)
+      }
+    }
+    for (const entry of entries) {
+      if (entry.record) {
         if (entry.record.syntheticTodo) {
           try { agent.session.append('todo/write', { todos: entry.record.syntheticTodo }) } catch {}
           await this.commitToolEntry(entry, log, agent)
@@ -768,6 +792,7 @@ class AcpTurn {
     let openText = ''
     const pendingCalls = []
     let batchDeadline = null
+    let batchMaxDeadline = null
 
     const closeOpenBlock = function* () {
       if (openKind === null) return
@@ -803,6 +828,15 @@ class AcpTurn {
             const hasLaterNonTool = this.queue.some((item, idx) => idx > 0 && item.kind !== 'tool' && item.kind !== 'todo')
             if (!hasLaterNonTool) {
               if (pendingCalls.length > 0 && Date.now() >= batchDeadline) break
+              if (pendingCalls.length === 0 && next.preparingIndex === undefined) {
+                yield* closeOpenBlock()
+                const previewName = preparingToolName(next.record.tool, next.record.terminal)
+                if (previewName) {
+                  next.preparingIndex = index
+                  yield { type: 'block-start', index, blockType: 'tool-call' }
+                  yield { type: 'tool-call-delta', index, id: next.record.dshCallId, name: previewName, argumentsDelta: '' }
+                }
+              }
               next.waitUntil ??= Date.now() + TOOL_INPUT_WAIT_MS
               const deadline = pendingCalls.length > 0 ? Math.min(next.waitUntil, batchDeadline) : next.waitUntil
               if (Date.now() < deadline) {
@@ -813,16 +847,25 @@ class AcpTurn {
             }
           }
           this.queue.shift()
-          yield* closeOpenBlock()
           const mapped = mapToolCall(next.record.tool, next.record.terminal)
           next.record.mapped = mapped
           next.record.emitted = true
-          yield { type: 'block-start', index, blockType: 'tool-call' }
-          yield { type: 'tool-call-delta', index, id: next.record.dshCallId, name: mapped.name, argumentsDelta: mapped.argumentsJson }
-          yield { type: 'block-end', index, block: { type: 'tool-call', id: next.record.dshCallId, name: mapped.name, arguments: mapped.argumentsJson } }
-          index++
+          if (next.preparingIndex !== undefined) {
+            const blockIndex = next.preparingIndex
+            yield { type: 'tool-call-delta', index: blockIndex, id: next.record.dshCallId, name: mapped.name, argumentsDelta: mapped.argumentsJson }
+            yield { type: 'block-end', index: blockIndex, block: { type: 'tool-call', id: next.record.dshCallId, name: mapped.name, arguments: mapped.argumentsJson } }
+            index = Math.max(index, blockIndex + 1)
+          } else {
+            yield* closeOpenBlock()
+            yield { type: 'block-start', index, blockType: 'tool-call' }
+            yield { type: 'tool-call-delta', index, id: next.record.dshCallId, name: mapped.name, argumentsDelta: mapped.argumentsJson }
+            yield { type: 'block-end', index, block: { type: 'tool-call', id: next.record.dshCallId, name: mapped.name, arguments: mapped.argumentsJson } }
+            index++
+          }
           pendingCalls.push(next.record)
-          batchDeadline ??= Date.now() + TOOL_BATCH_WINDOW_MS
+          const now = Date.now()
+          batchMaxDeadline ??= now + TOOL_BATCH_MAX_MS
+          batchDeadline = Math.min(batchMaxDeadline, now + TOOL_BATCH_WINDOW_MS)
           continue
         }
 
@@ -857,7 +900,7 @@ class AcpTurn {
           yield { type: 'block-end', index, block: { type: 'tool-call', id: dshCallId, name: mapped.name, arguments: mapped.argumentsJson } }
           index++
           pendingCalls.push(record)
-          batchDeadline ??= Date.now() + TOOL_BATCH_WINDOW_MS
+          batchDeadline ??= Date.now() + TODO_BATCH_WINDOW_MS
           continue
         }
 

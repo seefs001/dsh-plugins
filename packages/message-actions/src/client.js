@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  DisclosureRow, JsonBlock, Tag, TextShimmer,
+  DisclosureRow, TextShimmer,
   IconInspectOutlineRegular, IconSparkleRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 
@@ -17,7 +17,7 @@ const EN = {
   followOriginal: 'Use each original reply’s model', selectModel: 'Model', effort: 'Reasoning effort', modelDefault: 'Model default',
   unavailable: '(unavailable)', save: 'Save model', saveAndExplain: 'Save and explain', saving: 'Saving…', saved: 'Model saved',
   refresh: 'Refresh models', unsaved: 'Unsaved changes',
-  tvInspect: 'Inspect', tvResult: 'Result',
+  tvInspect: 'Inspect', tvInput: 'IN', tvOutput: 'OUT',
 }
 const ZH = {
   action: 'Wait, what?', title: 'Wait, what?', close: '关闭', settings: '模型设置', hideSettings: '收起设置',
@@ -30,7 +30,7 @@ const ZH = {
   followOriginal: '沿用每条原回复的模型', selectModel: '模型', effort: '推理强度', modelDefault: '模型默认',
   unavailable: '（不可用）', save: '保存模型', saveAndExplain: '保存并解释', saving: '正在保存…', saved: '模型已保存',
   refresh: '刷新模型列表', unsaved: '未保存',
-  tvInspect: '查看', tvResult: '结果',
+  tvInspect: '查看', tvInput: '输入', tvOutput: '输出',
 }
 const CSS = `
 .dma-entry{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
@@ -105,14 +105,19 @@ const CSS = `
 .dma-tv{display:flex;flex-direction:column}
 .dma-tv-row{min-width:0}
 .dma-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
-.dma-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.dma-tv-summary{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .dma-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
 .dma-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.dma-tv-tag{flex:none;margin-left:6px}
-.dma-tv-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
-.dma-tv-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
-.dma-tv-pre[data-error]{color:var(--dsw-alias-state-error-primary)}
-.dma-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.dma-tv-body{display:flex;flex-direction:column;min-width:0}
+.dma-tv-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.dma-tv-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.dma-tv-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.dma-tv-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.dma-tv-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
+.dma-tv-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.dma-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.dma-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
+.dma-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .dma-tv-inspect:focus-visible{opacity:1}
 @media(hover:hover){.dma-tv:hover .dma-tv-inspect{opacity:1}.dma-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media(hover:none){.dma-tv-inspect{opacity:1}}
@@ -449,13 +454,16 @@ export default {
           : block.error?.code === 'interrupted' ? 'stopped'
             : block.isError ? 'error' : 'ok'
       const running = state === 'preparing' || state === 'running'
-      let summary = ''
-      if (state === 'stopped') summary = t('stopped')
-      else if (state === 'error') summary = text.split('\n')[0] || ''
-      else if (typeof args.messageId === 'string' && args.messageId) summary = args.messageId
-      else if (args.provider && args.model) summary = `${args.provider}/${args.model}`
-      else if (payload?.model) summary = payload.model
-      const expandable = Boolean(text)
+      let detail = ''
+      if (state === 'stopped') detail = t('stopped')
+      else if (state === 'error') detail = text.split('\n')[0] || ''
+      else if (typeof args.messageId === 'string' && args.messageId) detail = args.messageId
+      else if (args.provider && args.model) detail = `${args.provider}/${args.model}`
+      else if (payload?.model) detail = payload.model
+      const summary = state === 'error' || state === 'stopped' ? detail : [action, detail].filter(Boolean).join(' · ')
+      const inputText = Object.keys(args).length > 0 ? JSON.stringify(args, null, 2) : ''
+      const outputText = payload !== null ? JSON.stringify(payload, null, 2) : text
+      const expandable = state !== 'preparing' && Boolean(inputText || outputText)
       const open = expanded && expandable
       return h('div', { className: 'dma-tv', 'data-tool': 'message_actions', 'data-state': state },
         h(DisclosureRow, {
@@ -468,19 +476,22 @@ export default {
           expandOnRowClick: true,
           keepContentWhenOpen: true,
           onToggle: toggle,
-          collapsedContent: state === 'preparing' ? null : h(React.Fragment, null,
-            action ? h(Tag, { className: 'dma-tv-tag', tone: state === 'error' ? 'error' : 'outline' }, action) : null,
-            summary ? h(React.Fragment, null,
-              h('span', { className: 'dma-tv-sep', 'aria-hidden': true }),
-              h('span', { className: `dma-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
-                h(TextShimmer, null, summary))) : null),
+          collapsedContent: state === 'preparing' || !summary ? null : h(React.Fragment, null,
+            h('span', { className: 'dma-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
+            h('span', { className: `dma-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+              h(TextShimmer, null, summary))),
         },
         open ? h('div', { className: 'dma-tv-body' },
-          payload !== null
-            ? h(JsonBlock, { label: t('tvResult'), payload, defaultOpen: true })
-            : h('pre', { className: 'dma-tv-pre', 'data-error': state === 'error' || undefined }, text),
+          h('div', { className: 'dma-tv-io' },
+            inputText ? h('div', { className: 'dma-tv-io-sec' },
+              h('span', { className: 'dma-tv-io-label' }, t('tvInput')),
+              h('span', { className: 'dma-tv-io-text' }, inputText)) : null,
+            inputText && outputText ? h('span', { className: 'dma-tv-io-div', 'aria-hidden': true }) : null,
+            outputText ? h('div', { className: 'dma-tv-io-sec' },
+              h('span', { className: 'dma-tv-io-label' }, t('tvOutput')),
+              h('span', { className: 'dma-tv-io-text', 'data-error': state === 'error' || undefined }, outputText)) : null),
           inspect ? h('button', { type: 'button', className: 'dma-tv-inspect', onClick: inspect },
-            h(IconInspectOutlineRegular, { size: 12 }), t('tvInspect')) : null) : null))
+            h(IconInspectOutlineRegular), t('tvInspect')) : null) : null))
     }
 
     ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({

@@ -2,6 +2,8 @@ window.__ModuleLoader__.load({
   id: 'dsh-canvas',
   factory(require) {
     const React = require('react')
+    let primitives = null
+    try { primitives = require('@deepseek-ai/dsh-client-ui-primitives') } catch {}
     const h = React.createElement
     const KEY = 'dsh-canvas'
     const APPS_PANEL_ID = 'dsh-canvas-apps'
@@ -74,6 +76,9 @@ window.__ModuleLoader__.load({
         openInCanvas: 'Open',
         artifactBuilding: 'Writing artifact…',
         artifactGlobal: 'Global',
+        tvStopped: 'Stopped',
+        tvInspect: 'Inspect',
+        tvOutput: 'OUT',
         fixPrompt: 'Please fix the following errors in `{path}`:\n\n{errors}',
         iteratePrompt: 'Update the canvas `{path}` ({title}):\n{request}',
       },
@@ -141,6 +146,9 @@ window.__ModuleLoader__.load({
         openInCanvas: '打开',
         artifactBuilding: '正在编写画布…',
         artifactGlobal: '全局',
+        tvStopped: '已中止',
+        tvInspect: '查看',
+        tvOutput: '输出',
         fixPrompt: '请修复 `{path}` 中的以下错误：\n\n{errors}',
         iteratePrompt: '请调整画布 `{path}`（{title}）：\n{request}',
       },
@@ -265,13 +273,30 @@ window.__ModuleLoader__.load({
 .cv-dialog::backdrop{background:var(--dsw-alias-bg-mask-1)}
 .cv-dialog-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}
 
-.cv-toolcard{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;margin:4px 0;border-radius:var(--dsw-radius-md,10px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1)}
-.cv-toolcard-main{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 0}
-.cv-toolcard-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--dsw-alias-bg-base);border:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-state-business-primary);flex:none}
-.cv-toolcard-copy{display:flex;flex-direction:column;min-width:0;gap:1px}
-.cv-toolcard-title{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}
-.cv-toolcard-meta{font-size:11.5px;color:var(--dsw-alias-label-tertiary);font-family:var(--ds-font-family-code,ui-monospace,monospace)}
-.cv-toolcard-actions{display:flex;align-items:center;gap:6px;flex:none}
+.cv-tv{position:relative;display:flex;flex-direction:column;min-width:0}
+.cv-tv-row{min-width:0}
+.cv-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.cv-tv-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.cv-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
+.cv-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.cv-tv-suffix{flex:none;margin-left:4px;white-space:nowrap;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.cv-tv-body{display:flex;flex-direction:column;min-width:0}
+.cv-tv-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.cv-tv-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.cv-tv-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.cv-tv-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.cv-tv-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.cv-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.cv-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
+.cv-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
+.cv-tv-inspect:focus-visible{opacity:1}
+.cv-toolcard-actions{position:absolute;top:0;right:0;display:inline-flex;align-items:center;gap:4px;height:calc(24px + var(--dsh-content-font-delta,0px));padding-left:20px;background:linear-gradient(to right,transparent,var(--dsw-alias-bg-base) 18px);opacity:0;transition:opacity 100ms ease}
+.cv-tv:hover>.cv-toolcard-actions,.cv-tv:focus-within>.cv-toolcard-actions{opacity:1}
+.cv-tv-open{display:inline-flex;align-items:center;height:20px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;line-height:16px;cursor:pointer}
+.cv-tv-open:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+@media (hover:hover){.cv-tv:hover .cv-tv-inspect{opacity:1}.cv-tv-inspect:hover,.cv-tv-open:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media (hover:none){.cv-tv-inspect,.cv-toolcard-actions{opacity:1}}
+@media (prefers-reduced-motion:reduce){.cv-tv-inspect,.cv-toolcard-actions{transition:none}}
 
 .cv-apps{display:flex;height:100%;min-height:0;background:var(--dsw-alias-bg-base)}
 .cv-apps-rail{width:260px;flex:none;border-right:.5px solid var(--dsw-alias-border-l1);display:flex;flex-direction:column;min-height:0;background:var(--dsw-alias-bg-layer-1)}
@@ -879,8 +904,12 @@ window.__ModuleLoader__.load({
                 snapshot.canvases.length > 1 && h('span', { className: 'cv-pill', 'data-tone': 'neutral' }, t('activeCount', { n: snapshot.canvases.length })))))
         }
 
-        function CanvasToolCard({ phase, block }) {
+        function CanvasToolCard({ phase, block, inspect, useDisclosure }) {
           const t = useLocale()
+          const [localExpanded, setLocalExpanded] = React.useState(false)
+          const disclosure = typeof useDisclosure === 'function' ? useDisclosure() : null
+          const expanded = disclosure ? disclosure.expanded : localExpanded
+          const toggle = disclosure ? disclosure.toggle : () => setLocalExpanded(v => !v)
           const settled = phase === 'result' && block && 'kind' in block
           const call = settled ? block.call : block
           let args = {}
@@ -894,15 +923,36 @@ window.__ModuleLoader__.load({
           let payload = null
           if (text) { try { payload = JSON.parse(text) } catch {} }
 
-          const running = phase === 'preparing' || !settled
-          const title = payload?.title || args.path || t('title')
+          const errCount = Number(payload?.errorCount ?? 0)
+          const state = phase === 'preparing' ? 'preparing'
+            : !settled ? 'running'
+              : block?.error?.code === 'interrupted' ? 'stopped'
+                : (block?.isError || errCount > 0) ? 'error' : 'ok'
+          const running = state === 'preparing' || state === 'running'
+          const title = payload?.title || ''
           const rel = payload?.relativePath || args.path || ''
           const kind = (payload?.kind || (String(rel).endsWith('.canvas.html') ? 'html' : String(rel).endsWith('.canvas.svg') ? 'svg' : 'react')).toUpperCase()
           const isGlobal = (payload?.scope || args.scope) === 'global'
-          const errCount = Number(payload?.errorCount ?? 0)
-          const isErr = Boolean(block?.isError || errCount > 0)
+          const settledWithCue = state === 'error' || state === 'stopped'
 
-          const openCard = () => {
+          let summary = ''
+          if (state === 'stopped') summary = t('tvStopped')
+          else if (state === 'error') summary = (block?.isError && text ? text.split('\n')[0] : '') || t('tsErrors', { n: errCount || 1 })
+          else if (title && rel && title !== rel) summary = `${title} · ${rel}`
+          else summary = rel || title || (running ? t('artifactBuilding') : '')
+
+          const suffix = settledWithCue ? '' : [
+            kind,
+            isGlobal ? t('artifactGlobal') : '',
+            !running && payload?.revision ? t('revLabel', { n: payload.revision }) : '',
+          ].filter(Boolean).join(' · ')
+
+          const formattedOutput = payload !== null ? JSON.stringify(payload, null, 2) : text
+          const expandable = state !== 'preparing' && Boolean(formattedOutput)
+          const open = expanded && expandable
+
+          const openCard = event => {
+            event?.stopPropagation?.()
             if (isGlobal) {
               if (payload?.path) getSessionStore(GLOBAL_SESSION_ID, '').op({ action: 'select', path: payload.path }).catch(() => {})
               openAppsPage()
@@ -911,19 +961,42 @@ window.__ModuleLoader__.load({
             }
           }
 
-          return h('div', { className: 'cv cv-toolcard', 'data-tool': 'canvas_write' },
-            h('div', { className: 'cv-toolcard-main' },
-              h('div', { className: 'cv-toolcard-icon' }, h(CanvasIcon, { size: 15 })),
-              h('div', { className: 'cv-toolcard-copy' },
-                h('div', { className: 'cv-row' },
-                  h('span', { className: 'cv-toolcard-title cv-ellipsis' }, running ? t('artifactBuilding') : title),
-                  h('span', { className: 'cv-pill', 'data-tone': 'neutral' }, kind),
-                  isGlobal && h('span', { className: 'cv-pill', 'data-tone': 'neutral' }, t('artifactGlobal')),
-                  !running && payload?.revision && h('span', { className: 'cv-pill', 'data-tone': isErr ? 'err' : 'ok' },
-                    isErr ? t('tsErrors', { n: errCount || 1 }) : t('revLabel', { n: payload.revision }))),
-                rel && h('span', { className: 'cv-toolcard-meta cv-ellipsis' }, rel))),
+          const DisclosureRow = primitives?.DisclosureRow
+          const TextShimmer = primitives?.TextShimmer
+          const IconInspect = primitives?.IconInspectOutlineRegular
+          const shimmer = (content, props) => (TextShimmer ? h(TextShimmer, props ?? null, content) : h('span', props ?? null, content))
+
+          const row = DisclosureRow
+            ? h(DisclosureRow, {
+              rowClassName: 'cv-tv-row',
+              icon: h(CanvasIcon, { size: 14 }),
+              title: t('title'),
+              running,
+              open,
+              expandable,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: state === 'preparing' ? null : h(React.Fragment, null,
+                summary ? h(React.Fragment, null,
+                  h('span', { className: 'cv-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
+                  h('span', { className: `cv-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+                    shimmer(summary))) : null,
+                suffix ? shimmer(`· ${suffix}`, { className: 'cv-tv-suffix' }) : null),
+            },
+            open ? h('div', { className: 'cv-tv-body' },
+              h('div', { className: 'cv-tv-io' },
+                h('div', { className: 'cv-tv-io-sec' },
+                  h('span', { className: 'cv-tv-io-label' }, t('tvOutput')),
+                  h('span', { className: 'cv-tv-io-text', 'data-error': state === 'error' || undefined }, formattedOutput))),
+              inspect ? h('button', { type: 'button', className: 'cv-tv-inspect', onClick: inspect },
+                IconInspect ? h(IconInspect) : null, t('tvInspect')) : null) : null)
+            : h('div', { className: 'cv-tv-row' }, t('title'), summary ? ` · ${summary}` : '')
+
+          return h('div', { className: 'cv-tv', 'data-tool': 'canvas_write', 'data-state': state },
+            row,
             !running && h('div', { className: 'cv-toolcard-actions' },
-              h('button', { type: 'button', className: 'cv-btn', 'data-primary': true, onClick: openCard }, t('openInCanvas'))))
+              h('button', { type: 'button', className: 'cv-tv-open', onClick: openCard }, t('openInCanvas'))))
         }
 
         function CanvasWorkspace({ sessionId, cwd, isGlobal, tab, inputActions }) {

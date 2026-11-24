@@ -7,7 +7,6 @@ window.__ModuleLoader__.load({
       IconGlobeOutlineRegular,
       IconInspectOutlineRegular,
       Switch,
-      Tag,
       TextShimmer,
       WebBlock,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
@@ -111,10 +110,16 @@ window.__ModuleLoader__.load({
 .wa-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .wa-summary.wa-err{color:var(--dsw-alias-state-error-primary)}
 .wa-summary.wa-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
-.wa-tag{flex:none;margin-left:6px}
-.wa-body{display:flex;flex-direction:column;gap:6px;margin:4px 0 4px 4px}
-.wa-pre{margin:0;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,10px);background:var(--dsw-alias-markdown-code-block);color:var(--dsw-alias-state-error-primary);font:var(--dsw-font-markdown-code-block-small,12px/18px monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
-.wa-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity .1s}
+.wa-suffix{flex:none;margin-left:4px;white-space:nowrap;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.wa-body{display:flex;flex-direction:column;min-width:0}
+.wa-web{margin:4px 0 4px 4px}
+.wa-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.wa-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.wa-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.wa-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.wa-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.wa-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-state-error-primary)}
+.wa-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .wa-inspect:focus-visible{opacity:1}
 @media (hover:hover){.wa-card:hover .wa-inspect{opacity:1}.wa-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.wa-inspect{opacity:1}}
@@ -228,6 +233,11 @@ window.__ModuleLoader__.load({
           let summary = parsed.query
           if (parsed.state === 'stopped') summary = t('searchStopped')
           else if (parsed.state === 'error' && parsed.text) summary = firstLine(parsed.text)
+          const settledWithCue = parsed.state === 'error' || parsed.state === 'stopped'
+          const suffix = settledWithCue ? '' : [
+            channel,
+            parsed.state === 'ok' ? t('searchSources', { n: parsed.sources.length }) : '',
+          ].filter(Boolean).join(' · ')
 
           return h('div', { className: 'wa-card', 'data-tool': toolName, 'data-state': parsed.state },
             h(DisclosureRow, {
@@ -242,11 +252,10 @@ window.__ModuleLoader__.load({
               onToggle: toggle,
               collapsedContent: parsed.state === 'preparing' ? null : h(React.Fragment, null,
                 summary ? h(React.Fragment, null,
-                  h('span', { className: 'wa-sep', 'aria-hidden': true }),
+                  h('span', { className: 'wa-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
                   h('span', { className: `wa-summary${parsed.state === 'error' ? ' wa-err' : parsed.state === 'stopped' ? ' wa-stop' : ''}` },
                     h(TextShimmer, null, summary))) : null,
-                channel ? h(Tag, { className: 'wa-tag' }, channel) : null,
-                parsed.state === 'ok' ? h(Tag, { className: 'wa-tag' }, t('searchSources', { n: parsed.sources.length })) : null),
+                suffix ? h(TextShimmer, { className: 'wa-suffix' }, summary ? `· ${suffix}` : suffix) : null),
             },
             open ? h('div', { className: 'wa-body' },
               hasWebResult ? h(WebBlock, {
@@ -255,10 +264,14 @@ window.__ModuleLoader__.load({
                 sources: parsed.sources,
                 truncated: false,
                 labels,
+                className: 'wa-web',
               }) : null,
-              hasErrorBody ? h('pre', { className: 'wa-pre' }, parsed.text) : null,
+              hasErrorBody ? h('div', { className: 'wa-io' },
+                h('div', { className: 'wa-io-sec' },
+                  h('span', { className: 'wa-io-label' }, ct('row.output')),
+                  h('span', { className: 'wa-io-text' }, parsed.text))) : null,
               inspect ? h('button', { type: 'button', className: 'wa-inspect', onClick: inspect },
-                h(IconInspectOutlineRegular, { size: 12 }), t('searchInspect')) : null) : null))
+                h(IconInspectOutlineRegular), t('searchInspect')) : null) : null))
         }
 
         for (const key of ['grok_search', 'openai_search']) {
