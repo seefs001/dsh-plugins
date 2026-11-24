@@ -5,11 +5,13 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { visibleModels } from './models.js'
-import { callForwardedMcpTool, discoverDshMcpServers, listForwardedMcpTools } from './mcp-bridge.js'
+import { resolveAdapter } from './adapters.js'
+import { MCP_PROXY_SERVER_NAME, callForwardedMcpTool, callProxyMcpTool, discoverDshMcpServers, listForwardedMcpTools, proxyMcpToolList } from './mcp-bridge.js'
 
 const execFileAsync = promisify(execFile)
 const STDIO_BRIDGE_PATH = fileURLToPath(new URL('./mcp-stdio.js', import.meta.url))
 const MCP_SERVER_NAME = 'dsh_agents'
+const EXCLUDED_FORWARD_SERVERS = new Set([MCP_SERVER_NAME, MCP_PROXY_SERVER_NAME])
 const MCP_PROTOCOL_VERSION = '2025-03-26'
 const MAX_BODY_BYTES = 1024 * 1024
 const MAX_RESULT_CHARS = 12_000
@@ -242,7 +244,7 @@ export class DelegationHub {
   }
 
   forwardedServerNames(caller) {
-    return discoverDshMcpServers(this.ctx, caller, new Set([MCP_SERVER_NAME]))
+    return discoverDshMcpServers(this.ctx, caller, EXCLUDED_FORWARD_SERVERS)
   }
 
   issueToken(sessionId) {
@@ -266,7 +268,7 @@ export class DelegationHub {
     this.sessionTokens.clear()
   }
 
-  mcpServersFor(session) {
+  mcpServersFor(session, adapter) {
     const dshSessionId = session?.native?.sessionId
     if (!dshSessionId) return []
     const delegationUrl = this.endpointUrl(MCP_SERVER_NAME)
@@ -276,6 +278,16 @@ export class DelegationHub {
     const caller = this.ctx.agents?.get?.(dshSessionId)
     const forwarded = this.forwardedServerNames(caller)
     const entries = [this.mcpEntry(MCP_SERVER_NAME, delegationUrl, token, supportsHttp)]
+    if (!forwarded.length) return entries
+    const resolvedAdapter = adapter ?? resolveAdapter({
+      providerId: session?.providerId,
+      capabilities: session?.capabilities,
+    })
+    if (resolvedAdapter?.compactMcpBridge) {
+      const proxyUrl = this.endpointUrl(MCP_PROXY_SERVER_NAME)
+      if (proxyUrl) entries.push(this.mcpEntry(MCP_PROXY_SERVER_NAME, proxyUrl, token, supportsHttp))
+      return entries
+    }
     for (const serverName of forwarded) {
       const serverUrl = this.endpointUrl(serverName)
       if (!serverUrl) continue
@@ -679,6 +691,7 @@ export class DelegationHub {
     }
     const targetServer = resolved.server
     const isDelegation = targetServer === MCP_SERVER_NAME
+    const isProxy = targetServer === MCP_PROXY_SERVER_NAME
     if (req.method === 'DELETE') {
       res.writeHead(204, { 'cache-control': 'no-store' })
       res.end()
@@ -721,7 +734,7 @@ export class DelegationHub {
         result: {
           protocolVersion: typeof message.params?.protocolVersion === 'string' ? message.params.protocolVersion : MCP_PROTOCOL_VERSION,
           capabilities: { tools: {} },
-          serverInfo: { name: isDelegation ? 'dsh-acp-agents' : targetServer, version: '0.2.0' },
+          serverInfo: { name: isDelegation ? 'dsh-acp-agents' : isProxy ? 'dsh-acp-mcp' : targetServer, version: '0.2.0' },
         },
       }, sessionHeader)
       return
@@ -734,7 +747,11 @@ export class DelegationHub {
 
     if (method === 'tools/list') {
       const caller = this.ctx.agents?.get?.(binding.sessionId)
-      const tools = isDelegation ? MCP_TOOL_LIST : listForwardedMcpTools(this.ctx, targetServer, caller)
+      const tools = isDelegation
+        ? MCP_TOOL_LIST
+        : isProxy
+          ? proxyMcpToolList(this.ctx, caller, EXCLUDED_FORWARD_SERVERS)
+          : listForwardedMcpTools(this.ctx, targetServer, caller)
       writeJson(res, 200, { jsonrpc: '2.0', id, result: { tools } }, sessionHeader)
       return
     }
@@ -767,6 +784,9 @@ export class DelegationHub {
               structuredContent: value,
             },
           }, sessionHeader)
+        } else if (isProxy) {
+          const result = await callProxyMcpTool(this.ctx, toolName, toolArgs, caller, controller.signal, EXCLUDED_FORWARD_SERVERS)
+          writeJson(res, 200, { jsonrpc: '2.0', id, result }, sessionHeader)
         } else {
           const result = await callForwardedMcpTool(this.ctx, targetServer, toolName, toolArgs, caller, controller.signal)
           writeJson(res, 200, { jsonrpc: '2.0', id, result }, sessionHeader)

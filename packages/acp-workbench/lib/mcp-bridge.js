@@ -1,9 +1,14 @@
 import { randomBytes } from 'node:crypto'
 
 const MCP_TOOL_PREFIX = 'mcp__'
+export const MCP_PROXY_SERVER_NAME = 'dsh_mcp'
 const SERVER_NAME_RE = /^[A-Za-z0-9_-]{1,32}$/u
 const ACTIVE_MANAGER_STATES = new Set(['connected', 'connecting', 'reconnecting'])
 const BLOCKED_MANAGER_STATES = new Set(['disabled', 'closed', 'failed', 'waiting-credentials', 'waiting-authorization'])
+const MAX_SUMMARY_DESC_CHARS = 160
+const DEFAULT_LIST_LIMIT = 50
+const MAX_LIST_LIMIT = 200
+const MAX_DESC_SERVERS = 12
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -220,4 +225,186 @@ export async function callForwardedMcpTool(ctx, serverName, toolName, toolArgs, 
       content: [{ type: 'text', text: error?.message ?? String(error) }],
     }
   }
+}
+
+function compactDescription(raw, max = MAX_SUMMARY_DESC_CHARS) {
+  if (typeof raw !== 'string') return ''
+  const singleLine = raw.replace(/\s+/gu, ' ').trim()
+  if (singleLine.length <= max) return singleLine
+  return `${singleLine.slice(0, max - 1)}…`
+}
+
+function jsonToolResult(value) {
+  return {
+    content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    structuredContent: value,
+  }
+}
+
+function errorToolResult(text) {
+  return {
+    isError: true,
+    content: [{ type: 'text', text }],
+  }
+}
+
+function parseProxyArguments(raw) {
+  if (raw === undefined || raw === null) return { ok: true, value: {} }
+  if (isPlainObject(raw)) return { ok: true, value: raw }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (!trimmed) return { ok: true, value: {} }
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (isPlainObject(parsed)) return { ok: true, value: parsed }
+    } catch {}
+  }
+  return { ok: false, error: 'arguments must be a JSON object.' }
+}
+
+export function proxyMcpToolList(ctx, caller, excludedNames = new Set()) {
+  const servers = discoverDshMcpServers(ctx, caller, excludedNames)
+  const listed = servers.slice(0, MAX_DESC_SERVERS).join(', ')
+  const suffix = servers.length > MAX_DESC_SERVERS ? `, +${servers.length - MAX_DESC_SERVERS} more` : ''
+  const listDescription = servers.length
+    ? `List or search DSH MCP tools (servers: ${listed}${suffix}).`
+    : 'List or search DSH MCP tools.'
+  return [
+    {
+      name: 'list_tools',
+      description: listDescription,
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          server: { type: 'string', description: 'MCP server name.' },
+          query: { type: 'string', description: 'Filter keywords.' },
+          limit: { type: 'integer', description: 'Max items (default 50).' },
+        },
+      },
+    },
+    {
+      name: 'get_tool_schema',
+      description: 'Get input schema for a DSH MCP tool.',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          server: { type: 'string' },
+          tool: { type: 'string' },
+        },
+        required: ['server', 'tool'],
+      },
+    },
+    {
+      name: 'call_tool',
+      description: 'Call a DSH MCP tool by server and name.',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          server: { type: 'string' },
+          tool: { type: 'string' },
+          arguments: { type: 'object' },
+        },
+        required: ['server', 'tool'],
+      },
+    },
+  ]
+}
+
+export async function callProxyMcpTool(ctx, toolName, toolArgs, caller, signal, excludedNames = new Set()) {
+  const args = isPlainObject(toolArgs) ? toolArgs : {}
+  const availableServers = discoverDshMcpServers(ctx, caller, excludedNames)
+  const availableSet = new Set(availableServers)
+
+  if (toolName === 'list_tools') {
+    const server = typeof args.server === 'string' ? args.server.trim() : ''
+    const query = typeof args.query === 'string' ? args.query.trim() : ''
+    const rawLimit = Number(args.limit)
+    const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_LIST_LIMIT) : DEFAULT_LIST_LIMIT
+
+    if (!server && !query) {
+      let totalTools = 0
+      const servers = availableServers.map(name => {
+        const count = listForwardedMcpTools(ctx, name, caller).length
+        totalTools += count
+        return { name, toolCount: count }
+      })
+      return jsonToolResult({
+        servers,
+        totalTools,
+        hint: 'Pass server and/or query to list matching tools, then get_tool_schema and call_tool.',
+      })
+    }
+
+    if (server && !availableSet.has(server)) {
+      return errorToolResult(`Unknown or inactive MCP server "${server}". Available servers: ${availableServers.join(', ') || '(none)'}.`)
+    }
+
+    const targetServers = server ? [server] : availableServers
+    const terms = query ? query.toLowerCase().split(/\s+/u).filter(Boolean) : []
+    const matched = []
+    for (const srv of targetServers) {
+      for (const item of listForwardedMcpTools(ctx, srv, caller)) {
+        if (terms.length) {
+          const haystack = `${srv} ${item.name} ${item.description}`.toLowerCase()
+          if (!terms.every(term => haystack.includes(term))) continue
+        }
+        matched.push({
+          server: srv,
+          name: item.name,
+          description: compactDescription(item.description),
+        })
+      }
+    }
+    const items = matched.slice(0, limit)
+    return jsonToolResult({
+      servers: targetServers,
+      total: matched.length,
+      returned: items.length,
+      truncated: matched.length > items.length,
+      tools: items,
+    })
+  }
+
+  if (toolName === 'get_tool_schema') {
+    const server = typeof args.server === 'string' ? args.server.trim() : ''
+    const targetTool = typeof args.tool === 'string' ? args.tool.trim() : ''
+    if (!server || !targetTool) return errorToolResult('Both "server" and "tool" are required.')
+    if (!availableSet.has(server)) {
+      return errorToolResult(`Unknown or inactive MCP server "${server}". Available servers: ${availableServers.join(', ') || '(none)'}.`)
+    }
+    const definition = findForwardedDefinition(ctx, server, targetTool, caller)
+    if (!definition) {
+      const candidates = listForwardedMcpTools(ctx, server, caller)
+      const lower = targetTool.toLowerCase()
+      const suggestions = candidates
+        .map(item => item.name)
+        .filter(name => name.toLowerCase().includes(lower) || lower.includes(name.toLowerCase()))
+        .slice(0, 8)
+      const hint = suggestions.length ? ` Similar tools: ${suggestions.join(', ')}.` : ''
+      return errorToolResult(`Unknown tool "${targetTool}" on MCP server "${server}".${hint}`)
+    }
+    return jsonToolResult({
+      server,
+      tool: targetTool,
+      description: typeof definition.description === 'string' ? definition.description : '',
+      inputSchema: normalizeInputSchema(definition.parameters),
+    })
+  }
+
+  if (toolName === 'call_tool') {
+    const server = typeof args.server === 'string' ? args.server.trim() : ''
+    const targetTool = typeof args.tool === 'string' ? args.tool.trim() : ''
+    if (!server || !targetTool) return errorToolResult('Both "server" and "tool" are required.')
+    if (!availableSet.has(server)) {
+      return errorToolResult(`Unknown or inactive MCP server "${server}". Available servers: ${availableServers.join(', ') || '(none)'}.`)
+    }
+    const parsedArgs = parseProxyArguments(args.arguments)
+    if (!parsedArgs.ok) return errorToolResult(parsedArgs.error)
+    return callForwardedMcpTool(ctx, server, targetTool, parsedArgs.value, caller, signal)
+  }
+
+  return errorToolResult(`Unknown dsh_mcp tool "${String(toolName)}". Available: list_tools, get_tool_schema, call_tool.`)
 }

@@ -787,7 +787,7 @@ export class Workbench {
       const localHistory = session.native && !captureImport && (session.historyLoaded || session.native.runs.some(run => run.state === 'completed'))
       const method = !session.remoteId ? 'session/new' : canResume && (localHistory || !canLoad) ? 'session/resume' : 'session/load'
       const useInitialConfig = Array.isArray(initialConfigOptions) && initialConfigOptions.length > 0 && !!session.capabilities.sessionCapabilities?.options
-      const injectedMcp = typeof this.mcpServersFor === 'function' ? (this.mcpServersFor(session) ?? []) : []
+      const injectedMcp = typeof this.mcpServersFor === 'function' ? (this.mcpServersFor(session, runtime.adapter) ?? []) : []
       const baseParams = { cwd: session.cwd, mcpServers: injectedMcp, ...(session.remoteId ? { sessionId: session.remoteId } : {}) }
       const plainBaseParams = injectedMcp.length ? { ...baseParams, mcpServers: [] } : baseParams
       const params = useInitialConfig ? { ...baseParams, configOptions: initialConfigOptions } : baseParams

@@ -1076,8 +1076,8 @@ export class NativeAcp {
     this.delegation = new DelegationHub(this, isRoute)
   }
 
-  mcpServersFor(session) {
-    return this.delegation.mcpServersFor(session)
+  mcpServersFor(session, adapter) {
+    return this.delegation.mcpServersFor(session, adapter)
   }
 
   forwardedMcpServerNames(agent) {

@@ -93,6 +93,26 @@ export function hasToolInput(tool) {
 }
 
 const DSH_DELEGATION_TOOLS = new Set(['list_providers', 'spawn_agent', 'list_agents', 'send_message', 'read_agent_result', 'interrupt_agent'])
+const DSH_PROXY_MCP_TOOLS = new Set(['list_tools', 'get_tool_schema', 'call_tool'])
+
+function unwrapProxyMcpCall(toolName, raw) {
+  if (toolName === 'call_tool' && firstText(raw?.server) && firstText(raw?.tool)) {
+    let args = raw.arguments
+    if (typeof args === 'string') {
+      try {
+        const parsed = JSON.parse(args)
+        if (isPlainObject(parsed)) args = parsed
+      } catch {}
+    }
+    return {
+      server: raw.server.trim(),
+      name: raw.tool.trim(),
+      wireName: `mcp__${raw.server.trim()}__${raw.tool.trim()}`,
+      args: args ?? {},
+    }
+  }
+  return { server: 'dsh_mcp', name: toolName, wireName: `mcp__dsh_mcp__${toolName}`, args: raw }
+}
 
 function mcpIdentity(tool, options = {}) {
   const wireName = firstText(tool.name)
@@ -104,7 +124,10 @@ function mcpIdentity(tool, options = {}) {
     if (name.startsWith('mcp__')) {
       const index = name.indexOf('__', 5)
       if (index > 5 && firstText(name.slice(5, index)) && firstText(name.slice(index + 2))) {
-        return { server: name.slice(5, index), name: name.slice(index + 2), wireName: name, args: raw }
+        const server = name.slice(5, index)
+        const toolName = name.slice(index + 2)
+        if (server === 'dsh_mcp' && DSH_PROXY_MCP_TOOLS.has(toolName)) return unwrapProxyMcpCall(toolName, raw)
+        return { server, name: toolName, wireName: name, args: raw }
       }
       return null
     }
@@ -113,6 +136,13 @@ function mcpIdentity(tool, options = {}) {
       const toolName = name.slice(agyPrefix.length)
       if (DSH_DELEGATION_TOOLS.has(toolName)) {
         return { server: 'dsh_agents', name: toolName, wireName: `mcp__dsh_agents__${toolName}`, args: raw }
+      }
+    }
+    const agyProxyPrefix = 'mcp_dsh_mcp_'
+    if (name.startsWith(agyProxyPrefix)) {
+      const toolName = name.slice(agyProxyPrefix.length)
+      if (DSH_PROXY_MCP_TOOLS.has(toolName)) {
+        return unwrapProxyMcpCall(toolName, raw)
       }
     }
     if (name.startsWith('mcp_') && Array.isArray(options?.mcpServers) && options.mcpServers.length > 0) {

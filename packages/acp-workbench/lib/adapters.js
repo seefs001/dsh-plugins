@@ -24,6 +24,7 @@ const ADAPTERS = {
     mapDefaultToAuto: false,
     probePerModelConfig: false,
     asyncToolWakeup: true,
+    compactMcpBridge: true,
   },
   'claude-code': {
     id: 'claude-code',
