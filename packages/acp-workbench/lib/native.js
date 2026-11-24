@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { agySubagentIdOf, applyLateCompactions, cliParentOf, createTrace, cursorTaskToolUpdate, foldEvents, foldTerminal, mergePermissionToolCall, mergeToolUpdate, namedPlan, recordAgySubagentLaunch, resolveAgyParent } from './trace.js'
 import { connectionNotices } from './notices.js'
 import { installContinuations } from './continuations.js'
+import { DelegationHub } from './delegation.js'
 import {
   advertisedModes,
   extractLegacyOverrides,
@@ -1043,6 +1044,21 @@ export class NativeAcp {
     this.closing = false
     this.traces = new Map()
     this.sessionOptions = new Map()
+    this.delegation = new DelegationHub(this, isRoute)
+  }
+
+  mcpServersFor(session) {
+    return this.delegation.mcpServersFor(session)
+  }
+
+  hasRunningChildren(agent) {
+    try {
+      const cap = this.ctx.subagents.capacityOf(agent)
+      const selfRunning = agent.session.header.origin === 'subagent' ? 1 : 0
+      return (cap?.running ?? 0) > selfRunning
+    } catch {
+      return false
+    }
   }
 
   preferenceKey(sessionId, route) { return `${sessionId}:${route}` }
@@ -1154,6 +1170,7 @@ export class NativeAcp {
   async initialize() {
     this.syncProviders()
     installContinuations(this, isRoute)
+    this.delegation.installHostTools()
     // external: DSH workingDirectory falls back to header.cwd when a worktree path is missing
     this.disposers.push(this.ctx.on('working-directory/access', async ({ agent, path, signal }, next) => {
       if (path === null && isRoute(agent.model.current()?.provider)) await this.guardDirectory(agent, this.cwd(agent), signal)
@@ -1190,10 +1207,12 @@ export class NativeAcp {
       return active ? [...rest, { kind: 'acp-session' }] : rest
     }))
     this.disposers.push(this.ctx.on('workspace/session-archived', async ({ sessionId }) => {
+      this.delegation.revokeSession(sessionId)
       await Promise.all(this.sessions(sessionId, false).map(s => this.manager.disconnect(s, 'native-session-archived')))
       this.manager.changed()
     }))
     this.disposers.push(this.ctx.on('agent/disposed', ({ agent }) => {
+      this.delegation.revokeSession(agent.id)
       const current = this.active.get(agent.id)
       if (current) {
         current.controller.abort(new Error('Native DSH agent disposed'))
@@ -1915,6 +1934,7 @@ export class NativeAcp {
 
   async close() {
     this.closing = true
+    this.delegation.clearTokens()
     const operations = [...this.active.values(), ...this.maintenance]
     for (const { controller } of operations) controller.abort(new Error('ACP integration unloaded'))
     await Promise.allSettled(operations.map(value => value.done))

@@ -9,7 +9,7 @@
 | 入口 | 方式 | 适用场景 |
 | --- | --- | --- |
 | **会话内直接执行** | 在模型选择器选中 `acp-*` 提供方下的模型 | 将整条 DSH 会话交给外部 CLI，保留原生输入框、附件、停止按钮与消息时间线 |
-| **DSH 委派子任务** | 保留普通 DSH 主模型，调用 `subagent_cursor`、`subagent_antigravity` 或 `subagent_acp_claude_code` | 由 DSH 主模型拆解任务、并行委派并用 `send_message` 续聊，父会话直接审批 |
+| **跨引擎双向委派** | 原生 DSH 与任意 ACP CLI 共用聚合工具 `spawn_agent`、`list_providers`、`send_message`、`list_agents`、`read_agent_result`、`interrupt_agent` | 任意方向互相派生可续聊子会话（支持 `isolation: "worktree"` 隔离工作树），结果自动回流并在 2 秒静默窗口内批合并唤醒父 Agent |
 | **ACP 工作台**（左侧栏） | 提供方与模型目录管理中心 | 配置本机 CLI 提供方、检测协议能力、拉取与筛选展示在 DSH 模型选择器中的模型 |
 
 父代理用 `send_message` 给自己的 ACP 子代理补充要求时，回执只确认 DSH 已接收。正在运行的外部 CLI 不会被打断；补充要求留给下一次 ACP 请求。要改变当前请求，请由用户在工作台使用实时引导，且 CLI 必须声明支持该能力。
@@ -30,7 +30,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/ac
 dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 ```
 
-`cordis.patch.yml` 会自动注册插件及 `subagent_cursor`、`subagent_antigravity`、`subagent_acp_claude_code` 三个子代理工具（`subagent_acp_claude_code` 与 DSH 内置非 ACP 工具 `subagent_claude_code` 并存）。
+`cordis.patch.yml` 会自动注册插件，为原生 DSH 模型注册聚合委派工具（`spawn_agent`、`list_providers`、`read_agent_result`，搭配 DSH 内置 `send_message` / `list_agents` / `interrupt_agent`），并在连接外部 ACP CLI 时自动注入本机 Session-scoped MCP 桥接（`http` 优先，不支持时自动回退 `stdio`）。
 
 ### 2. 配置本机 CLI
 

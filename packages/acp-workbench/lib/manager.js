@@ -67,6 +67,7 @@ export class Workbench {
     modelsChanged,
     log,
     autoApprove,
+    mcpServersFor,
     asyncWakeup,
     idleDisconnectMs,
     maxIdleRuntimes,
@@ -79,6 +80,7 @@ export class Workbench {
     this.modelsChanged = modelsChanged
     this.log = log
     this.autoApprove = autoApprove
+    this.mcpServersFor = mcpServersFor
     this.asyncWakeupSettleMs = asyncWakeup?.settleMs ?? ASYNC_WAKEUP_SETTLE_MS
     this.asyncWakeupSilentSettleMs = asyncWakeup?.silentSettleMs ?? ASYNC_WAKEUP_SILENT_SETTLE_MS
     this.asyncWakeupIdleTimeoutMs = asyncWakeup?.idleTimeoutMs ?? ASYNC_WAKEUP_IDLE_TIMEOUT_MS
@@ -785,20 +787,33 @@ export class Workbench {
       const localHistory = session.native && !captureImport && (session.historyLoaded || session.native.runs.some(run => run.state === 'completed'))
       const method = !session.remoteId ? 'session/new' : canResume && (localHistory || !canLoad) ? 'session/resume' : 'session/load'
       const useInitialConfig = Array.isArray(initialConfigOptions) && initialConfigOptions.length > 0 && !!session.capabilities.sessionCapabilities?.options
-      const baseParams = { cwd: session.cwd, mcpServers: [], ...(session.remoteId ? { sessionId: session.remoteId } : {}) }
+      const injectedMcp = typeof this.mcpServersFor === 'function' ? (this.mcpServersFor(session) ?? []) : []
+      const baseParams = { cwd: session.cwd, mcpServers: injectedMcp, ...(session.remoteId ? { sessionId: session.remoteId } : {}) }
+      const plainBaseParams = injectedMcp.length ? { ...baseParams, mcpServers: [] } : baseParams
       const params = useInitialConfig ? { ...baseParams, configOptions: initialConfigOptions } : baseParams
       const from = session.eventSeq + 1
-      let result
-      try { result = await connection.request(method, params, 60_000) } catch (error) {
-        if (useInitialConfig && error instanceof RpcError && error.code === -32602 && this.isCurrent(session, runtime)) {
-          try { result = await connection.request(method, baseParams, 60_000) } catch (retryError) {
-            if (method !== 'session/resume' || !canLoad || !(retryError instanceof RpcError) || retryError.code !== -32601 || !this.isCurrent(session, runtime)) throw retryError
-            result = await connection.request('session/load', baseParams, 60_000)
+      const openSession = async (targetParams, fallbackBase) => {
+        try {
+          return await connection.request(method, targetParams, 60_000)
+        } catch (error) {
+          if (useInitialConfig && error instanceof RpcError && error.code === -32602 && this.isCurrent(session, runtime)) {
+            try { return await connection.request(method, fallbackBase, 60_000) } catch (retryError) {
+              if (method !== 'session/resume' || !canLoad || !(retryError instanceof RpcError) || retryError.code !== -32601 || !this.isCurrent(session, runtime)) throw retryError
+              return connection.request('session/load', fallbackBase, 60_000)
+            }
           }
-        } else {
           if (method !== 'session/resume' || !canLoad || !(error instanceof RpcError) || error.code !== -32601 || !this.isCurrent(session, runtime)) throw error
-          result = await connection.request('session/load', params, 60_000)
+          return connection.request('session/load', targetParams, 60_000)
         }
+      }
+      let result
+      try {
+        result = await openSession(params, baseParams)
+      } catch (error) {
+        if (!injectedMcp.length || !(error instanceof RpcError) || error.code !== -32602 || !this.isCurrent(session, runtime)) throw error
+        this.log?.(`ACP ${session.providerId} rejected injected mcpServers (${error.message}); retrying without MCP bridge`)
+        const plainParams = useInitialConfig ? { ...plainBaseParams, configOptions: initialConfigOptions } : plainBaseParams
+        result = await openSession(plainParams, plainBaseParams)
       }
       if (!this.isCurrent(session, runtime)) throw new Error('Connection was canceled during startup')
       session.historyLoaded = true

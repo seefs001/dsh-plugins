@@ -44,7 +44,7 @@ window.__ModuleLoader__.load({
       tabProviders: 'Providers', tabRecords: 'Activity', live: 'Live', offline: 'Reconnecting…',
       engine: 'ACP engine',
       engineHint: 'Pick an ACP model in the normal model picker to use the standard composer, attachments, and Stop button.',
-      delegateHint: 'To delegate from a DSH model, use subagent_cursor, subagent_antigravity, or subagent_acp_claude_code and continue with send_message.',
+      delegateHint: 'Delegate across native DSH and ACP CLIs (Cursor, Antigravity, Claude Code) in any direction via spawn_agent, list_providers, send_message, list_agents, and read_agent_result.',
       warning: 'External CLIs run outside the DSH sandbox with their own login, tools, and file access.',
       connect: 'Connect', reconnect: 'Reconnect', disconnect: 'Disconnect',
       newContext: 'New external context', newContextConfirm: 'Start a new external context from the next message? DSH history and earlier records are kept.',
@@ -159,7 +159,9 @@ window.__ModuleLoader__.load({
       'tool.grepPaths': 'Search', 'tool.enterPlanMode': 'Enter plan mode', 'tool.exitPlanMode': 'Exit plan mode', 'tool.memoryRecall': 'Memory recall',
       'tool.semanticSearch': 'Semantic search', 'tool.workflow': 'Workflow', 'tool.task': 'Task', 'tool.schedule': 'Schedule',
       'tool.swarm': 'Swarm', 'tool.subagents': 'Subagents', 'tool.defineSubagent': 'Define subagent', 'tool.monitor': 'Monitor',
+      'tool.spawnAgent': 'Delegate agent', 'tool.listProviders': 'List engines', 'tool.readAgentResult': 'Read agent result',
       'tool.openPlanFile': 'Open plan file', 'tool.inspect': 'Inspect', 'tool.stopped': 'Stopped',
+      openInSidebar: 'Open in sidebar', attentionIndicator: '{n} ACP subagents waiting for your response',
       qRecommended: 'Recommended', qCustomPlaceholder: 'Type your answer', qNext: 'Next', qPrev: 'Previous question', qNextAria: 'Next question', qSubmit: 'Submit',
       qMinimize: 'Collapse the question card', qMaximize: 'Expand the question card', qCancel: 'Dismiss all questions',
       qIncomplete: 'Please complete this question first.', qUnanswered: 'Please select an option or enter a custom answer.', qRangeInvalid: 'Enter a value within the allowed range.',
@@ -203,7 +205,7 @@ window.__ModuleLoader__.load({
       tabProviders: '提供方', tabRecords: '活动', live: '实时', offline: '正在重连…',
       engine: 'ACP 引擎',
       engineHint: '在模型选择器中选择 ACP 模型，照常使用输入框、附件和停止按钮。',
-      delegateHint: '保留普通 DSH 模型时，可通过 subagent_cursor、subagent_antigravity 或 subagent_acp_claude_code 委派，并用 send_message 续聊。',
+      delegateHint: '原生 DSH 与 ACP CLI（Cursor、Antigravity、Claude Code）之间均可通过 spawn_agent、list_providers、send_message、list_agents、read_agent_result 双向互调。',
       warning: '外部 CLI 不受 DSH 沙箱限制，使用自身的登录态、工具和文件权限。',
       connect: '连接', reconnect: '重新连接', disconnect: '断开',
       newContext: '新建外部上下文', newContextConfirm: '从下一条消息开始新建外部上下文？DSH 历史和旧记录保留。',
@@ -317,7 +319,9 @@ window.__ModuleLoader__.load({
       'tool.grepPaths': '搜索', 'tool.enterPlanMode': '进入计划模式', 'tool.exitPlanMode': '退出计划模式', 'tool.memoryRecall': '召回记忆',
       'tool.semanticSearch': '语义搜索', 'tool.workflow': '工作流', 'tool.task': '任务', 'tool.schedule': '定时任务',
       'tool.swarm': '多代理协作', 'tool.subagents': '子代理管理', 'tool.defineSubagent': '定义子代理', 'tool.monitor': '监控',
+      'tool.spawnAgent': '委派子智能体', 'tool.listProviders': '查询可用引擎', 'tool.readAgentResult': '读取子任务结果',
       'tool.openPlanFile': '打开计划文件', 'tool.inspect': '查看', 'tool.stopped': '已中止',
+      openInSidebar: '右侧分屏打开', attentionIndicator: '{n} 个 ACP 子任务等待回应',
       qRecommended: '推荐', qCustomPlaceholder: '输入你的答案', qNext: '下一题', qPrev: '上一题', qNextAria: '下一题', qSubmit: '提交',
       qMinimize: '收起问题卡片', qMaximize: '展开问题卡片', qCancel: '放弃整组问题',
       qIncomplete: '请先完成这道问题。', qUnanswered: '请选择一个选项或填写自定义答案。', qRangeInvalid: '请输入符合范围要求的数值。',
@@ -500,6 +504,8 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-child-ask{margin:4px 6px 6px}
 .aw-child-body{margin:2px 6px 6px;padding:6px 0 2px 26px;border-top:.5px solid var(--dsw-alias-border-l1)}
 .aw-child-error{margin:2px 6px 4px 32px}
+.aw-panel-attention{background:var(--dsw-alias-state-warn-primary)}
+.aw-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
 .aw-review-patch{overflow:auto;max-width:100%;font:12px/1.55 ui-monospace,monospace}.aw-patch-line{display:grid;grid-template-columns:4em 4em minmax(max-content,1fr);min-width:max-content}.aw-patch-line>span,.aw-patch-line>button{text-align:end;padding:0 6px;color:var(--dsw-alias-label-tertiary)}.aw-patch-line>button{font:inherit;background:none;border:0;cursor:pointer;text-decoration:underline}.aw-patch-line>code{font:inherit;white-space:pre;padding-inline-start:7px}.aw-patch-line[data-side=add]{background:var(--dsw-alias-code-diff-added)}.aw-patch-line[data-side=del]{background:var(--dsw-alias-code-diff-deleted)}.aw-patch-hunk{color:var(--dsw-alias-label-secondary);white-space:pre;padding:3px 0}.aw-review-preview{border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:10px;min-width:0}
 .aw-task-lane{min-width:0;border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:8px;margin-inline-start:5px}.aw-task-origin{font-size:11px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}.aw-task-nav{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}.aw-task-nav>.aw-strong{overflow-wrap:anywhere}.aw-task-scope{display:grid;gap:4px;padding:7px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.aw-task-progress{min-width:0;font-size:13px}.aw-task-progress .aw-text{max-height:12em;overflow:auto}
@@ -676,6 +682,26 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-tb-chev{display:inline-flex;flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms ease}
 .aw-tb-btn[data-tone=plan] .aw-tb-chev{color:currentColor}
 .aw-tb-chev[data-open=true]{transform:rotate(180deg)}
+.aw-ctx-root{display:inline-flex;align-items:center;flex:none}
+.aw-ctx-btn{--aw-ctx-tint:var(--dsw-alias-label-secondary)}
+.aw-ctx-btn[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover);--aw-ctx-tint:var(--dsw-alias-label-primary)}
+@media (hover:hover){.aw-ctx-btn:hover{--aw-ctx-tint:var(--dsw-alias-label-primary)}}
+.aw-ctx-btn[data-tone=warn],.aw-ctx-btn[data-tone=warn]:hover,.aw-ctx-btn[data-tone=warn][aria-expanded=true]{--aw-ctx-tint:var(--dsw-alias-state-warn-primary)}
+.aw-ctx-btn[data-tone=danger],.aw-ctx-btn[data-tone=danger]:hover,.aw-ctx-btn[data-tone=danger][aria-expanded=true]{--aw-ctx-tint:var(--dsw-alias-state-error-primary)}
+.aw-ctx-track{fill:none;stroke:var(--dsw-alias-border-l3);stroke-width:2}
+.aw-ctx-fill{fill:none;stroke:var(--aw-ctx-tint);stroke-width:2;stroke-linecap:round;transition:stroke 120ms ease,stroke-dasharray 180ms ease}
+.aw-ctx-pop{position:fixed;inset:auto;margin:0;box-sizing:border-box;width:min(280px,calc(100vw - 24px));padding:12px;border:0;border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;overflow:auto;overscroll-behavior:contain;--aw-ctx-tint:var(--dsw-alias-label-secondary)}
+.aw-ctx-pop:not(:popover-open){display:none}
+.aw-ctx-pop[data-tone=warn]{--aw-ctx-tint:var(--dsw-alias-state-warn-primary)}
+.aw-ctx-pop[data-tone=danger]{--aw-ctx-tint:var(--dsw-alias-state-error-primary)}
+.aw-ctx-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.aw-ctx-title{color:var(--dsw-alias-label-tertiary);font-size:12px}
+.aw-ctx-pct{font-weight:500;color:var(--dsw-alias-label-primary)}
+.aw-ctx-pop[data-tone] .aw-ctx-pct{color:var(--aw-ctx-tint)}
+.aw-ctx-nums{margin-top:4px;font-size:13px;font-weight:500;line-height:20px;color:var(--dsw-alias-label-primary)}
+.aw-ctx-bar{height:4px;margin:8px 0 10px;border-radius:999px;background:var(--dsw-alias-interactive-bg-hover);overflow:hidden}
+.aw-ctx-bar>i{display:block;height:100%;border-radius:999px;background:var(--aw-ctx-tint)}
+.aw-ctx-meta{display:flex;flex-direction:column;gap:3px}
 .aw-v2-trace{display:flex;flex-direction:column;gap:6px;margin-top:4px;min-width:0}
 .aw-v2-trace-btn{display:inline-flex;align-items:center;align-self:flex-start;gap:6px;height:24px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:var(--dsw-alias-turn-trigger-bg);color:var(--dsw-alias-label-tertiary);font:inherit;font-size:11px;line-height:16px;cursor:pointer;transition:background-color 120ms ease,color 120ms ease,border-color 120ms ease}
 @media (hover:hover){.aw-v2-trace-btn:hover{background:var(--dsw-alias-turn-trigger-bg-hover);border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary)}}
@@ -3333,8 +3359,6 @@ button.aw-child-trigger:focus-visible{outline:none}
             error || view.error ? h('p', { role: 'alert', className: 'aw-error' }, error || view.error) : null))
         }
 
-        const GROUPS = ['attention', 'working', 'review', 'recent', 'history']
-
         function SteerBar({ sessionId, externalId, view, disabled }) {
           const tt = useT()
           const [text, setText] = React.useState('')
@@ -3351,7 +3375,6 @@ button.aw-child-trigger:focus-visible{outline:none}
         }
 
         function NativeDock(props) {
-          const tt = useT()
           const canWrite = props.useAccess('session/prompt')
           const modelSelection = typeof props.useProjection === 'function' ? props.useProjection('modelSelection') : undefined
           const modelKey = modelSelection ? `${modelSelection.provider ?? ''}/${modelSelection.model ?? ''}` : undefined
@@ -3362,20 +3385,26 @@ button.aw-child-trigger:focus-visible{outline:none}
           const provider = data?.providers.find(p => p.route === data.selected?.provider)
           const binding = provider ? sessions.findLast(s => s.native.sessionId === props.sessionId && s.native.route === provider.route && !s.native.retired) : null
           useCommandScope(props.sessionId, canWrite && data?.status === 'idle' && !view.error && binding?.state === 'idle' && !binding.archived ? binding.id : null, data?.commandStamp, provider?.label)
-          const children = sessions.filter(s => s.native.sessionId !== props.sessionId && !s.native.retired && !s.archived)
-          const visible = children.filter(s => ['attention', 'working', 'review'].includes(s.activity.group)).toSorted((a, b) => GROUPS.indexOf(a.activity.group) - GROUPS.indexOf(b.activity.group))
-          const quiet = children.filter(s => !['attention', 'working', 'review'].includes(s.activity.group))
-          const contextReport = binding && !binding.archived && data.contextReport?.externalId === binding.id ? data.contextReport : null
+          const attentionChildren = sessions.filter(s => s.native.sessionId !== props.sessionId && !s.native.retired && !s.archived && s.interactions.length > 0)
           const notices = binding && !binding.archived && data.noticeFeed?.externalId === binding.id && data.noticeFeed.remoteId === binding.remoteId && data.noticeFeed.items.length ? data.noticeFeed : null
           const canSteer = !!(binding && !binding.archived && data?.controls?.canSteer && canWrite)
-          if (!notices && !contextReport && !own.length && !children.length && !canSteer && !view.error) return null
+          if (!notices && !own.length && !attentionChildren.length && !canSteer && !view.error) return null
           return h('div', { className: 'acpw aw-dock' },
             own.flatMap(s => s.interactions.map(item => h(InteractionCard, { key: item.id, item, sessionId: s.id, cwd: s.cwd, run: view.run, disabled: view.busy || !canWrite }))),
             canSteer ? h(SteerBar, { key: 'steer:' + binding.id, sessionId: props.sessionId, externalId: binding.id, view, disabled: view.busy }) : null,
             notices ? h(ConnectionNotices, { key: 'notice:' + binding.id + ':' + notices.connection, report: notices }) : null,
-            contextReport ? h(ContextReport, { key: 'context:' + binding.id, report: contextReport, title: tt('contextRecent') }) : null,
-            children.length ? h(ChildrenCard, { key: props.sessionId, childrenList: children, visible, quiet, sessionId: props.sessionId, view, canWrite }) : null,
+            attentionChildren.length ? h(ChildrenCard, { key: props.sessionId, childrenList: attentionChildren, visible: attentionChildren, quiet: EMPTY, sessionId: props.sessionId, view, canWrite }) : null,
             view.error ? h('p', { className: 'aw-error', role: 'alert' }, view.error) : null)
+        }
+
+        function AcpAttentionIndicator({ sessionId, panelShown }) {
+          const tt = useT()
+          const view = useNative(sessionId)
+          const sessions = view.data?.sessions ?? EMPTY
+          const waiting = sessions.filter(s => s.native.sessionId !== sessionId && !s.native.retired && !s.archived && s.interactions.length > 0).length
+          if (panelShown || waiting === 0) return null
+          return h('span', { className: 'aw-panel-attention', 'data-acp-attention': '' },
+            h('span', { className: 'aw-sr-only' }, tt('attentionIndicator', { n: waiting })))
         }
 
         const traceMatch = event => ({ id: `${event.data.turn}:${event.data.step}`, role: 'start' })
@@ -3796,6 +3825,122 @@ button.aw-child-trigger:focus-visible{outline:none}
             }))
         }
 
+        const CTX_RING_R = 5.75
+        const CTX_RING_C = 2 * Math.PI * CTX_RING_R
+
+        function NativeContextRing({ sessionId, useProjection }) {
+          const tt = useT()
+          const modelSelection = typeof useProjection === 'function' ? useProjection('modelSelection') : undefined
+          const modelKey = modelSelection ? `${modelSelection.provider ?? ''}/${modelSelection.model ?? ''}` : undefined
+          const view = useNative(sessionId, modelKey)
+          const data = view.data
+          const sessions = data?.sessions ?? EMPTY
+          const provider = data?.providers.find(p => p.route === data.selected?.provider)
+          const binding = provider ? sessions.findLast(s => s.native.sessionId === sessionId && s.native.route === provider.route && !s.native.retired) : null
+          const report = binding && !binding.archived && data.contextReport?.externalId === binding.id ? data.contextReport : null
+          const w = report?.window
+          const available = Boolean(w && w.size > 0)
+          const [open, setOpen] = React.useState(false)
+          const btnRef = React.useRef(null)
+          const popRef = React.useRef(null)
+          const wasOpenRef = React.useRef(false)
+          const id = React.useId()
+
+          React.useEffect(() => {
+            if (!available && open) {
+              popRef.current?.hidePopover?.()
+              setOpen(false)
+            }
+          }, [available, open])
+
+          if (!available) return null
+
+          const ratio = Math.min(1, Math.max(0, w.used / w.size))
+          const percent = Math.round(ratio * 100)
+          const dash = ratio > 0 ? Math.max(CTX_RING_C * 0.04, CTX_RING_C * ratio) : 0
+          const tone = percent >= 95 ? 'danger' : percent >= 80 ? 'warn' : undefined
+          const label = tt('usageContext', { used: number(w.used), size: number(w.size), percent: number(percent) })
+
+          const onPointerDown = () => {
+            wasOpenRef.current = Boolean(popRef.current?.matches?.(':popover-open'))
+          }
+
+          const toggle = () => {
+            const panel = popRef.current
+            const anchorEl = btnRef.current
+            if (!panel || !anchorEl || typeof panel.showPopover !== 'function') return
+            if (wasOpenRef.current) {
+              wasOpenRef.current = false
+              if (panel.matches(':popover-open')) panel.hidePopover()
+              return
+            }
+            if (panel.matches(':popover-open')) {
+              panel.hidePopover()
+              return
+            }
+            const rect = anchorEl.getBoundingClientRect()
+            const width = Math.min(280, window.innerWidth - 24)
+            const above = rect.top - 20
+            const below = window.innerHeight - rect.bottom - 20
+            const openAbove = above >= 140 || above >= below
+            panel.style.left = `${Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12))}px`
+            panel.style.top = openAbove ? 'auto' : `${rect.bottom + 8}px`
+            panel.style.bottom = openAbove ? `${window.innerHeight - rect.top + 8}px` : 'auto'
+            panel.style.maxHeight = `${Math.max(80, openAbove ? above : below)}px`
+            panel.showPopover()
+          }
+
+          const trigger = h('button', {
+            ref: btnRef,
+            type: 'button',
+            className: 'aw-tb-btn aw-tb-icon aw-ctx-btn',
+            'data-tone': tone,
+            'aria-label': label,
+            'aria-haspopup': 'dialog',
+            'aria-expanded': open,
+            'aria-controls': id,
+            onPointerDown,
+            onClick: toggle,
+          },
+          h('svg', { viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': true },
+            h('circle', { className: 'aw-ctx-track', cx: 8, cy: 8, r: CTX_RING_R }),
+            dash > 0 ? h('circle', {
+              className: 'aw-ctx-fill',
+              cx: 8,
+              cy: 8,
+              r: CTX_RING_R,
+              strokeDasharray: `${dash} ${CTX_RING_C}`,
+              transform: 'rotate(-90 8 8)',
+            }) : null))
+
+          return h('span', { className: 'acpw aw-ctx-root' },
+            Tooltip
+              ? h(Tooltip, { label, side: 'top', delayMs: 200, disabled: open, portal: true }, trigger)
+              : React.cloneElement(trigger, { title: label }),
+            h('div', {
+              ref: popRef,
+              id,
+              className: 'acpw aw-ctx-pop',
+              'data-tone': tone,
+              'data-composer-overlay': '',
+              popover: 'auto',
+              role: 'dialog',
+              'aria-label': tt('contextRecent'),
+              onToggle: e => { if (e.target === e.currentTarget) setOpen(e.newState === 'open') },
+            },
+            h('div', { className: 'aw-ctx-head' },
+              h('span', { className: 'aw-ctx-title' }, tt('contextRecent')),
+              h('span', { className: 'aw-ctx-pct' }, `${number(percent)}%`)),
+            h('div', { className: 'aw-ctx-nums' }, `${number(w.used)} / ${number(w.size)}`),
+            h('div', { className: 'aw-ctx-bar', 'aria-hidden': true },
+              h('i', { style: { width: `${Math.min(100, ratio * 100)}%` } })),
+            h('div', { className: 'aw-ctx-meta' },
+              w.model ? h('span', null, tt('ctxModel', { model: w.model })) : null,
+              w.cost ? h('span', null, tt('ctxCost', { amount: costNumber(w.cost.amount), unit: w.cost.currency })) : null,
+              report.at ? h('span', { className: 'aw-note' }, tt('ctxAt', { time: stamp(report.at) })) : null,
+              h('small', { className: 'aw-note' }, tt('ctxScope')))))
+        }
+
         const GREP_PATHS_PRIORITY = -5
         function tvParseArgs(block) {
           const raw = ('kind' in block ? block.call?.argsRaw : block.argsRaw) ?? ''
@@ -3897,10 +4042,47 @@ button.aw-child-trigger:focus-visible{outline:none}
           manage_subagents: { icon: IconUsersOutlineRegular, titleKey: 'tool.subagents', mode: 'generic' },
           define_subagent: { icon: IconUsersOutlineRegular, titleKey: 'tool.defineSubagent', mode: 'subagent_def' },
           ListAgents: { icon: IconUsersOutlineRegular, titleKey: 'tool.subagents', mode: 'generic' },
+          spawn_agent: { icon: IconUsersOutlineRegular, titleKey: 'tool.spawnAgent', mode: 'spawn_agent' },
+          list_providers: { icon: IconSparkleRegular, titleKey: 'tool.listProviders', mode: 'generic' },
+          read_agent_result: { icon: IconBrowseOutlineRegular, titleKey: 'tool.readAgentResult', mode: 'read_agent' },
+        }
+
+        function parseJsonSafe(text) {
+          if (typeof text !== 'string' || !text.trim().startsWith('{')) return null
+          try {
+            const parsed = JSON.parse(text)
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null
+          } catch {
+            return null
+          }
+        }
+
+        function openSubagentAside(parentSessionId, childSessionId) {
+          const sidebar = ctx.get('sidebarRight')
+          if (sidebar && typeof sidebar.openResource === 'function' && parentSessionId) {
+            const query = new URLSearchParams({ parent: parentSessionId, mode: 'continuable' })
+            sidebar.openResource(`dsh-resource://subagentchat/session/${encodeURIComponent(childSessionId)}?${query}`, {
+              kind: 'subagentchat',
+              preferNewPane: true,
+            })
+            return
+          }
+          ctx.uiWorkspace.openSession(parentSessionId
+            ? { parentSessionId, childSessionId, mode: 'continuable' }
+            : childSessionId)
         }
 
         function acpToolSummary(mode, args) {
           if (!args) return ''
+          if (mode === 'spawn_agent') {
+            return [
+              firstText(args.name, args.label),
+              firstText(args.provider) || 'dsh',
+              firstText(args.model),
+              args.isolation === 'worktree' ? (firstText(args.branch) || 'worktree') : '',
+            ].filter(Boolean).join(' · ')
+          }
+          if (mode === 'read_agent') return firstText(args.agent) || ''
           if (mode === 'plan') return tvFirstLine(args.plan) || firstText(args.planFilePath, args.reason) || ''
           if (mode === 'memory') {
             const paths = Array.isArray(args.paths) ? args.paths.filter(p => typeof p === 'string') : EMPTY
@@ -3962,20 +4144,26 @@ button.aw-child-trigger:focus-visible{outline:none}
           const memoryPaths = mode === 'memory' && Array.isArray(args?.paths) ? args.paths.filter(p => typeof p === 'string' && p.trim()) : EMPTY
           const workflowScript = mode === 'workflow' ? firstText(args?.Script) : undefined
           const workflowPath = mode === 'workflow' ? firstText(args?.ScriptPath) : undefined
+          const spawned = mode === 'spawn_agent' ? parseJsonSafe(output) : null
+          const spawnedId = typeof spawned?.sessionId === 'string' && spawned.sessionId ? spawned.sessionId : null
+          const spawnedParent = typeof spawned?.parentSessionId === 'string' && spawned.parentSessionId ? spawned.parentSessionId : null
+          const spawnedLabel = firstText(spawned?.agent, args?.name, args?.label)
           const proseText = planText
             ?? (mode === 'swarm' ? firstText(args?.brief) : undefined)
             ?? (mode === 'subagent_def' ? firstText(args?.SystemPrompt) : undefined)
+            ?? (mode === 'spawn_agent' ? firstText(args?.prompt) : undefined)
           const omitted = new Set(
             mode === 'plan' ? ['plan', 'planFilePath']
               : mode === 'workflow' ? ['Script', 'ScriptPath']
                 : mode === 'swarm' ? ['brief']
                   : mode === 'subagent_def' ? ['SystemPrompt']
-                    : [],
+                    : mode === 'spawn_agent' ? ['prompt']
+                      : [],
           )
           const remainingArgs = args ? omitKeys(args, omitted) : null
           const inputText = remainingArgs ? JSON.stringify(remainingArgs, null, 2)
             : (!proseText && !workflowScript && !workflowPath && raw && raw !== '{}' ? raw : '')
-          const hasBody = Boolean(planPath || workflowPath || proseText || memoryPaths.length || workflowScript || output || inputText)
+          const hasBody = Boolean(spawnedId || planPath || workflowPath || proseText || memoryPaths.length || workflowScript || output || inputText)
           const expandable = state !== 'preparing' && hasBody
           const open = expanded && expandable
           const mdLabels = React.useMemo(() => ({
@@ -4000,6 +4188,11 @@ button.aw-child-trigger:focus-visible{outline:none}
                   h(TextShimmer, null, summaryBase))),
             },
             open ? h('div', { className: 'aw-tv-body' },
+              spawnedId ? h('div', { className: 'aw-tv-files' },
+                h('button', { type: 'button', className: 'aw-tv-file', onClick: () => openSubagentAside(spawnedParent, spawnedId) },
+                  tt('openInSidebar'), spawnedLabel ? ` · ${spawnedLabel}` : ''),
+                h('button', { type: 'button', className: 'aw-tv-file', onClick: () => ctx.uiWorkspace.openSession(spawnedParent ? { parentSessionId: spawnedParent, childSessionId: spawnedId, mode: 'continuable' } : spawnedId) },
+                  tt('openConversation'))) : null,
               planPath ? h('div', { className: 'aw-tv-files' },
                 openFile
                   ? h('button', { type: 'button', className: 'aw-tv-file', onClick: () => openFile(planPath) }, tt('tool.openPlanFile'), ' · ', planPath)
@@ -4030,7 +4223,9 @@ button.aw-child-trigger:focus-visible{outline:none}
         ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, CliMenuOption))
         ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({ name: 'conversation.input.overlay', id: 'acp-settings', order: 40 }, CliSettingsOverlay))
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-model-controls', order: 900 }, NativeModelControls))
+        ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-context-ring', order: 2500 }, NativeContextRing))
         ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'acp-native', order: 40 }, NativeDock))
+        ctx.slots.inject('conversation.session.panel.indicator', () => ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'acp-subagents.attention', order: 20, locale: NS }, AcpAttentionIndicator))
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, NativeNode))
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-wait' }, AcpWaitNode))
         ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))

@@ -12,7 +12,7 @@ description: 在 DSH 会话中直接运行 Cursor、Antigravity、Claude Code �
 | 入口 | 怎么启动 | 适用场景 |
 | --- | --- | --- |
 | **会话内直接执行** | 在模型选择器选用 `acp-*` 提供方下的模型 | 把当前 DSH 会话交给 Cursor / Antigravity / Claude Code 直接执行 |
-| **DSH 委派子任务** | 保留普通 DSH 主模型，调用 `subagent_cursor`、`subagent_antigravity` 或 `subagent_acp_claude_code` | 由 DSH 主模型拆任务、并行委派，用 `send_message` 续聊并在父会话直接审批 |
+| **跨引擎双向委派** | 原生 DSH 与 ACP CLI 均使用聚合工具 `spawn_agent` / `list_providers` / `send_message` / `read_agent_result` | 任意方向互相派发任务、按需开独立 Worktree、完成后自动回流唤醒，并在 DSH 原生右侧子智能体面板与分屏中统一查看 |
 | **ACP 工作台（侧栏）** | 打开左侧栏 **ACP 工作台** | 按项目启动多个 Agent、管理工作树/文件/终端/脚本、审阅改动与集中处理审批 |
 
 <Callout type="warn" title="外部 CLI 运行在 DSH 沙箱之外">
@@ -45,7 +45,7 @@ description: 在 DSH 会话中直接运行 Cursor、Antigravity、Claude Code �
 
 <InstallCommand slug="acp-workbench" />
 
-插件会自动注册 `acp-*` 模型路由以及 `subagent_cursor`、`subagent_antigravity`、`subagent_acp_claude_code` 三个子代理工具。
+插件会自动注册 `acp-*` 模型路由、聚合跨引擎委派工具（`spawn_agent`、`list_providers`、`read_agent_result`），并在连接外部 ACP CLI 时自动注入本机 Session-scoped MCP 桥接（`http` 优先，不支持时自动回退 `stdio`）。
 
 </Step>
 <Step>
@@ -136,12 +136,13 @@ description: 在 DSH 会话中直接运行 Cursor、Antigravity、Claude Code �
 </Tab>
 </Tabs>
 
-## DSH 主模型委派子任务
+## 跨引擎双向委派（DSH ↔ ACP 任意互调）
 
-需要用普通 DSH 模型统筹任务、把具体实现交给外部 CLI 时，可在工具选择器中启用 `subagent_cursor`、`subagent_antigravity` 或 `subagent_acp_claude_code`（与内置非 ACP 工具 `subagent_claude_code` 并存）：
+原生 DSH 与所有已配置的 ACP CLI（Cursor、Antigravity、Claude Code 等）共享同一套聚合工具契约（外部 CLI 通过本机 Session-scoped MCP 自动注入）：
 
-- 每次委派会创建原生可续聊的 DSH 子会话，可用 `send_message` 续聊或在子代理树中查看与停止。
-- 等待审批或运行中的子任务会优先显示在父会话输入框上方，可直接审批；其余子任务折叠在 **其他子任务** 中。
+- **`list_providers` / `spawn_agent`**：发现可用原生 DSH 与 ACP 引擎、模型及模式，按需指定 `provider`、`model`、`modeId`、`reasoningEffort` 与 `isolation: "worktree"`（自动创建独立 Git 工作树分支，不改动父会话目录），创建真正的 DSH 可续聊子会话。
+- **自动回流与静默批合并**：子任务完成后结果自动投递至父会话收件箱；当父会话为 ACP 引擎且有多个并行子任务先后完成时，在 2 秒静默窗口内自动批合并唤醒，避免重复轮次；`send_message` 支持 `followup`、`steer`（支持 `_session/steering` 时实时引导）与 `interrupt`。
+- **深度融入原生 UI**：所有跨引擎子任务自动进入 DSH 原生顶栏面包屑树、右侧 Session Panel 子智能体列表与右侧分屏 `SidebarChat`；`spawn_agent` 调用行支持一键 **右侧分屏打开**；输入框上方 Dock 收紧为仅在后代子任务等待审批或提问时浮出，并在右上角面板按钮亮起待回应指示点。
 
 ## 项目工作台（ACP 工作台 → 项目）
 

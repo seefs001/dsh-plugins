@@ -8,27 +8,3 @@
         chunkRetentionDays: 30
         archivedChunkRetentionDays: 7
         maxChunkBytes: 52428800
-    - id: acp-workbench-cursor
-      name: '@deepseek-ai/dsh-tool-subagent'
-      config:
-        provider: acp-cursor
-        toolName: subagent_cursor
-        agentOptions:
-          provider: acp-cursor
-          model: default
-    - id: acp-workbench-antigravity
-      name: '@deepseek-ai/dsh-tool-subagent'
-      config:
-        provider: acp-antigravity
-        toolName: subagent_antigravity
-        agentOptions:
-          provider: acp-antigravity
-          model: default
-    - id: acp-workbench-claude-code
-      name: '@deepseek-ai/dsh-tool-subagent'
-      config:
-        provider: acp-claude-code
-        toolName: subagent_acp_claude_code
-        agentOptions:
-          provider: acp-claude-code
-          model: default

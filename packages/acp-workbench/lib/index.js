@@ -60,6 +60,7 @@ export async function apply(ctx, config = {}) {
     modelsChanged: providerId => bridge.native && ctx.emit('llm/models-updated', bridge.native.route(providerId)),
     log: message => ctx.logger.warn(message),
     autoApprove: (session, params) => bridge.native?.autoApprove(session, params) ?? null,
+    mcpServersFor: session => bridge.native?.mcpServersFor(session) ?? [],
     chunkRetentionDays: config.chunkRetentionDays,
     archivedChunkRetentionDays: config.archivedChunkRetentionDays,
     maxChunkBytes: config.maxChunkBytes })
@@ -73,6 +74,12 @@ export async function apply(ctx, config = {}) {
     return peer
   }
   const register = (path, handler) => ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: BASE + path, handler }), `acp-workbench: ${path}`)
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: BASE + '/mcp',
+    auth: 'anonymous',
+    handler: (req, res) => native.delegation.handleMcpRequest(req, res),
+  }), 'acp-workbench: /mcp')
   register('/state', async (req, res, peer) => {
     if (!admit(res, peer)) return
     if (req.method !== 'GET') return send(res, 405, { message: 'GET only' })

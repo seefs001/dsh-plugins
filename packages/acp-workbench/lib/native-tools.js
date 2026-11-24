@@ -92,6 +92,8 @@ export function hasToolInput(tool) {
   return false
 }
 
+const DSH_DELEGATION_TOOLS = new Set(['list_providers', 'spawn_agent', 'list_agents', 'send_message', 'read_agent_result', 'interrupt_agent'])
+
 function mcpIdentity(tool) {
   const wireName = firstText(tool.name)
   const metaName = firstText(tool._meta?.claudeCode?.toolName)
@@ -334,6 +336,9 @@ export function mapToolCall(tool, terminal) {
   const mcp = mcpIdentity(tool ?? {})
   if (mcp) {
     const argsObj = safeObject(mcp.args)
+    if (mcp.server === 'dsh_agents' && DSH_DELEGATION_TOOLS.has(mcp.name)) {
+      return { name: mcp.name, argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'mcp' }
+    }
     return { name: sanitizeToolName(mcp.wireName), argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'mcp' }
   }
   const rawName = firstText(tool?.name, tool?._meta?.claudeCode?.toolName)
