@@ -368,11 +368,8 @@ window.__ModuleLoader__.load({
           return () => style.remove()
         }, 'config-backup: styles')
 
-        const t = key => ctx.locale.t(`${NS}:${key}`)
-        const tf = (key, vars) => Object.entries(vars).reduce(
-          (text, [k, v]) => text.replaceAll(`{${k}}`, String(v)),
-          t(key),
-        )
+        const t = ctx.locale.bind(NS)
+        const tf = (key, vars) => t(key, vars)
 
         function statusTagTone(status) {
           if (status === 'new') return 'success'
@@ -665,18 +662,19 @@ window.__ModuleLoader__.load({
                     h('div', { className: 'cb-opt-copy' },
                       h('span', { className: 'cb-opt-label' }, t('optNormalizeHome')),
                       h('span', { className: 'cb-opt-hint' }, t('optNormalizeHomeHint'))),
-                    h(Switch, { checked: normalizeHome, onChange: setNormalizeHome })),
+                    h(Switch, { checked: normalizeHome, label: t('optNormalizeHome'), onChange: setNormalizeHome })),
                   h('div', { className: 'cb-opt' },
                     h('div', { className: 'cb-opt-copy' },
                       h('span', { className: 'cb-opt-label' }, t('optSecrets')),
                       h('span', { className: 'cb-opt-hint' }, t('optSecretsHint'))),
-                    h(Switch, { checked: includeSecrets, onChange: setIncludeSecrets })),
+                    h(Switch, { checked: includeSecrets, label: t('optSecrets'), onChange: setIncludeSecrets })),
                   h('div', { className: 'cb-opt' },
                     h('div', { className: 'cb-opt-copy' },
                       h('span', { className: 'cb-opt-label' }, t('optCredentials')),
                       h('span', { className: 'cb-opt-hint' }, t('optCredentialsHint'))),
                     h(Switch, {
                       checked: includeCredentials,
+                      label: t('optCredentials'),
                       onChange: next => {
                         setIncludeCredentials(next)
                         if (next) setSelCredentials(new Set(inventory.credentials.map(i => i.id)))
