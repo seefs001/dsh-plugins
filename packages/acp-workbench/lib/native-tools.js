@@ -4,6 +4,41 @@ const MAX_TOOL_NAME = 64
 const MAX_READ_LINES = 5000
 const TERMINAL_STATUS = new Set(['completed', 'failed', 'cancelled', 'canceled'])
 const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif'])
+const AGENT_NAME_RE = /^[a-z][a-z0-9-]{0,31}$/u
+
+function slugAgentName(raw) {
+  if (typeof raw !== 'string') return ''
+  const slug = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, '-')
+    .replace(/^-+|-+$/gu, '')
+    .replace(/^[0-9-]+/u, '')
+    .slice(0, 32)
+    .replace(/-+$/gu, '')
+  return slug && slug !== 'lead' && AGENT_NAME_RE.test(slug) ? slug : ''
+}
+
+export function allocateSubagentName(candidates, usedNames) {
+  const used = usedNames instanceof Set ? usedNames : new Set()
+  const base = (Array.isArray(candidates) ? candidates : [candidates])
+    .map(slugAgentName)
+    .find(Boolean)
+  if (base && !used.has(base)) {
+    used.add(base)
+    return base
+  }
+  const prefix = base || 'agent'
+  let ordinal = base ? 2 : 1
+  while (true) {
+    const suffix = `-${ordinal}`
+    const candidate = `${prefix.slice(0, 32 - suffix.length).replace(/-+$/u, '') || 'agent'}${suffix}`
+    if (AGENT_NAME_RE.test(candidate) && candidate !== 'lead' && !used.has(candidate)) {
+      used.add(candidate)
+      return candidate
+    }
+    ordinal++
+  }
+}
 
 const firstText = (...values) => values.find(value => typeof value === 'string' && value.trim() !== '')
 const unwrap = block => block?.type === 'content' ? block.content : block
@@ -755,7 +790,7 @@ function isCallFailed(tool, originalKind, exitCode, signal) {
   return false
 }
 
-export function mapToolResult(mappedCall, tool, terminal, { cwd, aborted = false, interrupted = false, savedImages = [] } = {}) {
+export function mapToolResult(mappedCall, tool, terminal, { cwd, aborted = false, interrupted = false, savedImages = [], subagentName } = {}) {
   if (aborted || interrupted || tool?.status === 'cancelled' || tool?.status === 'canceled') {
     const label = aborted ? 'Tool execution canceled' : 'Tool execution interrupted'
     return {
@@ -905,6 +940,14 @@ export function mapToolResult(mappedCall, tool, terminal, { cwd, aborted = false
     return {
       content: [{ type: 'text', text: text || 'Updated task list.' }],
       isError: false,
+    }
+  }
+
+  if (name === 'subagent' && !failed && !text && typeof subagentName === 'string' && subagentName) {
+    return {
+      content: [{ type: 'text', text: `started subagent ${subagentName}` }],
+      isError: false,
+      meta: { kind: 'activation', name: subagentName },
     }
   }
 

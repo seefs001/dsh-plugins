@@ -729,9 +729,33 @@ window.__ModuleLoader__.load({
     const settle = (state, live) => state === 'ongoing' && !live ? 'idle' : state
     const eventLabel = event => [event.type, event.data?.method, updateOf(event)?.sessionUpdate].filter(Boolean).join(' · ')
 
+    const AGY_SUBAGENT_CALL_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):.+$/iu
     function cliParentOf(update) {
       const id = update?._meta?.claudeCode?.parentToolUseId
       return typeof id === 'string' && id.trim() ? id : undefined
+    }
+    function agySubagentIdOf(update) {
+      const id = update?.toolCallId
+      if (typeof id !== 'string') return undefined
+      const match = AGY_SUBAGENT_CALL_RE.exec(id)
+      return match ? match[1] : undefined
+    }
+    function resolveAgyParent(launches, parents, subagentId) {
+      if (!subagentId) return undefined
+      const existing = parents.get(subagentId)
+      if (existing) return existing
+      const unbound = launches.find(entry => !entry.boundConvId)
+      if (unbound) {
+        unbound.boundConvId = subagentId
+        parents.set(subagentId, unbound.toolCallId)
+        return unbound.toolCallId
+      }
+      const last = launches.at(-1)
+      if (last) {
+        parents.set(subagentId, last.toolCallId)
+        return last.toolCallId
+      }
+      return undefined
     }
     function updatePatchFrame(row, update) {
       if (Array.isArray(update.content) && (row.patchFrame || ['edit','move','delete'].includes(update.kind ?? row.tool.kind) || update.content.some(b => b?.type === 'diff'))) {
@@ -891,12 +915,21 @@ window.__ModuleLoader__.load({
       const rows = []
       const tools = new Map()
       const plans = new Map(), compactions = new Map(), windows = new Map()
+      const agyByTurn = new Map()
+      const agyStateFor = turnId => {
+        const key = turnId ?? null
+        let state = agyByTurn.get(key)
+        if (!state) { state = { launches: [], parents: new Map() }; agyByTurn.set(key, state) }
+        return state
+      }
       let section = 0, progressSeq = 0, connectionSeq = 0
       for (const event of events) {
         const data = event.data ?? {}
         const update = updateOf(event)
         const cursorMethod = data.method?.replace(/^_/u, '')
-        const kind = update?.sessionUpdate, parent = cliParentOf(update), plan = namedPlan(update)
+        const agyState = agyStateFor(data.turnId)
+        const kind = update?.sessionUpdate, plan = namedPlan(update)
+        const parent = cliParentOf(update) ?? resolveAgyParent(agyState.launches, agyState.parents, agySubagentIdOf(update))
         if (event.type === 'initialize') connectionSeq = event.seq
         const totals = event.type === 'turn-result' ? sessionTotals(data.usage) : null
         const role = event.type === 'user-message' ? 'user' : kind === 'agent_message_chunk' ? 'assistant' : kind === 'agent_thought_chunk' ? 'thinking' : kind === 'user_message_chunk' ? 'user' : null
@@ -938,7 +971,13 @@ window.__ModuleLoader__.load({
           }
           row.tool = mergeToolUpdate(row.tool, foldTerminal(row, update) ?? update)
           if (parent) row.cliParent = row.cliParent === undefined || row.cliParent === parent ? parent : null
-          if (['Agent', 'Task'].includes(update._meta?.claudeCode?.toolName)) row.cliTask = true
+          const launchName = row.tool.name ?? row.tool._meta?.claudeCode?.toolName
+          if (['Agent', 'Task', 'invoke_subagent'].includes(launchName)) {
+            row.cliTask = true
+            if (launchName === 'invoke_subagent' && row.tool.toolCallId && !agyState.launches.some(item => item.toolCallId === row.tool.toolCallId)) {
+              agyState.launches.push({ toolCallId: row.tool.toolCallId, boundConvId: null })
+            }
+          }
         } else if (kind === 'compaction_update' || kind === 'compaction_summary_chunk') {
           foldCompaction(rows, compactions, data.replay ? ['replay', connectionSeq] : 'live', event, update)
           section = event.seq
@@ -1062,7 +1101,7 @@ window.__ModuleLoader__.load({
       for (const row of rows) if (!unbound(row) && row.tool?.toolCallId) tools.set(keyFor(row, row.tool.toolCallId), row)
       const taskFor = row => {
         let task = tasks.get(row.seq)
-        if (!task) { task = { row, title: firstText(row.tool.rawInput?.description, row.tool.title) ?? row.tool.toolCallId, calls: 0, permissions: [] }; tasks.set(row.seq, task) }
+        if (!task) { task = { row, title: firstText(row.tool.rawInput?.description, row.tool.rawInput?.Role, row.tool.title) ?? row.tool.toolCallId, calls: 0, permissions: [] }; tasks.set(row.seq, task) }
         return task
       }
       for (const row of rows) {

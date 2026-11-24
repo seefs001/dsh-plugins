@@ -3,10 +3,50 @@ import { contextWindow, sessionTotals, recordWindow } from './usage.js'
 
 const MAX_LOG_CHARS = 64 * 1024
 const MAX_PROGRESS = 16 * 1024
+const AGY_SUBAGENT_CALL_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):.+$/iu
 
 export function cliParentOf(update) {
   const id = update?._meta?.claudeCode?.parentToolUseId
   return typeof id === 'string' && id.trim() ? id : undefined
+}
+
+// external: Antigravity ACP prefixes subagent toolCallIds with "<conversationId>:<callId>" without parentToolUseId metadata
+export function agySubagentIdOf(update) {
+  const id = update?.toolCallId
+  if (typeof id !== 'string') return undefined
+  const match = AGY_SUBAGENT_CALL_RE.exec(id)
+  return match ? match[1] : undefined
+}
+
+export function isSubagentLaunchTool(update) {
+  const name = update?.name ?? update?._meta?.claudeCode?.toolName
+  return name === 'Agent' || name === 'Task' || name === 'invoke_subagent'
+}
+
+export function recordAgySubagentLaunch(launches, update) {
+  const name = update?.name ?? update?._meta?.claudeCode?.toolName
+  if (name !== 'invoke_subagent' || typeof update?.toolCallId !== 'string' || !update.toolCallId) return
+  if (!launches.some(entry => entry.toolCallId === update.toolCallId)) {
+    launches.push({ toolCallId: update.toolCallId, boundConvId: null })
+  }
+}
+
+export function resolveAgyParent(launches, parents, subagentId) {
+  if (!subagentId) return undefined
+  const existing = parents.get(subagentId)
+  if (existing) return existing
+  const unbound = launches.find(entry => !entry.boundConvId)
+  if (unbound) {
+    unbound.boundConvId = subagentId
+    parents.set(subagentId, unbound.toolCallId)
+    return unbound.toolCallId
+  }
+  const last = launches.at(-1)
+  if (last) {
+    parents.set(subagentId, last.toolCallId)
+    return last.toolCallId
+  }
+  return undefined
 }
 
 function taskProgress(trace, update, seq, parent) {
@@ -196,7 +236,7 @@ export function applyLateCompactions(trace, store, session, run) {
 }
 
 export function createTrace() {
-  return { through: 0, section: 0, rows: [], tools: new Map(), plans: new Map(), compactions: new Map(), windows: new Map(), questions: new Map(), log: null }
+  return { through: 0, section: 0, rows: [], tools: new Map(), plans: new Map(), compactions: new Map(), windows: new Map(), questions: new Map(), agyLaunches: [], agyParents: new Map(), log: null }
 }
 
 export function cursorTaskToolUpdate(params) {
@@ -246,7 +286,8 @@ export function foldEvents(trace, events, remoteId, runId) {
     if (data.replay) { trace.section = event.seq; continue }
     const update = data.method === 'session/update' ? data.params?.update : null
     const cursorMethod = data.method?.replace(/^_/, '')
-    const kind = update?.sessionUpdate, parent = cliParentOf(update), plan = namedPlan(update)
+    const kind = update?.sessionUpdate, plan = namedPlan(update)
+    const parent = cliParentOf(update) ?? resolveAgyParent(trace.agyLaunches, trace.agyParents, agySubagentIdOf(update))
     if (kind === 'agent_message_chunk' || kind === 'agent_thought_chunk' || kind === 'user_message_chunk' || plan || kind === 'plan' ||
       cursorMethod === 'cursor/update_todos' || event.type === 'user-message') trace.section = event.seq
     if (cursorMethod === 'cursor/task') {
@@ -275,7 +316,10 @@ export function foldEvents(trace, events, remoteId, runId) {
       }
       row.tool = mergeToolUpdate(row.tool, foldTerminal(row, update) ?? update)
       if (parent) row.cliParent = row.cliParent === undefined || row.cliParent === parent ? parent : null
-      if (['Agent', 'Task'].includes(update._meta?.claudeCode?.toolName)) row.cliTask = true
+      if (isSubagentLaunchTool(row.tool)) {
+        row.cliTask = true
+        recordAgySubagentLaunch(trace.agyLaunches, row.tool)
+      }
     } else if (parent && (kind === 'agent_message_chunk' || kind === 'user_message_chunk')) {
       taskProgress(trace, update, event.seq, parent)
     } else if (kind === 'notice') {
@@ -325,7 +369,7 @@ export function foldEvents(trace, events, remoteId, runId) {
       }
       if (data.kind === 'question') trace.questions.set(data.id, params.questions ?? [])
       trace.rows.push({ kind: 'interaction', seq: event.seq, id: data.id, interaction: data.kind,
-        cliParent: cliParentOf(params.toolCall), title: params.toolCall?.title ?? params.name ?? params.title ?? params.message ?? null, toolCallId: params.toolCall?.toolCallId ?? null,
+        cliParent: cliParentOf(params.toolCall) ?? resolveAgyParent(trace.agyLaunches, trace.agyParents, agySubagentIdOf(params.toolCall)), title: params.toolCall?.title ?? params.name ?? params.title ?? params.message ?? null, toolCallId: params.toolCall?.toolCallId ?? null,
         options: (params.options ?? []).map(option => ({ id: option.optionId, name: option.name ?? option.optionId, kind: option.kind ?? null })) })
     } else if (event.type === 'interaction-result') {
       const outcome = data.result?.outcome ?? {}

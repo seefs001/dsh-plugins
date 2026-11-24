@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { isAbsolute, join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { applyLateCompactions, cliParentOf, createTrace, cursorTaskToolUpdate, foldEvents, foldTerminal, mergePermissionToolCall, mergeToolUpdate, namedPlan } from './trace.js'
+import { agySubagentIdOf, applyLateCompactions, cliParentOf, createTrace, cursorTaskToolUpdate, foldEvents, foldTerminal, mergePermissionToolCall, mergeToolUpdate, namedPlan, recordAgySubagentLaunch, resolveAgyParent } from './trace.js'
 import { connectionNotices } from './notices.js'
 import { installContinuations } from './continuations.js'
 import {
@@ -16,7 +16,7 @@ import {
   visibleModels,
   wireModelId,
 } from './models.js'
-import { extractToolImages, hasToolInput, isToolTerminal, makeCallId, mapPlanTodos, mapToolCall, mapToolResult } from './native-tools.js'
+import { allocateSubagentName, extractToolImages, hasToolInput, isToolTerminal, makeCallId, mapPlanTodos, mapToolCall, mapToolResult } from './native-tools.js'
 import { booleanSelectValues, isInteractivePermission } from './adapters.js'
 
 function coerceOptionValue(option, value) {
@@ -197,6 +197,9 @@ class AcpTurn {
     this.toolByAcpId = new Map()
     this.toolByDshId = new Map()
     this.toolsSeen = new Set()
+    this.agySubagentLaunches = []
+    this.agySubagentParents = new Map()
+    this.usedCatalogNames = null
     this.cursorTodos = []
     this.lastTodoJson = null
     this.waiters = new Set()
@@ -336,8 +339,32 @@ class AcpTurn {
     }
     const folded = foldTerminal(record, update) ?? update
     record.tool = mergeToolUpdate(record.tool, folded)
+    recordAgySubagentLaunch(this.agySubagentLaunches, record.tool)
     if (isToolTerminal(record.tool)) record.done = true
     return record
+  }
+
+  ensureCatalogNames(agent) {
+    if (this.usedCatalogNames) return this.usedCatalogNames
+    const used = new Set()
+    try {
+      const events = typeof agent?.session?.snapshotEvents === 'function' ? agent.session.snapshotEvents() : []
+      for (const event of events) {
+        if (event?.type === 'subagent/catalog' && typeof event.data?.name === 'string') {
+          used.add(event.data.name)
+        }
+      }
+    } catch {}
+    this.usedCatalogNames = used
+    return used
+  }
+
+  settleOpenSubCalls(options = {}) {
+    for (const record of this.toolByAcpId.values()) {
+      if (!record.isSubCall || record.subFinished) continue
+      const parentRecord = this.toolByAcpId.get(record.parentAcpId)
+      if (parentRecord?.callLogged) this.emitSubCallResult(record, parentRecord, options)
+    }
   }
 
   emitSubCallStart(record, parentRecord) {
@@ -449,7 +476,7 @@ class AcpTurn {
     if (!update) { this.wake(); return }
 
     const kind = update.sessionUpdate
-    const parent = cliParentOf(update)
+    const parent = cliParentOf(update) ?? resolveAgyParent(this.agySubagentLaunches, this.agySubagentParents, agySubagentIdOf(update))
 
     if ((kind === 'tool_call' || kind === 'tool_call_update') && update.toolCallId) {
       if (parent) {
@@ -616,6 +643,7 @@ class AcpTurn {
   async finalizeTurn() {
     if (this.finalized) return
     this.finalized = true
+    this.settleOpenSubCalls({ interrupted: this.result?.stopReason === 'cancelled' })
     if (this.run && this.session) {
       this.run.state = this.result?.stopReason === 'cancelled' ? 'interrupted' : 'completed'
       this.run.stopReason = this.result?.stopReason ?? null
@@ -644,6 +672,7 @@ class AcpTurn {
   async cleanup() {
     if (this.cleaned) return
     this.cleaned = true
+    this.settleOpenSubCalls({ aborted: this.controller.signal.aborted })
     this.unsubscribe?.()
     this.unsubscribe = null
     this.removeCancel?.()
@@ -689,14 +718,34 @@ class AcpTurn {
       if (fresh.name === mapped.name) mapped = fresh
     }
     const savedImages = record && !record.syntheticTodo ? await this.saveToolImages(record.tool) : []
+    let subagentName
+    if (!record?.syntheticTodo && mapped.name === 'subagent') {
+      subagentName = allocateSubagentName([mapped.argumentsObj?.description, mapped.argumentsObj?.subagent_type], this.ensureCatalogNames(agent))
+    }
     const result = record?.syntheticTodo
       ? { content: [{ type: 'text', text: 'Updated task list.' }], isError: false }
-      : mapToolResult(mapped, record?.tool, record?.terminal, { cwd: this.session?.cwd, savedImages, ...options })
+      : mapToolResult(mapped, record?.tool, record?.terminal, { cwd: this.session?.cwd, savedImages, subagentName, ...options })
+    if (result.isError && subagentName) this.usedCatalogNames?.delete(subagentName)
     entry.result = result
     if (record) record.resultLogged = true
     if (!record?.syntheticTodo && !result.isError && mapped.name === 'todo_write' && Array.isArray(mapped.argumentsObj?.todos)) {
       this.lastTodoJson = JSON.stringify(mapped.argumentsObj.todos)
       try { agent.session.append('todo/write', { todos: mapped.argumentsObj.todos }) } catch {}
+    }
+    if (!record?.syntheticTodo && !result.isError && mapped.name === 'subagent' && subagentName) {
+      const label = typeof mapped.argumentsObj?.description === 'string' && mapped.argumentsObj.description.trim()
+        ? mapped.argumentsObj.description.trim()
+        : subagentName
+      try {
+        agent.session.append('subagent/catalog', {
+          version: 3,
+          childId: entry.block.id,
+          childCreatedAt: Date.now(),
+          mode: 'external',
+          label,
+          name: subagentName,
+        })
+      } catch {}
     }
     if (log !== undefined) {
       agent.session.append('tool/result', {
