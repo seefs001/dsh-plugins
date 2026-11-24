@@ -2,7 +2,6 @@ import {
   classifyGhError,
   detectGitHubRepo,
   extractGitHubMentions,
-  fetchGitHubDetail,
   fetchGitHubOverview,
   normalizeHosts,
   rerunFailedJobs,
@@ -14,14 +13,12 @@ export const name = 'github-panel'
 export const inject = ['webServer', 'sessionController', 'workingDirectory']
 
 export const OVERVIEW_PATH = '/github-panel/overview'
-export const DETAIL_PATH = '/github-panel/detail'
 export const ACTION_PATH = '/github-panel/action'
 export const CONFIG_PATH = '/github-panel/config'
 
 const DETECT_TTL_MS = 15_000
 const OVERVIEW_TTL_MS = 60_000
 const MENTIONS_TTL_MS = 45_000
-const DETAIL_TTL_MS = 30_000
 const MAX_CACHE_ENTRIES = 48
 const MAX_BODY_BYTES = 16 * 1024
 
@@ -125,14 +122,12 @@ export function apply(ctx, config = {}) {
   const detectCache = new TtlCache(MAX_CACHE_ENTRIES)
   const overviewCache = new TtlCache(MAX_CACHE_ENTRIES)
   const mentionsCache = new TtlCache(MAX_CACHE_ENTRIES)
-  const detailCache = new TtlCache(MAX_CACHE_ENTRIES)
 
   ctx.effect(() => () => {
     lifetime.abort()
     detectCache.clear()
     overviewCache.clear()
     mentionsCache.clear()
-    detailCache.clear()
   }, 'github-panel: cache and lifetime')
 
   async function resolveSessionContext(sessionId) {
@@ -219,56 +214,6 @@ export function apply(ctx, config = {}) {
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
-    path: DETAIL_PATH,
-    handler: async (req, res, peer) => {
-      if (!requireOwner(res, peer)) return
-      if (req.method !== 'GET') {
-        res.writeHead(405, { allow: 'GET' })
-        res.end()
-        return
-      }
-      const { signal, cleanup } = makeSignal(res)
-      try {
-        const params = parseQuery(req)
-        const sessionId = params.get('sessionId') ?? ''
-        const kind = params.get('kind') ?? ''
-        const id = params.get('id') ?? ''
-        const force = params.get('refresh') === '1'
-        const paramOwner = params.get('owner')
-        const paramRepo = params.get('repo')
-        const paramHost = params.get('host') || 'github.com'
-
-        let target = null
-        if (paramOwner && paramRepo) {
-          target = validateRepoTarget(paramHost, paramOwner, paramRepo, allowedHosts)
-        } else {
-          const { cwd } = await resolveSessionContext(sessionId)
-          target = await resolveRepoForCwd(cwd, false, signal)
-        }
-
-        if (!target) {
-          sendJson(res, 404, { ok: false, message: 'No GitHub repository linked to this session.' })
-          return
-        }
-        const cacheKey = `${target.host}/${target.fullName}:${kind}:${id}`
-        const value = await detailCache.load(
-          cacheKey,
-          DETAIL_TTL_MS,
-          force,
-          () => fetchGitHubDetail(target, kind, id, signal),
-        )
-        sendJson(res, 200, { ok: true, value })
-      } catch (error) {
-        const info = classifyGhError(error, 'github.com')
-        sendJson(res, 400, { ok: false, authState: info.authState, message: info.message })
-      } finally {
-        cleanup()
-      }
-    },
-  }), 'github-panel: detail route')
-
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'exact',
     path: ACTION_PATH,
     handler: async (req, res, peer) => {
       if (!requireOwner(res, peer)) return
@@ -295,7 +240,6 @@ export function apply(ctx, config = {}) {
           const result = await rerunFailedJobs(target, body.runId, signal)
           const prefix = `${target.host}/${target.fullName}`
           overviewCache.deletePrefix(prefix)
-          detailCache.deletePrefix(`${prefix}:run:`)
           mentionsCache.clear()
           sendJson(res, 200, { ok: true, value: result })
           return
@@ -332,7 +276,6 @@ export function apply(ctx, config = {}) {
         detectCache.clear()
         overviewCache.clear()
         mentionsCache.clear()
-        detailCache.clear()
         const entry = ctx.fiber?.entry
         const editor = ctx.get('configEditor')
         if (entry && editor) {

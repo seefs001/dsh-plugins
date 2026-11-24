@@ -43,7 +43,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | [`dsh-workspace-manager`](packages/workspace-manager) | Inspect saved workspaces and remove stale entries. | Host + Web |
 | [`dsh-branch-switcher`](packages/branch-switcher) | Switch local Git branches from the New Session page before the first message. Requires Forge worktrees. | Host + Web |
 | [`dsh-git-changes`](packages/git-changes) | Show current branch and uncommitted stats below the composer; click to open local diffs. Requires Forge worktrees. | Web |
-| [`dsh-github-panel`](packages/github-panel) | Show linked GitHub repo overview, open PRs, issues, Actions runs, and releases in the right session panel and sidebar. Requires GitHub CLI (`gh`). | Host + Web |
+| [`dsh-github-panel`](packages/github-panel) | Show linked GitHub repo overview, chat mentions, open PRs, issues, Actions runs, and releases in the right session panel and open items directly on GitHub. Requires GitHub CLI (`gh`). | Host + Web |
 | [`dsh-keep-awake`](packages/keep-awake) | Prevent macOS idle sleep while the DSH Host runs. | Host |
 
 ### Reading conversations

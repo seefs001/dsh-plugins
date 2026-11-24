@@ -10,7 +10,6 @@ const MAX_MENTIONS = 20
 const MAX_MENTION_RUNS = 5
 const DEFAULT_HOSTS = ['github.com']
 const VALID_SEGMENT = /^[A-Za-z0-9._-]+$/
-const VALID_TAG = /^[^\s\0/][^ \0]*$/
 
 const STRIPPED_GIT_ENV = [
   'GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY',
@@ -300,23 +299,6 @@ query($owner: String!, $name: String!) {
     primaryLanguage { name color }
     defaultBranchRef {
       name
-      target {
-        ... on Commit {
-          history(first: 10) {
-            nodes {
-              oid
-              abbreviatedOid
-              messageHeadline
-              committedDate
-              commitUrl
-              author {
-                name
-                user { login }
-              }
-            }
-          }
-        }
-      }
     }
     openPrs: pullRequests(states: OPEN, first: 15, orderBy: { field: UPDATED_AT, direction: DESC }) {
       totalCount
@@ -368,103 +350,6 @@ query($owner: String!, $name: String!) {
       publishedAt
       isPrerelease
       isDraft
-    }
-  }
-}
-`
-
-const PR_DETAIL_QUERY = `
-query($owner: String!, $name: String!, $number: Int!) {
-  repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) {
-      number
-      title
-      url
-      body
-      state
-      isDraft
-      mergeable
-      mergeStateStatus
-      reviewDecision
-      createdAt
-      updatedAt
-      mergedAt
-      closedAt
-      headRefName
-      baseRefName
-      additions
-      deletions
-      changedFiles
-      author { login }
-      labels(first: 10) { nodes { name color } }
-      reviewRequests(first: 10) {
-        nodes {
-          requestedReviewer {
-            __typename
-            ... on User { login }
-            ... on Team { name slug }
-          }
-        }
-      }
-      commits(last: 1) {
-        nodes {
-          commit {
-            oid
-            statusCheckRollup {
-              state
-              contexts(first: 30) {
-                nodes {
-                  __typename
-                  ... on CheckRun { name status conclusion detailsUrl }
-                  ... on StatusContext { context state targetUrl }
-                }
-              }
-            }
-          }
-        }
-      }
-      comments(last: 20) {
-        totalCount
-        nodes {
-          id
-          body
-          createdAt
-          url
-          author { login }
-        }
-      }
-    }
-  }
-}
-`
-
-const ISSUE_DETAIL_QUERY = `
-query($owner: String!, $name: String!, $number: Int!) {
-  repository(owner: $owner, name: $name) {
-    issue(number: $number) {
-      number
-      title
-      url
-      body
-      state
-      stateReason
-      createdAt
-      updatedAt
-      closedAt
-      author { login }
-      labels(first: 10) { nodes { name color } }
-      assignees(first: 6) { nodes { login } }
-      milestone { title dueOn }
-      comments(last: 20) {
-        totalCount
-        nodes {
-          id
-          body
-          createdAt
-          url
-          author { login }
-        }
-      }
     }
   }
 }
@@ -530,17 +415,6 @@ function mapRun(run) {
     createdAt: run.created_at ?? null,
     updatedAt: run.updated_at ?? null,
     startedAt: run.run_started_at ?? null,
-  }
-}
-
-function mapCommit(node) {
-  return {
-    oid: node.oid,
-    shortOid: node.abbreviatedOid,
-    headline: node.messageHeadline,
-    committedDate: node.committedDate,
-    url: node.commitUrl,
-    author: node.author?.user?.login || node.author?.name || 'unknown',
   }
 }
 
@@ -854,7 +728,6 @@ export async function fetchGitHubOverview(target, signal) {
       issues: [],
       issuesTotal: 0,
       runs: [],
-      commits: [],
       latestRelease: null,
     }
   }
@@ -877,7 +750,6 @@ export async function fetchGitHubOverview(target, signal) {
       issues: [],
       issuesTotal: 0,
       runs: [],
-      commits: [],
       latestRelease: null,
     }
   }
@@ -888,7 +760,6 @@ export async function fetchGitHubOverview(target, signal) {
 
   const pullRequests = (repoNode.openPrs?.nodes ?? []).filter(Boolean).map(mapPullRequest)
   const issues = (repoNode.openIssues?.nodes ?? []).filter(Boolean).map(mapIssue)
-  const commits = (repoNode.defaultBranchRef?.target?.history?.nodes ?? []).filter(Boolean).map(mapCommit)
 
   return {
     linked: true,
@@ -915,204 +786,8 @@ export async function fetchGitHubOverview(target, signal) {
     issues,
     issuesTotal: repoNode.openIssues?.totalCount ?? issues.length,
     runs,
-    commits,
     latestRelease: repoNode.latestRelease ?? null,
   }
-}
-
-function mapCheckContext(node) {
-  if (!node) return null
-  if (node.__typename === 'CheckRun') {
-    return {
-      name: node.name,
-      status: node.status,
-      conclusion: node.conclusion ?? null,
-      url: node.detailsUrl ?? null,
-    }
-  }
-  if (node.__typename === 'StatusContext') {
-    return {
-      name: node.context,
-      status: 'COMPLETED',
-      conclusion: node.state ?? null,
-      url: node.targetUrl ?? null,
-    }
-  }
-  return null
-}
-
-function mapComments(connection) {
-  return (connection?.nodes ?? []).filter(Boolean).map(comment => ({
-    id: comment.id,
-    author: comment.author?.login ?? 'ghost',
-    body: typeof comment.body === 'string' ? comment.body.slice(0, 24_000) : '',
-    createdAt: comment.createdAt,
-    url: comment.url,
-  }))
-}
-
-export async function fetchGitHubDetail(target, kind, id, signal) {
-  if (kind === 'pr') {
-    const number = Number.parseInt(String(id), 10)
-    if (!Number.isSafeInteger(number) || number <= 0) throw new Error('Invalid pull request number')
-    const data = await runGhJson([
-      'api', 'graphql',
-      '--hostname', target.host,
-      '-F', `owner=${target.owner}`,
-      '-F', `name=${target.repo}`,
-      '-F', `number=${number}`,
-      '-f', `query=${PR_DETAIL_QUERY}`,
-    ], signal)
-    const pr = data?.data?.repository?.pullRequest
-    if (!pr) throw new Error(data?.errors?.[0]?.message || `Pull request #${number} not found`)
-    const rollup = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup ?? null
-    const checks = (rollup?.contexts?.nodes ?? []).map(mapCheckContext).filter(Boolean)
-    const reviewers = (pr.reviewRequests?.nodes ?? []).map(item => {
-      const reviewer = item?.requestedReviewer
-      if (!reviewer) return null
-      return reviewer.__typename === 'Team' ? reviewer.name || reviewer.slug : reviewer.login
-    }).filter(Boolean)
-    return {
-      kind: 'pr',
-      host: target.host,
-      owner: target.owner,
-      repo: target.repo,
-      fullName: target.fullName,
-      number: pr.number,
-      title: pr.title,
-      url: pr.url,
-      body: typeof pr.body === 'string' ? pr.body.slice(0, 48_000) : '',
-      state: pr.state,
-      isDraft: Boolean(pr.isDraft),
-      mergeable: pr.mergeable ?? null,
-      mergeStateStatus: pr.mergeStateStatus ?? null,
-      reviewDecision: pr.reviewDecision ?? null,
-      createdAt: pr.createdAt,
-      updatedAt: pr.updatedAt,
-      mergedAt: pr.mergedAt ?? null,
-      closedAt: pr.closedAt ?? null,
-      headRefName: pr.headRefName,
-      baseRefName: pr.baseRefName,
-      additions: pr.additions ?? 0,
-      deletions: pr.deletions ?? 0,
-      changedFiles: pr.changedFiles ?? 0,
-      author: pr.author?.login ?? 'ghost',
-      labels: mapLabels(pr.labels),
-      reviewers,
-      checksState: rollup?.state ?? null,
-      checks,
-      commentsTotal: pr.comments?.totalCount ?? 0,
-      comments: mapComments(pr.comments),
-    }
-  }
-
-  if (kind === 'issue') {
-    const number = Number.parseInt(String(id), 10)
-    if (!Number.isSafeInteger(number) || number <= 0) throw new Error('Invalid issue number')
-    const data = await runGhJson([
-      'api', 'graphql',
-      '--hostname', target.host,
-      '-F', `owner=${target.owner}`,
-      '-F', `name=${target.repo}`,
-      '-F', `number=${number}`,
-      '-f', `query=${ISSUE_DETAIL_QUERY}`,
-    ], signal)
-    const issue = data?.data?.repository?.issue
-    if (!issue) throw new Error(data?.errors?.[0]?.message || `Issue #${number} not found`)
-    return {
-      kind: 'issue',
-      host: target.host,
-      owner: target.owner,
-      repo: target.repo,
-      fullName: target.fullName,
-      number: issue.number,
-      title: issue.title,
-      url: issue.url,
-      body: typeof issue.body === 'string' ? issue.body.slice(0, 48_000) : '',
-      state: issue.state,
-      stateReason: issue.stateReason ?? null,
-      createdAt: issue.createdAt,
-      updatedAt: issue.updatedAt,
-      closedAt: issue.closedAt ?? null,
-      author: issue.author?.login ?? 'ghost',
-      labels: mapLabels(issue.labels),
-      assignees: (issue.assignees?.nodes ?? []).filter(Boolean).map(user => user.login),
-      milestone: issue.milestone ?? null,
-      commentsTotal: issue.comments?.totalCount ?? 0,
-      comments: mapComments(issue.comments),
-    }
-  }
-
-  if (kind === 'run') {
-    const runId = String(id).trim()
-    if (!/^\d+$/.test(runId)) throw new Error('Invalid workflow run id')
-    const [runData, jobsData] = await Promise.all([
-      runGhJson(['api', '--hostname', target.host, `repos/${target.owner}/${target.repo}/actions/runs/${runId}`], signal),
-      runGhJson(['api', '--hostname', target.host, `repos/${target.owner}/${target.repo}/actions/runs/${runId}/jobs?per_page=30`], signal),
-    ])
-    const jobs = Array.isArray(jobsData?.jobs)
-      ? jobsData.jobs.map(job => ({
-        id: job.id,
-        name: job.name,
-        status: job.status ?? null,
-        conclusion: job.conclusion ?? null,
-        startedAt: job.started_at ?? null,
-        completedAt: job.completed_at ?? null,
-        url: job.html_url ?? null,
-        steps: Array.isArray(job.steps)
-          ? job.steps.map(step => ({
-            number: step.number,
-            name: step.name,
-            status: step.status ?? null,
-            conclusion: step.conclusion ?? null,
-          }))
-          : [],
-      }))
-      : []
-    return {
-      kind: 'run',
-      host: target.host,
-      owner: target.owner,
-      repo: target.repo,
-      fullName: target.fullName,
-      ...mapRun(runData),
-      jobs,
-    }
-  }
-
-  if (kind === 'release') {
-    const tag = String(id).trim()
-    if (!tag || !VALID_TAG.test(tag) || tag.includes('..')) throw new Error('Invalid release tag')
-    const rel = await runGhJson([
-      'api', '--hostname', target.host,
-      `repos/${target.owner}/${target.repo}/releases/tags/${encodeURIComponent(tag)}`,
-    ], signal)
-    return {
-      kind: 'release',
-      host: target.host,
-      owner: target.owner,
-      repo: target.repo,
-      fullName: target.fullName,
-      tagName: rel.tag_name ?? tag,
-      name: rel.name || rel.tag_name || tag,
-      body: typeof rel.body === 'string' ? rel.body.slice(0, 48_000) : '',
-      url: rel.html_url ?? null,
-      publishedAt: rel.published_at ?? rel.created_at ?? null,
-      isPrerelease: Boolean(rel.prerelease),
-      isDraft: Boolean(rel.draft),
-      author: rel.author?.login ?? null,
-      assets: Array.isArray(rel.assets)
-        ? rel.assets.slice(0, 15).map(asset => ({
-          name: asset.name,
-          size: asset.size ?? 0,
-          downloadCount: asset.download_count ?? 0,
-          url: asset.browser_download_url ?? null,
-        }))
-        : [],
-    }
-  }
-
-  throw new Error(`Unsupported detail kind: ${kind}`)
 }
 
 export async function rerunFailedJobs(target, runId, signal) {

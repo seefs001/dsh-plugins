@@ -4,15 +4,14 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const {
-      Button, HoverCard, HoverCardGroup, Input, MarkdownText, Menu, SegmentedTabs, StateDot, Tag, Tooltip,
-      IconChevronLeftOutlineRegular, IconCloseOutlineRegular, IconCopyOutlineRegular, IconEllipsisOutlineRegular,
+      Button, HoverCard, HoverCardGroup, Menu, StateDot,
+      IconCloseOutlineRegular, IconCopyOutlineRegular, IconEllipsisOutlineRegular,
       IconRefreshOutlineRegular, IconRightUpOutlineRegular, IconWarningTriangleOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
 
     const NS = 'githubPanel'
     const SECTION_ID = 'github'
-    const TAB_ID = 'dsh-github-panel'
-    const TAB_KIND = 'github-panel'
+    const CONFIG_KEY = 'dsh-github-panel'
     const CHANNEL_NAME = 'dsh-github-panel'
     const REFRESH_THROTTLE_MS = 60_000
     const MENTION_DEBOUNCE_MS = 900
@@ -40,70 +39,22 @@ window.__ModuleLoader__.load({
 .ghp-quiet{padding:4px 6px;color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
 .ghp-indicator{background:var(--dsw-alias-state-error-primary)}
 .ghp-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-
-.ghp-tab{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13)}
-.ghp-tab-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
-.ghp-tab-title-wrap{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
-.ghp-tab-title{font:var(--dsw-font-sm-14);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ghp-tab-actions{display:inline-flex;align-items:center;gap:4px;flex:none}
-.ghp-tab-nav{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--dsw-alias-border-l2);flex:none;flex-wrap:wrap}
-.ghp-tab-body{flex:1;min-height:0;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
-.ghp-search{margin-bottom:2px}
-.ghp-card{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-1)}
-.ghp-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:8px}
-.ghp-stat{display:flex;flex-direction:column;gap:2px;padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm);background:var(--dsw-alias-bg-layer-1);cursor:pointer;text-align:left;color:inherit;font:inherit}
-@media (hover:hover){.ghp-stat:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-.ghp-stat-val{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary)}
-.ghp-stat-label{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
-.ghp-desc{margin:0;color:var(--dsw-alias-label-secondary);line-height:1.5}
-.ghp-list{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
-.ghp-item{display:flex;align-items:flex-start;gap:10px;width:100%;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit;text-align:left;cursor:pointer;box-sizing:border-box}
-@media (hover:hover){.ghp-item:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3)}}
-.ghp-item-icon{flex:none;margin-top:2px;display:inline-flex;align-items:center;justify-content:center}
-.ghp-item-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
-.ghp-item-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.ghp-item-title{font-weight:500;color:var(--dsw-alias-label-primary);overflow-wrap:anywhere}
-.ghp-item-sub{display:flex;align-items:center;flex-wrap:wrap;gap:6px;color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
-.ghp-labels{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
-.ghp-label{display:inline-flex;align-items:center;gap:4px;padding:1px 6px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xxs-12);line-height:16px}
-.ghp-label-dot{width:7px;height:7px;border-radius:999px;flex:none}
-.ghp-add{color:var(--dsw-alias-state-success-primary)}
-.ghp-del{color:var(--dsw-alias-state-error-primary)}
-.ghp-detail-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.ghp-detail-actions{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
-.ghp-detail-title{margin:0;font-size:16px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
-.ghp-prose{padding:12px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-1);overflow-wrap:anywhere}
-.ghp-comments{display:flex;flex-direction:column;gap:8px}
-.ghp-comment{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-1)}
-.ghp-comment-head{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
-.ghp-comment-author{font-weight:600;color:var(--dsw-alias-label-primary)}
-.ghp-jobs{display:flex;flex-direction:column;gap:8px}
-.ghp-job{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-1)}
-.ghp-job-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.ghp-job-name{display:inline-flex;align-items:center;gap:8px;font-weight:500;min-width:0}
-.ghp-steps{display:flex;flex-direction:column;gap:3px;padding-left:18px;margin:0;list-style:none}
-.ghp-step{display:flex;align-items:center;gap:6px;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xxs-12)}
-.ghp-empty{padding:24px 12px;text-align:center;color:var(--dsw-alias-label-tertiary)}
-.ghp-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-1)}
-.ghp-banner-text{display:flex;flex-direction:column;gap:2px;min-width:0}
-.ghp-code{font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ghp-tab-chip{display:inline-flex;align-items:center;gap:6px;min-width:0}
-.ghp-tab-chip svg{flex:none;width:14px;height:14px}
 .ghp-cfg{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13)}
 .ghp-cfg h4{margin:0;font:var(--dsw-font-sm-14);font-weight:600}
 .ghp-cfg textarea{width:100%;min-height:76px;padding:8px;box-sizing:border-box;border-radius:var(--dsw-radius-sm,8px);border:1px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-base);color:inherit;font-family:var(--dsw-font-mono,ui-monospace,monospace);font-size:12px;resize:vertical}
 .ghp-cfg-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ghp-cfg-hint{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
+.ghp-cfg-err{color:var(--dsw-alias-state-error-primary);font:var(--dsw-font-xxs-12)}
 `
 
     const DICTS = {
       en: {
         sectionTitle: 'GitHub',
-        tabTitle: 'GitHub',
-        openPanel: 'Open GitHub details',
         openOnGitHub: 'Open on GitHub',
         openPrs: 'Open Pull Requests on GitHub',
         openIssues: 'Open Issues on GitHub',
         openActions: 'Open Actions on GitHub',
+        openReleases: 'Open Releases on GitHub',
         refresh: 'Refresh GitHub',
         copyUrl: 'Copy URL',
         copyCommand: 'Copy',
@@ -112,59 +63,31 @@ window.__ModuleLoader__.load({
         cite: 'Add to composer',
         cited: 'Added reference to composer',
         citeBusy: 'Composer is busy; try again when editable',
-        viewDetails: 'View details',
         rerunFailed: 'Rerun failed jobs',
         rerunSent: 'Requested rerun of failed jobs',
         rerunFailedErr: 'Could not rerun failed jobs',
         retry: 'Retry',
-        back: 'Back',
-        loading: 'Loading GitHub data…',
         loadFailed: 'Could not load GitHub data',
-        notLinked: 'This session is not linked to a GitHub repository.',
         signInTitle: 'Sign in to {host}',
         ghUnavailable: 'GitHub CLI (gh) unavailable',
         rateLimited: 'GitHub API rate limit reached',
         repoNotFound: 'GitHub repository not found',
         private: 'Private',
-        public: 'Public',
         archived: 'Archived',
-        defaultBranch: 'Default branch',
         currentBranch: 'Branch',
         stars: 'Stars',
         forks: 'Forks',
         mentioned: 'Mentioned in chat',
-        mentionedShort: 'Mentioned',
         pullRequests: 'Pull Requests',
         issues: 'Issues',
         actions: 'Actions',
-        commits: 'Commits',
-        overview: 'Overview',
         latestRelease: 'Latest release',
-        release: 'Release',
-        releases: 'Releases',
-        prerelease: 'Pre-release',
         draft: 'Draft',
         open: 'Open',
         closed: 'Closed',
         merged: 'Merged',
-        approved: 'Approved',
-        changesRequested: 'Changes requested',
-        reviewRequired: 'Review required',
-        checks: 'Checks',
-        jobs: 'Jobs',
-        comments: 'Comments',
         assignees: 'Assignees',
-        reviewers: 'Reviewers',
-        milestone: 'Milestone',
-        assets: 'Assets',
-        noDescription: 'No description provided.',
         emptySection: 'No open PRs, issues, or recent runs',
-        emptyMentions: 'No GitHub issues, PRs, or runs mentioned in this conversation.',
-        emptyPrs: 'No open pull requests.',
-        emptyIssues: 'No open issues.',
-        emptyRuns: 'No recent workflow runs.',
-        emptyCommits: 'No recent commits.',
-        filterPlaceholder: 'Filter by title, #number, or author…',
         showMore: 'Show {n} more',
         showLess: 'Show less',
         foldName: '{label} in {group}',
@@ -200,12 +123,11 @@ window.__ModuleLoader__.load({
       },
       zh: {
         sectionTitle: 'GitHub',
-        tabTitle: 'GitHub',
-        openPanel: '在右栏打开 GitHub 详情',
         openOnGitHub: '在 GitHub 中打开',
         openPrs: '在 GitHub 中打开 PR 列表',
         openIssues: '在 GitHub 中打开 Issues',
         openActions: '在 GitHub 中打开 Actions',
+        openReleases: '在 GitHub 中打开 Releases',
         refresh: '刷新 GitHub 状态',
         copyUrl: '复制链接',
         copyCommand: '复制',
@@ -214,59 +136,31 @@ window.__ModuleLoader__.load({
         cite: '引用到输入框',
         cited: '已添加到输入框（未发送）',
         citeBusy: '输入框当前不可编辑，请稍后重试',
-        viewDetails: '查看详情',
         rerunFailed: '重跑失败任务',
         rerunSent: '已触发重跑失败任务',
         rerunFailedErr: '重跑失败任务出错',
         retry: '重试',
-        back: '返回',
-        loading: '正在读取 GitHub 数据…',
         loadFailed: '读取 GitHub 数据失败',
-        notLinked: '当前会话未关联 GitHub 仓库。',
         signInTitle: '登录 {host}',
         ghUnavailable: '宿主未安装 GitHub CLI (gh)',
         rateLimited: '已触发 GitHub API 速率限制',
         repoNotFound: '未找到对应的 GitHub 仓库',
         private: '私有',
-        public: '公开',
         archived: '已归档',
-        defaultBranch: '默认分支',
         currentBranch: '当前分支',
         stars: 'Star',
         forks: 'Fork',
         mentioned: '对话提及',
-        mentionedShort: '提及',
         pullRequests: 'Pull Requests',
         issues: 'Issues',
         actions: 'Actions',
-        commits: '提交',
-        overview: '概览',
         latestRelease: '最新发布',
-        release: '发布',
-        releases: '发布',
-        prerelease: '预发布',
         draft: '草稿',
         open: '打开',
         closed: '已关闭',
         merged: '已合并',
-        approved: '已批准',
-        changesRequested: '请求修改',
-        reviewRequired: '待评审',
-        checks: '检查',
-        jobs: '任务',
-        comments: '评论',
         assignees: '负责人',
-        reviewers: '评审者',
-        milestone: '里程碑',
-        assets: '附件',
-        noDescription: '暂无描述。',
         emptySection: '暂无打开的 PR、Issue 或近期构建',
-        emptyMentions: '当前对话暂未提及 GitHub Issue、PR 或构建记录。',
-        emptyPrs: '暂无打开的 Pull Request。',
-        emptyIssues: '暂无打开的 Issue。',
-        emptyRuns: '暂无近期工作流运行记录。',
-        emptyCommits: '暂无近期提交。',
-        filterPlaceholder: '按标题、编号或作者筛选…',
         showMore: '显示其余 {n} 项',
         showLess: '收起',
         foldName: '{group}：{label}',
@@ -332,18 +226,17 @@ window.__ModuleLoader__.load({
     h('path', { d: 'M2.5 8.2V3.5a1 1 0 0 1 1-1h4.7l5.3 5.3a1 1 0 0 1 0 1.4l-4.3 4.3a1 1 0 0 1-1.4 0L2.5 8.2z' }),
     h('circle', { cx: 5.5, cy: 5.5, r: 0.9, fill: 'currentColor', stroke: 'none' }))
 
-    const IconCommit = ({ size = 16, className }) => h('svg', {
-      width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor',
-      strokeWidth: 1.4, strokeLinecap: 'round', className, 'aria-hidden': true,
-    },
-    h('circle', { cx: 8, cy: 8, r: 2.5 }),
-    h('path', { d: 'M2 8h3.5M10.5 8H14' }))
-
     const IconQuote = ({ size = 14 }) => h('svg', {
       width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor',
       strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
     },
     h('path', { d: 'M3 4.5h10M3 8h7M3 11.5h5M11 10l2 2 2-2M13 8v4' }))
+
+    const IconPrompt = ({ size = 14 }) => h('svg', {
+      width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor',
+      strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+    },
+    h('path', { d: 'M8 2.2 9.4 6l3.8 1.4L9.4 8.8 8 12.6 6.6 8.8 2.8 7.4 6.6 6z' }))
 
     function fmt(template, vars = {}) {
       let out = String(template ?? '')
@@ -365,13 +258,6 @@ window.__ModuleLoader__.load({
       if (hours < 24) return fmt(t('hoursAgo'), { n: hours })
       const days = Math.floor(hours / 24)
       return fmt(t('daysAgo'), { n: days })
-    }
-
-    function formatBytes(bytes) {
-      if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
-      if (bytes < 1024) return `${bytes} B`
-      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
     }
 
     function dotStateForRun(status, conclusion) {
@@ -423,12 +309,6 @@ window.__ModuleLoader__.load({
       }
       if (item.state === 'CLOSED') return { state: 'idle', label: t('closed') }
       return { state: 'completed', label: t('open') }
-    }
-
-    function safeHexColor(hex) {
-      if (typeof hex !== 'string') return null
-      const clean = hex.replace(/^#/, '')
-      return /^[0-9a-fA-F]{6}$/.test(clean) ? `#${clean}` : null
     }
 
     function openExternal(url) {
@@ -627,16 +507,6 @@ window.__ModuleLoader__.load({
       })
     }
 
-    function detailSpecForMention(item) {
-      return {
-        kind: item.kind,
-        id: item.kind === 'run' ? String(item.id) : String(item.number),
-        host: item.host,
-        owner: item.owner,
-        repo: item.repo,
-      }
-    }
-
     function mentionKeyOf(item) {
       return item.kind === 'run' ? `run:${item.fullName}:${item.id}` : `${item.kind}:${item.fullName}:${item.number}`
     }
@@ -666,8 +536,29 @@ window.__ModuleLoader__.load({
       return `GitHub Actions "${item.name}" (${item.displayTitle}): ${item.url}`
     }
 
+    function agentPromptFor(kind, item, defaultFullName, t) {
+      if (!item?.url) return null
+      const repoRef = item.fullName || defaultFullName || ''
+      if (kind === 'pr') {
+        return {
+          label: t('askAgentPr'),
+          text: fmt(t('promptPr'), { ref: `${repoRef}#${item.number}`, title: item.title, url: item.url }),
+        }
+      }
+      if (kind === 'issue') {
+        return {
+          label: t('askAgentIssue'),
+          text: fmt(t('promptIssue'), { ref: `${repoRef}#${item.number}`, title: item.title, url: item.url }),
+        }
+      }
+      return {
+        label: t('askAgentRun'),
+        text: fmt(t('promptRun'), { name: item.name || 'Actions', title: item.displayTitle, url: item.url }),
+      }
+    }
+
     return {
-      inject: ['slots', 'locale', 'sidebarRight', 'sidebarRightTabs'],
+      inject: ['slots', 'locale'],
       apply(ctx) {
         for (const [lang, dict] of Object.entries(DICTS)) {
           ctx.effect(() => ctx.locale.register(NS, lang, dict), `github-panel: ${lang}`)
@@ -706,15 +597,6 @@ window.__ModuleLoader__.load({
           notify(t(ok ? 'cited' : 'citeBusy'), ok)
         }
 
-        function openSidebar(params, dismissOverlay) {
-          try {
-            ctx.sidebarRight.openTab(TAB_KIND, params ? { params } : undefined)
-            dismissOverlay?.()
-          } catch (error) {
-            console.error('[dsh-github-panel] open tab failed:', error)
-          }
-        }
-
         async function triggerRerun(sessionId, runId, target, store, t) {
           try {
             const payload = { sessionId, action: 'rerun-failed', runId }
@@ -739,7 +621,7 @@ window.__ModuleLoader__.load({
           }
         }
 
-        function GitHubSection({ sessionId, useProjection, useConversation, useSession, inputActions, dismissOverlay, renderFactorySlot, t }) {
+        function GitHubSection({ sessionId, useProjection, useConversation, useSession, inputActions, renderFactorySlot, t }) {
           const cwd = typeof useProjection === 'function' ? useProjection('workingDirectory') : undefined
           const activityKey = readActivityKey(useConversation, useSession)
           const { snap, store } = useOverview(registry, sessionId, cwd, activityKey)
@@ -797,7 +679,7 @@ window.__ModuleLoader__.load({
               h('button', {
                 type: 'button',
                 'data-row-part': 'body',
-                onClick: () => openSidebar({ tab: 'overview' }, dismissOverlay),
+                onClick: () => openExternal(repoUrl),
               },
               h('span', { 'data-row-part': 'icon', 'aria-hidden': true }, h(IconGitHub, { size: 16 })),
               repoDetailParts.length > 0
@@ -808,14 +690,13 @@ window.__ModuleLoader__.load({
               h('span', { 'data-row-part': 'menu' }, h(RowMenu, {
                 label: fmt(t('moreActions'), { name: fullName }),
                 entries: [
-                  { item: { id: 'panel', label: t('openPanel'), icon: h(IconGitHub, { size: 14 }) }, run: () => openSidebar({ tab: 'overview' }, dismissOverlay) },
-                  { item: { id: 'refresh', label: t('refresh'), icon: h(IconRefreshOutlineRegular, { size: 14 }) }, run: () => void store?.refresh(true) },
-                  { separator: true, id: 'sep-links' },
                   { item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(repoUrl) },
                   { item: { id: 'prs', label: t('openPrs'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(`${repoUrl}/pulls`) },
                   { item: { id: 'issues', label: t('openIssues'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(`${repoUrl}/issues`) },
                   { item: { id: 'actions', label: t('openActions'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(`${repoUrl}/actions`) },
-                  { separator: true, id: 'sep-copy' },
+                  { item: { id: 'releases', label: t('openReleases'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(`${repoUrl}/releases`) },
+                  { separator: true, id: 'sep-util' },
+                  { item: { id: 'refresh', label: t('refresh'), icon: h(IconRefreshOutlineRegular, { size: 14 }) }, run: () => void store?.refresh(true) },
                   { item: { id: 'copy', label: t('copyUrl'), icon: h(IconCopyOutlineRegular, { size: 14 }) }, run: () => void copyText(repoUrl, t) },
                 ],
               })))
@@ -872,11 +753,7 @@ window.__ModuleLoader__.load({
 
               mentions.length > 0 && h('div', { className: 'ghp-group' },
                 h('div', { className: 'ghp-group-head' },
-                  h('button', {
-                    type: 'button',
-                    className: 'ghp-group-btn',
-                    onClick: () => openSidebar({ tab: 'mentioned' }, dismissOverlay),
-                  }, t('mentioned')),
+                  h('span', null, t('mentioned')),
                   h('span', { className: 'ghp-count' }, mentions.length)),
                 ...shownMentions.map(item => {
                   const key = item.kind === 'run' ? `m-run-${item.fullName}-${item.id}` : `m-${item.kind}-${item.fullName}-${item.number}`
@@ -894,18 +771,13 @@ window.__ModuleLoader__.load({
                   const subDetail = crossRepo
                     ? item.fullName
                     : (item.kind === 'run' ? [item.name, item.headBranch].filter(Boolean).join(' · ') : '')
+                  const prompt = agentPromptFor(item.kind, item, fullName, t)
 
                   const rowEl = h('div', { key, 'data-session-panel-row': '' },
                     h('button', {
                       type: 'button',
                       'data-row-part': 'body',
-                      onClick: () => {
-                        if (item.unresolved) {
-                          openExternal(item.url)
-                          return
-                        }
-                        openSidebar({ tab: 'mentioned', detail: detailSpecForMention(item) }, dismissOverlay)
-                      },
+                      onClick: () => openExternal(item.url),
                     },
                     h('span', { 'data-row-part': 'icon', 'aria-hidden': true }, iconEl),
                     subDetail
@@ -919,16 +791,13 @@ window.__ModuleLoader__.load({
                     h('span', { 'data-row-part': 'menu' }, h(RowMenu, {
                       label: fmt(t('moreActions'), { name: title }),
                       entries: [
-                        ...(!item.unresolved ? [{
-                          item: { id: 'detail', label: t('viewDetails'), icon: h(IconGitHub, { size: 14 }) },
-                          run: () => openSidebar({ tab: 'mentioned', detail: detailSpecForMention(item) }, dismissOverlay),
-                        }] : []),
+                        ...(item.url ? [{ item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(item.url) }] : []),
                         ...(item.kind === 'run' && dotStateForRun(item.status, item.conclusion) === 'failed' ? [{
                           item: { id: 'rerun', label: t('rerunFailed'), icon: h(IconRefreshOutlineRegular, { size: 14 }) },
                           run: () => void triggerRerun(sessionId, item.id, item, store, t),
                         }] : []),
-                        { item: { id: 'cite', label: t('cite'), icon: h(IconQuote, { size: 14 }) }, run: () => insertReference(inputActions, citeTextForMention(item), t) },
-                        ...(item.url ? [{ item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(item.url) }] : []),
+                        ...(prompt && inputActions ? [{ item: { id: 'ask', label: prompt.label, icon: h(IconPrompt, { size: 14 }) }, run: () => insertReference(inputActions, prompt.text, t) }] : []),
+                        ...(inputActions ? [{ item: { id: 'cite', label: t('cite'), icon: h(IconQuote, { size: 14 }) }, run: () => insertReference(inputActions, citeTextForMention(item), t) }] : []),
                         ...(item.url ? [{ item: { id: 'copy', label: t('copyUrl'), icon: h(IconCopyOutlineRegular, { size: 14 }) }, run: () => void copyText(item.url, t) }] : []),
                         { separator: true, id: `sep-hide-${key}` },
                         { item: { id: 'hide', label: t('hideMention'), icon: h(IconCloseOutlineRegular, { size: 14 }) }, run: () => hideMention(item) },
@@ -972,17 +841,19 @@ window.__ModuleLoader__.load({
                   h('button', {
                     type: 'button',
                     className: 'ghp-group-btn',
-                    onClick: () => openSidebar({ tab: 'prs' }, dismissOverlay),
+                    title: t('openPrs'),
+                    onClick: () => openExternal(`${repoUrl}/pulls`),
                   }, t('pullRequests')),
                   h('span', { className: 'ghp-count' }, data.pullRequestsTotal ?? prs.length)),
                 ...shownPrs.map(pr => {
                   const prIconClass = prIconClassFor(pr)
                   const checkDot = pr.checksState ? dotStateForCheck(pr.checksState) : null
+                  const prompt = agentPromptFor('pr', pr, fullName, t)
                   const rowEl = h('div', { key: `pr-${pr.number}`, 'data-session-panel-row': '' },
                     h('button', {
                       type: 'button',
                       'data-row-part': 'body',
-                      onClick: () => openSidebar({ tab: 'prs', detail: { kind: 'pr', id: String(pr.number) } }, dismissOverlay),
+                      onClick: () => openExternal(pr.url),
                     },
                     h('span', { 'data-row-part': 'icon', 'aria-hidden': true }, h(IconPullRequest, { size: 16, className: prIconClass })),
                     h('span', { 'data-row-part': 'content' }, pr.title)),
@@ -992,9 +863,9 @@ window.__ModuleLoader__.load({
                     h('span', { 'data-row-part': 'menu' }, h(RowMenu, {
                       label: fmt(t('moreActions'), { name: `#${pr.number}` }),
                       entries: [
-                        { item: { id: 'detail', label: t('viewDetails'), icon: h(IconPullRequest, { size: 14 }) }, run: () => openSidebar({ tab: 'prs', detail: { kind: 'pr', id: String(pr.number) } }, dismissOverlay) },
-                        { item: { id: 'cite', label: t('cite'), icon: h(IconQuote, { size: 14 }) }, run: () => insertReference(inputActions, `PR #${pr.number}: ${pr.title} (${pr.url})`, t) },
                         { item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(pr.url) },
+                        ...(prompt && inputActions ? [{ item: { id: 'ask', label: prompt.label, icon: h(IconPrompt, { size: 14 }) }, run: () => insertReference(inputActions, prompt.text, t) }] : []),
+                        ...(inputActions ? [{ item: { id: 'cite', label: t('cite'), icon: h(IconQuote, { size: 14 }) }, run: () => insertReference(inputActions, `PR #${pr.number}: ${pr.title} (${pr.url})`, t) }] : []),
                         { item: { id: 'copy', label: t('copyUrl'), icon: h(IconCopyOutlineRegular, { size: 14 }) }, run: () => void copyText(pr.url, t) },
                       ],
                     })))
@@ -1030,15 +901,17 @@ window.__ModuleLoader__.load({
                   h('button', {
                     type: 'button',
                     className: 'ghp-group-btn',
-                    onClick: () => openSidebar({ tab: 'issues' }, dismissOverlay),
+                    title: t('openIssues'),
+                    onClick: () => openExternal(`${repoUrl}/issues`),
                   }, t('issues')),
                   h('span', { className: 'ghp-count' }, data.issuesTotal ?? issues.length)),
                 ...shownIssues.map(issue => {
+                  const prompt = agentPromptFor('issue', issue, fullName, t)
                   const rowEl = h('div', { key: `issue-${issue.number}`, 'data-session-panel-row': '' },
                     h('button', {
                       type: 'button',
                       'data-row-part': 'body',
-                      onClick: () => openSidebar({ tab: 'issues', detail: { kind: 'issue', id: String(issue.number) } }, dismissOverlay),
+                      onClick: () => openExternal(issue.url),
                     },
                     h('span', { 'data-row-part': 'icon', 'aria-hidden': true }, h(IconIssue, { size: 16, className: 'ghp-icon-open' })),
                     h('span', { 'data-row-part': 'content' }, issue.title)),
@@ -1046,9 +919,9 @@ window.__ModuleLoader__.load({
                     h('span', { 'data-row-part': 'menu' }, h(RowMenu, {
                       label: fmt(t('moreActions'), { name: `#${issue.number}` }),
                       entries: [
-                        { item: { id: 'detail', label: t('viewDetails'), icon: h(IconIssue, { size: 14 }) }, run: () => openSidebar({ tab: 'issues', detail: { kind: 'issue', id: String(issue.number) } }, dismissOverlay) },
-                        { item: { id: 'cite', label: t('cite'), icon: h(IconQuote, { size: 14 }) }, run: () => insertReference(inputActions, `Issue #${issue.number}: ${issue.title} (${issue.url})`, t) },
                         { item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(issue.url) },
+                        ...(prompt && inputActions ? [{ item: { id: 'ask', label: prompt.label, icon: h(IconPrompt, { size: 14 }) }, run: () => insertReference(inputActions, prompt.text, t) }] : []),
+                        ...(inputActions ? [{ item: { id: 'cite', label: t('cite'), icon: h(IconQuote, { size: 14 }) }, run: () => insertReference(inputActions, `Issue #${issue.number}: ${issue.title} (${issue.url})`, t) }] : []),
                         { item: { id: 'copy', label: t('copyUrl'), icon: h(IconCopyOutlineRegular, { size: 14 }) }, run: () => void copyText(issue.url, t) },
                       ],
                     })))
@@ -1079,17 +952,19 @@ window.__ModuleLoader__.load({
                   h('button', {
                     type: 'button',
                     className: 'ghp-group-btn',
-                    onClick: () => openSidebar({ tab: 'actions' }, dismissOverlay),
+                    title: t('openActions'),
+                    onClick: () => openExternal(`${repoUrl}/actions`),
                   }, t('actions')),
                   h('span', { className: 'ghp-count' }, runs.length)),
                 ...shownRuns.map(run => {
                   const dot = dotStateForRun(run.status, run.conclusion)
                   const isFailed = dot === 'failed'
+                  const prompt = agentPromptFor('run', run, fullName, t)
                   const rowEl = h('div', { key: `run-${run.id}`, 'data-session-panel-row': '' },
                     h('button', {
                       type: 'button',
                       'data-row-part': 'body',
-                      onClick: () => openSidebar({ tab: 'actions', detail: { kind: 'run', id: String(run.id) } }, dismissOverlay),
+                      onClick: () => openExternal(run.url),
                     },
                     h('span', { 'data-row-part': 'icon', 'aria-hidden': true }, h(StateDot, { state: dot, size: 8 })),
                     h('span', { 'data-row-part': 'lines' },
@@ -1099,10 +974,10 @@ window.__ModuleLoader__.load({
                     h('span', { 'data-row-part': 'menu' }, h(RowMenu, {
                       label: fmt(t('moreActions'), { name: run.displayTitle }),
                       entries: [
-                        { item: { id: 'detail', label: t('viewDetails'), icon: h(IconGitHub, { size: 14 }) }, run: () => openSidebar({ tab: 'actions', detail: { kind: 'run', id: String(run.id) } }, dismissOverlay) },
-                        ...(isFailed ? [{ item: { id: 'rerun', label: t('rerunFailed'), icon: h(IconRefreshOutlineRegular, { size: 14 }) }, run: () => void triggerRerun(sessionId, run.id, null, store, t) }] : []),
-                        { item: { id: 'cite', label: t('cite'), icon: h(IconQuote, { size: 14 }) }, run: () => insertReference(inputActions, `GitHub Actions "${run.name}" (${run.displayTitle}): ${run.url}`, t) },
                         ...(run.url ? [{ item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(run.url) }] : []),
+                        ...(isFailed ? [{ item: { id: 'rerun', label: t('rerunFailed'), icon: h(IconRefreshOutlineRegular, { size: 14 }) }, run: () => void triggerRerun(sessionId, run.id, null, store, t) }] : []),
+                        ...(prompt && inputActions ? [{ item: { id: 'ask', label: prompt.label, icon: h(IconPrompt, { size: 14 }) }, run: () => insertReference(inputActions, prompt.text, t) }] : []),
+                        ...(inputActions ? [{ item: { id: 'cite', label: t('cite'), icon: h(IconQuote, { size: 14 }) }, run: () => insertReference(inputActions, `GitHub Actions "${run.name}" (${run.displayTitle}): ${run.url}`, t) }] : []),
                         ...(run.url ? [{ item: { id: 'copy', label: t('copyUrl'), icon: h(IconCopyOutlineRegular, { size: 14 }) }, run: () => void copyText(run.url, t) }] : []),
                       ],
                     })))
@@ -1132,14 +1007,20 @@ window.__ModuleLoader__.load({
                 })),
 
               linked && data.authState === 'ready' && latestRelease && h('div', { className: 'ghp-group' },
-                h('div', { className: 'ghp-group-head' }, h('span', null, t('latestRelease'))),
+                h('div', { className: 'ghp-group-head' },
+                  h('button', {
+                    type: 'button',
+                    className: 'ghp-group-btn',
+                    title: t('openReleases'),
+                    onClick: () => openExternal(`${repoUrl}/releases`),
+                  }, t('latestRelease'))),
                 h(HoverCard, {
                   grouped: true,
                   anchor: h('div', { 'data-session-panel-row': '' },
                     h('button', {
                       type: 'button',
                       'data-row-part': 'body',
-                      onClick: () => openSidebar({ tab: 'overview', detail: { kind: 'release', id: latestRelease.tagName } }, dismissOverlay),
+                      onClick: () => openExternal(latestRelease.url),
                     },
                     h('span', { 'data-row-part': 'icon', 'aria-hidden': true }, h(IconTag, { size: 16 })),
                     h('span', { 'data-row-part': 'content' }, latestRelease.name && latestRelease.name !== latestRelease.tagName
@@ -1148,7 +1029,6 @@ window.__ModuleLoader__.load({
                     h('span', { 'data-row-part': 'menu' }, h(RowMenu, {
                       label: fmt(t('moreActions'), { name: latestRelease.tagName }),
                       entries: [
-                        { item: { id: 'detail', label: t('viewDetails'), icon: h(IconTag, { size: 14 }) }, run: () => openSidebar({ tab: 'overview', detail: { kind: 'release', id: latestRelease.tagName } }, dismissOverlay) },
                         { item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(latestRelease.url) },
                         { item: { id: 'copy', label: t('copyUrl'), icon: h(IconCopyOutlineRegular, { size: 14 }) }, run: () => void copyText(latestRelease.url, t) },
                       ],
@@ -1195,512 +1075,6 @@ window.__ModuleLoader__.load({
             h('span', { className: 'ghp-sr' }, t('ciFailedIndicator')))
         }
 
-        function LabelChips({ labels }) {
-          if (!Array.isArray(labels) || labels.length === 0) return null
-          return h('div', { className: 'ghp-labels' }, labels.map(label => {
-            const hex = safeHexColor(label.color)
-            return h('span', { key: label.name, className: 'ghp-label' },
-              hex && h('span', { className: 'ghp-label-dot', style: { background: hex } }),
-              label.name)
-          }))
-        }
-
-        function DetailView({ sessionId, detailReq, onBack, store, inputActions, t }) {
-          const [state, setState] = React.useState({ loading: true, data: null, error: null })
-          const [rerunning, setRerunning] = React.useState(false)
-
-          const load = React.useCallback((force = false) => {
-            let active = true
-            setState(prev => ({ ...prev, loading: true, error: null }))
-            const qs = new URLSearchParams({ sessionId, kind: detailReq.kind, id: detailReq.id })
-            if (detailReq.owner && detailReq.repo) {
-              qs.set('host', detailReq.host || 'github.com')
-              qs.set('owner', detailReq.owner)
-              qs.set('repo', detailReq.repo)
-            }
-            if (force) qs.set('refresh', '1')
-            fetch(`github-panel/detail?${qs.toString()}`, { cache: 'no-store' })
-              .then(async res => {
-                const json = await res.json().catch(() => null)
-                if (!res.ok || !json?.ok) throw new Error(json?.message || `HTTP ${res.status}`)
-                return json.value
-              })
-              .then(value => { if (active) setState({ loading: false, data: value, error: null }) })
-              .catch(err => { if (active) setState({ loading: false, data: null, error: err instanceof Error ? err.message : String(err) }) })
-            return () => { active = false }
-          }, [sessionId, detailReq.kind, detailReq.id, detailReq.host, detailReq.owner, detailReq.repo])
-
-          React.useEffect(() => load(false), [load])
-
-          const d = state.data
-          const citeText = d?.kind === 'pr' ? `PR ${d.fullName ? `${d.fullName}` : ''}#${d.number}: ${d.title} (${d.url})`
-            : d?.kind === 'issue' ? `Issue ${d.fullName ? `${d.fullName}` : ''}#${d.number}: ${d.title} (${d.url})`
-              : d?.kind === 'run' ? `GitHub Actions "${d.name}" (${d.displayTitle}): ${d.url}`
-                : d?.kind === 'release' ? `Release ${d.tagName}: ${d.url}`
-                  : null
-          const agentPrompt = d?.kind === 'pr'
-            ? fmt(t('promptPr'), { ref: `${d.fullName || ''}#${d.number}`, title: d.title, url: d.url })
-            : d?.kind === 'issue'
-              ? fmt(t('promptIssue'), { ref: `${d.fullName || ''}#${d.number}`, title: d.title, url: d.url })
-              : d?.kind === 'run'
-                ? fmt(t('promptRun'), { name: d.name || 'Actions', title: d.displayTitle, url: d.url })
-                : null
-          const agentLabel = d?.kind === 'pr' ? t('askAgentPr') : d?.kind === 'issue' ? t('askAgentIssue') : t('askAgentRun')
-
-          return h('div', { className: 'ghp-tab-body' },
-            h('div', { className: 'ghp-detail-bar' },
-              h(Button, {
-                size: 'sm', variant: 'ghost',
-                icon: h(IconChevronLeftOutlineRegular, { size: 14 }),
-                onClick: onBack,
-              }, t('back')),
-              h('div', { className: 'ghp-detail-actions' },
-                agentPrompt && inputActions && h(Button, {
-                  size: 'sm', variant: 'primary',
-                  onClick: () => insertReference(inputActions, agentPrompt, t),
-                }, agentLabel),
-                citeText && inputActions && h(Button, {
-                  size: 'sm', variant: 'outline',
-                  icon: h(IconQuote, { size: 14 }),
-                  onClick: () => insertReference(inputActions, citeText, t),
-                }, t('cite')),
-                d?.url && h(Button, {
-                  size: 'sm', variant: 'outline',
-                  icon: h(IconCopyOutlineRegular, { size: 14 }),
-                  onClick: () => void copyText(d.url, t),
-                }, t('copyUrl')),
-                d?.url && h(Button, {
-                  size: 'sm', variant: 'outline',
-                  icon: h(IconRightUpOutlineRegular, { size: 14 }),
-                  onClick: () => openExternal(d.url),
-                }, t('openOnGitHub')),
-                h(Tooltip, { label: t('refresh') },
-                  h(Button, {
-                    size: 'sm', variant: 'ghost',
-                    icon: h(IconRefreshOutlineRegular, { size: 14 }),
-                    'aria-label': t('refresh'),
-                    onClick: () => load(true),
-                  })))),
-
-            state.loading && h('div', { className: 'ghp-empty' }, t('loading')),
-            !state.loading && state.error && h('div', { className: 'ghp-banner' },
-              h('div', { className: 'ghp-banner-text' },
-                h('strong', null, t('loadFailed')),
-                h('span', { className: 'ghp-code' }, state.error)),
-              h(Button, { size: 'sm', variant: 'outline', onClick: () => load(true) }, t('retry'))),
-
-            !state.loading && d?.kind === 'pr' && h(React.Fragment, null,
-              h('h2', { className: 'ghp-detail-title' }, `${d.title} `, h('span', { className: 'ghp-num' }, `#${d.number}`)),
-              h('div', { className: 'ghp-item-sub' },
-                d.fullName && h(Tag, { tone: 'quiet' }, d.fullName),
-                h(Tag, { tone: d.isDraft ? 'quiet' : d.state === 'MERGED' ? 'accent' : d.state === 'OPEN' ? 'success' : 'danger' },
-                  d.isDraft ? t('draft') : d.state === 'MERGED' ? t('merged') : d.state === 'OPEN' ? t('open') : t('closed')),
-                h('span', null, `@${d.author}`),
-                h('span', null, `${d.headRefName} → ${d.baseRefName}`),
-                h('span', { className: 'ghp-add' }, `+${d.additions}`),
-                h('span', { className: 'ghp-del' }, `−${d.deletions}`),
-                h('span', null, fmt(t('filesChanged'), { n: d.changedFiles })),
-                d.reviewDecision === 'APPROVED' && h(Tag, { tone: 'success' }, t('approved')),
-                d.reviewDecision === 'CHANGES_REQUESTED' && h(Tag, { tone: 'danger' }, t('changesRequested')),
-                d.reviewDecision === 'REVIEW_REQUIRED' && h(Tag, { tone: 'quiet' }, t('reviewRequired'))),
-              h(LabelChips, { labels: d.labels }),
-              d.reviewers?.length > 0 && h('div', { className: 'ghp-item-sub' }, `${t('reviewers')}: ${d.reviewers.join(', ')}`),
-              d.checks?.length > 0 && h('div', { className: 'ghp-card' },
-                h('strong', null, `${t('checks')} (${d.checks.length})`),
-                h('div', { className: 'ghp-steps', style: { paddingLeft: 0 } }, d.checks.map((chk, idx) => {
-                  const dot = dotStateForRun(chk.status, chk.conclusion)
-                  return h('div', { key: `${chk.name}-${idx}`, className: 'ghp-step' },
-                    h(StateDot, { state: dot, size: 7 }),
-                    chk.url
-                      ? h('a', { href: chk.url, target: '_blank', rel: 'noopener noreferrer', style: { color: 'inherit' } }, chk.name)
-                      : h('span', null, chk.name))
-                }))),
-              h('div', { className: 'ghp-prose' },
-                d.body ? h(MarkdownText, { text: d.body }) : h('span', { className: 'ghp-quiet' }, t('noDescription'))),
-              d.comments?.length > 0 && h('div', { className: 'ghp-comments' },
-                h('strong', null, `${t('comments')} (${d.commentsTotal})`),
-                ...d.comments.map(comment => h('div', { key: comment.id, className: 'ghp-comment' },
-                  h('div', { className: 'ghp-comment-head' },
-                    h('span', { className: 'ghp-comment-author' }, `@${comment.author}`),
-                    h('span', null, formatAgo(comment.createdAt, t))),
-                  h(MarkdownText, { text: comment.body }))))),
-
-            !state.loading && d?.kind === 'issue' && h(React.Fragment, null,
-              h('h2', { className: 'ghp-detail-title' }, `${d.title} `, h('span', { className: 'ghp-num' }, `#${d.number}`)),
-              h('div', { className: 'ghp-item-sub' },
-                d.fullName && h(Tag, { tone: 'quiet' }, d.fullName),
-                h(Tag, { tone: d.state === 'OPEN' ? 'success' : 'quiet' }, d.state === 'OPEN' ? t('open') : t('closed')),
-                h('span', null, `@${d.author}`),
-                h('span', null, fmt(t('updated'), { ago: formatAgo(d.updatedAt, t) })),
-                d.milestone && h('span', null, `${t('milestone')}: ${d.milestone.title}`)),
-              h(LabelChips, { labels: d.labels }),
-              d.assignees?.length > 0 && h('div', { className: 'ghp-item-sub' }, `${t('assignees')}: ${d.assignees.map(a => `@${a}`).join(', ')}`),
-              h('div', { className: 'ghp-prose' },
-                d.body ? h(MarkdownText, { text: d.body }) : h('span', { className: 'ghp-quiet' }, t('noDescription'))),
-              d.comments?.length > 0 && h('div', { className: 'ghp-comments' },
-                h('strong', null, `${t('comments')} (${d.commentsTotal})`),
-                ...d.comments.map(comment => h('div', { key: comment.id, className: 'ghp-comment' },
-                  h('div', { className: 'ghp-comment-head' },
-                    h('span', { className: 'ghp-comment-author' }, `@${comment.author}`),
-                    h('span', null, formatAgo(comment.createdAt, t))),
-                  h(MarkdownText, { text: comment.body }))))),
-
-            !state.loading && d?.kind === 'run' && h(React.Fragment, null,
-              h('h2', { className: 'ghp-detail-title' }, d.displayTitle),
-              h('div', { className: 'ghp-item-sub' },
-                d.fullName && h(Tag, { tone: 'quiet' }, d.fullName),
-                h(StateDot, { state: dotStateForRun(d.status, d.conclusion), size: 8 }),
-                h('span', null, statusLabelForRun(d.status, d.conclusion, t)),
-                d.name && h('span', null, d.name),
-                d.headBranch && h('span', null, d.headBranch),
-                d.event && h('span', null, d.event),
-                d.actor && h('span', null, `@${d.actor}`),
-                d.headSha && h('span', { className: 'ghp-code' }, d.headSha)),
-              dotStateForRun(d.status, d.conclusion) === 'failed' && h('div', null,
-                h(Button, {
-                  size: 'sm', variant: 'outline', disabled: rerunning,
-                  icon: h(IconRefreshOutlineRegular, { size: 14 }),
-                  onClick: async () => {
-                    setRerunning(true)
-                    const ok = await triggerRerun(sessionId, d.id, d, store, t)
-                    setRerunning(false)
-                    if (ok) load(true)
-                  },
-                }, t('rerunFailed'))),
-              h('div', { className: 'ghp-jobs' },
-                h('strong', null, `${t('jobs')} (${d.jobs?.length ?? 0})`),
-                ...(d.jobs ?? []).map(job => {
-                  const jDot = dotStateForRun(job.status, job.conclusion)
-                  return h('div', { key: job.id, className: 'ghp-job' },
-                    h('div', { className: 'ghp-job-head' },
-                      h('span', { className: 'ghp-job-name' },
-                        h(StateDot, { state: jDot, size: 8 }),
-                        h('span', null, job.name)),
-                      job.url && h(Button, {
-                        size: 'sm', variant: 'ghost',
-                        icon: h(IconRightUpOutlineRegular, { size: 13 }),
-                        'aria-label': t('openOnGitHub'),
-                        onClick: () => openExternal(job.url),
-                      })),
-                    job.steps?.length > 0 && h('ul', { className: 'ghp-steps' },
-                      job.steps.map(step => h('li', { key: `${job.id}-${step.number}`, className: 'ghp-step' },
-                        h(StateDot, { state: dotStateForRun(step.status, step.conclusion), size: 6 }),
-                        h('span', null, step.name)))))
-                }))),
-
-            !state.loading && d?.kind === 'release' && h(React.Fragment, null,
-              h('h2', { className: 'ghp-detail-title' }, d.name || d.tagName),
-              h('div', { className: 'ghp-item-sub' },
-                h(Tag, { tone: d.isPrerelease ? 'quiet' : 'accent' }, d.tagName),
-                d.isPrerelease && h(Tag, { tone: 'quiet' }, t('prerelease')),
-                d.author && h('span', null, `@${d.author}`),
-                d.publishedAt && h('span', null, fmt(t('published'), { ago: formatAgo(d.publishedAt, t) }))),
-              h('div', { className: 'ghp-prose' },
-                d.body ? h(MarkdownText, { text: d.body }) : h('span', { className: 'ghp-quiet' }, t('noDescription'))),
-              d.assets?.length > 0 && h('div', { className: 'ghp-card' },
-                h('strong', null, `${t('assets')} (${d.assets.length})`),
-                ...d.assets.map(asset => h('div', { key: asset.name, className: 'ghp-job-head' },
-                  asset.url
-                    ? h('a', { href: asset.url, target: '_blank', rel: 'noopener noreferrer', style: { color: 'inherit' } }, asset.name)
-                    : h('span', null, asset.name),
-                  h('span', { className: 'ghp-num' }, formatBytes(asset.size)))))))
-        }
-
-        function GitHubSidebarTab({ sessionId, useTabInfo, useProjection, useConversation, useSession, inputActions, t }) {
-          const cwd = typeof useProjection === 'function' ? useProjection('workingDirectory') : undefined
-          const activityKey = readActivityKey(useConversation, useSession)
-          const { snap, store } = useOverview(registry, sessionId, cwd, activityKey)
-          const tabInfo = typeof useTabInfo === 'function' ? useTabInfo() : null
-          const nav = tabInfo?.tab?.navigation
-          const [activeTab, setActiveTab] = React.useState('overview')
-          const [detail, setDetail] = React.useState(null)
-          const [query, setQuery] = React.useState('')
-          const lastRev = React.useRef(-1)
-
-          React.useEffect(() => {
-            if (!nav || nav.revision === lastRev.current) return
-            lastRev.current = nav.revision
-            const params = nav.params
-            if (params?.tab) setActiveTab(params.tab)
-            if (params?.detail) setDetail(params.detail)
-            else if (params?.tab) setDetail(null)
-          }, [nav?.revision, nav?.params])
-
-          const data = snap.data
-          const mentions = data?.mentions ?? []
-          const linked = Boolean(data?.linked)
-
-          if (!snap.loaded && snap.loading) {
-            return h('section', { className: 'ghp-tab', 'aria-label': t('tabTitle') },
-              h('div', { className: 'ghp-empty' }, t('loading')))
-          }
-          if (!linked && mentions.length === 0) {
-            return h('section', { className: 'ghp-tab', 'aria-label': t('tabTitle') },
-              h('div', { className: 'ghp-empty' }, t('notLinked')))
-          }
-
-          const remote = data.remote
-          const repo = data.repo
-          const fullName = repo?.fullName || remote?.fullName || t('tabTitle')
-          const repoUrl = repo?.url || remote?.url || ''
-          const prs = data.pullRequests ?? []
-          const issues = data.issues ?? []
-          const runs = data.runs ?? []
-          const commits = data.commits ?? []
-          const needle = query.trim().toLowerCase()
-          const matches = (...fields) => !needle || fields.some(f => String(f ?? '').toLowerCase().includes(needle))
-
-          const effectiveTab = !linked ? 'mentioned' : (activeTab === 'mentioned' && mentions.length === 0 ? 'overview' : activeTab)
-          const tabItems = linked
-            ? [
-              ...(mentions.length > 0 ? [{ id: 'ghp-t-mentioned', panelId: 'ghp-panel', value: 'mentioned', label: `${t('mentionedShort')} (${mentions.length})` }] : []),
-              { id: 'ghp-t-overview', panelId: 'ghp-panel', value: 'overview', label: t('overview') },
-              { id: 'ghp-t-prs', panelId: 'ghp-panel', value: 'prs', label: `${t('pullRequests')} (${data.pullRequestsTotal ?? prs.length})` },
-              { id: 'ghp-t-issues', panelId: 'ghp-panel', value: 'issues', label: `${t('issues')} (${data.issuesTotal ?? issues.length})` },
-              { id: 'ghp-t-actions', panelId: 'ghp-panel', value: 'actions', label: `${t('actions')} (${runs.length})` },
-              { id: 'ghp-t-commits', panelId: 'ghp-panel', value: 'commits', label: t('commits') },
-            ]
-            : [{ id: 'ghp-t-mentioned', panelId: 'ghp-panel', value: 'mentioned', label: `${t('mentioned')} (${mentions.length})` }]
-
-          return h('section', { className: 'ghp-tab', 'aria-label': fullName },
-            h('div', { className: 'ghp-tab-head' },
-              h('div', { className: 'ghp-tab-title-wrap' },
-                h(IconGitHub, { size: 16 }),
-                h('span', { className: 'ghp-tab-title', title: fullName }, fullName),
-                repo?.isPrivate && h(Tag, { tone: 'quiet' }, t('private')),
-                repo?.isArchived && h(Tag, { tone: 'quiet' }, t('archived'))),
-              h('div', { className: 'ghp-tab-actions' },
-                h(Tooltip, { label: t('refresh') },
-                  h(Button, {
-                    size: 'sm', variant: 'ghost',
-                    icon: h(IconRefreshOutlineRegular, { size: 14 }),
-                    'aria-label': t('refresh'),
-                    disabled: snap.loading,
-                    onClick: () => void store?.refresh(true),
-                  })),
-                repoUrl && h(Tooltip, { label: t('openOnGitHub') },
-                  h(Button, {
-                    size: 'sm', variant: 'ghost',
-                    icon: h(IconRightUpOutlineRegular, { size: 14 }),
-                    'aria-label': t('openOnGitHub'),
-                    onClick: () => openExternal(repoUrl),
-                  })))),
-
-            !detail && tabItems.length > 1 && h('div', { className: 'ghp-tab-nav' },
-              h(SegmentedTabs, {
-                size: 'sm',
-                label: t('tabTitle'),
-                value: effectiveTab,
-                onChange: next => { setActiveTab(next); setQuery('') },
-                items: tabItems,
-              })),
-
-            detail
-              ? h(DetailView, {
-                sessionId,
-                detailReq: detail,
-                onBack: () => setDetail(null),
-                store,
-                inputActions,
-                t,
-              })
-              : h('div', { id: 'ghp-panel', role: 'tabpanel', className: 'ghp-tab-body' },
-                linked && data.authState !== 'ready' && effectiveTab !== 'mentioned' && h('div', { className: 'ghp-banner' },
-                  h('div', { className: 'ghp-banner-text' },
-                    h('strong', null, data.authState === 'unauthenticated' ? fmt(t('signInTitle'), { host: remote.host }) : t('loadFailed')),
-                    h('span', { className: 'ghp-code' }, data.loginCommand || data.error || '')),
-                  data.loginCommand
-                    ? h(Button, { size: 'sm', variant: 'outline', onClick: () => void copyText(data.loginCommand, t) }, t('copyCommand'))
-                    : h(Button, { size: 'sm', variant: 'outline', onClick: () => void store?.refresh(true) }, t('retry'))),
-
-                effectiveTab !== 'overview' && h('div', { className: 'ghp-search' },
-                  h(Input, {
-                    value: query,
-                    placeholder: t('filterPlaceholder'),
-                    'aria-label': t('filterPlaceholder'),
-                    onChange: e => setQuery(e.target.value),
-                  })),
-
-                effectiveTab === 'mentioned' && (() => {
-                  const filtered = mentions.filter(item => matches(
-                    item.title, item.displayTitle, item.fullName, item.number ? `#${item.number}` : '', item.author, item.name,
-                  ))
-                  if (filtered.length === 0) return h('div', { className: 'ghp-empty' }, t('emptyMentions'))
-                  return h('ul', { className: 'ghp-list' }, filtered.map(item => {
-                    const key = item.kind === 'run' ? `tab-m-run-${item.fullName}-${item.id}` : `tab-m-${item.kind}-${item.fullName}-${item.number}`
-                    const title = item.kind === 'run' ? item.displayTitle : item.title
-                    const iconEl = item.kind === 'pr'
-                      ? h(IconPullRequest, { size: 16, className: prIconClassFor(item) })
-                      : item.kind === 'issue'
-                        ? h(IconIssue, { size: 16, className: issueIconClassFor(item) })
-                        : h(StateDot, { state: dotStateForRun(item.status, item.conclusion), size: 8 })
-                    return h('li', { key },
-                      h('button', {
-                        type: 'button',
-                        className: 'ghp-item',
-                        onClick: () => {
-                          if (item.unresolved) openExternal(item.url)
-                          else setDetail(detailSpecForMention(item))
-                        },
-                      },
-                      h('span', { className: 'ghp-item-icon' }, iconEl),
-                      h('span', { className: 'ghp-item-main' },
-                        h('span', { className: 'ghp-item-top' },
-                          h('span', { className: 'ghp-item-title' }, title),
-                          h('span', { className: 'ghp-num' }, item.kind === 'run' ? formatAgo(item.updatedAt || item.createdAt, t) : `#${item.number}`)),
-                        h('span', { className: 'ghp-item-sub' },
-                          h('span', null, item.fullName),
-                          !item.unresolved && h(Tag, { tone: 'quiet' }, itemStatusInfo(item, t).label),
-                          item.author && h('span', null, `@${item.author}`),
-                          item.updatedAt && h('span', null, formatAgo(item.updatedAt, t))),
-                        h(LabelChips, { labels: item.labels }))))
-                  }))
-                })(),
-
-                linked && data.authState === 'ready' && effectiveTab === 'overview' && h(React.Fragment, null,
-                  h('div', { className: 'ghp-card' },
-                    h('p', { className: 'ghp-desc' }, repo?.description || t('noDescription')),
-                    h('div', { className: 'ghp-item-sub' },
-                      repo?.defaultBranch && h('span', null, `${t('defaultBranch')}: ${repo.defaultBranch}`),
-                      remote?.branch && h('span', null, `${t('currentBranch')}: ${remote.branch}`),
-                      repo?.primaryLanguage && h('span', null, repo.primaryLanguage.name),
-                      repo && h('span', null, `★ ${repo.stars} · ${t('forks')} ${repo.forks}`))),
-                  h('div', { className: 'ghp-stats' },
-                    mentions.length > 0 && h('button', { type: 'button', className: 'ghp-stat', onClick: () => setActiveTab('mentioned') },
-                      h('span', { className: 'ghp-stat-val' }, mentions.length),
-                      h('span', { className: 'ghp-stat-label' }, t('mentionedShort'))),
-                    h('button', { type: 'button', className: 'ghp-stat', onClick: () => setActiveTab('prs') },
-                      h('span', { className: 'ghp-stat-val' }, data.pullRequestsTotal ?? prs.length),
-                      h('span', { className: 'ghp-stat-label' }, t('pullRequests'))),
-                    h('button', { type: 'button', className: 'ghp-stat', onClick: () => setActiveTab('issues') },
-                      h('span', { className: 'ghp-stat-val' }, data.issuesTotal ?? issues.length),
-                      h('span', { className: 'ghp-stat-label' }, t('issues'))),
-                    h('button', { type: 'button', className: 'ghp-stat', onClick: () => setActiveTab('actions') },
-                      h('span', { className: 'ghp-stat-val' }, runs.length),
-                      h('span', { className: 'ghp-stat-label' }, t('actions')))),
-                  data.latestRelease && h('button', {
-                    type: 'button',
-                    className: 'ghp-item',
-                    onClick: () => setDetail({ kind: 'release', id: data.latestRelease.tagName }),
-                  },
-                  h('span', { className: 'ghp-item-icon' }, h(IconTag, { size: 16 })),
-                  h('span', { className: 'ghp-item-main' },
-                    h('span', { className: 'ghp-item-top' },
-                      h('span', { className: 'ghp-item-title' }, `${t('latestRelease')}: ${data.latestRelease.tagName}`),
-                      h('span', { className: 'ghp-num' }, formatAgo(data.latestRelease.publishedAt, t))),
-                    data.latestRelease.name && data.latestRelease.name !== data.latestRelease.tagName &&
-                      h('span', { className: 'ghp-item-sub' }, data.latestRelease.name))),
-                  commits.length > 0 && h('div', { className: 'ghp-card' },
-                    h('strong', null, t('commits')),
-                    h('div', { className: 'ghp-list' }, commits.slice(0, 5).map(commit =>
-                      h('a', {
-                        key: commit.oid,
-                        href: commit.url,
-                        target: '_blank',
-                        rel: 'noopener noreferrer',
-                        className: 'ghp-item',
-                        style: { textDecoration: 'none' },
-                      },
-                      h('span', { className: 'ghp-item-icon' }, h(IconCommit, { size: 15 })),
-                      h('span', { className: 'ghp-item-main' },
-                        h('span', { className: 'ghp-item-top' },
-                          h('span', { className: 'ghp-item-title' }, commit.headline),
-                          h('span', { className: 'ghp-code' }, commit.shortOid)),
-                        h('span', { className: 'ghp-item-sub' }, `@${commit.author} · ${formatAgo(commit.committedDate, t)}`))))))),
-
-                linked && data.authState === 'ready' && effectiveTab === 'prs' && (() => {
-                  const filtered = prs.filter(pr => matches(pr.title, `#${pr.number}`, pr.author, pr.headRefName))
-                  if (filtered.length === 0) return h('div', { className: 'ghp-empty' }, t('emptyPrs'))
-                  return h('ul', { className: 'ghp-list' }, filtered.map(pr => h('li', { key: pr.number },
-                    h('button', {
-                      type: 'button',
-                      className: 'ghp-item',
-                      onClick: () => setDetail({ kind: 'pr', id: String(pr.number) }),
-                    },
-                    h('span', { className: 'ghp-item-icon' }, h(IconPullRequest, { size: 16, className: prIconClassFor(pr) })),
-                    h('span', { className: 'ghp-item-main' },
-                      h('span', { className: 'ghp-item-top' },
-                        h('span', { className: 'ghp-item-title' }, pr.title),
-                        h('span', { className: 'ghp-num' }, `#${pr.number}`)),
-                      h('span', { className: 'ghp-item-sub' },
-                        pr.checksState && h(StateDot, { state: dotStateForCheck(pr.checksState), size: 7 }),
-                        h('span', null, `@${pr.author}`),
-                        h('span', null, `${pr.headRefName} → ${pr.baseRefName}`),
-                        h('span', { className: 'ghp-add' }, `+${pr.additions}`),
-                        h('span', { className: 'ghp-del' }, `−${pr.deletions}`),
-                        h('span', null, formatAgo(pr.updatedAt, t))),
-                      h(LabelChips, { labels: pr.labels }))))))
-                })(),
-
-                linked && data.authState === 'ready' && effectiveTab === 'issues' && (() => {
-                  const filtered = issues.filter(issue => matches(issue.title, `#${issue.number}`, issue.author))
-                  if (filtered.length === 0) return h('div', { className: 'ghp-empty' }, t('emptyIssues'))
-                  return h('ul', { className: 'ghp-list' }, filtered.map(issue => h('li', { key: issue.number },
-                    h('button', {
-                      type: 'button',
-                      className: 'ghp-item',
-                      onClick: () => setDetail({ kind: 'issue', id: String(issue.number) }),
-                    },
-                    h('span', { className: 'ghp-item-icon' }, h(IconIssue, { size: 16, className: 'ghp-icon-open' })),
-                    h('span', { className: 'ghp-item-main' },
-                      h('span', { className: 'ghp-item-top' },
-                        h('span', { className: 'ghp-item-title' }, issue.title),
-                        h('span', { className: 'ghp-num' }, `#${issue.number}`)),
-                      h('span', { className: 'ghp-item-sub' },
-                        h('span', null, `@${issue.author}`),
-                        issue.commentsCount > 0 && h('span', null, `${issue.commentsCount} ${t('comments')}`),
-                        h('span', null, formatAgo(issue.updatedAt, t))),
-                      h(LabelChips, { labels: issue.labels }))))))
-                })(),
-
-                linked && data.authState === 'ready' && effectiveTab === 'actions' && (() => {
-                  const filtered = runs.filter(run => matches(run.displayTitle, run.name, run.headBranch, run.actor, run.event))
-                  if (filtered.length === 0) return h('div', { className: 'ghp-empty' }, t('emptyRuns'))
-                  return h('ul', { className: 'ghp-list' }, filtered.map(run => {
-                    const dot = dotStateForRun(run.status, run.conclusion)
-                    return h('li', { key: run.id },
-                      h('button', {
-                        type: 'button',
-                        className: 'ghp-item',
-                        onClick: () => setDetail({ kind: 'run', id: String(run.id) }),
-                      },
-                      h('span', { className: 'ghp-item-icon' }, h(StateDot, { state: dot, size: 8 })),
-                      h('span', { className: 'ghp-item-main' },
-                        h('span', { className: 'ghp-item-top' },
-                          h('span', { className: 'ghp-item-title' }, run.displayTitle),
-                          h('span', { className: 'ghp-num' }, formatAgo(run.updatedAt || run.createdAt, t))),
-                        h('span', { className: 'ghp-item-sub' },
-                          run.name && h('span', null, run.name),
-                          run.headBranch && h('span', null, run.headBranch),
-                          run.event && h('span', null, run.event),
-                          run.actor && h('span', null, `@${run.actor}`)))))
-                  }))
-                })(),
-
-                linked && data.authState === 'ready' && effectiveTab === 'commits' && (() => {
-                  const filtered = commits.filter(c => matches(c.headline, c.shortOid, c.author))
-                  if (filtered.length === 0) return h('div', { className: 'ghp-empty' }, t('emptyCommits'))
-                  return h('ul', { className: 'ghp-list' }, filtered.map(commit => h('li', { key: commit.oid },
-                    h('a', {
-                      href: commit.url,
-                      target: '_blank',
-                      rel: 'noopener noreferrer',
-                      className: 'ghp-item',
-                      style: { textDecoration: 'none' },
-                    },
-                    h('span', { className: 'ghp-item-icon' }, h(IconCommit, { size: 15 })),
-                    h('span', { className: 'ghp-item-main' },
-                      h('span', { className: 'ghp-item-top' },
-                        h('span', { className: 'ghp-item-title' }, commit.headline),
-                        h('span', { className: 'ghp-code' }, commit.shortOid)),
-                      h('span', { className: 'ghp-item-sub' }, `@${commit.author} · ${formatAgo(commit.committedDate, t)}`))))))
-                })()))
-        }
-
-        function TabTitle({ t }) {
-          return h('span', { className: 'ghp-tab-chip' }, h(IconGitHub, { size: 14 }), h('span', null, t('tabTitle')))
-        }
-
         function ConfigPanel({ t }) {
           const [text, setText] = React.useState('github.com')
           const [busy, setBusy] = React.useState(false)
@@ -1738,16 +1112,16 @@ window.__ModuleLoader__.load({
 
           return h('div', { className: 'ghp-cfg' },
             h('h4', null, t('cfgTitle')),
-            h('div', { className: 'ghp-item-sub' }, t('cfgHint')),
+            h('div', { className: 'ghp-cfg-hint' }, t('cfgHint')),
             h('textarea', { value: text, disabled: busy, onChange: e => setText(e.target.value) }),
             h('div', { className: 'ghp-cfg-foot' },
               h(Button, { size: 'sm', variant: 'primary', disabled: busy, onClick: () => void save() }, busy ? t('cfgSaving') : t('cfgSave')),
-              status.text && h('span', { className: status.tone === 'err' ? 'ghp-del' : 'ghp-item-sub', role: 'status' }, status.text)))
+              status.text && h('span', { className: status.tone === 'err' ? 'ghp-cfg-err' : 'ghp-cfg-hint', role: 'status' }, status.text)))
         }
 
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
           name: 'plugins.bundle.config',
-          key: TAB_ID,
+          key: CONFIG_KEY,
           locale: NS,
         }, ConfigPanel))
 
@@ -1772,25 +1146,6 @@ window.__ModuleLoader__.load({
           order: 50,
           locale: NS,
         }, GitHubIndicator))
-
-        ctx.effect(() => ctx.sidebarRightTabs.register({
-          id: TAB_ID,
-          kind: TAB_KIND,
-          keepMounted: true,
-          title: () => translate('tabTitle'),
-        }), 'github-panel: right sidebar tab')
-
-        ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
-          name: 'sidebar.right.pane.tab',
-          key: TAB_ID,
-          locale: NS,
-        }, GitHubSidebarTab))
-
-        ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({
-          name: 'sidebar.right.pane.tab.title',
-          key: TAB_ID,
-          locale: NS,
-        }, TabTitle))
       },
     }
   },
