@@ -156,7 +156,9 @@ export function apply(ctx, config = {}) {
     const refs = extractGitHubMentions(events, target, allowedHosts)
     if (refs.length === 0) return []
     const cacheKey = refs.map(ref => ref.key).join('|')
-    return mentionsCache.load(cacheKey, MENTIONS_TTL_MS, force, () => resolveGitHubMentions(refs, signal))
+    const resolved = await mentionsCache.load(cacheKey, MENTIONS_TTL_MS, force, () => resolveGitHubMentions(refs, signal))
+    const occByKey = new Map(refs.map(ref => [ref.key, ref.occurrences ?? []]))
+    return resolved.map(item => ({ ...item, occurrences: occByKey.get(item.refKey) ?? [] }))
   }
 
   function makeSignal(res) {

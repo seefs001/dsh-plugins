@@ -13,6 +13,8 @@ window.__ModuleLoader__.load({
     const SECTION_ID = 'github'
     const CONFIG_KEY = 'dsh-github-panel'
     const CHANNEL_NAME = 'dsh-github-panel'
+    const HIGHLIGHT_NAME = 'dsh-github-mention'
+    const HIGHLIGHT_MS = 2400
     const REFRESH_THROTTLE_MS = 60_000
     const MENTION_DEBOUNCE_MS = 900
     const MAX_SESSIONS = 24
@@ -20,6 +22,9 @@ window.__ModuleLoader__.load({
     const PR_FOLD_LIMIT = 4
     const ISSUE_FOLD_LIMIT = 4
     const RUN_FOLD_LIMIT = 3
+    // external: mirrors dsh chat selection exclusions so mention ranges align with rendered DOM
+    const SKIP_TEXT_NODES = 'script,style,textarea,[contenteditable="true"],[data-composer-seat],.katex-mathml,[data-text-interaction-exclude],.sr-only,[aria-hidden="true"]:not(.katex-html)'
+    const FLASH_BLOCKS = 'p,li,pre,td,th,blockquote,h1,h2,h3,h4,h5,h6,dd,dt,figcaption,[data-message-bubble]'
 
     const CSS_TEXT = `
 .ghp-section{display:flex;flex-direction:column;gap:2px}
@@ -45,6 +50,12 @@ window.__ModuleLoader__.load({
 .ghp-cfg-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ghp-cfg-hint{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
 .ghp-cfg-err{color:var(--dsw-alias-state-error-primary);font:var(--dsw-font-xxs-12)}
+.ghp-locate-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;border-radius:var(--dsw-radius-xs);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;flex:none}
+@media (hover:hover){.ghp-locate-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
+.ghp-locate-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+::highlight(${HIGHLIGHT_NAME}){background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 30%,transparent)}
+[data-ghp-flash]{border-radius:6px;animation:ghp-flash ${HIGHLIGHT_MS}ms ease-out forwards}
+@keyframes ghp-flash{0%,60%{box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-brand-primary) 55%,transparent);background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 10%,transparent)}100%{box-shadow:0 0 0 3px transparent;background-color:transparent}}
 `
 
     const DICTS = {
@@ -105,6 +116,14 @@ window.__ModuleLoader__.load({
         daysAgo: '{n}d ago',
         filesChanged: '{n} files',
         moreActions: 'More actions for {name}',
+        locateMention: 'Jump to mention in chat',
+        locateMentionMulti: 'Jump to mention in chat ({n})',
+        locatedMention: 'Jumped to mention {i}/{n}',
+        mentionNotFound: 'Could not locate this mention in the loaded chat',
+        mentionQuote: '{speaker}: {snippet}',
+        mentionCount: '{n} mentions',
+        roleUser: 'You',
+        roleAssistant: 'Agent',
         hideMention: 'Hide from this session',
         mentionHidden: 'Hidden from this session',
         undo: 'Undo',
@@ -178,6 +197,14 @@ window.__ModuleLoader__.load({
         daysAgo: '{n} 天前',
         filesChanged: '{n} 个文件',
         moreActions: '{name} 的更多操作',
+        locateMention: '定位到对话提及处',
+        locateMentionMulti: '定位到对话提及处（共 {n} 处）',
+        locatedMention: '已定位到第 {i}/{n} 处提及',
+        mentionNotFound: '当前已加载的对话中未找到该提及',
+        mentionQuote: '{speaker}：{snippet}',
+        mentionCount: '提及 {n} 次',
+        roleUser: '你',
+        roleAssistant: 'Agent',
         hideMention: '从此会话隐藏',
         mentionHidden: '已从此会话隐藏',
         undo: '撤销',
@@ -237,6 +264,211 @@ window.__ModuleLoader__.load({
       strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
     },
     h('path', { d: 'M8 2.2 9.4 6l3.8 1.4L9.4 8.8 8 12.6 6.6 8.8 2.8 7.4 6.6 6z' }))
+
+    const IconLocate = ({ size = 14 }) => h('svg', {
+      width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor',
+      strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+    },
+    h('circle', { cx: 8, cy: 8, r: 4.5 }),
+    h('circle', { cx: 8, cy: 8, r: 1.2, fill: 'currentColor', stroke: 'none' }),
+    h('path', { d: 'M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2' }))
+
+    const isSpace = c => c === 32 || c === 160 || (c >= 9 && c <= 13) || c === 0x2028 || c === 0x2029 || c === 0x3000 || c === 0xFEFF || (c >= 0x2000 && c <= 0x200B)
+
+    function compactLower(text) {
+      let out = ''
+      for (let i = 0; i < text.length; i++) if (!isSpace(text.charCodeAt(i))) out += text[i]
+      return out.toLowerCase()
+    }
+
+    function normalizeUrlForMatch(raw) {
+      if (typeof raw !== 'string') return ''
+      return raw.trim().replace(/[?#].*$/, '').replace(/\/+$/, '').toLowerCase()
+    }
+
+    function waitTwoFrames() {
+      return new Promise(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      })
+    }
+
+    function findConversationRoot(sessionId) {
+      const roots = document.querySelectorAll('[data-conversation-content]')
+      for (const el of roots) {
+        if (el.getAttribute('data-conversation-session') === sessionId) return el
+      }
+      return document.querySelector('[data-conversation-content]')
+    }
+
+    function findNodeElement(root, occ) {
+      if (!root || !occ?.nodeKey) return null
+      let fallback = null
+      for (const el of root.querySelectorAll('[data-chat-node-key]')) {
+        if (el.getAttribute('data-chat-node-key') !== occ.nodeKey) continue
+        if (el.getAttribute('data-chat-group-part') !== 'reasoning') return el
+        if (!fallback) fallback = el
+      }
+      return fallback
+    }
+
+    function revealInConversation(el, root) {
+      let changed = false
+      for (let p = el; p !== null && p !== root; p = p.parentElement) {
+        if (p.hidden || p.getAttribute('hidden') === 'until-found') {
+          p.dispatchEvent(new Event('beforematch', { bubbles: true }))
+          changed = true
+        }
+        if (p.tagName === 'DETAILS' && !p.open) {
+          p.open = true
+          changed = true
+        }
+      }
+      if (el.hasAttribute('data-turn-process-hidden')) {
+        const turn = el.getAttribute('data-chat-turn')
+        if (turn) {
+          for (const btn of root.querySelectorAll('button[data-turn-process]')) {
+            if (btn.getAttribute('data-turn-process') === turn && btn.getAttribute('aria-expanded') === 'false') {
+              btn.click()
+              changed = true
+              break
+            }
+          }
+        }
+      }
+      return changed
+    }
+
+    function findRangeInScope(scope, occ, item, preferLast) {
+      if (!scope) return null
+      const doc = scope.ownerDocument
+      const targetUrl = normalizeUrlForMatch(item?.url)
+      const matchUrl = occ?.matchText && /^https?:\/\//i.test(occ.matchText) ? normalizeUrlForMatch(occ.matchText) : ''
+
+      if (targetUrl || matchUrl) {
+        const anchors = [...scope.querySelectorAll('a[href]')]
+        const ordered = preferLast ? anchors.toReversed() : anchors
+        for (const a of ordered) {
+          const href = normalizeUrlForMatch(a.href)
+          if (!href) continue
+          const hit = (matchUrl && (href === matchUrl || href.startsWith(`${matchUrl}/`)))
+            || (targetUrl && (href === targetUrl || href.startsWith(`${targetUrl}/`)))
+          if (hit) {
+            const range = doc.createRange()
+            range.selectNodeContents(a)
+            return range
+          }
+        }
+      }
+
+      const candidates = []
+      if (occ?.matchText) candidates.push(compactLower(occ.matchText))
+      if (item?.kind !== 'run' && item?.number) {
+        if (item.fullName) candidates.push(compactLower(`${item.fullName}#${item.number}`))
+        candidates.push(`#${item.number}`)
+      }
+      if (item?.url) candidates.push(compactLower(item.url))
+      const needles = [...new Set(candidates.filter(Boolean))]
+      if (needles.length === 0) return null
+
+      const walker = doc.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          const parent = node.parentElement
+          if (parent === null || parent.closest(SKIP_TEXT_NODES)) return NodeFilter.FILTER_REJECT
+          return NodeFilter.FILTER_ACCEPT
+        },
+      })
+      const nodes = []
+      const nodeOf = []
+      const offsetOf = []
+      let flat = ''
+      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+        const data = node.data
+        const n = nodes.push(node) - 1
+        for (let i = 0; i < data.length; i++) {
+          if (isSpace(data.charCodeAt(i))) continue
+          flat += data[i].toLowerCase()
+          nodeOf.push(n)
+          offsetOf.push(i)
+        }
+      }
+
+      for (const needle of needles) {
+        const start = preferLast ? flat.lastIndexOf(needle) : flat.indexOf(needle)
+        if (start < 0) continue
+        const end = start + needle.length - 1
+        const range = doc.createRange()
+        range.setStart(nodes[nodeOf[start]], offsetOf[start])
+        range.setEnd(nodes[nodeOf[end]], offsetOf[end] + 1)
+        return range
+      }
+      return null
+    }
+
+    function inScrollerView(target, scroller) {
+      const rect = target.getBoundingClientRect()
+      if (rect.width === 0 && rect.height === 0) return false
+      const box = scroller?.getBoundingClientRect() ?? { top: 0, bottom: innerHeight }
+      return rect.bottom > box.top + 8 && rect.top < box.bottom - 8
+    }
+
+    // external: dsh chat tail-follow overrides smooth scroll, so scroll instantly
+    function scrollTargetIntoView(target, block) {
+      const scroller = block.closest('[data-conversation-scroll]')
+      const rect = target.getBoundingClientRect()
+      if (scroller !== null && rect.height > 0) {
+        const box = scroller.getBoundingClientRect()
+        const delta = rect.height > box.height * 0.6
+          ? rect.top - box.top - 80
+          : rect.top + rect.height / 2 - (box.top + box.height / 2)
+        scroller.scrollTop += delta
+      }
+      if (!inScrollerView(target, scroller)) block.scrollIntoView({ block: 'center', behavior: 'instant' })
+      return scroller
+    }
+
+    function createMentionHighlighter() {
+      let clearTimer = null
+      let relandTimer = null
+      let flashed = null
+
+      function clear() {
+        if (clearTimer !== null) clearTimeout(clearTimer)
+        if (relandTimer !== null) clearTimeout(relandTimer)
+        clearTimer = null
+        relandTimer = null
+        if (globalThis.CSS?.highlights) CSS.highlights.delete(HIGHLIGHT_NAME)
+        if (flashed !== null) {
+          flashed.removeAttribute('data-ghp-flash')
+          flashed = null
+        }
+      }
+
+      function apply(range, fallbackEl) {
+        clear()
+        const block = range
+          ? (range.startContainer.parentElement?.closest(FLASH_BLOCKS) ?? range.startContainer.parentElement ?? fallbackEl)
+          : (fallbackEl?.querySelector?.('[data-message-bubble]') ?? fallbackEl)
+        if (!block || !block.isConnected) return false
+        const target = range ?? block
+        const scroller = scrollTargetIntoView(target, block)
+        // external: re-land once if dsh chat tail-follow resets scrollTop
+        relandTimer = setTimeout(() => {
+          const connected = range ? range.startContainer.isConnected : block.isConnected
+          if (connected && !inScrollerView(target, scroller)) scrollTargetIntoView(target, block)
+        }, 150)
+        if (range && globalThis.Highlight && globalThis.CSS?.highlights) {
+          CSS.highlights.set(HIGHLIGHT_NAME, new Highlight(range))
+        }
+        flashed = block
+        flashed.removeAttribute('data-ghp-flash')
+        void flashed.offsetWidth
+        flashed.setAttribute('data-ghp-flash', '')
+        clearTimer = setTimeout(clear, HIGHLIGHT_MS)
+        return true
+      }
+
+      return { apply, clear }
+    }
 
     function fmt(template, vars = {}) {
       let out = String(template ?? '')
@@ -574,10 +806,65 @@ window.__ModuleLoader__.load({
         }, 'github-panel: styles')
 
         const registry = createStoreRegistry()
-        ctx.effect(() => () => registry.dispose(), 'github-panel: store registry')
+        const highlighter = createMentionHighlighter()
+        ctx.effect(() => () => {
+          registry.dispose()
+          highlighter.clear()
+        }, 'github-panel: store registry')
 
         const notify = (text, ok = true) => {
           try { ctx.get('contextMenus')?.notify?.(text, ok) } catch {}
+        }
+
+        async function jumpToMention(sessionId, item, occurrenceIndex, dismissOverlay, t) {
+          const occurrences = Array.isArray(item?.occurrences) ? item.occurrences : []
+          if (occurrences.length === 0) {
+            notify(t('mentionNotFound'), false)
+            return false
+          }
+          const idx = ((occurrenceIndex % occurrences.length) + occurrences.length) % occurrences.length
+          const occ = occurrences[idx]
+          dismissOverlay?.()
+
+          const root = findConversationRoot(sessionId)
+          if (!root) {
+            notify(t('mentionNotFound'), false)
+            return false
+          }
+
+          let targetEl = findNodeElement(root, occ)
+          if (!targetEl && Number.isSafeInteger(occ.seq)) {
+            const session = ctx.get('sessions')?.binding?.(sessionId)?.session
+            if (typeof session?.loadThrough === 'function') {
+              try {
+                await session.loadThrough(occ.seq)
+                await waitTwoFrames()
+                targetEl = findNodeElement(root, occ)
+              } catch {}
+            }
+          }
+
+          if (targetEl && revealInConversation(targetEl, root)) {
+            await waitTwoFrames()
+            targetEl = findNodeElement(root, occ) ?? targetEl
+          }
+
+          const scope = targetEl ?? root.querySelector('[data-chat-flow]') ?? root
+          let range = findRangeInScope(scope, occ, item, !targetEl)
+          if (!targetEl && range && revealInConversation(range.startContainer.parentElement, root)) {
+            await waitTwoFrames()
+            range = findRangeInScope(scope, occ, item, true) ?? range
+          }
+
+          const ok = highlighter.apply(range, targetEl)
+          if (!ok) {
+            notify(t('mentionNotFound'), false)
+            return false
+          }
+          if (occurrences.length > 1) {
+            notify(fmt(t('locatedMention'), { i: idx + 1, n: occurrences.length }), true)
+          }
+          return true
         }
 
         async function copyText(text, t) {
@@ -621,7 +908,7 @@ window.__ModuleLoader__.load({
           }
         }
 
-        function GitHubSection({ sessionId, useProjection, useConversation, useSession, inputActions, renderFactorySlot, t }) {
+        function GitHubSection({ sessionId, useProjection, useConversation, useSession, inputActions, dismissOverlay, renderFactorySlot, t }) {
           const cwd = typeof useProjection === 'function' ? useProjection('workingDirectory') : undefined
           const activityKey = readActivityKey(useConversation, useSession)
           const { snap, store } = useOverview(registry, sessionId, cwd, activityKey)
@@ -630,8 +917,23 @@ window.__ModuleLoader__.load({
           const [prsExpanded, setPrsExpanded] = React.useState(false)
           const [issuesExpanded, setIssuesExpanded] = React.useState(false)
           const [runsExpanded, setRunsExpanded] = React.useState(false)
+          const mentionCursorRef = React.useRef(new Map())
 
-          React.useEffect(() => { setHiddenKeys(readHiddenMentions(sessionId)) }, [sessionId])
+          React.useEffect(() => {
+            setHiddenKeys(readHiddenMentions(sessionId))
+            mentionCursorRef.current.clear()
+          }, [sessionId])
+
+          const locateMention = (key, item) => {
+            const occurrences = Array.isArray(item?.occurrences) ? item.occurrences : []
+            if (occurrences.length === 0) {
+              notify(t('mentionNotFound'), false)
+              return
+            }
+            const current = mentionCursorRef.current.get(key) ?? 0
+            mentionCursorRef.current.set(key, (current + 1) % occurrences.length)
+            void jumpToMention(sessionId, item, current, dismissOverlay, t)
+          }
 
           const hideMention = item => {
             const k = mentionKeyOf(item)
@@ -772,6 +1074,10 @@ window.__ModuleLoader__.load({
                     ? item.fullName
                     : (item.kind === 'run' ? [item.name, item.headBranch].filter(Boolean).join(' · ') : '')
                   const prompt = agentPromptFor(item.kind, item, fullName, t)
+                  const occurrences = Array.isArray(item.occurrences) ? item.occurrences : []
+                  const locateLabel = occurrences.length > 1
+                    ? fmt(t('locateMentionMulti'), { n: occurrences.length })
+                    : t('locateMention')
 
                   const rowEl = h('div', { key, 'data-session-panel-row': '' },
                     h('button', {
@@ -786,11 +1092,22 @@ window.__ModuleLoader__.load({
                         h('span', { 'data-row-part': 'detail' }, subDetail))
                       : h('span', { 'data-row-part': 'content' }, title)),
                     h('span', { 'data-row-part': 'trailing', className: 'ghp-meta-inline' },
+                      occurrences.length > 0 && h('button', {
+                        type: 'button',
+                        className: 'ghp-locate-btn',
+                        title: locateLabel,
+                        'aria-label': locateLabel,
+                        onClick: event => {
+                          event.stopPropagation()
+                          locateMention(key, item)
+                        },
+                      }, h(IconLocate, { size: 14 })),
                       checkDot && h(StateDot, { state: checkDot, size: 7 }),
                       trailingText && h('span', { className: 'ghp-num' }, trailingText)),
                     h('span', { 'data-row-part': 'menu' }, h(RowMenu, {
                       label: fmt(t('moreActions'), { name: title }),
                       entries: [
+                        ...(occurrences.length > 0 ? [{ item: { id: 'locate', label: locateLabel, icon: h(IconLocate, { size: 14 }) }, run: () => locateMention(key, item) }] : []),
                         ...(item.url ? [{ item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(item.url) }] : []),
                         ...(item.kind === 'run' && dotStateForRun(item.status, item.conclusion) === 'failed' ? [{
                           item: { id: 'rerun', label: t('rerunFailed'), icon: h(IconRefreshOutlineRegular, { size: 14 }) },
@@ -814,6 +1131,12 @@ window.__ModuleLoader__.load({
                     hoverLines.push([item.fullName, item.name, item.headBranch && `@${item.headBranch}`].filter(Boolean).join(' · '))
                   }
                   if (item.labels?.length) hoverLines.push(item.labels.map(l => l.name).join(', '))
+                  if (occurrences.length > 0) {
+                    const latest = occurrences[0]
+                    const speaker = latest.role === 'user' ? t('roleUser') : t('roleAssistant')
+                    const countSuffix = occurrences.length > 1 ? ` · ${fmt(t('mentionCount'), { n: occurrences.length })}` : ''
+                    hoverLines.push(`${fmt(t('mentionQuote'), { speaker, snippet: latest.snippet })}${countSuffix}`)
+                  }
 
                   return h(HoverCard, {
                     key: `hc-${key}`,

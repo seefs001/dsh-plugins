@@ -8,6 +8,9 @@ const GH_TIMEOUT_MS = 15_000
 const MAX_BUFFER = 2 * 1024 * 1024
 const MAX_MENTIONS = 20
 const MAX_MENTION_RUNS = 5
+const MAX_OCCURRENCES = 10
+const SNIPPET_BEFORE = 36
+const SNIPPET_AFTER = 48
 const DEFAULT_HOSTS = ['github.com']
 const VALID_SEGMENT = /^[A-Za-z0-9._-]+$/
 
@@ -419,47 +422,86 @@ function mapRun(run) {
 }
 
 function stripFencedCodeBlocks(text) {
-  return String(text || '').replace(/```[\s\S]*?```/g, ' ')
+  return String(text || '').replace(/```[\s\S]*?```/g, match => ' '.repeat(match.length))
 }
 
-function collectConversationTexts(events) {
+function buildSnippet(rawText, matchIndex, matchLength) {
+  const start = Math.max(0, matchIndex - SNIPPET_BEFORE)
+  const end = Math.min(rawText.length, matchIndex + matchLength + SNIPPET_AFTER)
+  const core = rawText.slice(start, end).replace(/\s+/g, ' ').trim()
+  const prefix = start > 0 ? '…' : ''
+  const suffix = end < rawText.length ? '…' : ''
+  return `${prefix}${core}${suffix}`
+}
+
+function collectConversationEntries(events) {
   if (!Array.isArray(events)) return []
-  const texts = []
+  const entries = []
+  let index = 0
   for (const event of events) {
     if (!event || typeof event !== 'object') continue
+    const seq = typeof event.seq === 'number' && Number.isSafeInteger(event.seq) ? event.seq : null
     if (event.type === 'user/message') {
       const sourceKind = event.data?.source?.kind
       if (sourceKind && sourceKind !== 'user' && sourceKind !== 'steering') continue
+      const nodeKey = event.data?.id !== undefined ? `13:input-message${String(event.data.id)}` : null
       const blocks = event.data?.content
       if (Array.isArray(blocks)) {
         for (const block of blocks) {
           if (block?.type === 'text' && typeof block.text === 'string' && block.text) {
-            texts.push(block.text)
+            entries.push({ index: index++, seq, role: 'user', nodeKey, turn: null, text: block.text })
           }
         }
       }
     } else if (event.type === 'assistant/message') {
+      const turn = typeof event.data?.turn === 'number' && Number.isSafeInteger(event.data.turn) ? event.data.turn : null
+      const step = typeof event.data?.step === 'number' && Number.isSafeInteger(event.data.step) ? event.data.step : null
+      const nodeKey = turn !== null && step !== null ? `14:assistant-step${turn}:${step}` : null
       const blocks = event.data?.message?.content
       if (Array.isArray(blocks)) {
         for (const block of blocks) {
           if (block?.type === 'text' && typeof block.text === 'string' && block.text) {
-            texts.push(block.text)
+            entries.push({ index: index++, seq, role: 'assistant', nodeKey, turn, text: block.text })
           }
         }
       }
     }
   }
-  return texts
+  return entries
 }
 
 export function extractGitHubMentions(events, defaultTarget = null, allowedHosts = normalizeHosts()) {
-  const texts = collectConversationTexts(events)
-  if (texts.length === 0) return []
+  const entries = collectConversationEntries(events)
+  if (entries.length === 0) return []
 
   const found = new Map()
-  const record = (key, entry) => {
+  const occurrencesByKey = new Map()
+  const seenMsgByKey = new Map()
+
+  const record = (key, entry, convEntry, match) => {
     found.delete(key)
     found.set(key, entry)
+    let seen = seenMsgByKey.get(key)
+    if (!seen) {
+      seen = new Set()
+      seenMsgByKey.set(key, seen)
+    }
+    const msgId = convEntry.nodeKey ?? (convEntry.seq !== null ? `seq:${convEntry.seq}` : `idx:${convEntry.index}`)
+    if (seen.has(msgId)) return
+    seen.add(msgId)
+    let list = occurrencesByKey.get(key)
+    if (!list) {
+      list = []
+      occurrencesByKey.set(key, list)
+    }
+    list.push({
+      seq: convEntry.seq,
+      role: convEntry.role,
+      nodeKey: convEntry.nodeKey,
+      turn: convEntry.turn,
+      matchText: match[0],
+      snippet: buildSnippet(convEntry.text, match.index ?? 0, match[0].length),
+    })
   }
 
   const urlPattern = /https?:\/\/([A-Za-z0-9.-]+(?::\d+)?)\/([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+)\/(issues|pull|actions\/runs)\/(\d+)(?=[/?#\s),.\]}"'`]|$)/gi
@@ -467,7 +509,8 @@ export function extractGitHubMentions(events, defaultTarget = null, allowedHosts
   const keywordNumPattern = /\b(?:PR|pull\s+request|issue)s?\s+#?([1-9]\d{0,6})\b/gi
   const bareHashPattern = /(?<![A-Za-z0-9_&#:/.-])#([1-9]\d{0,6})\b/g
 
-  for (const rawText of texts) {
+  for (const convEntry of entries) {
+    const rawText = convEntry.text
     for (const match of rawText.matchAll(urlPattern)) {
       const [, rawHost, rawOwner, rawRepo, segment, rawId] = match
       const target = validateRepoTarget(rawHost, rawOwner, rawRepo, allowedHosts)
@@ -482,7 +525,7 @@ export function extractGitHubMentions(events, defaultTarget = null, allowedHosts
           ...target,
           runId: rawId,
           url: `${target.url}/actions/runs/${rawId}`,
-        })
+        }, convEntry, match)
       } else {
         const number = Number.parseInt(rawId, 10)
         if (!Number.isSafeInteger(number) || number <= 0) continue
@@ -494,7 +537,7 @@ export function extractGitHubMentions(events, defaultTarget = null, allowedHosts
           ...target,
           number,
           url: `${target.url}/${lowerSeg}/${number}`,
-        })
+        }, convEntry, match)
       }
     }
 
@@ -516,9 +559,9 @@ export function extractGitHubMentions(events, defaultTarget = null, allowedHosts
           ...target,
           number,
           url: `${target.url}/issues/${number}`,
-        })
+        }, convEntry, match)
       } else {
-        record(key, found.get(key))
+        record(key, found.get(key), convEntry, match)
       }
     }
 
@@ -539,16 +582,19 @@ export function extractGitHubMentions(events, defaultTarget = null, allowedHosts
               fullName: defaultTarget.fullName,
               number,
               url: `${defaultTarget.url}/issues/${number}`,
-            })
+            }, convEntry, match)
           } else {
-            record(key, found.get(key))
+            record(key, found.get(key), convEntry, match)
           }
         }
       }
     }
   }
 
-  return [...found.values()].toReversed().slice(0, MAX_MENTIONS)
+  return [...found.values()].toReversed().slice(0, MAX_MENTIONS).map(item => ({
+    ...item,
+    occurrences: (occurrencesByKey.get(item.key) ?? []).toReversed().slice(0, MAX_OCCURRENCES),
+  }))
 }
 
 function buildMentionGraphqlQuery(refs) {
@@ -689,7 +735,7 @@ export async function resolveGitHubMentions(refs, signal) {
   const ordered = []
   for (const ref of refs) {
     const resolved = resolvedByKey.get(ref.key)
-    if (resolved) ordered.push(resolved)
+    if (resolved) ordered.push({ ...resolved, refKey: ref.key })
   }
   return ordered
 }
