@@ -3,10 +3,14 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const { createPortal } = require('react-dom')
-    const { createElement: h, useState, useRef, useLayoutEffect, useId } = React
+    const { createElement: h, useState, useRef, useLayoutEffect, useEffect, useId } = React
     const NS = 'prompt-shortcut'
     const KEY = 'dsh-prompt-shortcut:library:v1'
     const SAMPLE_HIDDEN_KEY = 'dsh-prompt-shortcut:sample-hidden:v1'
+    const MIGRATED_KEY = 'dsh-prompt-shortcut:migrated:v1'
+    const CHANNEL_NAME = 'dsh-prompt-shortcut-sync'
+    const OPEN_EVENT = 'dsh-prompt-shortcut:open'
+
     const dicts = {
       zh: {
         title: '常用片段', new: '新建', edit: '编辑片段', close: '关闭', search: '搜索名称或正文', clear: '清除搜索',
@@ -16,9 +20,13 @@ window.__ModuleLoader__.load({
         first: '写下我的第一条', fromDraft: '把这段话存下来', fromDraftShort: '从当前草稿保存', empty: '有些话不用每次重写。',
         removeSample: '移除示例', sampleRemoved: '已移除示例。', sample: '示例 · 点一下试试', sampleTitle: '先说结论', sampleBody: '先告诉我该不该改，再解释最重要的原因。',
         noMatches: '没找到匹配的片段。', insert: '插入光标处', replace: '替换选中文字', noSend: '不会自动发送',
-        local: '只保存在此浏览器，不包含附件。', failed: '无法读写本地片段。请检查浏览器存储空间或权限。',
+        synced: '保存在本机 DSH Host（跨浏览器同步），不包含附件。',
+        local: 'Host 存储不可用，当前仅保存在此浏览器。',
+        failed: '无法读写片段，请稍后重试。',
         changed: '草稿已变化或暂不可编辑。请关闭面板，重新定位光标后再试。', missing: '这条片段已被移除，请重新打开面板。',
         shortcutHint: '↑ ↓ 选择 · Enter 插入', replaceHint: '↑ ↓ 选择 · Enter 替换选中文字', saved: '已保存「{title}」。',
+        exportBtn: '导出', importBtn: '导入', imported: '已导入 {n} 条片段。', importFailed: '导入文件格式无效。',
+        cmdDesc: '打开常用片段面板并插入到光标处',
       },
       en: {
         title: 'Prompt shortcuts', new: 'New', edit: 'Edit snippet', close: 'Close', search: 'Search names or text', clear: 'Clear search',
@@ -28,9 +36,13 @@ window.__ModuleLoader__.load({
         first: 'Write my first snippet', fromDraft: 'Save this draft as a snippet', fromDraftShort: 'Save from draft', empty: 'Keep a phrase for next time.',
         removeSample: 'Remove example', sampleRemoved: 'Example removed.', sample: 'Example · try it', sampleTitle: 'Start with the conclusion', sampleBody: 'Tell me whether to make the change, then explain the most important reason.',
         noMatches: 'No matching snippets.', insert: 'Insert at cursor', replace: 'Replace selected text', noSend: 'Nothing is sent',
-        local: 'Saved only in this browser, without attachments.', failed: 'Could not access your snippets. Check browser storage permissions and space.',
+        synced: 'Saved on this DSH Host (synced across browsers), without attachments.',
+        local: 'Host storage unavailable; saved only in this browser.',
+        failed: 'Could not read or save snippets. Please try again.',
         changed: 'The draft changed or is busy. Close this panel, place the cursor, then try again.', missing: 'This snippet was removed. Reopen the panel to refresh.',
         shortcutHint: '↑ ↓ choose · Enter to insert', replaceHint: '↑ ↓ choose · Enter to replace selection', saved: 'Saved “{title}”.',
+        exportBtn: 'Export', importBtn: 'Import', imported: 'Imported {n} snippets.', importFailed: 'Invalid snippet JSON file.',
+        cmdDesc: 'Open Prompt shortcuts and insert at cursor',
       },
     }
 
@@ -48,7 +60,7 @@ window.__ModuleLoader__.load({
       @media(prefers-reduced-motion:no-preference){.ps-panel[open]{animation:ps-reveal 110ms ease-out}@keyframes ps-reveal{from{opacity:0;translate:0 3px}to{opacity:1;translate:0 0}}}
       .ps-panel::backdrop{background:transparent}.ps-panel[data-sheet]{position:fixed;inset:auto 0 var(--ps-mobile-bottom,0px);width:100%;max-height:var(--ps-mobile-height,75dvh);border-radius:16px 16px 0 0;padding-bottom:max(4px,env(safe-area-inset-bottom))}
       .ps-panel button{border-radius:var(--dsw-radius-sm,8px);padding:4px 7px}.ps-panel button:disabled{opacity:.45;cursor:default}
-      .ps-head,.ps-actions,.ps-foot,.ps-feedback{display:flex;gap:6px;align-items:center;flex:none}.ps-head{min-height:28px;padding:0 3px;color:var(--ps-muted)}.ps-head h2{flex:1;margin:0;font:inherit;font-weight:500}.ps-head .ps-mark,.ps-head .ps-count{min-width:24px;text-align:center}.ps-count{font-variant-numeric:tabular-nums}.ps-panel .ps-close,.ps-panel .ps-more{display:grid;place-items:center;width:26px;height:26px;padding:0;color:var(--ps-muted)}
+      .ps-head,.ps-actions,.ps-foot,.ps-feedback,.ps-foot-tools{display:flex;gap:6px;align-items:center;flex:none}.ps-head{min-height:28px;padding:0 3px;color:var(--ps-muted)}.ps-head h2{flex:1;margin:0;font:inherit;font-weight:500}.ps-head .ps-mark,.ps-head .ps-count{min-width:24px;text-align:center}.ps-count{font-variant-numeric:tabular-nums}.ps-panel .ps-close,.ps-panel .ps-more{display:grid;place-items:center;width:26px;height:26px;padding:0;color:var(--ps-muted)}
       .ps-searchbar{display:flex;align-items:center;gap:6px;margin:2px 4px;padding:0 6px;border-block:.5px solid var(--ps-line);color:var(--ps-muted)}.ps-panel .ps-search{width:100%;min-height:30px;min-width:0;padding:3px 2px;background:transparent;border:0;outline:none;color:var(--ps-ink)}.ps-searchbar:focus-within{border-bottom-color:var(--dsw-alias-state-business-primary)}
       .ps-scroll,.ps-editor{overflow:auto;overscroll-behavior:contain;min-height:0}.ps-scroll{padding:2px}.ps-group{margin:5px 0 1px;padding-inline:28px;font-size:11px;font-weight:500;color:var(--ps-muted)}
       .ps-item{display:flex;gap:2px;align-items:center;border-radius:var(--dsw-radius-sm,8px)}.ps-item[data-active]{background:var(--ps-wash)}.ps-panel .ps-row{flex:1;min-width:0;display:flex;align-items:center;gap:8px;min-height:28px;padding:3px 6px;text-align:start}.ps-row .ps-glyph{color:var(--ps-muted);width:13px}.ps-row strong,.ps-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ps-row strong{flex:0 1 auto;max-width:45%;font-size:12px;font-weight:500}.ps-row span{flex:1;min-width:0;color:var(--ps-muted)}
@@ -61,10 +73,26 @@ window.__ModuleLoader__.load({
       @media(max-width:600px){.ps-keys{display:none}.ps-panel button,.ps-panel .ps-row,.ps-panel .ps-more,.ps-panel .ps-close{min-height:44px}.ps-panel .ps-more,.ps-panel .ps-close{min-width:44px}.ps-panel .ps-search,.ps-editor input,.ps-editor textarea{font-size:16px}.ps-group{margin-top:6px}}
     `
 
-    function readLibrary() {
-      const rows = JSON.parse(localStorage.getItem(KEY) ?? '[]')
-      if (!Array.isArray(rows) || !rows.every(r => r && typeof r.id === 'string' && typeof r.title === 'string' && typeof r.body === 'string')) throw new Error('Invalid snippet library')
-      return rows
+    function readLocalLibrary() {
+      try {
+        const rows = JSON.parse(localStorage.getItem(KEY) ?? '[]')
+        if (!Array.isArray(rows)) return []
+        return rows.filter(r => r && typeof r.id === 'string' && typeof r.title === 'string' && typeof r.body === 'string')
+      } catch {
+        return []
+      }
+    }
+
+    function writeLocalLibrary(items, sampleHidden) {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(items))
+        if (sampleHidden) localStorage.setItem(SAMPLE_HIDDEN_KEY, '1')
+        else localStorage.removeItem(SAMPLE_HIDDEN_KEY)
+      } catch {}
+    }
+
+    function makeId() {
+      return Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, '0')).join('')
     }
 
     function groupRows(rows, query) {
@@ -91,6 +119,23 @@ window.__ModuleLoader__.load({
       return h('svg', { className: 'ps-glyph', viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: name === 'more' ? 2.8 : 1.6, strokeLinejoin: 'round', strokeLinecap: 'round', 'aria-hidden': true }, h('path', { d: paths[name] }))
     }
 
+    async function hostGetState() {
+      const res = await fetch('prompt-shortcut/state', { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.json()
+    }
+
+    async function hostOp(payload) {
+      const res = await fetch('prompt-shortcut/op', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`)
+      return data
+    }
+
     const seatId = sessionId => 'ps-stash-drawer-' + sessionId
     function DrawerSeat({ sessionId }) {
       return h('div', { id: seatId(sessionId), className: 'ps-seat' })
@@ -100,7 +145,9 @@ window.__ModuleLoader__.load({
       const dialog = useRef(null)
       const primary = useRef(null)
       const bodyField = useRef(null)
+      const fileInput = useRef(null)
       const rowRefs = useRef(new Map())
+      const channelRef = useRef(null)
       const headingId = useId()
       const seat = document.getElementById(seatId(sessionId))
       const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width:600px)').matches)
@@ -108,6 +155,7 @@ window.__ModuleLoader__.load({
       const [highlight, setHighlight] = useState(null)
       const draft = useInput(s => s.draft)
       const [rows, setRows] = useState(null)
+      const [hostSynced, setHostSynced] = useState(true)
       const [error, setError] = useState('')
       const [query, setQuery] = useState('')
       const [form, setForm] = useState(null)
@@ -115,6 +163,7 @@ window.__ModuleLoader__.load({
       const [deleted, setDeleted] = useState(null)
       const [sampleHidden, setSampleHidden] = useState(false)
       const [saved, setSaved] = useState('')
+      const [statusMsg, setStatusMsg] = useState('')
       const editing = form !== null
       const ready = rows !== null
       const hasItems = Boolean(rows?.length)
@@ -125,22 +174,66 @@ window.__ModuleLoader__.load({
       const visible = groups.flatMap(([, list]) => list)
       const active = visible.find(row => row.id === highlight) ?? visible[0]
 
+      const broadcastState = (items, hidden) => {
+        const ch = channelRef.current
+        if (!ch) return
+        try { BroadcastChannel.prototype.postMessage.call(ch, { items, sampleHidden: hidden }) } catch {}
+      }
+
+      const applySyncedState = (data, share = false) => {
+        const nextItems = Array.isArray(data?.items) ? data.items : []
+        const nextHidden = Boolean(data?.sampleHidden)
+        setRows(nextItems)
+        setSampleHidden(nextHidden)
+        setError('')
+        if (share) broadcastState(nextItems, nextHidden)
+      }
+
       useLayoutEffect(() => {
-        function refresh() {
-          try {
-            const hidden = localStorage.getItem(SAMPLE_HIDDEN_KEY) === '1'
-            setSampleHidden(hidden)
-            if (!hidden) setDeleted(last => last?.sample ? null : last)
-            setRows(readLibrary()); setError('')
-          } catch { setError('failed') }
+        let activeMount = true
+        const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CHANNEL_NAME) : null
+        channelRef.current = channel
+        const onMsg = event => {
+          if (!activeMount || !event?.data) return
+          applySyncedState(event.data, false)
         }
-        function onStorage(e) { if (e.key === KEY || e.key === SAMPLE_HIDDEN_KEY || e.key === null) refresh() }
+        channel?.addEventListener('message', onMsg)
+
+        async function load() {
+          try {
+            let state = await hostGetState()
+            if (!activeMount) return
+            const localItems = readLocalLibrary()
+            const localHidden = localStorage.getItem(SAMPLE_HIDDEN_KEY) === '1'
+            const alreadyMigrated = localStorage.getItem(MIGRATED_KEY) === '1'
+            if (!alreadyMigrated && (localItems.length > 0 || localHidden) && (state.items?.length ?? 0) === 0) {
+              state = await hostOp({ action: 'import', items: localItems, sampleHidden: localHidden })
+              try { localStorage.setItem(MIGRATED_KEY, '1') } catch {}
+            } else if (!alreadyMigrated && (state.items?.length ?? 0) > 0) {
+              try { localStorage.setItem(MIGRATED_KEY, '1') } catch {}
+            }
+            if (!activeMount) return
+            setHostSynced(true)
+            applySyncedState(state, false)
+          } catch {
+            if (!activeMount) return
+            setHostSynced(false)
+            setSampleHidden(localStorage.getItem(SAMPLE_HIDDEN_KEY) === '1')
+            setRows(readLocalLibrary())
+          }
+        }
+
         const media = window.matchMedia('(max-width:600px)')
         function resize() { setNarrow(media.matches) }
-        refresh()
+        void load()
         media.addEventListener('change', resize)
-        window.addEventListener('storage', onStorage)
-        return () => { media.removeEventListener('change', resize); window.removeEventListener('storage', onStorage) }
+        return () => {
+          activeMount = false
+          media.removeEventListener('change', resize)
+          channel?.removeEventListener('message', onMsg)
+          try { channel?.close() } catch {}
+          channelRef.current = null
+        }
       }, [])
 
       useLayoutEffect(() => {
@@ -195,30 +288,56 @@ window.__ModuleLoader__.load({
         if (ready) (editing ? bodyField.current : primary.current)?.focus()
       }, [editing, hasItems, ready, sheet])
 
-      function change(transform) {
+      async function mutate(payload, localTransform) {
+        setSaved('')
+        setStatusMsg('')
+        if (hostSynced) {
+          try {
+            const next = await hostOp(payload)
+            applySyncedState(next, true)
+            return true
+          } catch {
+            setError('failed')
+            return false
+          }
+        }
         try {
-          const next = transform(readLibrary())
+          const current = rows ?? readLocalLibrary()
+          const next = localTransform(current, sampleHidden)
           if (!next) { setError('missing'); return false }
-          localStorage.setItem(KEY, JSON.stringify(next)); setRows(next); setError(''); setSaved('')
+          writeLocalLibrary(next.items, next.sampleHidden)
+          applySyncedState(next, true)
           return true
-        } catch { setError('failed'); return false }
+        } catch {
+          setError('failed')
+          return false
+        }
       }
-      function update(id, fn) {
-        return change(items => items.some(r => r.id === id) && items.map(r => r.id === id ? fn(r) : r))
-      }
+
       function begin(row, text = '') {
-        setMore(null); setSaved(''); setError(''); setForm({ id: row?.id, title: row?.title ?? null, body: row?.body ?? text })
+        setMore(null); setSaved(''); setStatusMsg(''); setError('')
+        setForm({ id: row?.id, title: row?.title ?? null, body: row?.body ?? text })
       }
-      function save(e) {
+
+      async function save(e) {
         e.preventDefault()
         const title = form.title?.trim() || suggestTitle(form.body)
         if (!title || !form.body.trim()) return
         const body = form.body
-        const ok = form.id ? update(form.id, r => ({ ...r, title, body })) : change(items => [
-          { id: Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, '0')).join(''), title, body, pinnedAt: 0, usedAt: 0 }, ...items,
-        ])
+        const item = { id: form.id || makeId(), title, body, pinnedAt: 0, usedAt: 0 }
+        const ok = await mutate(
+          { action: 'upsert', item },
+          (items, hidden) => {
+            const exists = items.some(r => r.id === item.id)
+            return {
+              items: exists ? items.map(r => (r.id === item.id ? { ...r, title, body } : r)) : [item, ...items],
+              sampleHidden: hidden,
+            }
+          },
+        )
         if (ok) { setForm(null); setQuery(''); setSaved(title) }
       }
+
       function insert(row) {
         // external: close modal dialog before native editor sets selection, or top-layer focus traps it
         const el = dialog.current
@@ -227,34 +346,93 @@ window.__ModuleLoader__.load({
           if (sheet) el.showModal(); else el.show()
           setError('changed'); primary.current?.focus(); return
         }
-        if (row.id) update(row.id, r => ({ ...r, usedAt: Date.now() }))
+        if (row.id) {
+          void mutate(
+            { action: 'touch', id: row.id },
+            (items, hidden) => ({ items: items.map(r => (r.id === row.id ? { ...r, usedAt: Date.now() } : r)), sampleHidden: hidden }),
+          )
+        }
         dismiss()
       }
-      function remove(row) {
-        let removed
-        const ok = change(items => {
-          const index = items.findIndex(r => r.id === row.id)
-          if (index < 0) return null
-          removed = { row: items[index], index }
-          return items.toSpliced(index, 1)
-        })
-        if (ok) { setDeleted(removed); setMore(null); primary.current?.focus() }
+
+      async function remove(row) {
+        const index = (rows ?? []).findIndex(r => r.id === row.id)
+        if (index < 0) { setError('missing'); return }
+        const ok = await mutate(
+          { action: 'remove', id: row.id },
+          (items, hidden) => ({ items: items.filter(r => r.id !== row.id), sampleHidden: hidden }),
+        )
+        if (ok) { setDeleted({ row, index }); setMore(null); primary.current?.focus() }
       }
-      function hideSample(hidden) {
-        try {
-          if (hidden) localStorage.setItem(SAMPLE_HIDDEN_KEY, '1')
-          else localStorage.removeItem(SAMPLE_HIDDEN_KEY)
-          setSampleHidden(hidden); setDeleted(hidden ? { sample: true } : null)
-          setSaved(''); setError(''); primary.current?.focus()
-        } catch { setError('failed') }
-      }
-      function undoDelete() {
-        if (deleted.sample) { hideSample(false); return }
-        const { row, index } = deleted
-        if (change(items => items.some(r => r.id === row.id) ? items : items.toSpliced(index, 0, row))) {
-          setDeleted(null); setQuery(''); primary.current?.focus()
+
+      async function hideSample(hidden) {
+        const ok = await mutate(
+          { action: 'sample', hidden },
+          items => ({ items, sampleHidden: hidden }),
+        )
+        if (ok) {
+          setDeleted(hidden ? { sample: true } : null)
+          primary.current?.focus()
         }
       }
+
+      async function undoDelete() {
+        if (deleted.sample) { await hideSample(false); return }
+        const { row, index } = deleted
+        const ok = await mutate(
+          { action: 'restore', item: row, index },
+          (items, hidden) => ({
+            items: items.some(r => r.id === row.id) ? items : items.toSpliced(Math.min(index, items.length), 0, row),
+            sampleHidden: hidden,
+          }),
+        )
+        if (ok) { setDeleted(null); setQuery(''); primary.current?.focus() }
+      }
+
+      function exportJson() {
+        const payload = JSON.stringify({ version: 1, items: rows ?? [] }, null, 2)
+        const blob = new Blob([payload], { type: 'application/json;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'dsh-prompt-shortcuts.json'
+        document.body.append(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+      }
+
+      async function handleImportFile(event) {
+        const file = event.target.files?.[0]
+        event.target.value = ''
+        if (!file) return
+        try {
+          const parsed = JSON.parse(await file.text())
+          const rawList = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : null
+          if (!rawList) throw new Error('invalid')
+          const incoming = rawList
+            .filter(r => r && typeof r.body === 'string' && r.body.trim())
+            .map(r => ({
+              id: typeof r.id === 'string' && r.id.trim() ? r.id.trim() : makeId(),
+              title: typeof r.title === 'string' && r.title.trim() ? r.title.trim() : suggestTitle(r.body),
+              body: r.body,
+              pinnedAt: Number.isSafeInteger(r.pinnedAt) ? r.pinnedAt : 0,
+              usedAt: Number.isSafeInteger(r.usedAt) ? r.usedAt : 0,
+            }))
+          if (incoming.length === 0) throw new Error('empty')
+          const ok = await mutate(
+            { action: 'import', items: incoming },
+            (items, hidden) => {
+              const seen = new Set(items.map(r => r.id))
+              return { items: [...items, ...incoming.filter(r => !seen.has(r.id))], sampleHidden: hidden }
+            },
+          )
+          if (ok) setStatusMsg(t('imported', { n: incoming.length }))
+        } catch {
+          setError('importFailed')
+        }
+      }
+
       function onListKey(e) {
         if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229 || !active) return
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -265,6 +443,7 @@ window.__ModuleLoader__.load({
           e.preventDefault(); e.stopPropagation(); insert(active)
         }
       }
+
       function renderRow(row, example = false) {
         return h('div', { key: row.id || 'example' }, h('div', { className: 'ps-item', 'data-active': !example && row === active || undefined,
           onPointerMove: e => { if (!example && e.pointerType === 'mouse' && row.id !== highlight) setHighlight(row.id) },
@@ -274,14 +453,20 @@ window.__ModuleLoader__.load({
             ref: el => { if (el) rowRefs.current.set(row.id, el); else rowRefs.current.delete(row.id) },
             onKeyDown: example ? undefined : onListKey,
           }),
-          example ? button(t('removeSample'), () => hideSample(true)) : button(h(Icon, { name: 'more' }), () => setMore(more === row.id ? null : row.id), {
+          example ? button(t('removeSample'), () => void hideSample(true)) : button(h(Icon, { name: 'more' }), () => setMore(more === row.id ? null : row.id), {
             className: 'ps-more', 'aria-label': t('more', { title: row.title }), title: t('more', { title: row.title }), 'aria-expanded': more === row.id,
           })),
           !example && more === row.id && h('div', { className: 'ps-actions' },
-            button(t(row.pinnedAt ? 'unpin' : 'pin'), () => {
-              if (update(row.id, r => ({ ...r, pinnedAt: r.pinnedAt ? 0 : Date.now() }))) { setMore(null); primary.current?.focus() }
-            }), button(t('edit'), () => begin(row)), button(t('remove'), () => remove(row), { className: 'ps-danger' })))
+            button(t(row.pinnedAt ? 'unpin' : 'pin'), async () => {
+              const pinned = !row.pinnedAt
+              const ok = await mutate(
+                { action: 'pin', id: row.id, pinned },
+                (items, hidden) => ({ items: items.map(r => (r.id === row.id ? { ...r, pinnedAt: pinned ? Date.now() : 0 } : r)), sampleHidden: hidden }),
+              )
+              if (ok) { setMore(null); primary.current?.focus() }
+            }), button(t('edit'), () => begin(row)), button(t('remove'), () => void remove(row), { className: 'ps-danger' })))
       }
+
       const list = rows !== null && h(React.Fragment, null,
         hasItems && h('div', { className: 'ps-searchbar' }, h(Icon, { name: 'search' }), h('input', { type: 'search', className: 'ps-search', ref: primary, value: query, placeholder: t('search'), 'aria-label': t('search'),
           onChange: e => { setQuery(e.target.value); setMore(null); setHighlight(null) }, onKeyDown: onListKey })),
@@ -292,12 +477,19 @@ window.__ModuleLoader__.load({
             button(t(draft.trim() ? 'fromDraft' : 'first'), () => begin(null, draft), { className: 'ps-primary', ref: primary })),
           !sampleHidden && h(React.Fragment, null, h('h3', { className: 'ps-group' }, t('sample')), renderRow(sample, true)))),
         h('footer', { className: 'ps-foot' }, h('span', null, `${insertLabel} · ${t('noSend')}`),
-          hasItems && draft.trim() ? button(t('fromDraftShort'), () => begin(null, draft)) : hasItems && h('span', { className: 'ps-keys' }, t(replace ? 'replaceHint' : 'shortcutHint'))))
-      const editor = editing && h('form', { className: 'ps-editor', onSubmit: save },
+          h('div', { className: 'ps-foot-tools' },
+            hasItems && draft.trim() && button(t('fromDraftShort'), () => begin(null, draft)),
+            hasItems && button(t('exportBtn'), exportJson),
+            button(t('importBtn'), () => fileInput.current?.click()),
+            h('input', { ref: fileInput, type: 'file', accept: 'application/json,.json', style: { display: 'none' }, onChange: e => void handleImportFile(e) }),
+            hasItems && !draft.trim() && h('span', { className: 'ps-keys' }, t(replace ? 'replaceHint' : 'shortcutHint')))))
+
+      const editor = editing && h('form', { className: 'ps-editor', onSubmit: e => void save(e) },
         h('label', null, t('body'), h('textarea', { ref: bodyField, rows: 4, value: form.body, required: true, placeholder: t('bodyHint'), onChange: e => setForm({ ...form, body: e.target.value }) })),
         h('label', null, t('name'), h('input', { value: form.title ?? suggestTitle(form.body), placeholder: t('nameHint'), onChange: e => setForm({ ...form, title: e.target.value }) })),
-        h('small', null, t('local')), h('div', { className: 'ps-actions' }, button(t('cancel'), () => { setForm(null); setError('') }),
+        h('small', null, t(hostSynced ? 'synced' : 'local')), h('div', { className: 'ps-actions' }, button(t('cancel'), () => { setForm(null); setError('') }),
           h('button', { type: 'submit', className: 'ps-primary', disabled: !form.body.trim() }, t('save'))))
+
       return createPortal(h('dialog', { ref: dialog, className: 'ps-panel', 'data-sheet': sheet || undefined, 'aria-labelledby': headingId,
         onKeyDown: e => {
           if (sheet || e.key !== 'Escape' || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
@@ -309,7 +501,8 @@ window.__ModuleLoader__.load({
           if (sheet && !editing && e.target === dialog.current) {
             const r = dialog.current.getBoundingClientRect()
             if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dismiss()
-          } },
+          }
+        },
       }, h('header', { className: 'ps-head' }, h('span', { className: 'ps-mark' }, h(Icon)), h('h2', { id: headingId }, t(editing ? (form.id ? 'edit' : 'new') : 'title')),
         !editing && hasItems && button(`＋ ${t('new')}`, () => begin(null)),
         !editing && ready && h('span', { className: 'ps-count' }, rows.length),
@@ -317,14 +510,23 @@ window.__ModuleLoader__.load({
       editing ? editor : list,
       error && h('p', { className: 'ps-error', role: 'alert' }, t(error)),
       !editing && saved && h('div', { className: 'ps-feedback', role: 'status' }, t('saved', { title: saved })),
+      !editing && statusMsg && h('div', { className: 'ps-feedback', role: 'status' }, statusMsg),
       !editing && deleted && h('div', { className: 'ps-feedback' },
-        h('span', { role: 'status' }, deleted.sample ? t('sampleRemoved') : t('removed', { title: deleted.row.title })), button(t('undo'), undoDelete))), sheet ? document.body : seat)
+        h('span', { role: 'status' }, deleted.sample ? t('sampleRemoved') : t('removed', { title: deleted.row.title })), button(t('undo'), () => void undoDelete()))), sheet ? document.body : seat)
     }
 
     function Launcher(props) {
       const [span, setSpan] = useState(null)
       const anchor = useRef(null)
       const pressed = useRef(null)
+      useEffect(() => {
+        const onOpen = event => {
+          if (event?.detail?.sessionId && event.detail.sessionId !== props.sessionId) return
+          setSpan(props.inputActions.captureInsertion())
+        }
+        window.addEventListener(OPEN_EVENT, onOpen)
+        return () => window.removeEventListener(OPEN_EVENT, onOpen)
+      }, [props.sessionId, props.inputActions])
       return h(React.Fragment, null, button(h(React.Fragment, null,
         h(Icon), h('span', null, props.t('title'))),
       e => { setSpan(span ? null : (e.detail > 0 && pressed.current) || props.inputActions.captureInsertion()); pressed.current = null }, {
@@ -333,16 +535,29 @@ window.__ModuleLoader__.load({
         onMouseDown: e => e.preventDefault(),
       }), span && h(Panel, { ...props, span, anchor: anchor.current, dismiss: () => setSpan(null) }))
     }
+
     return {
       inject: ['slots', 'locale'],
       apply(ctx) {
         for (const [lang, dict] of Object.entries(dicts)) ctx.effect(() => ctx.locale.register(NS, lang, dict))
+        const translate = ctx.locale.bind(NS)
         ctx.effect(() => {
           const style = document.createElement('style')
           style.textContent = css
           document.head.append(style)
           return () => style.remove()
         })
+        ctx.inject?.(['commandUi'], scope => scope.effect(() => scope.commandUi.register({
+          name: 'snippets',
+          label: () => translate('title'),
+          description: () => translate('cmdDesc'),
+          ui: {
+            kind: 'action',
+            run: session => {
+              window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { sessionId: session?.sessionId } }))
+            },
+          },
+        })))
         ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({
           name: 'conversation.input.overlay', id: `${NS}.drawer`,
         }, DrawerSeat))

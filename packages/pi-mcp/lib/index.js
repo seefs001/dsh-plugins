@@ -2,35 +2,71 @@ import { watch } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { convertConfig } from './convert.js'
+import { convertConfig, convertServer } from './convert.js'
 
 export const name = 'pi-mcp'
 export const inject = ['mcpManager']
 
+export const STATE_PATH = '/pi-mcp/state'
+export const SET_PATH = '/pi-mcp/set'
+
 const RELOAD_DELAY_MS = 300
+const MAX_BODY_BYTES = 16 * 1024
 
 export function piConfigPath(env = process.env) {
   return join(env.PI_CODING_AGENT_DIR || join(homedir(), '.pi', 'agent'), 'mcp.json')
 }
 
-function resolveDisabledServers(config, env = process.env) {
-  const fromConfig = Array.isArray(config?.disabledServers)
-    ? config.disabledServers.filter(item => typeof item === 'string').map(item => item.trim()).filter(Boolean)
-    : []
-  const fromEnv = typeof env.DSH_PI_MCP_DISABLED_SERVERS === 'string'
+function resolveEnvDisabled(env = process.env) {
+  return typeof env.DSH_PI_MCP_DISABLED_SERVERS === 'string'
     ? env.DSH_PI_MCP_DISABLED_SERVERS.split(',').map(item => item.trim()).filter(Boolean)
     : []
-  return [...new Set([...fromConfig, ...fromEnv])]
+}
+
+function normalizeDisabledList(list) {
+  return [...new Set(
+    (Array.isArray(list) ? list : [])
+      .filter(item => typeof item === 'string')
+      .map(item => item.trim())
+      .filter(Boolean),
+  )]
+}
+
+function sendJson(res, status, data, headers = {}) {
+  if (res.writableEnded || res.destroyed) return
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    ...headers,
+  })
+  res.end(JSON.stringify(data))
+}
+
+async function readJsonBody(req) {
+  const chunks = []
+  let bytes = 0
+  for await (const chunk of req) {
+    bytes += chunk.byteLength
+    if (bytes > MAX_BODY_BYTES) throw new Error('Request body is too large')
+    chunks.push(chunk)
+  }
+  const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Expected JSON object')
+  return parsed
 }
 
 export async function apply(ctx, config = {}) {
   const logger = ctx.logger
   const file = piConfigPath()
-  const disabledServers = resolveDisabledServers(config)
+  const envDisabled = new Set(resolveEnvDisabled())
+  let configDisabled = normalizeDisabledList(config?.disabledServers)
   const active = new Map()
+  let lastSnapshot = { file, exists: false, error: null, servers: [] }
   let disposed = false
   let timer
   let running = Promise.resolve()
+
+  const combinedDisabled = () => [...new Set([...configDisabled, ...envDisabled])]
 
   const unregister = server => {
     active.get(server)?.dispose()
@@ -42,16 +78,46 @@ export async function apply(ctx, config = {}) {
     try {
       text = await readFile(file, 'utf8')
     } catch (error) {
-      if (error.code === 'ENOENT') return new Map()
+      if (error.code === 'ENOENT') {
+        lastSnapshot = { file, exists: false, error: null, servers: [] }
+        return new Map()
+      }
       throw error
     }
     let parsed
     try { parsed = JSON.parse(text) } catch (error) {
       // external: JSON.parse error messages quote raw input, which can leak secret headers or env values
+      lastSnapshot = { file, exists: true, error: 'invalid JSON', servers: [] }
       throw new Error('invalid JSON', { cause: error })
     }
-    const { entries, skipped } = convertConfig(parsed, { disabledServers })
+    const disabledList = combinedDisabled()
+    const disabledSet = new Set(disabledList)
+    const { entries, skipped } = convertConfig(parsed, { disabledServers: disabledList })
+    const skippedMap = new Map(skipped.map(s => [s.name, s.reason]))
     for (const { name: server, reason } of skipped) logger.warn(`pi-mcp: skipped "${server}": ${reason}`)
+
+    const rawServers = parsed?.mcpServers && typeof parsed.mcpServers === 'object' && !Array.isArray(parsed.mcpServers)
+      ? parsed.mcpServers
+      : {}
+    const servers = Object.entries(rawServers).map(([serverName, raw]) => {
+      const disabledByEnv = envDisabled.has(serverName)
+      const disabledByConfig = disabledSet.has(serverName)
+      const disabledInFile = raw?.enabled === false
+      let transport = null
+      try {
+        transport = convertServer(serverName, { ...raw, enabled: true })?.transport ?? null
+      } catch {}
+      return {
+        name: serverName,
+        transport,
+        disabledByConfig: configDisabled.includes(serverName),
+        disabledByEnv,
+        disabledInFile,
+        enabled: !disabledByConfig && !disabledInFile && !skippedMap.has(serverName),
+        skippedReason: skippedMap.get(serverName) ?? null,
+      }
+    })
+    lastSnapshot = { file, exists: true, error: null, servers }
     return entries
   }
 
@@ -80,6 +146,15 @@ export async function apply(ctx, config = {}) {
     }
   }
 
+  const statePayload = () => ({
+    ...lastSnapshot,
+    disabledServers: configDisabled,
+    servers: lastSnapshot.servers.map(item => ({
+      ...item,
+      active: active.has(item.name),
+    })),
+  })
+
   const schedule = () => {
     clearTimeout(timer)
     timer = setTimeout(() => {
@@ -105,6 +180,59 @@ export async function apply(ctx, config = {}) {
       for (const server of active.keys()) unregister(server)
     }
   }, 'pi-mcp: watch mcp.json')
+
+  ctx.inject(['webServer'], scope => {
+    scope.effect(() => scope.webServer.register({
+      kind: 'exact',
+      path: STATE_PATH,
+      handler: async (req, res, peer) => {
+        if (peer?.principal?.kind !== 'owner') {
+          sendJson(res, peer === undefined ? 401 : 403, { message: 'Unauthorized' })
+          return
+        }
+        if (req.method !== 'GET') {
+          sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
+          return
+        }
+        const url = new URL(req.url ?? '/', 'http://127.0.0.1')
+        if (url.searchParams.get('reload') === '1') {
+          running = running.then(reconcile)
+        }
+        await running
+        sendJson(res, 200, statePayload())
+      },
+    }), 'pi-mcp: state route')
+
+    scope.effect(() => scope.webServer.register({
+      kind: 'exact',
+      path: SET_PATH,
+      handler: async (req, res, peer) => {
+        if (peer?.principal?.kind !== 'owner') {
+          sendJson(res, peer === undefined ? 401 : 403, { message: 'Unauthorized' })
+          return
+        }
+        if (req.method !== 'POST') {
+          sendJson(res, 405, { message: 'POST only' }, { allow: 'POST' })
+          return
+        }
+        try {
+          const body = await readJsonBody(req)
+          const nextDisabled = normalizeDisabledList(body.disabledServers)
+          configDisabled = nextDisabled
+          const entry = ctx.fiber?.entry
+          const editor = ctx.get('configEditor')
+          if (entry && editor) {
+            await editor.edit(entry, current => ({ ...current, disabledServers: nextDisabled }))
+          }
+          running = running.then(reconcile)
+          await running
+          sendJson(res, 200, statePayload())
+        } catch (error) {
+          sendJson(res, 400, { message: error instanceof Error ? error.message : String(error) })
+        }
+      },
+    }), 'pi-mcp: set route')
+  })
 
   running = reconcile()
   await running

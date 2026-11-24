@@ -64,12 +64,12 @@
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
-| [`dsh-prompt-shortcut`](packages/prompt-shortcut) | 在当前浏览器收藏常用话术，搜索后插入光标处。 | Web |
+| [`dsh-prompt-shortcut`](packages/prompt-shortcut) | 在 DSH Host 跨浏览器收藏常用话术，支持导入导出与 `/snippets`，搜索后插入光标处。 | Host + Web |
 | [`dsh-cheat-sheet`](packages/cheat-sheet) | 搜索会话技能、置顶常用项、按实际使用次数排序，一键插入 `/命令`。 | Host + Web |
 | [`dsh-web-access`](packages/web-access) | 提供 `grok_search`（网页与 X）和 `openai_search`，复用已有 Responses provider 的托管搜索。 | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | 提供 `openai_image` 和 `grok_image`，复用已有 Responses provider 生成并保存图片。 | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版工具、MoeJS `codemode`、会话工具选择器与 MCP 刷新。 | Host + Web |
-| [`dsh-pi-mcp`](packages/pi-mcp) | 共享 Pi 的 `~/.pi/agent/mcp.json` 到 DSH，文件修改自动热同步。 | Host |
+| [`dsh-pi-mcp`](packages/pi-mcp) | 共享 Pi 的 `~/.pi/agent/mcp.json` 到 DSH，修改热同步并在插件页开关各服务。 | Host + Web |
 | [`dsh-paseo-hub`](packages/paseo-hub) | 把 DSH Host 注册为 Paseo Hub daemon 运行触发，并提供组织 API 控制台与工具。 | Host + Web |
 | [`dsh-bark-notify`](packages/bark-notify) | 智能体提问、提交计划或请求权限审批时通过 Bark 推送到手机。 | Host + Web |
 

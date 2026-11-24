@@ -64,12 +64,12 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 
 | Package | What it does | Runs in |
 |---|---|---|
-| [`dsh-prompt-shortcut`](packages/prompt-shortcut) | Save reusable text snippets in this browser, search, and insert at cursor. | Web |
+| [`dsh-prompt-shortcut`](packages/prompt-shortcut) | Save reusable text snippets on DSH Host (synced across browsers), search, import/export, and insert at cursor. | Host + Web |
 | [`dsh-cheat-sheet`](packages/cheat-sheet) | Search session skills, pin favorites, sort by observed usage, and insert `/commands`. | Host + Web |
 | [`dsh-web-access`](packages/web-access) | Provide `grok_search` (web + X) and `openai_search` backed by existing Responses providers. | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | Provide `openai_image` and `grok_image` backed by existing Responses providers. | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | Standalone `pi` preset with Pi coding tools, MoeJS `codemode`, per-session tool selection, saved defaults, and MCP refresh. | Host + Web |
-| [`dsh-pi-mcp`](packages/pi-mcp) | Share Pi's `~/.pi/agent/mcp.json` with DSH and hot-reload changes. | Host |
+| [`dsh-pi-mcp`](packages/pi-mcp) | Share Pi's `~/.pi/agent/mcp.json` with DSH, hot-reload changes, and toggle servers in Plugins settings. | Host + Web |
 | [`dsh-paseo-hub`](packages/paseo-hub) | Enroll DSH Host as a Paseo Hub daemon and expose an organization API console and tools. | Host + Web |
 | [`dsh-bark-notify`](packages/bark-notify) | Send Bark push notifications for agent questions, plan reviews, and tool approvals. | Host + Web |
 

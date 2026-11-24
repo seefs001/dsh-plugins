@@ -362,27 +362,73 @@ window.__ModuleLoader__.load({
         const lastWorking = new Map()
         let origin = null
 
-        let stream
-        const connect = () => {
-          stream?.close()
-          stream = new EventSource('session-lifecycle/events')
-          stream.addEventListener('message', event => {
-            try {
-              const data = JSON.parse(event.data)
-              store.set({ status: 'ready', sessions: data.sessions ?? {}, settings: data.settings ?? store.getSnapshot().settings })
-            } catch { store.set({ status: 'error' }) }
-          })
-          stream.addEventListener('error', () => store.set({ status: 'error' }))
+        let syncChannel = null
+        let inflightLoad = null
+        let lastLoadedAt = 0
+        const applyState = (data, share = false) => {
+          if (!data || typeof data !== 'object') return
+          const sessions = data.sessions ?? store.getSnapshot().sessions
+          const settings = data.settings ?? store.getSnapshot().settings
+          lastLoadedAt = Date.now()
+          store.set({ status: 'ready', sessions, settings })
+          if (share && syncChannel) {
+            try { BroadcastChannel.prototype.postMessage.call(syncChannel, { sessions, settings }) } catch {}
+          }
         }
-        ctx.effect(() => { connect(); return () => stream.close() }, `${NS}: follow Host state`)
+        const fetchState = (force = false) => {
+          if (!force && inflightLoad) return inflightLoad
+          const task = fetch('session-lifecycle/state', { headers: { accept: 'application/json' }, cache: 'no-store' })
+            .then(async res => {
+              const data = await res.json().catch(() => null)
+              if (!res.ok || !data) throw new Error(data?.message ?? `HTTP ${res.status}`)
+              applyState(data, false)
+            })
+            .catch(() => { store.set({ status: 'error' }) })
+            .finally(() => { if (inflightLoad === task) inflightLoad = null })
+          inflightLoad = task
+          return task
+        }
+        ctx.effect(() => {
+          const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('dsh-session-lifecycle-sync') : null
+          syncChannel = channel
+          const onMessage = event => {
+            if (event?.data && typeof event.data === 'object') applyState(event.data, false)
+          }
+          channel?.addEventListener('message', onMessage)
+          const onWake = () => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+            if (Date.now() - lastLoadedAt >= 15_000) void fetchState(false)
+          }
+          const timer = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+            void fetchState(false)
+          }, 60_000)
+          window.addEventListener('focus', onWake)
+          document.addEventListener('visibilitychange', onWake)
+          void fetchState(true)
+          return () => {
+            clearInterval(timer)
+            window.removeEventListener('focus', onWake)
+            document.removeEventListener('visibilitychange', onWake)
+            channel?.removeEventListener('message', onMessage)
+            try { channel?.close() } catch {}
+            if (syncChannel === channel) syncChannel = null
+          }
+        }, `${NS}: follow Host state`)
 
+        const connect = () => { void fetchState(true) }
         const notifyFailure = error => ctx.contextMenus.notify(`${t('opFailed')}: ${error?.message ?? error}`, false)
         const recordOf = id => store.getSnapshot().sessions[id] ?? null
+        async function runOp(payload) {
+          const res = await postOp(payload)
+          applyState(res, true)
+          return res
+        }
         async function change(sessionId, payload, toast) {
           try {
-            const { before, after } = await postOp({ ...payload, sessionId })
+            const { before, after } = await runOp({ ...payload, sessionId })
             ctx.contextMenus.notify(toast, true, { label: t('undo'), failureLabel: t('opFailed'),
-              run: () => postOp({ action: 'restore', sessionId, record: before, expected: after }),
+              run: () => runOp({ action: 'restore', sessionId, record: before, expected: after }),
             })
           } catch (error) { notifyFailure(error) }
         }
@@ -391,12 +437,12 @@ window.__ModuleLoader__.load({
         const wake = id => change(id, { action: 'wake', by: 'user' }, t('wokeToast'))
         const snooze = (id, until, openCalls) => change(id, { action: 'snooze', until, openCalls }, tf('snoozedToast', { when: fmt(until) }))
         const exempt = (id, never) => change(id, { action: 'auto_settle', mode: never ? 'never' : 'follow' }, t(never ? 'exemptToast' : 'followToast'))
-        const saveSettings = settings => postOp({ action: 'settings', settings }).catch(notifyFailure)
+        const saveSettings = settings => runOp({ action: 'settings', settings }).catch(notifyFailure)
         const markSeen = async marks => {
-          try { for (let i = 0; i < marks.length; i += 200) await postOp({ action: 'seen', marks: marks.slice(i, i + 200) }) }
+          try { for (let i = 0; i < marks.length; i += 200) await runOp({ action: 'seen', marks: marks.slice(i, i + 200) }) }
           catch (error) { notifyFailure(error) }
         }
-        const hold = (row, until) => postOp({ action: 'hold', sessionId: row.target, callId: row.request.callId, until }).catch(notifyFailure)
+        const hold = (row, until) => runOp({ action: 'hold', sessionId: row.target, callId: row.request.callId, until }).catch(notifyFailure)
 
         const status = ctx.uiSession.sessionStatus
         let boardCache = null

@@ -1,10 +1,13 @@
 import {
   classifyGhError,
   detectGitHubRepo,
+  extractGitHubMentions,
   fetchGitHubDetail,
   fetchGitHubOverview,
   normalizeHosts,
   rerunFailedJobs,
+  resolveGitHubMentions,
+  validateRepoTarget,
 } from './github.js'
 
 export const name = 'github-panel'
@@ -13,9 +16,11 @@ export const inject = ['webServer', 'sessionController', 'workingDirectory']
 export const OVERVIEW_PATH = '/github-panel/overview'
 export const DETAIL_PATH = '/github-panel/detail'
 export const ACTION_PATH = '/github-panel/action'
+export const CONFIG_PATH = '/github-panel/config'
 
 const DETECT_TTL_MS = 15_000
 const OVERVIEW_TTL_MS = 60_000
+const MENTIONS_TTL_MS = 45_000
 const DETAIL_TTL_MS = 30_000
 const MAX_CACHE_ENTRIES = 48
 const MAX_BODY_BYTES = 16 * 1024
@@ -115,35 +120,48 @@ function requireOwner(res, peer) {
 }
 
 export function apply(ctx, config = {}) {
-  const allowedHosts = normalizeHosts(config?.hosts)
+  let allowedHosts = normalizeHosts(config?.hosts)
   const lifetime = new AbortController()
   const detectCache = new TtlCache(MAX_CACHE_ENTRIES)
   const overviewCache = new TtlCache(MAX_CACHE_ENTRIES)
+  const mentionsCache = new TtlCache(MAX_CACHE_ENTRIES)
   const detailCache = new TtlCache(MAX_CACHE_ENTRIES)
 
   ctx.effect(() => () => {
     lifetime.abort()
     detectCache.clear()
     overviewCache.clear()
+    mentionsCache.clear()
     detailCache.clear()
   }, 'github-panel: cache and lifetime')
 
-  async function resolveSessionCwd(sessionId) {
-    if (typeof sessionId !== 'string' || !sessionId || sessionId.length > 200) return ''
+  async function resolveSessionContext(sessionId) {
+    if (typeof sessionId !== 'string' || !sessionId || sessionId.length > 200) {
+      return { cwd: '', session: null }
+    }
     try {
       const resolved = await ctx.sessionController.resolveAgent(sessionId)
-      if (!resolved || 'error' in resolved || !resolved.agent) return ''
+      if (!resolved || 'error' in resolved || !resolved.agent) return { cwd: '', session: null }
       const session = resolved.agent.session
-      return ctx.workingDirectory.get(session) ?? session?.header?.cwd ?? ''
+      const cwd = ctx.workingDirectory.get(session) ?? session?.header?.cwd ?? ''
+      return { cwd, session }
     } catch {
-      return ''
+      return { cwd: '', session: null }
     }
   }
 
-  async function resolveRepoForSession(sessionId, force, signal) {
-    const cwd = await resolveSessionCwd(sessionId)
+  async function resolveRepoForCwd(cwd, force, signal) {
     if (!cwd) return null
     return detectCache.load(cwd, DETECT_TTL_MS, force, () => detectGitHubRepo(cwd, allowedHosts, signal))
+  }
+
+  async function resolveSessionMentions(session, target, force, signal) {
+    if (!session || typeof session.snapshotEvents !== 'function') return []
+    const events = session.snapshotEvents()
+    const refs = extractGitHubMentions(events, target, allowedHosts)
+    if (refs.length === 0) return []
+    const cacheKey = refs.map(ref => ref.key).join('|')
+    return mentionsCache.load(cacheKey, MENTIONS_TTL_MS, force, () => resolveGitHubMentions(refs, signal))
   }
 
   function makeSignal(res) {
@@ -171,19 +189,26 @@ export function apply(ctx, config = {}) {
         const params = parseQuery(req)
         const sessionId = params.get('sessionId') ?? ''
         const force = params.get('refresh') === '1'
-        const target = await resolveRepoForSession(sessionId, force, signal)
+        const { cwd, session } = await resolveSessionContext(sessionId)
+        const target = await resolveRepoForCwd(cwd, force, signal)
+
+        const [overview, mentions] = await Promise.all([
+          target
+            ? overviewCache.load(
+              `${target.host}/${target.fullName}`,
+              OVERVIEW_TTL_MS,
+              force,
+              () => fetchGitHubOverview(target, signal),
+            )
+            : Promise.resolve(null),
+          resolveSessionMentions(session, target, force, signal),
+        ])
+
         if (!target) {
-          sendJson(res, 200, { ok: true, value: { linked: false } })
+          sendJson(res, 200, { ok: true, value: { linked: false, mentions } })
           return
         }
-        const repoKey = `${target.host}/${target.fullName}`
-        const value = await overviewCache.load(
-          repoKey,
-          OVERVIEW_TTL_MS,
-          force,
-          () => fetchGitHubOverview(target, signal),
-        )
-        sendJson(res, 200, { ok: true, value: { ...value, remote: target } })
+        sendJson(res, 200, { ok: true, value: { ...overview, remote: target, mentions } })
       } catch (error) {
         sendJson(res, 500, { ok: false, message: error instanceof Error ? error.message : String(error) })
       } finally {
@@ -209,7 +234,18 @@ export function apply(ctx, config = {}) {
         const kind = params.get('kind') ?? ''
         const id = params.get('id') ?? ''
         const force = params.get('refresh') === '1'
-        const target = await resolveRepoForSession(sessionId, false, signal)
+        const paramOwner = params.get('owner')
+        const paramRepo = params.get('repo')
+        const paramHost = params.get('host') || 'github.com'
+
+        let target = null
+        if (paramOwner && paramRepo) {
+          target = validateRepoTarget(paramHost, paramOwner, paramRepo, allowedHosts)
+        } else {
+          const { cwd } = await resolveSessionContext(sessionId)
+          target = await resolveRepoForCwd(cwd, false, signal)
+        }
+
         if (!target) {
           sendJson(res, 404, { ok: false, message: 'No GitHub repository linked to this session.' })
           return
@@ -244,7 +280,13 @@ export function apply(ctx, config = {}) {
       const { signal, cleanup } = makeSignal(res)
       try {
         const body = await readJsonBody(req)
-        const target = await resolveRepoForSession(body.sessionId, false, signal)
+        let target = null
+        if (body.owner && body.repo) {
+          target = validateRepoTarget(body.host || 'github.com', body.owner, body.repo, allowedHosts)
+        } else {
+          const { cwd } = await resolveSessionContext(body.sessionId)
+          target = await resolveRepoForCwd(cwd, false, signal)
+        }
         if (!target) {
           sendJson(res, 404, { ok: false, message: 'No GitHub repository linked to this session.' })
           return
@@ -254,6 +296,7 @@ export function apply(ctx, config = {}) {
           const prefix = `${target.host}/${target.fullName}`
           overviewCache.deletePrefix(prefix)
           detailCache.deletePrefix(`${prefix}:run:`)
+          mentionsCache.clear()
           sendJson(res, 200, { ok: true, value: result })
           return
         }
@@ -266,4 +309,39 @@ export function apply(ctx, config = {}) {
       }
     },
   }), 'github-panel: action route')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: CONFIG_PATH,
+    handler: async (req, res, peer) => {
+      if (!requireOwner(res, peer)) return
+      if (req.method === 'GET') {
+        sendJson(res, 200, { ok: true, value: { hosts: [...allowedHosts] } })
+        return
+      }
+      if (req.method !== 'POST') {
+        res.writeHead(405, { allow: 'GET, POST' })
+        res.end()
+        return
+      }
+      try {
+        const body = await readJsonBody(req)
+        const nextSet = normalizeHosts(body.hosts)
+        allowedHosts = nextSet
+        const nextHosts = [...nextSet]
+        detectCache.clear()
+        overviewCache.clear()
+        mentionsCache.clear()
+        detailCache.clear()
+        const entry = ctx.fiber?.entry
+        const editor = ctx.get('configEditor')
+        if (entry && editor) {
+          await editor.edit(entry, current => ({ ...current, hosts: nextHosts }))
+        }
+        sendJson(res, 200, { ok: true, value: { hosts: nextHosts } })
+      } catch (error) {
+        sendJson(res, 400, { ok: false, message: error instanceof Error ? error.message : String(error) })
+      }
+    },
+  }), 'github-panel: config route')
 }

@@ -425,7 +425,7 @@ export async function apply(ctx) {
       try { op = JSON.parse(raw) } catch {}
       try {
         const { state, ...result } = await run(op)
-        sendJson(res, 200, { ...result, settings: state.settings })
+        sendJson(res, 200, { ...result, sessions: state.sessions, settings: state.settings })
       } catch (error) {
         sendJson(res, error instanceof OpError ? 400 : 500, { message: error?.message ?? String(error) })
       }

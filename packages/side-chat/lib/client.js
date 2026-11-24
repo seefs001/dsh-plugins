@@ -18,6 +18,7 @@ window.__ModuleLoader__.load({
       loading: 'Opening conversation…', retry: 'Retry', workspace: 'Waiting for workspace and sessions…',
       empty: 'No side chats yet.', removeQuote: 'Remove selection', untitled: 'Untitled side chat',
       justNow: 'just now', dismiss: 'Dismiss',
+      archived: 'Archived “{name}”.', undo: 'Undo', undoFailed: 'Could not restore side chat', restored: 'Side chat restored.',
     }
     const ZH = {
       title: '侧聊', newChat: '新建侧聊', ask: '在侧聊中提问', main: '主聊',
@@ -30,6 +31,7 @@ window.__ModuleLoader__.load({
       loading: '正在打开会话…', retry: '重试', workspace: '正在等待工作区和会话列表…',
       empty: '还没有侧聊。', removeQuote: '移除选区', untitled: '未命名侧聊',
       justNow: '刚刚', dismiss: '关闭提示',
+      archived: '已归档「{name}」。', undo: '撤销', undoFailed: '恢复侧聊失败', restored: '已恢复侧聊。',
     }
 
     const CSS = `
@@ -358,16 +360,52 @@ window.__ModuleLoader__.load({
           }
 
           async function archive() {
+            const targetId = id
+            const targetName = label(targetId)
             setBusy(true); setNotice(null)
-            try { await ctx.workspaces.archiveSession(id); show(null) }
+            try {
+              await ctx.workspaces.archiveSession(targetId)
+              show(null)
+              const menus = ctx.get?.('contextMenus')
+              const toastText = t('archived').replace('{name}', targetName)
+              if (menus?.notify && typeof ctx.workspaces.unarchiveSession === 'function') {
+                menus.notify(toastText, true, {
+                  label: t('undo'),
+                  failureLabel: t('undoFailed'),
+                  run: async () => {
+                    await ctx.workspaces.unarchiveSession(targetId)
+                    show(targetId)
+                  },
+                })
+              } else {
+                setNotice({ tone: 'info', text: toastText, undoId: targetId })
+              }
+            }
             catch (cause) { setNotice({ tone: 'error', text: cause.message }) }
             finally { setBusy(false) }
+          }
+
+          async function restoreArchived(targetId) {
+            if (typeof ctx.workspaces.unarchiveSession !== 'function') return
+            setBusy(true)
+            try {
+              await ctx.workspaces.unarchiveSession(targetId)
+              setNotice({ tone: 'info', text: t('restored') })
+              show(targetId)
+            } catch (cause) {
+              setNotice({ tone: 'error', text: cause.message })
+            } finally {
+              setBusy(false)
+            }
           }
 
           const noticeBar = notice && h('div', {
             className: 'sc-notice', 'data-tone': notice.tone, role: notice.tone === 'error' ? 'alert' : 'status',
           },
           h('span', null, notice.text),
+          notice.undoId && h('button', {
+            type: 'button', className: 'sc-btn', disabled: busy, onClick: () => restoreArchived(notice.undoId),
+          }, t('undo')),
           notice.tone === 'error' && h('button', {
             type: 'button', className: 'sc-icon-btn', 'aria-label': t('dismiss'), onClick: () => setNotice(null),
           }, h(CloseIcon)))

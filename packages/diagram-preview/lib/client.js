@@ -2,6 +2,8 @@ window.__ModuleLoader__.load({
   id: 'dsh-diagram-preview',
   factory(require) {
     const React = require('react')
+    let primitives = null
+    try { primitives = require('@deepseek-ai/dsh-client-ui-primitives') } catch {}
     const h = React.createElement
     const slot = 'conversation.chat.markdown.fence'
     const ns = 'diagramPreview'
@@ -23,12 +25,16 @@ window.__ModuleLoader__.load({
 .dsh-diagram-open[data-size=small] img { width:52%; max-height:14rem; }
 .dsh-diagram-open[data-size=large] img { width:100%; max-height:40rem; }
 .dsh-diagram-open span { display:block; width:max-content; margin:6px 0 0 auto; padding:1px 6px; border-radius:var(--dsw-radius-xs,4px); font-size:11px; color:var(--dsw-alias-label-secondary); background:var(--dsw-alias-bg-layer-1); }
-.dsh-diagram-dialog { box-sizing:border-box; width:96vw; height:92dvh; max-width:100vw; max-height:100dvh; padding:0; margin:auto; border:0; border-radius:var(--dsw-radius-lg,16px); color:var(--dsw-alias-label-primary); background:var(--dsw-alias-bg-layer-2); --dsw-elevation-stroke-color:var(--dsw-alias-border-l2); box-shadow:var(--dsw-elevation-prominent); overflow:hidden; }
-.dsh-diagram-dialog[open] { display:flex; flex-direction:column; }
-.dsh-diagram-dialog::backdrop { background:var(--dsw-alias-bg-mask-1); }
-.dsh-diagram-viewport { flex:1; min-height:0; container-type:size; overflow:auto; overscroll-behavior:contain; }
-.dsh-diagram-sheet { display:grid; place-items:center; width:max-content; min-width:100%; min-height:100%; }
-.dsh-diagram-sheet img { display:block; height:auto; max-width:none; }
+.dsh-diagram-modal{display:flex;flex-direction:column;gap:8px;width:min(90vw,1200px);max-width:100%}
+.dsh-diagram-modal-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.dsh-diagram-modal-bar select{font:inherit;padding:3px 6px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-xs,4px);color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);cursor:pointer}
+.dsh-diagram-modal-bar button{font:inherit;cursor:pointer;background:transparent;color:var(--dsw-alias-label-secondary);border:.5px solid var(--dsw-alias-border-l3);padding:3px 8px;border-radius:var(--dsw-radius-xs,4px)}
+@media (hover:hover){.dsh-diagram-modal-bar button:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
+.dsh-diagram-viewport{flex:1;min-height:40vh;max-height:74dvh;container-type:size;overflow:auto;overscroll-behavior:contain;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l1)}
+.dsh-diagram-viewport[data-paper=true]{color-scheme:only light;background:Canvas}
+.dsh-diagram-sheet{display:grid;place-items:center;width:max-content;min-width:100%;min-height:100%;padding:12px;box-sizing:border-box}
+.dsh-diagram-sheet img{display:block;height:auto;max-width:none}
+.dsh-diagram-status{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .dsh-diagram > [role=status] { padding:6px 10px; font-size:12px; color:var(--dsw-alias-label-secondary); overflow-wrap:anywhere; }
 .dsh-diagram [data-failed] { color:var(--dsw-alias-state-warn-primary); }
 .dsh-diagram-stage iframe { position:absolute; left:0; top:0; width:760px; height:440px; border:0; visibility:hidden; pointer-events:none; }
@@ -36,27 +42,96 @@ window.__ModuleLoader__.load({
 @media (pointer:coarse) { .dsh-diagram-tools select { font-size:16px; } }
 `
 
-    function LargePreview({ picture, title, paper, ratio, t, dismiss }) {
-      const ref = React.useRef(null)
+    function renderPictureToPngBlob(picture, paper) {
+      return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.addEventListener('load', () => {
+          const w = Math.max(1, img.naturalWidth || 800)
+          const hPx = Math.max(1, img.naturalHeight || 600)
+          const scale = Math.min(2, 4096 / Math.max(w, hPx))
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.round(w * scale)
+          canvas.height = Math.round(hPx * scale)
+          const ctx2d = canvas.getContext('2d')
+          if (!ctx2d) { reject(new Error('Canvas unavailable')); return }
+          if (paper) {
+            ctx2d.fillStyle = '#ffffff'
+            ctx2d.fillRect(0, 0, canvas.width, canvas.height)
+          }
+          ctx2d.scale(scale, scale)
+          ctx2d.drawImage(img, 0, 0, w, hPx)
+          canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('PNG export failed'))), 'image/png')
+        }, { once: true })
+        img.addEventListener('error', () => reject(new Error('Image decode failed')), { once: true })
+        img.src = picture
+      })
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.append(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    }
+
+    function LargePreview({ picture, svgText, engine, title, paper, ratio, t, dismiss }) {
       const [zoom, setZoom] = React.useState(100)
+      const [feedback, setFeedback] = React.useState('')
       const label = `${title} · ${t('enlarge')}`
-      React.useEffect(() => {
-        const dialog = ref.current
-        dialog.showModal()
-        return () => dialog.close()
-      }, [])
-      return h('dialog', { ref, className: 'dsh-diagram-dialog', 'aria-label': label,
-        onClose: e => { if (!e.currentTarget.open) dismiss() },
-        onClick: e => { if (e.target === e.currentTarget) e.currentTarget.close() },
-      }, h('header', { className: 'dsh-diagram-tools' }, h('strong', null, label),
-        h('div', { className: 'dsh-diagram-controls' },
-          h('select', { 'aria-label': t('zoom'), value: zoom, onChange: e => setZoom(Number(e.target.value)) },
-            [100, 150, 200, 300, 400].map(n => h('option', { key: n, value: n }, n === 100 ? t('fit') : `${n}%`))),
-          h('button', { type: 'button', onClick: () => ref.current.close() }, t('close')))),
-      h('div', { className: 'dsh-diagram-viewport', 'data-paper': paper, tabIndex: 0, role: 'region', 'aria-label': label },
-        h('div', { className: 'dsh-diagram-sheet' }, h('img', { src: picture, alt: title,
-          style: { width: `min(${zoom}cqw, ${zoom * ratio}cqh)` },
-        }))))
+      const ModalComp = primitives?.Modal
+
+      const copyPng = async () => {
+        setFeedback('')
+        try {
+          if (typeof ClipboardItem !== 'function' || !navigator.clipboard?.write) {
+            throw new Error('Clipboard image unsupported')
+          }
+          const blob = await renderPictureToPngBlob(picture, paper)
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+          setFeedback(t('copiedImage'))
+        } catch {
+          setFeedback(t('copyFailed'))
+        }
+      }
+
+      const downloadSvg = () => {
+        if (!svgText) return
+        triggerDownload(new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' }), `${engine}-diagram.svg`)
+      }
+
+      const downloadPng = async () => {
+        setFeedback('')
+        try {
+          const blob = await renderPictureToPngBlob(picture, paper)
+          triggerDownload(blob, `${engine}-diagram.png`)
+        } catch {
+          setFeedback(t('copyFailed'))
+        }
+      }
+
+      const body = h('div', { className: 'dsh-diagram-modal' },
+        h('div', { className: 'dsh-diagram-modal-bar' },
+          h('div', { className: 'dsh-diagram-controls' },
+            h('select', { 'aria-label': t('zoom'), value: zoom, onChange: e => setZoom(Number(e.target.value)) },
+              [100, 150, 200, 300, 400].map(n => h('option', { key: n, value: n }, n === 100 ? t('fit') : `${n}%`))),
+            h('button', { type: 'button', onClick: copyPng }, t('copyImage')),
+            svgText && h('button', { type: 'button', onClick: downloadSvg }, t('downloadSvg')),
+            h('button', { type: 'button', onClick: downloadPng }, t('downloadPng'))),
+          feedback && h('span', { className: 'dsh-diagram-status', role: 'status' }, feedback)),
+        h('div', { className: 'dsh-diagram-viewport', 'data-paper': paper, tabIndex: 0, role: 'region', 'aria-label': label },
+          h('div', { className: 'dsh-diagram-sheet' }, h('img', {
+            src: picture, alt: title,
+            style: { width: `min(${zoom}cqw, ${zoom * ratio}cqh)` },
+          }))))
+
+      if (ModalComp) {
+        return h(ModalComp, { open: true, title: label, size: 'lg', onClose: dismiss }, body)
+      }
+      return body
     }
 
     function startFrame() {
@@ -297,9 +372,11 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(ns, {
           en: { preview: 'Preview', code: 'Code', loading: 'Rendering diagram…', failed: 'Preview unavailable. Showing the original code.', timeout: 'Renderer timed out.', invalid: 'Invalid SVG image.',
-            size: 'Preview size', small: 'Small', medium: 'Medium', large: 'Large', enlarge: 'View larger', zoom: 'Zoom', fit: 'Fit to window', close: 'Close' },
+            size: 'Preview size', small: 'Small', medium: 'Medium', large: 'Large', enlarge: 'View larger', zoom: 'Zoom', fit: 'Fit to window', close: 'Close',
+            copyImage: 'Copy PNG', copiedImage: 'PNG copied to clipboard', copyFailed: 'Could not export image', downloadSvg: 'Download SVG', downloadPng: 'Download PNG' },
           zh: { preview: '预览', code: '代码', loading: '正在渲染图表…', failed: '无法预览，已显示原代码。', timeout: '渲染超时。', invalid: '无效的 SVG 图像。',
-            size: '预览尺寸', small: '小图', medium: '中图', large: '大图', enlarge: '查看大图', zoom: '缩放', fit: '适应窗口', close: '关闭' },
+            size: '预览尺寸', small: '小图', medium: '中图', large: '大图', enlarge: '查看大图', zoom: '缩放', fit: '适应窗口', close: '关闭',
+            copyImage: '复制 PNG', copiedImage: '已复制 PNG 图片', copyFailed: '导出图片失败', downloadSvg: '下载 SVG', downloadPng: '下载 PNG' },
         }))
         ctx.effect(() => {
           const style = document.createElement('style')
@@ -319,21 +396,21 @@ window.__ModuleLoader__.load({
           const [size, setSize] = React.useState('medium')
           const [openRatio, setOpenRatio] = React.useState(null)
           const image = React.useRef(null)
-          const [picture, setPicture] = React.useState(() => {
-            if (engine === 'svg') return toDataUrl(code)
-            const cached = pool.getCached(`${engine}\0${scheme}\0${code}`)
-            return cached !== undefined ? toDataUrl(cached) : ''
+          const [svgText, setSvgText] = React.useState(() => {
+            if (engine === 'svg') return code
+            return pool.getCached(`${engine}\0${scheme}\0${code}`) ?? ''
           })
+          const picture = svgText ? toDataUrl(svgText) : ''
           const [error, setError] = React.useState('')
           const [attempt, retry] = React.useReducer(n => n + 1, 0)
           React.useEffect(() => {
-            if (engine === 'svg') { setPicture(toDataUrl(code)); return undefined }
+            if (engine === 'svg') { setSvgText(code); return undefined }
             const cached = pool.getCached(`${engine}\0${scheme}\0${code}`)
-            if (cached !== undefined) { setPicture(toDataUrl(cached)); return undefined }
+            if (cached !== undefined) { setSvgText(cached); return undefined }
             const controller = new AbortController()
             const { signal } = controller
             pool.render(engine, code, scheme, signal, t('timeout'))
-              .then(svg => { if (!signal.aborted) setPicture(toDataUrl(svg)) })
+              .then(svg => { if (!signal.aborted) setSvgText(svg) })
               .catch(err => { if (!signal.aborted) setError(err?.message || t('invalid')) })
             return () => controller.abort()
           }, [engine, code, scheme, attempt, t])
@@ -341,7 +418,7 @@ window.__ModuleLoader__.load({
           const showCode = source || Boolean(error)
           function preview() {
             setSource(false)
-            if (error) { setError(''); setPicture(''); retry() }
+            if (error) { setError(''); setSvgText(''); retry() }
           }
           const button = (label, active, click) => h('button', { type: 'button', 'aria-pressed': active, onClick: click }, label)
           const title = titles[engine]
@@ -350,6 +427,7 @@ window.__ModuleLoader__.load({
             h('header', { className: 'dsh-diagram-tools' }, h('strong', null, title), h('div', { className: 'dsh-diagram-controls' },
               !showCode && picture && h('select', { 'aria-label': t('size'), title: t('size'), value: size, onChange: e => setSize(e.target.value) },
                 ['small', 'medium', 'large'].map(s => h('option', { key: s, value: s }, t(s)))),
+              !showCode && picture && h('button', { type: 'button', onClick: () => triggerDownload(new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' }), `${engine}-diagram.svg`) }, 'SVG'),
               button(t('preview'), !showCode, preview), button(t('code'), showCode, () => setSource(true)))),
             error && h('div', { role: 'status', 'data-failed': '' }, `${t('failed')} ${error}`),
             showCode ? children : picture
@@ -358,7 +436,7 @@ window.__ModuleLoader__.load({
                   onClick: () => setOpenRatio(image.current.naturalWidth / image.current.naturalHeight || 1),
                 }, h('img', { ref: image, src: picture, alt: title, onError: () => setError(t('invalid')) }), h('span', null, t('enlarge'))))
               : h('div', { role: 'status' }, t('loading')),
-            openRatio !== null && h(LargePreview, { title, picture, paper, ratio: openRatio, t, dismiss: () => setOpenRatio(null) }))
+            openRatio !== null && h(LargePreview, { title, picture, svgText, engine, paper, ratio: openRatio, t, dismiss: () => setOpenRatio(null) }))
         }
 
         function Fence(props) {

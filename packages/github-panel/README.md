@@ -22,9 +22,10 @@ dsh plugin --profile web add "link:$PWD/packages/github-panel"
 
 ## 工作方式
 
-- **自动识别**：Host 读取会话当前工作目录的 Git 远端（按上游分支远端、`origin`、`upstream` 优先），未关联 GitHub 仓库时分栏自动隐藏。
-- **右侧会话面板**：使用原生分栏与行样式展示仓库信息、打开中的 PR、Issue、近期 Actions 工作流运行和 Latest Release，支持悬停详情卡、列表折叠和一键引用到输入框。当前分支最新 Actions 失败且面板收起时，在标题栏开关显示红点提示。
-- **右侧边栏详情**：点击条目打开 **GitHub** 标签页，查看 PR/Issue 的 Markdown 正文、标签、检查与评论，查看 Actions 各 Job 与步骤并支持重跑失败任务，或浏览最近提交与 Release 说明。
+- **自动识别**：Host 读取会话当前工作目录的 Git 远端（按上游分支远端、`origin`、`upstream` 优先），未关联 GitHub 仓库且对话中也未提及 GitHub 链接时分栏自动隐藏。
+- **对话提及提取**：自动扫描当前会话消息中提及的 GitHub 链接（Issue / PR / Actions Run）、跨仓库简写（`owner/repo#123`）以及同仓库编号（`#123`、`PR #123`、`Issue #123`），经单次批量 GraphQL 解析实时状态（含已关闭 / 已合并项），优先列在 **对话提及** 分组中；即使会话不在 GitHub 目录内，提及完整链接也会显示。
+- **右侧会话面板**：使用原生分栏与行样式展示仓库信息、对话提及项、打开中的 PR、Issue、近期 Actions 工作流运行和 Latest Release，支持悬停详情卡、列表折叠和一键引用到输入框。当前分支最新 Actions 失败且面板收起时，在标题栏开关显示红点提示。
+- **右侧边栏详情**：点击条目打开 **GitHub** 标签页，查看本仓库或跨仓库 PR/Issue 的 Markdown 正文、标签、检查与评论，查看 Actions 各 Job 与步骤并支持重跑失败任务，或浏览最近提交与 Release 说明。
 - **企业主机支持**：可在 `cordis.patch.yml` 的 `config.hosts` 中列出额外的 GitHub Enterprise 主机名（默认 `["github.com"]`）。
 
 更多说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/github-panel)。

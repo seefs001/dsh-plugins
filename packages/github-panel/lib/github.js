@@ -6,6 +6,8 @@ const execFileAsync = promisify(execFile)
 const GIT_TIMEOUT_MS = 5_000
 const GH_TIMEOUT_MS = 15_000
 const MAX_BUFFER = 2 * 1024 * 1024
+const MAX_MENTIONS = 20
+const MAX_MENTION_RUNS = 5
 const DEFAULT_HOSTS = ['github.com']
 const VALID_SEGMENT = /^[A-Za-z0-9._-]+$/
 const VALID_TAG = /^[^\s\0/][^ \0]*$/
@@ -58,6 +60,23 @@ export function normalizeHosts(hosts) {
   return out
 }
 
+export function validateRepoTarget(host, owner, repo, allowedHosts = normalizeHosts()) {
+  if (typeof host !== 'string' || typeof owner !== 'string' || typeof repo !== 'string') return null
+  const cleanHost = host.trim().toLowerCase()
+  const cleanOwner = owner.trim()
+  const cleanRepo = repo.trim()
+  if (!allowedHosts.has(cleanHost)) return null
+  if (!VALID_SEGMENT.test(cleanOwner) || !VALID_SEGMENT.test(cleanRepo)) return null
+  if (cleanOwner === '.' || cleanOwner === '..' || cleanRepo === '.' || cleanRepo === '..') return null
+  return {
+    host: cleanHost,
+    owner: cleanOwner,
+    repo: cleanRepo,
+    fullName: `${cleanOwner}/${cleanRepo}`,
+    url: `https://${cleanHost}/${cleanOwner}/${cleanRepo}`,
+  }
+}
+
 export function parseGitHubRemoteUrl(rawUrl, allowedHosts = normalizeHosts()) {
   if (typeof rawUrl !== 'string') return null
   const trimmed = rawUrl.trim()
@@ -83,23 +102,11 @@ export function parseGitHubRemoteUrl(rawUrl, allowedHosts = normalizeHosts()) {
     pathPart = parsed.pathname
   }
 
-  if (!allowedHosts.has(host)) return null
-
   const cleanPath = pathPart.replace(/^\/+/, '').replace(/\/+$/, '').replace(/\.git$/i, '')
   const parts = cleanPath.split('/').filter(Boolean)
   if (parts.length !== 2) return null
 
-  const [owner, repo] = parts
-  if (!VALID_SEGMENT.test(owner) || !VALID_SEGMENT.test(repo)) return null
-  if (owner === '.' || owner === '..' || repo === '.' || repo === '..') return null
-
-  return {
-    host,
-    owner,
-    repo,
-    fullName: `${owner}/${repo}`,
-    url: `https://${host}/${owner}/${repo}`,
-  }
+  return validateRepoTarget(host, parts[0], parts[1], allowedHosts)
 }
 
 export function parseGitRemotesOutput(text) {
@@ -260,6 +267,22 @@ async function runGh(args, signal, timeoutMs = GH_TIMEOUT_MS) {
 async function runGhJson(args, signal) {
   const stdout = await runGh(args, signal)
   return JSON.parse(stdout)
+}
+
+async function runGhGraphqlTolerant(args, signal) {
+  try {
+    return await runGhJson(args, signal)
+  } catch (error) {
+    // external: gh api graphql exits non-zero when any individual alias has a GraphQL error even though partial data is on stdout
+    const stdout = typeof error?.stdout === 'string' ? error.stdout.trim() : ''
+    if (stdout.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(stdout)
+        if (parsed && typeof parsed === 'object' && 'data' in parsed) return parsed
+      } catch {}
+    }
+    throw error
+  }
 }
 
 const OVERVIEW_QUERY = `
@@ -521,6 +544,282 @@ function mapCommit(node) {
   }
 }
 
+function stripFencedCodeBlocks(text) {
+  return String(text || '').replace(/```[\s\S]*?```/g, ' ')
+}
+
+function collectConversationTexts(events) {
+  if (!Array.isArray(events)) return []
+  const texts = []
+  for (const event of events) {
+    if (!event || typeof event !== 'object') continue
+    if (event.type === 'user/message') {
+      const sourceKind = event.data?.source?.kind
+      if (sourceKind && sourceKind !== 'user' && sourceKind !== 'steering') continue
+      const blocks = event.data?.content
+      if (Array.isArray(blocks)) {
+        for (const block of blocks) {
+          if (block?.type === 'text' && typeof block.text === 'string' && block.text) {
+            texts.push(block.text)
+          }
+        }
+      }
+    } else if (event.type === 'assistant/message') {
+      const blocks = event.data?.message?.content
+      if (Array.isArray(blocks)) {
+        for (const block of blocks) {
+          if (block?.type === 'text' && typeof block.text === 'string' && block.text) {
+            texts.push(block.text)
+          }
+        }
+      }
+    }
+  }
+  return texts
+}
+
+export function extractGitHubMentions(events, defaultTarget = null, allowedHosts = normalizeHosts()) {
+  const texts = collectConversationTexts(events)
+  if (texts.length === 0) return []
+
+  const found = new Map()
+  const record = (key, entry) => {
+    found.delete(key)
+    found.set(key, entry)
+  }
+
+  const urlPattern = /https?:\/\/([A-Za-z0-9.-]+(?::\d+)?)\/([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+)\/(issues|pull|actions\/runs)\/(\d+)(?=[/?#\s),.\]}"'`]|$)/gi
+  const crossRepoPattern = /(?<![A-Za-z0-9._/@:-])([A-Za-z0-9][A-Za-z0-9-]{0,38})\/([A-Za-z0-9._-]{1,100})#([1-9]\d{0,6})\b/g
+  const keywordNumPattern = /\b(?:PR|pull\s+request|issue)s?\s+#?([1-9]\d{0,6})\b/gi
+  const bareHashPattern = /(?<![A-Za-z0-9_&#:/.-])#([1-9]\d{0,6})\b/g
+
+  for (const rawText of texts) {
+    for (const match of rawText.matchAll(urlPattern)) {
+      const [, rawHost, rawOwner, rawRepo, segment, rawId] = match
+      const target = validateRepoTarget(rawHost, rawOwner, rawRepo, allowedHosts)
+      if (!target) continue
+      const lowerSeg = segment.toLowerCase()
+      if (lowerSeg === 'actions/runs') {
+        const key = `run:${target.host}/${target.fullName}/${rawId}`
+        record(key, {
+          key,
+          kind: 'run',
+          explicit: true,
+          ...target,
+          runId: rawId,
+          url: `${target.url}/actions/runs/${rawId}`,
+        })
+      } else {
+        const number = Number.parseInt(rawId, 10)
+        if (!Number.isSafeInteger(number) || number <= 0) continue
+        const key = `item:${target.host}/${target.fullName}#${number}`
+        record(key, {
+          key,
+          kind: lowerSeg === 'pull' ? 'pr' : 'issue',
+          explicit: true,
+          ...target,
+          number,
+          url: `${target.url}/${lowerSeg}/${number}`,
+        })
+      }
+    }
+
+    const prose = stripFencedCodeBlocks(rawText)
+    const defaultHost = defaultTarget?.host ?? 'github.com'
+
+    for (const match of prose.matchAll(crossRepoPattern)) {
+      const [, rawOwner, rawRepo, rawNum] = match
+      const target = validateRepoTarget(defaultHost, rawOwner, rawRepo, allowedHosts)
+      if (!target) continue
+      const number = Number.parseInt(rawNum, 10)
+      if (!Number.isSafeInteger(number) || number <= 0) continue
+      const key = `item:${target.host}/${target.fullName}#${number}`
+      if (!found.has(key)) {
+        record(key, {
+          key,
+          kind: 'auto',
+          explicit: false,
+          ...target,
+          number,
+          url: `${target.url}/issues/${number}`,
+        })
+      } else {
+        record(key, found.get(key))
+      }
+    }
+
+    if (defaultTarget) {
+      for (const pattern of [keywordNumPattern, bareHashPattern]) {
+        for (const match of prose.matchAll(pattern)) {
+          const number = Number.parseInt(match[1], 10)
+          if (!Number.isSafeInteger(number) || number <= 0) continue
+          const key = `item:${defaultTarget.host}/${defaultTarget.fullName}#${number}`
+          if (!found.has(key)) {
+            record(key, {
+              key,
+              kind: 'auto',
+              explicit: false,
+              host: defaultTarget.host,
+              owner: defaultTarget.owner,
+              repo: defaultTarget.repo,
+              fullName: defaultTarget.fullName,
+              number,
+              url: `${defaultTarget.url}/issues/${number}`,
+            })
+          } else {
+            record(key, found.get(key))
+          }
+        }
+      }
+    }
+  }
+
+  return [...found.values()].toReversed().slice(0, MAX_MENTIONS)
+}
+
+function buildMentionGraphqlQuery(refs) {
+  const fields = refs.map((ref, idx) => `
+    m${idx}: repository(owner: ${JSON.stringify(ref.owner)}, name: ${JSON.stringify(ref.repo)}) {
+      nameWithOwner
+      item: issueOrPullRequest(number: ${ref.number}) {
+        __typename
+        ... on Issue {
+          number title url state stateReason createdAt updatedAt
+          author { login }
+          comments { totalCount }
+          labels(first: 5) { nodes { name color } }
+          assignees(first: 3) { nodes { login } }
+        }
+        ... on PullRequest {
+          number title url state isDraft createdAt updatedAt
+          headRefName baseRefName reviewDecision additions deletions changedFiles
+          author { login }
+          comments { totalCount }
+          labels(first: 5) { nodes { name color } }
+          commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+        }
+      }
+    }
+  `).join('\n')
+  return `query {\n${fields}\n}`
+}
+
+export async function resolveGitHubMentions(refs, signal) {
+  if (!Array.isArray(refs) || refs.length === 0) return []
+
+  const itemRefs = refs.filter(ref => ref.kind !== 'run')
+  const runRefs = refs.filter(ref => ref.kind === 'run').slice(0, MAX_MENTION_RUNS)
+
+  const resolvedByKey = new Map()
+
+  const itemsByHost = new Map()
+  for (const ref of itemRefs) {
+    const list = itemsByHost.get(ref.host) ?? []
+    list.push(ref)
+    itemsByHost.set(ref.host, list)
+  }
+
+  const hostTasks = [...itemsByHost.entries()].map(async ([host, hostRefs]) => {
+    const query = buildMentionGraphqlQuery(hostRefs)
+    try {
+      const payload = await runGhGraphqlTolerant([
+        'api', 'graphql',
+        '--hostname', host,
+        '-f', `query=${query}`,
+      ], signal)
+      const data = payload?.data ?? {}
+      hostRefs.forEach((ref, idx) => {
+        const repoNode = data[`m${idx}`]
+        const item = repoNode?.item
+        if (!item) return
+        const canonicalFull = repoNode.nameWithOwner || ref.fullName
+        const [canonicalOwner, canonicalRepo] = canonicalFull.includes('/') ? canonicalFull.split('/') : [ref.owner, ref.repo]
+        if (item.__typename === 'PullRequest') {
+          resolvedByKey.set(ref.key, {
+            kind: 'pr',
+            host: ref.host,
+            owner: canonicalOwner,
+            repo: canonicalRepo,
+            fullName: canonicalFull,
+            ...mapPullRequest(item),
+          })
+        } else if (item.__typename === 'Issue') {
+          resolvedByKey.set(ref.key, {
+            kind: 'issue',
+            host: ref.host,
+            owner: canonicalOwner,
+            repo: canonicalRepo,
+            fullName: canonicalFull,
+            ...mapIssue(item),
+          })
+        }
+      })
+    } catch {
+      for (const ref of hostRefs) {
+        if (!ref.explicit) continue
+        resolvedByKey.set(ref.key, {
+          kind: ref.kind === 'pr' ? 'pr' : 'issue',
+          host: ref.host,
+          owner: ref.owner,
+          repo: ref.repo,
+          fullName: ref.fullName,
+          number: ref.number,
+          title: `${ref.fullName}#${ref.number}`,
+          url: ref.url,
+          state: 'UNKNOWN',
+          isDraft: false,
+          author: '',
+          updatedAt: null,
+          labels: [],
+          unresolved: true,
+        })
+      }
+    }
+  })
+
+  const runTasks = runRefs.map(async ref => {
+    try {
+      const runData = await runGhJson([
+        'api', '--hostname', ref.host,
+        `repos/${ref.owner}/${ref.repo}/actions/runs/${ref.runId}`,
+      ], signal)
+      resolvedByKey.set(ref.key, {
+        kind: 'run',
+        host: ref.host,
+        owner: ref.owner,
+        repo: ref.repo,
+        fullName: ref.fullName,
+        ...mapRun(runData),
+      })
+    } catch {
+      resolvedByKey.set(ref.key, {
+        kind: 'run',
+        host: ref.host,
+        owner: ref.owner,
+        repo: ref.repo,
+        fullName: ref.fullName,
+        id: Number(ref.runId),
+        name: 'Actions',
+        displayTitle: `Run #${ref.runId}`,
+        url: ref.url,
+        status: null,
+        conclusion: null,
+        updatedAt: null,
+        unresolved: true,
+      })
+    }
+  })
+
+  await Promise.allSettled([...hostTasks, ...runTasks])
+
+  const ordered = []
+  for (const ref of refs) {
+    const resolved = resolvedByKey.get(ref.key)
+    if (resolved) ordered.push(resolved)
+  }
+  return ordered
+}
+
 export async function fetchGitHubOverview(target, signal) {
   const gqlArgs = [
     'api', 'graphql',
@@ -675,6 +974,10 @@ export async function fetchGitHubDetail(target, kind, id, signal) {
     }).filter(Boolean)
     return {
       kind: 'pr',
+      host: target.host,
+      owner: target.owner,
+      repo: target.repo,
+      fullName: target.fullName,
       number: pr.number,
       title: pr.title,
       url: pr.url,
@@ -718,6 +1021,10 @@ export async function fetchGitHubDetail(target, kind, id, signal) {
     if (!issue) throw new Error(data?.errors?.[0]?.message || `Issue #${number} not found`)
     return {
       kind: 'issue',
+      host: target.host,
+      owner: target.owner,
+      repo: target.repo,
+      fullName: target.fullName,
       number: issue.number,
       title: issue.title,
       url: issue.url,
@@ -764,6 +1071,10 @@ export async function fetchGitHubDetail(target, kind, id, signal) {
       : []
     return {
       kind: 'run',
+      host: target.host,
+      owner: target.owner,
+      repo: target.repo,
+      fullName: target.fullName,
       ...mapRun(runData),
       jobs,
     }
@@ -778,6 +1089,10 @@ export async function fetchGitHubDetail(target, kind, id, signal) {
     ], signal)
     return {
       kind: 'release',
+      host: target.host,
+      owner: target.owner,
+      repo: target.repo,
+      fullName: target.fullName,
       tagName: rel.tag_name ?? tag,
       name: rel.name || rel.tag_name || tag,
       body: typeof rel.body === 'string' ? rel.body.slice(0, 48_000) : '',

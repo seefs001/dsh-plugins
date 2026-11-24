@@ -23,7 +23,10 @@ window.__ModuleLoader__.load({
         on: 'On',
         off: 'Off',
         newCanvas: 'New',
+        newTitle: 'New Canvas',
         newPrompt: 'Canvas name (kebab-case or .canvas.html / .canvas.svg)',
+        create: 'Create',
+        cancel: 'Cancel',
         fromTemplate: 'Templates',
         refresh: 'Refresh',
         openFile: 'Open file',
@@ -40,7 +43,9 @@ window.__ModuleLoader__.load({
         copy: 'Copy',
         copied: 'Copied',
         delete: 'Delete',
+        deleteTitle: 'Delete Canvas',
         confirmDelete: 'Delete {name} from disk?',
+        deleteWarning: 'This permanently removes the file from disk.',
         restore: 'Restore',
         resetState: 'Reset state',
         askFix: 'Ask Agent to Fix',
@@ -93,7 +98,10 @@ window.__ModuleLoader__.load({
         on: '已开启',
         off: '未开启',
         newCanvas: '新建',
+        newTitle: '新建画布',
         newPrompt: '画布名称（kebab-case，或带 .canvas.html / .canvas.svg 后缀）',
+        create: '创建',
+        cancel: '取消',
         fromTemplate: '模板',
         refresh: '刷新',
         openFile: '打开文件',
@@ -110,7 +118,9 @@ window.__ModuleLoader__.load({
         copy: '复制',
         copied: '已复制',
         delete: '删除',
+        deleteTitle: '删除画布',
         confirmDelete: '确定从磁盘删除 {name}？',
+        deleteWarning: '该操作会直接从磁盘移除文件。',
         restore: '恢复此版本',
         resetState: '重置状态',
         askFix: '让智能体修复',
@@ -1013,6 +1023,8 @@ window.__ModuleLoader__.load({
           const [notice, setNotice] = React.useState('')
           const [selectedRev, setSelectedRev] = React.useState(null)
           const [fullscreen, setFullscreen] = React.useState(false)
+          const [createDialog, setCreateDialog] = React.useState(null)
+          const [deleteDialog, setDeleteDialog] = React.useState(null)
           const [iterateText, setIterateText] = React.useState('')
           const liveDataRef = React.useRef(null)
 
@@ -1050,23 +1062,31 @@ window.__ModuleLoader__.load({
             finally { setBusy(false) }
           }
 
-          const handleCreate = async templateId => {
-            const defaultName = templateId === 'chief-global' ? 'chief-control-plane'
-              : templateId === 'repo-radar' ? 'repo-radar'
-                : templateId === 'html-prototype' ? 'prototype.canvas.html'
-                  : 'overview'
-            const entered = templateId ? defaultName : window.prompt(t('newPrompt'), defaultName)
-            if (entered === null) return
+          const submitCreate = async (enteredName, templateId) => {
+            const nameToUse = (enteredName || '').trim() || 'overview'
             setBusy(true)
             try {
-              await op({ action: 'create', name: entered || defaultName, ...(templateId ? { template: templateId } : {}) })
+              await op({ action: 'create', name: nameToUse, ...(templateId ? { template: templateId } : {}) })
               setView('preview')
               setDirty(false)
+              setCreateDialog(null)
             } catch (err) {
               flash(err.message)
             } finally {
               setBusy(false)
             }
+          }
+
+          const handleCreate = async templateId => {
+            const defaultName = templateId === 'chief-global' ? 'chief-control-plane'
+              : templateId === 'repo-radar' ? 'repo-radar'
+                : templateId === 'html-prototype' ? 'prototype.canvas.html'
+                  : 'overview'
+            if (templateId) {
+              await submitCreate(defaultName, templateId)
+              return
+            }
+            setCreateDialog({ value: defaultName })
           }
 
           const handleSave = async () => {
@@ -1083,19 +1103,24 @@ window.__ModuleLoader__.load({
             }
           }
 
-          const handleDelete = async () => {
-            if (!active) return
-            if (!window.confirm(t('confirmDelete', { name: active.name }))) return
+          const confirmDeleteNow = async target => {
+            if (!target) return
             setBusy(true)
             try {
-              await op({ action: 'delete', path: active.path })
+              await op({ action: 'delete', path: target.path })
               setDirty(false)
               setRuntimeErr('')
+              setDeleteDialog(null)
             } catch (err) {
               flash(err.message)
             } finally {
               setBusy(false)
             }
+          }
+
+          const handleDelete = () => {
+            if (!active) return
+            setDeleteDialog({ name: active.name, path: active.path, relativePath: active.relativePath })
           }
 
           const handleRestore = async revNumber => {
@@ -1316,6 +1341,65 @@ window.__ModuleLoader__.load({
                   ? h('p', { style: { margin: 0, color: 'var(--dsw-alias-label-secondary)' } }, t('noState'))
                   : h('pre', { className: 'cv-pre' }, JSON.stringify(active.state, null, 2)))))
 
+          const ModalComp = primitives?.Modal
+          const InputComp = primitives?.Input
+          const ButtonComp = primitives?.Button
+
+          const renderModals = () => {
+            if (!ModalComp) return null
+            return h(React.Fragment, null,
+              createDialog && h(ModalComp, {
+                open: true,
+                title: t('newTitle'),
+                onClose: () => { if (!busy) setCreateDialog(null) },
+                footer: h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8 } },
+                  ButtonComp
+                    ? h(ButtonComp, { variant: 'ghost', size: 'sm', disabled: busy, onClick: () => setCreateDialog(null) }, t('cancel'))
+                    : h('button', { type: 'button', className: 'cv-btn', disabled: busy, onClick: () => setCreateDialog(null) }, t('cancel')),
+                  ButtonComp
+                    ? h(ButtonComp, { variant: 'primary', size: 'sm', disabled: busy || !createDialog.value.trim(), onClick: () => submitCreate(createDialog.value) }, t('create'))
+                    : h('button', { type: 'button', className: 'cv-btn', 'data-primary': true, disabled: busy || !createDialog.value.trim(), onClick: () => submitCreate(createDialog.value) }, t('create'))),
+              },
+              h('form', {
+                style: { display: 'flex', flexDirection: 'column', gap: 8 },
+                onSubmit: e => {
+                  e.preventDefault()
+                  if (!busy && createDialog.value.trim()) void submitCreate(createDialog.value)
+                },
+              },
+              h('label', { style: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)' } }, t('newPrompt')),
+              InputComp
+                ? h(InputComp, {
+                  autoFocus: true,
+                  value: createDialog.value,
+                  disabled: busy,
+                  onChange: e => setCreateDialog(prev => prev ? { ...prev, value: e.target.value } : null),
+                })
+                : h('input', {
+                  type: 'text',
+                  autoFocus: true,
+                  value: createDialog.value,
+                  disabled: busy,
+                  onChange: e => setCreateDialog(prev => prev ? { ...prev, value: e.target.value } : null),
+                }))),
+              deleteDialog && h(ModalComp, {
+                open: true,
+                title: t('deleteTitle'),
+                onClose: () => { if (!busy) setDeleteDialog(null) },
+                footer: h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8 } },
+                  ButtonComp
+                    ? h(ButtonComp, { variant: 'ghost', size: 'sm', disabled: busy, onClick: () => setDeleteDialog(null) }, t('cancel'))
+                    : h('button', { type: 'button', className: 'cv-btn', disabled: busy, onClick: () => setDeleteDialog(null) }, t('cancel')),
+                  ButtonComp
+                    ? h(ButtonComp, { variant: 'danger', size: 'sm', disabled: busy, onClick: () => confirmDeleteNow(deleteDialog) }, t('delete'))
+                    : h('button', { type: 'button', className: 'cv-btn', 'data-danger': true, disabled: busy, onClick: () => confirmDeleteNow(deleteDialog) }, t('delete'))),
+              },
+              h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+                h('p', { style: { margin: 0 } }, t('confirmDelete', { name: deleteDialog.name })),
+                deleteDialog.relativePath && h('code', { style: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)' } }, deleteDialog.relativePath),
+                h('p', { style: { margin: 0, fontSize: 12, color: 'var(--dsw-alias-label-tertiary)' } }, t('deleteWarning')))))
+          }
+
           if (isGlobal) {
             return h('div', { className: 'cv cv-apps' },
               h('aside', { className: 'cv-apps-rail' },
@@ -1373,7 +1457,8 @@ window.__ModuleLoader__.load({
                 onExport: handleExport,
                 onClose: () => setFullscreen(false),
                 t,
-              }))
+              }),
+              renderModals())
           }
 
           return h('section', { className: 'cv cv-panel', 'aria-label': t('title') },
@@ -1431,7 +1516,8 @@ window.__ModuleLoader__.load({
               onExport: handleExport,
               onClose: () => setFullscreen(false),
               t,
-            }))
+            }),
+            renderModals())
         }
 
         function CanvasPanel({ sessionId, useSessions, useTabInfo, inputActions }) {
