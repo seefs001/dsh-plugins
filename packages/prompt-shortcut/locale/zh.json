@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "常用片段",
-    "description": "在当前浏览器保存常用话术，搜索后直接插入输入框光标处。"
+    "description": "在 DSH Host 跨浏览器保存常用话术，支持 JSON 导入导出与 /snippets，搜索后直接插入输入框光标处。"
   }
 }

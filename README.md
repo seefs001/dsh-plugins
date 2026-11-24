@@ -31,7 +31,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | [`dsh-title-model`](packages/title-model) | Pick a separate model for session titles. | Host + Web |
 | [`dsh-subagent-model`](packages/subagent-model) | Shows a subagent's recorded model and reasoning effort in its composer. | Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | Route Auto review to a custom model and prompt, with a per-session review log. Requires `@deepseek-ai/dsh-experimental-auto-review`. | Host + Web |
-| [`dsh-roles`](packages/roles) | Manage roles (system prompt, inline skills, local skill references) in the sidebar and switch them per session. | Host + Web |
+| [`dsh-roles`](packages/roles) | Manage roles (system prompt, inline skills, local skill references) in the sidebar, switch per session, or insert `#` role chips. | Host + Web |
 
 ### Sessions and workspaces
 
@@ -50,8 +50,8 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 
 | Package | What it does | Runs in |
 |---|---|---|
-| [`dsh-diagram-preview`](packages/diagram-preview) | Render Mermaid, Graphviz, ECharts, and SVG blocks in chat, with a toggle back to source. | Web |
-| [`dsh-canvas`](packages/canvas) | Opt-in per-session live React Canvas artifacts from workspace `.canvas.tsx` files, with TypeScript checking, persistent state, revision diffs, and host actions. | Host + Web |
+| [`dsh-diagram-preview`](packages/diagram-preview) | Render Mermaid, Graphviz, ECharts, and SVG blocks in chat, with zoom, PNG/SVG export, and a toggle back to source. | Web |
+| [`dsh-canvas`](packages/canvas) | Interactive sandboxed Canvas artifacts (`.canvas.tsx`, `.canvas.html`, `.canvas.svg`) in sessions and global `~/.dsh/canvases/` apps, with live file subscriptions, TypeScript checking, persistent state, revision diffs, and allowlisted host actions. | Host + Web |
 | [`dsh-side-chat`](packages/side-chat) | Open a separate chat in the sidebar with the main session’s agent preset and bring its reference back to your draft. | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Turn quotes in user messages into clickable blocks that jump to and highlight the source. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Open skill files, full spill outputs, search hits, links, and subagent chats directly from tool-call rows. | Web |
@@ -96,10 +96,10 @@ If Plugin Manager reports `applied`, Host changes take effect immediately; if it
 
 ## Configuration and Storage
 
-- **Profile config (`cordis.patch.yml`)**: `model-reference`, `service-tier`, `auto-review-model`, `message-actions`, `web-access`, `image-gen`, and `bark-notify` settings.
-- **Host storage domains (`~/.dsh/storages`)**: `session_groups`, `roles`, `cheat_sheet`, `auto_review_log`, `message_actions`, `session_lifecycle`, `session_lifecycle_summary`, `pi_tools_defaults`, `paseo_hub`, `acp_workbench`, and `canvas`.
+- **Profile config (`cordis.patch.yml`)**: `model-reference`, `service-tier`, `remember-model` (optional `onlyAfterTurn`), `auto-review-model`, `github-panel` (`hosts`), `message-actions`, `web-access`, `image-gen`, `pi-mcp` (`disabledServers`, `eagerServers`), and `bark-notify` settings.
+- **Host storage domains (`~/.dsh/storages`)**: `session_groups`, `roles`, `cheat_sheet`, `prompt_shortcut`, `auto_review_log`, `message_actions`, `session_lifecycle`, `session_lifecycle_summary`, `pi_tools_defaults`, `paseo_hub`, `acp_workbench`, and `canvas`.
 - **DSH credentials**: `bark-notify/device` and `paseo-hub/{daemon,api}`.
-- **Session log & `localStorage`**: `pi-tools` selection lives in the session log; `prompt-shortcut` snippets, `ai-mascot` preferences, and `session-lifecycle` shelf fold states stay in browser `localStorage`.
+- **Session log & `localStorage`**: `pi-tools` selection lives in the session log; browser `localStorage` holds UI preferences (`ai-mascot`, `session-lifecycle` and `session-groups` fold states, `github-panel` hidden mentions, `pi-tools` picker view, `paseo-hub` page size, `acp-workbench` trace/reply collapse) and acts as a fallback for `prompt-shortcut` when Host storage is unavailable.
 
 ## Documentation
 

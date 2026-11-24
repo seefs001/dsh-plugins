@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "画布",
-    "description": "在对话旁渲染沙箱隔离的交互式 React 画布，支持 TypeScript 类型诊断、持久化状态、版本对比与宿主联动。"
+    "description": "沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.svg）与全局画布应用，支持本地活数据订阅、TypeScript 诊断、持久化状态、版本对比与白名单宿主联动。"
   }
 }

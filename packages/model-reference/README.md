@@ -30,5 +30,6 @@ dsh plugin --profile web add "link:$PWD/packages/model-reference"
 
 - **推理强度记忆**：Host 监听顶层会话的 `model/selection` 事件（忽略子代理），按 `provider/model` 记录最后选用的推理强度并写入 `cordis.patch.yml` 的 `efforts` 字段；之后切换回该模型或插入 `#` 标签时自动恢复。
 - **快速模式联动**：同时安装 [`dsh-service-tier`](../service-tier) 时，`#` 标签自动同步该模型的 `priority` / `ultrafast` 档位。
+- **共享 `#` 菜单**：同时安装 [`dsh-roles`](../roles) 时，模型与角色会合并在同一个 `#` 菜单中分组展示。
 
 完整说明见[在线文档](https://seefs001.github.io/dsh-plugins/docs/plugins/model-reference)。

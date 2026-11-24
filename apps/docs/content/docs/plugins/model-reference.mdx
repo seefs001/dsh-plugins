@@ -40,4 +40,5 @@ description: 在输入框输入 # 插入模型标签，自动带上该模型上�
 
 - **推理强度记忆**：Host 监听顶层会话的 `model/selection` 事件（忽略子代理），按 `provider/model` 记录最后选用的推理强度并保存到 `cordis.patch.yml` 的 `efforts` 字段；切换回该模型或插入 `#` 标签时自动恢复。
 - **快速模式联动**：同时安装 [快速模式](/docs/plugins/service-tier) 时，标签会自动同步该模型的 `priority` 或 `ultrafast` 档位。
+- **共享 `#` 菜单**：同时安装 [角色管理](/docs/plugins/roles) 时，模型与角色会合并显示在同一个 `#` 菜单中。
 - 插入 `#` 引用只向消息写入文本，不会切换当前会话的模型。

@@ -6,9 +6,9 @@ export type Surface = 'Host' | 'Web' | 'Host + Web'
 
 export const categories: { id: CategoryId, title: string, description: string }[] = [
   { id: 'models', title: '模型与审查', description: '选模型、切换服务档位、带推理强度、管理角色和定制自动审查模型。' },
-  { id: 'sessions', title: '会话与工作区', description: '会话整理、自定义分组、工作区清理、切分支、看改动与防休眠。' },
+  { id: 'sessions', title: '会话与工作区', description: '会话整理、自定义分组、工作区清理、切分支、看 Git 改动、GitHub 面板与防休眠。' },
   { id: 'conversation', title: '对话阅读', description: '图表预览、画布、侧聊、引用跳转、工具快捷操作、回复解释、消息编辑与 ACP 集成。' },
-  { id: 'tools', title: '工具与集成', description: '搜索与画图工具、话术与技能速查、Pi 预设及外部服务集成。' },
+  { id: 'tools', title: '工具与集成', description: '搜索与画图工具、话术与技能速查、Pi 预设、配置备份及外部服务集成。' },
 ]
 
 interface Entry {
@@ -26,7 +26,7 @@ const entries: Entry[] = [
   { slug: 'title-model', category: 'models', surface: 'Host + Web', summary: '为会话标题单独指定模型，与主对话模型分开配置。', requires: ['已启用的原生标题生成器'] },
   { slug: 'subagent-model', category: 'models', surface: 'Web', summary: '在子代理输入框右下角显示其使用的模型和推理强度。' },
   { slug: 'auto-review-model', category: 'models', surface: 'Host + Web', summary: '为 Auto review 单独指定模型和提示词，并查看当前会话的审查日志。', requires: ['@deepseek-ai/dsh-experimental-auto-review', '@deepseek-ai/dsh-storage-domain'] },
-  { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '在侧栏管理带系统提示词与专属技能的角色，并在模型菜单按会话切换。', requires: ['@deepseek-ai/dsh-storage-domain'] },
+  { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '在侧栏管理带系统提示词与专属技能的角色，按会话切换或通过 # 快捷引用。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'recent-sessions', category: 'sessions', surface: 'Web', summary: '将 @ 菜单中的会话按最近活动时间倒序排列。' },
   { slug: 'session-lifecycle', category: 'sessions', surface: 'Host + Web', summary: '按需要你、进行中、暂缓和归置整理会话，集中查看待答请求与轮次结果。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'session-groups', category: 'sessions', surface: 'Host + Web', summary: '自定义侧栏会话分组与组内置顶，通过 Host 跨浏览器同步。', requires: ['@deepseek-ai/dsh-storage-domain'] },
@@ -35,8 +35,8 @@ const entries: Entry[] = [
   { slug: 'git-changes', category: 'sessions', surface: 'Web', summary: '在输入框下方显示当前分支和未提交改动统计，点击打开右侧 diff。', requires: ['Change requests & worktrees'] },
   { slug: 'github-panel', category: 'sessions', surface: 'Host + Web', summary: '会话关联 GitHub 仓库或提及链接时，在右侧会话面板展示概览、PR、Issue、Actions 与发布，点击直接新标签打开 GitHub。', requires: ['已登录的 GitHub CLI (gh)'] },
   { slug: 'keep-awake', category: 'sessions', surface: 'Host', summary: 'DSH Host 运行期间阻止 macOS 闲置休眠。', requires: ['macOS'] },
-  { slug: 'diagram-preview', category: 'conversation', surface: 'Web', summary: '在对话中渲染 Mermaid、Graphviz、ECharts 和 SVG 图表，并支持切回源码。' },
-  { slug: 'canvas', category: 'conversation', surface: 'Host + Web', summary: '按会话按需开启的工作区 .canvas.tsx 交互式 React 画布，支持 TypeScript 诊断、沙箱渲染、持久化状态与版本对比。', requires: ['@deepseek-ai/dsh-storage-domain'] },
+  { slug: 'diagram-preview', category: 'conversation', surface: 'Web', summary: '在对话中渲染 Mermaid、Graphviz、ECharts 和 SVG 图表，支持放大、导出 PNG/SVG 与切回源码。' },
+  { slug: 'canvas', category: 'conversation', surface: 'Host + Web', summary: '沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.svg）与全局画布应用，支持本地活数据订阅、TypeScript 诊断、持久化状态与版本对比。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'side-chat', category: 'conversation', surface: 'Web', summary: '在右栏用相同预设独立追问，将会话引用带回主聊草稿。' },
   { slug: 'quote-jump', category: 'conversation', surface: 'Web', summary: '把用户消息中的引用渲染为可点击块，点击跳回原文并高亮。' },
   { slug: 'tool-lens', category: 'conversation', surface: 'Web', summary: '在工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理会话。' },

@@ -4,9 +4,9 @@
 
 | 项目 | 说明 |
 | --- | --- |
-| 运行位置 | Host |
+| 运行位置 | Host + Web |
 | 前置依赖 | `@deepseek-ai/dsh-mcp-manager`（默认 profile 已内置） |
-| 数据保存 | 直接读取本地 `mcp.json`，不另存配置 |
+| 数据保存 | 读取本地 `mcp.json`；在 DSH 中禁用/直载的服务名单写入 `cordis.patch.yml` |
 
 ## 安装
 
@@ -24,7 +24,7 @@ dsh plugin --profile web add "link:$PWD/packages/pi-mcp"
 
 - **传输方式**：支持 `stdio`（展开开头 `~/`，映射 `command`、`args`、`env`、`cwd`）和 `streamable-http`（映射 `url`、`headers`），并将秒级 `timeout` 转为毫秒。
 - **延迟加载**：将 `exposure: "deferred"` / `"on-demand"` 映射为 DSH MCP 的 `toolLoading: "on-demand"`（`"eager"` / `"direct"` 映射为 `"eager"`）。用 `config.eagerServers` 指定仅在 DSH 中直接注册工具的服务名，不改写 Pi 配置。
-- **按服务跳过**：支持在 `cordis.patch.yml` 的 `config.disabledServers` 或环境变量 `DSH_PI_MCP_DISABLED_SERVERS`（逗号分隔）指定跳过同步的服务名，不影响 Pi 自身配置。
+- **按服务跳过与插件页开关**：在 DSH Web 的 **Plugins** 页面可直接查看 `mcp.json` 路径、各服务状态并实时开关（写入 `cordis.patch.yml` 的 `config.disabledServers`）或点击 **重新加载**；也支持环境变量 `DSH_PI_MCP_DISABLED_SERVERS`（逗号分隔），均不影响 Pi 自身配置。
 - **环境变量引用**：`${VAR}` 转换为 DSH 的 `${credential:VAR}`，由 DSH 凭据与运行环境解析。
 - **跳过项**：忽略 `enabled: false`、带 `oauth` 字段、`!command` 动态命令、不合法的服务名，以及仅 `-` 和 `_` 不同的重名服务，并写入警告日志。
 - **文件监听**：监听所在目录（300 ms 去抖）以捕获原子保存；文件损坏或无法解析时保留当前已注册列表。

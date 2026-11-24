@@ -31,7 +31,7 @@
 | [`dsh-title-model`](packages/title-model) | 为对话标题单独指定模型。 | Host + Web |
 | [`dsh-subagent-model`](packages/subagent-model) | 在子代理输入框右下角显示其记录的模型和推理强度。 | Web |
 | [`dsh-auto-review-model`](packages/auto-review-model) | 为 Auto review 单独指定模型和提示词，并查看会话审查日志。需要 `@deepseek-ai/dsh-experimental-auto-review`。 | Host + Web |
-| [`dsh-roles`](packages/roles) | 在侧栏管理带系统提示词与专属技能的角色，并在模型菜单按会话切换。 | Host + Web |
+| [`dsh-roles`](packages/roles) | 在侧栏管理带系统提示词与专属技能的角色，按会话切换或通过 `#` 快捷引用。 | Host + Web |
 
 ### 会话与工作区
 
@@ -50,8 +50,8 @@
 
 | 包 | 作用 | 运行位置 |
 |---|---|---|
-| [`dsh-diagram-preview`](packages/diagram-preview) | 在对话中预览 Mermaid、Graphviz、ECharts 和 SVG 图表，并支持切回源码。 | Web |
-| [`dsh-canvas`](packages/canvas) | 按会话按需开启的交互式 React 画布：基于工作区 `.canvas.tsx` 文件，提供 TypeScript 诊断、沙箱热重载、持久化状态、版本对比与宿主联动。 | Host + Web |
+| [`dsh-diagram-preview`](packages/diagram-preview) | 在对话中预览 Mermaid、Graphviz、ECharts 和 SVG 图表，支持放大、导出 PNG/SVG 与切回源码。 | Web |
+| [`dsh-canvas`](packages/canvas) | 沙箱隔离的交互画布（`.canvas.tsx` / `.canvas.html` / `.canvas.svg`）与全局 `~/.dsh/canvases/` 应用工作台，支持 0 token 本地活数据订阅、TypeScript 诊断、持久化状态、版本对比与白名单宿主联动。 | Host + Web |
 | [`dsh-side-chat`](packages/side-chat) | 在右栏沿用主聊预设独立追问，按需将引用带回主聊草稿。 | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 把用户消息中的引用渲染为可点击块，点击跳回原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 在工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理对话。 | Web |
@@ -96,10 +96,10 @@ dsh plugin --profile web add "link:$PWD/packages/model-reference"
 
 ## 配置与数据存储
 
-- **profile 配置（`cordis.patch.yml`）**：`model-reference`、`service-tier`、`auto-review-model`、`message-actions`、`web-access`、`image-gen`、`bark-notify`。
-- **Host storage domain（`~/.dsh/storages`）**：`session_groups`、`roles`、`cheat_sheet`、`auto_review_log`、`message_actions`、`session_lifecycle`、`session_lifecycle_summary`、`pi_tools_defaults`、`paseo_hub`、`acp_workbench`、`canvas`。
+- **profile 配置（`cordis.patch.yml`）**：`model-reference`、`service-tier`、`remember-model`（可选 `onlyAfterTurn`）、`auto-review-model`、`github-panel`（`hosts`）、`message-actions`、`web-access`、`image-gen`、`pi-mcp`（`disabledServers` / `eagerServers`）、`bark-notify`。
+- **Host storage domain（`~/.dsh/storages`）**：`session_groups`、`roles`、`cheat_sheet`、`prompt_shortcut`、`auto_review_log`、`message_actions`、`session_lifecycle`、`session_lifecycle_summary`、`pi_tools_defaults`、`paseo_hub`、`acp_workbench`、`canvas`。
 - **DSH credentials**：`bark-notify/device`、`paseo-hub/{daemon,api}`。
-- **会话日志与浏览器存储**：`pi-tools` 工具选择保存在会话日志；`prompt-shortcut` 片段、`ai-mascot` 偏好与 `session-lifecycle` 分区折叠状态保存在浏览器 `localStorage`。
+- **会话日志与浏览器存储**：`pi-tools` 工具选择保存在会话日志；浏览器 `localStorage` 保存前端 UI 偏好（`ai-mascot` 偏好、`session-lifecycle` 与 `session-groups` 折叠状态、`github-panel` 会话隐藏提及、`pi-tools` 视图模式、`paseo-hub` 分页大小、`acp-workbench` 轨迹/回复折叠状态），并在无 Host 存储域时作为 `prompt-shortcut` 的本地回退。
 
 ## 在线文档
 

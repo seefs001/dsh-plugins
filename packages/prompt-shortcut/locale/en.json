@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Prompt shortcuts",
-    "description": "Save reusable snippets in this browser, search them, and insert at the composer cursor."
+    "description": "Save reusable snippets on DSH Host (synced across browsers), import/export JSON, and insert via /snippets or the composer button."
   }
 }

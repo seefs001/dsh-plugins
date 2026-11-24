@@ -1,34 +1,36 @@
 ---
 title: 画布
-description: 按会话按需开启的工作区 .canvas.tsx 交互式 React 画布，支持 TypeScript 诊断、沙箱热重载、持久化状态与版本对比。
+description: 沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.svg）与全局 ~/.dsh/canvases/ 应用工作台，支持 0 token 本地活数据订阅、TypeScript 诊断、持久化状态与版本对比。
 ---
 
 <PluginFacts slug="canvas" />
 
-在对话右侧边栏渲染工作区 `.canvas.tsx` 文件，适用于数据分析报告、架构依赖图、安全审计面板、大表格和可交互排查工具。
+在对话右侧边栏和左侧栏「画布应用」全屏页面渲染沙箱隔离的交互画布，支持 `.canvas.tsx`（React）、`.canvas.html`（独立离线 HTML）与 `.canvas.svg`（矢量图），适用于数据分析报告、架构依赖图、安全审计面板、全局总控台和可交互排查工具。
 
 <Callout type="info" title="按会话开启，默认零注入">
-未开启 Canvas 模式的会话不会注入任何 skill、tool 或 system prompt。在输入框下方点击 **画布**（或执行 `/canvas`）并在面板顶部打开 **当前会话画布** 开关后，才仅对该会话动态启用 `canvas` skill 与 `canvas_write` / `canvas_check` / `canvas_state` 工具；关闭开关即刻卸载。
+未开启 Canvas 模式的会话不会注入任何 skill、tool 或 system prompt。在输入框下方点击 **画布**（或执行 `/canvas`）并在面板顶部打开 **当前会话画布** 开关后，才仅对该会话动态启用 `canvas` skill 与 `canvas_write` / `canvas_check` / `canvas_state` 工具；关闭开关即刻卸载。全局应用可通过左侧栏 **画布应用** 随时访问，内置 Chief of Staff 全局总控台等模板。
 </Callout>
 
 ## 安装
 
 <InstallCommand slug="canvas" />
 
-## 工作区文件与热重载
+## 画布文件与热重载
 
-- 默认新建画布保存在 `<cwd>/.dsh/canvases/<name>.canvas.tsx`，同时自动发现工作区内已有的 `*.canvas.tsx` 文件。
-- Host 通过文件监听自动检测磁盘改动并增量重编译，无论智能体直接写文件、通过 `canvas_write` 更新，还是你在本地编辑器或面板源码页保存，预览都会热更新且保留交互状态。
+- **工作区与全局目录**：会话画布默认保存在 `<cwd>/.dsh/canvases/*.canvas.{tsx,html,svg}`（同时自动发现工作区内已有画布）；全局应用位于 `~/.dsh/canvases/*.canvas.{tsx,html,svg}`。
+- **增量热重载**：Host 通过文件监听检测磁盘改动并增量重编译，无论智能体写文件、调用 `canvas_write`，还是你在本地编辑器或面板源码页保存，预览都会热更新且保留交互状态。
+- **0 Token 活数据订阅**：通过 `useCanvasFile` / `useCanvasGlob`（支持 `workspace://` 与 `bots://`，自动解析 JSON 与 Markdown YAML frontmatter，经 `fs.watch` + SSE 实时推送）和 `useHostData('sessions' | 'schedules' | 'git')`，后台脚本或定时任务更新磁盘即可实时刷新画布。
 
-## 面板视图
+## 面板视图与交互闭环
 
-- **预览**：在 `sandbox="allow-scripts"` + 随机 nonce CSP（禁用网络与 `unsafe-eval`）的隔离 iframe 中运行，实时同步 DSH 明暗主题，支持全屏弹窗展开。
-- **源码**：直接编辑工作区 `.canvas.tsx` 文件，`Cmd/Ctrl+S` 即时保存并重新编译。
+- **预览**：在 `sandbox="allow-scripts"` + 随机 nonce CSP（`default-src 'none'`、`connect-src 'none'`、禁用 `unsafe-eval`）的隔离 iframe 中运行，实时同步 DSH 明暗主题；支持全屏弹窗展开、一键导出离线单文件 HTML / SVG，以及预览底栏快捷微调输入条。
+- **源码**：直接编辑画布文件，`Cmd/Ctrl+S` 即时保存并重新编译；新建与删除画布均使用 DSH 原生 Modal 交互。
 - **历史**：查看最近 25 次修订记录与逐行 Diff，一键恢复到任意历史版本。
 - **诊断与状态**：展示 TypeScript 类型错误、策略检查结果与运行时报错，支持一键 **让智能体修复**（将路径与精确行号填入输入框），并可查看或重置持久化的 `useCanvasState`。
+- **对话内 Artifact 卡片**：对话流内将 `canvas_write` 渲染成专属 Artifact 卡片，点击即可定位到对应画布。
 
 ## `dsh/canvas` SDK 概览
 
-- **Hooks**：`useHostTheme`、`useCanvasState`、`useCanvasAction`（`openFile` / `askInChat` / `copyText`）以及常用 React Hooks。
-- **布局与基础原语**：`Stack`、`Row`、`Grid`、`Card`、`CardHeader`、`CardBody`、`Callout`、`CollapsibleSection`、`H1`–`H3`、`Text`、`Code`、`Pill`、`Stat`、`Swatch`、`Tabs` 与基础表单控件。
+- **Hooks**：`useHostTheme`、`useCanvasState`、`useCanvasFile`、`useCanvasGlob`、`useHostData`、`useCanvasAction`（支持 `openFile`、`askInChat`、`copyText`、白名单 `patchData`、`sendToSession`、`triggerSchedule` 与 `openCanvas`）以及常用 React Hooks（允许从 `dsh/canvas`、`react`、`lucide-react` 导入）。
+- **布局与基础原语**：`Stack`、`Row`、`Grid`、`Card`、`CardHeader`、`CardBody`、`Callout`、`CollapsibleSection`、`H1`–`H3`、`Text`、`Code`、`Markdown`、`CodeBlock`、`Pill`、`Stat`、`Swatch`、`Tabs`、`Kanban`、`Modal`、`Drawer`、`SplitPane`、`EmptyState`、`ProgressBar`、`SearchInput`、`KeyValue`、`Timeline`、65+ 离线 Lucide 图标及基础表单控件。
 - **可视化与领域组件**：可排序 `Table`、`BarChart`、`LineChart`、`PieChart`、`UsageBar`、`DiffView`、`DiffStats`、`TodoList`、`TodoListCard`、`DAGView` 与 `computeDAGLayout`。

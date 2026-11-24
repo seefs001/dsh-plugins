@@ -1,25 +1,25 @@
 ---
 title: Pi MCP 服务器
-description: 在 DSH 中共用 Pi 的 ~/.pi/agent/mcp.json，修改后自动热同步。
+description: 在 DSH 中共用 Pi 的 ~/.pi/agent/mcp.json，修改后自动热同步，并支持在插件页实时开关服务器。
 ---
 
 <PluginFacts slug="pi-mcp" />
 
-读取 Pi 的 `~/.pi/agent/mcp.json`（支持通过 `PI_CODING_AGENT_DIR` 指定目录），将启用的服务器注册到 DSH MCP 管理器，并持续监听变更实时同步。
+读取 Pi 的 `~/.pi/agent/mcp.json`（支持通过 `PI_CODING_AGENT_DIR` 指定目录），将启用的服务器注册到 DSH MCP 管理器，并持续监听变更实时同步；同时在 **Plugins** 页面提供图形化开关与重载按钮。
 
 ## 安装
 
 <InstallCommand slug="pi-mcp" />
 
-纯 Host 插件，依赖默认 profile 内置的 `@deepseek-ai/dsh-mcp-manager`。
+依赖默认 profile 内置的 `@deepseek-ai/dsh-mcp-manager`。
 
-## 配置转换
+## 配置转换与管理
 
 - **传输方式**：
   - `stdio`：支持 `command`、`args`、`env`、`cwd`，自动展开开头 `~/`；
   - `streamable-http`：支持 `url` 和 `headers`，秒级 `timeout` 转为毫秒。
 - **延迟加载**：将 `exposure: "deferred"` / `"on-demand"` 映射为 DSH MCP 的 `toolLoading: "on-demand"`。用 `config.eagerServers` 指定仅在 DSH 中直接注册工具的服务名，不改写 Pi 配置。
-- **按服务跳过**：通过 `config.disabledServers` 或环境变量 `DSH_PI_MCP_DISABLED_SERVERS`（逗号分隔）在 DSH 中跳过指定服务。
+- **插件页开关与按服务跳过**：在 **Plugins** 页面可查看 `mcp.json` 路径、各服务传输方式与启用/禁用/跳过状态，并直接切换开关（自动写回 `cordis.patch.yml` 的 `config.disabledServers`）或点击 **重新加载**；也支持通过环境变量 `DSH_PI_MCP_DISABLED_SERVERS`（逗号分隔）跳过指定服务。
 - **凭据引用**：Pi 的 `${VAR}` 转为 DSH 的 `${credential:VAR}`，运行时从 DSH credentials 或环境变量解析。
 - **跳过条目**：`enabled: false`、含 `oauth` 字段、`!command` 动态命令、非法服务名，以及仅 `-` 和 `_` 不同的重名条目会被跳过并记警告日志。
 - **热更新**：监听 `mcp.json` 所在目录（300 ms 去抖）以识别原子保存；文件解析失败时保留当前已注册的服务。

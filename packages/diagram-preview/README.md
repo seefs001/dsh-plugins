@@ -1,6 +1,6 @@
 # dsh-diagram-preview
 
-在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）Web 对话中，将回复完成后的 Mermaid、Graphviz、ECharts 和 SVG 代码块就地渲染为图表。每张图提供 **预览 / 代码** 切换、**小图 / 中图 / 大图** 尺寸选项，以及最高 400% 的大图缩放弹窗；语法无效时显示错误并保留原代码。
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）Web 对话中，将回复完成后的 Mermaid、Graphviz、ECharts 和 SVG 代码块就地渲染为图表。每张图提供 **预览 / 代码** 切换、**小图 / 中图 / 大图** 尺寸选项、快捷 **SVG** 下载，以及最高 400% 的大图缩放弹窗（支持 **复制 PNG**、**下载 PNG** 与 **下载 SVG**）；语法无效时显示错误并保留原代码。
 
 ## 安装
 

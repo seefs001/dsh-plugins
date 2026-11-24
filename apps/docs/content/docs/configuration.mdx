@@ -11,7 +11,7 @@ description: 各插件的配置、storage domain、凭据、会话日志与浏�
 | --- | --- | --- |
 | `# 引用模型` | 每个 `provider/model` 最近使用的推理强度 | `cordis.patch.yml`（`efforts`） |
 | `快速模式` | 开启 `priority` / `ultrafast` 的 `provider/model` | `cordis.patch.yml`（`tiers`） |
-| `记住上次模型` | 新会话默认模型与推理强度 | DSH 原生 `agent-default-model` 配置 |
+| `记住上次模型` | 新会话默认模型与推理强度；可选 `onlyAfterTurn` 开关 | DSH 原生 `agent-default-model` 配置 + `cordis.patch.yml` |
 | `标题模型` | 标题生成器模型路由 | 对应原生标题生成器条目配置 |
 | `自动审查模型` | 审查模型、推理强度、提示词模式与正文 | `cordis.patch.yml` |
 | `自动审查模型` | 审查记录（每会话最多 200 条，上限 300 会话） | Host `auto_review_log` storage domain |
@@ -19,15 +19,17 @@ description: 各插件的配置、storage domain、凭据、会话日志与浏�
 | `会话整理` | 已读序号、暂缓时间、归置状态与自动归置偏好 | Host `session_lifecycle` storage domain |
 | `会话整理` | 可选摘要配置、每日限额与最新 100 条缓存 | Host `session_lifecycle_summary` storage domain |
 | `会话分组` | 分组、成员、顺序与组内置顶 | Host `session_groups` storage domain |
-| `画布` | 会话开关、交互状态（上限 200 键 / 256 KB）与修订历史（最近 25 次）；源码文件 | Host `canvas` storage domain + 工作区 `.canvas.tsx` |
+| `GitHub 面板` | 企业主机列表；单会话隐藏的提及项 | `cordis.patch.yml`（`hosts`）+ 浏览器 `localStorage` |
+| `画布` | 会话开关、交互状态（上限 200 键 / 256 KB）与修订历史（最近 25 次）；画布源码 | Host `canvas` storage domain + 工作区 `<cwd>/.dsh/canvases/` / 全局 `~/.dsh/canvases/` `.canvas.{tsx,html,svg}` |
 | `Wait, what? 回复解释` | 专用解释模型与推理强度 | `cordis.patch.yml` |
 | `Wait, what? 回复解释` | 最近 200 份解释缓存 | Host `message_actions` storage domain |
-| `ACP 会话集成` | 提供方、会话绑定、运行摘要、事件分块、共享与脚本记录 | Host `acp_workbench` storage domain |
-| `常用片段` | 文本片段库（`dsh-prompt-shortcut:library:v1`） | 浏览器 `localStorage` |
+| `ACP 工作台` | 提供方、隐藏模型、顶层模式/选项默认值、会话绑定、运行摘要与事件分块 | Host `acp_workbench` storage domain |
+| `常用片段` | 文本片段库（上限 200 条，自动迁移旧本地数据） | Host `prompt_shortcut` storage domain（无存储域时回退浏览器 `localStorage`） |
 | `技能速查` | 置顶技能与使用次数 | Host `cheat_sheet` storage domain |
 | `联网搜索` | 搜索工具开关、模型、子工具与超时 | `cordis.patch.yml` |
 | `画图` | 画图后端开关、模型与 `outputDir`；图片输出 | `cordis.patch.yml` + 工作目录文件 + DSH 附件 |
 | `Pi 工具` | 每会话工具选择；预设级默认工具差异 | 会话日志（`plugin:dsh-pi-tools/selection`）+ Host `pi_tools_defaults` |
+| `Pi MCP 服务器` | 在 DSH 中禁用或强制直载的服务名 | `cordis.patch.yml`（`disabledServers`、`eagerServers`） |
 | `Paseo Hub` | daemon 信息、本机运行（上限 300）与活动日志（上限 1000） | Host `paseo_hub` storage domain |
 | `Paseo Hub` | daemon 凭据与组织 API Key | DSH credentials（`paseo-hub/daemon`、`paseo-hub/api`） |
 | `Bark 通知` | 通知开关、服务器地址、延迟与样式；Device Key | `cordis.patch.yml` + DSH credentials（`bark-notify/device`） |
@@ -36,5 +38,5 @@ description: 各插件的配置、storage domain、凭据、会话日志与浏�
 ## 凭据与同步
 
 - **凭据**：`联网搜索`与 `画图` 复用 `llm-pi-ai` provider 配置；`Pi MCP 服务器`将 `${VAR}` 转为 `${credential:VAR}`；`Bark 通知`与 `Paseo Hub` 的密钥保存在 DSH credentials，不写入配置文件。
-- **同步范围**：写入 Host storage domain 与 `cordis.patch.yml` 的数据在所有浏览器间共享；`会话整理` 的分区折叠状态、`常用片段` 与 `AI 吉祥物` 偏好保存在当前浏览器的 `localStorage` 中。
-- **存储路径**：默认 JSON 后端下，storage domain 文件位于 `~/.dsh/storages/`。
+- **同步范围**：写入 Host storage domain 与 `cordis.patch.yml` 的数据（含 `常用片段`）在所有浏览器间共享；前端折叠与视图偏好（如 `会话整理` / `会话分组` 折叠状态、`GitHub 面板` 单会话隐藏提及、`AI 吉祥物` 偏好等）保存在当前浏览器的 `localStorage` 中。
+- **存储路径**：默认 JSON 后端下，storage domain 文件位于 `~/.dsh/storages/`。如需跨机迁移对话无关配置，可使用 [配置备份](/docs/plugins/config-backup)。

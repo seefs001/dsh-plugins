@@ -11,12 +11,12 @@ description: 自动记住顶层会话选用的模型与推理强度，新建会�
 
 <InstallCommand slug="remember-model" />
 
-纯 Host 插件，无界面与独立配置项。
+纯 Host 插件，无界面。
 
 ## 工作机制
 
 1. 监听顶层会话的 `model/selection` 事件，忽略子代理会话。
-2. 写入 DSH 原生的 `agent-default-model` 配置。
+2. 写入 DSH 原生的 `agent-default-model` 配置（若在 `cordis.patch.yml` 中配置了 `onlyAfterTurn: true`，则暂存选择，等到该顶层会话实际开始下一轮 `turn/start` 时再写回默认模型）。
 3. 400 ms 去抖后广播 `llm/models-updated`，触发浏览器同步刷新默认模型。
 
 停用或卸载后，已写入原生配置的默认模型保持不变。

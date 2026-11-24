@@ -56,11 +56,11 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 
 ### 会话内直接执行
 
-- **模型与属性选择**：主模型选择器展示所有可见模型及 `CLI default`，并原生支持逐模型思考强度（含将双思考项的 `Off` 合并进强度选择）。输入框右侧工具栏根据当前模型动态提供 `Mode`（Agent / Plan / Ask）、`Context`（如 300K / 1M）与 `Fast` 闪电开关，首轮发消息前也可预先配置。
+- **模型与属性选择**：主模型选择器展示所有可见模型及 `CLI default`，并原生支持逐模型思考强度（含将双思考项的 `Off` 合并进强度选择）。输入框右侧工具栏根据当前模型动态提供 `Mode`（Agent / Plan / Ask）、`Context`（如 300K / 1M）与 `Fast` 闪电开关，首轮发消息前也可预先配置。顶层会话按提供方（及适用模型）自动持久化用户选择的 `Mode` 与模型选项，新建会话和 Host 重启后自动沿用（不影响子代理）。
 - **CLI 设置浮层**：在模型菜单点击 **CLI 设置**，可在输入框上方切换 CLI 模式与配置项、打开右侧工作区面板（文件 / Git 改动 / 终端）、手动执行 CLI 命令，或连接/接续外部会话。
 - **接续与复制 CLI 历史**：首条消息前打开 **CLI 设置 → 接续 CLI 会话**，可列出当前目录的历史会话；点 **在这里接续** 直接连接旧上下文，支持 `session/fork` 的 CLI 还可通过 **从副本继续** 复制最新历史到独立上下文。
 - **`/cli:` 命令补全**：连接空闲时在行首输入 `/` 可从 CLI 分组插入 `/cli:<命令>`，发送后按普通文本交给外部 CLI。
-- **原生时间线渲染**：推理、正文、图片、工具调用与结果、任务计划及嵌套子调用按时间顺序原生渲染进 DSH 对话流，保留历史会话中的旧执行轨迹折叠兼容。
+- **原生时间线与子智能体集成**：推理、正文、图片、工具调用与结果、任务计划及嵌套子调用按时间顺序原生渲染进 DSH 对话流（保留历史会话中的旧执行轨迹折叠兼容）；跨引擎子智能体自动出现在右侧会话面板的 **ACP 子智能体** 分栏（含当前工具、模型、回复预览、耗时与上下文占用，支持主视图/右侧分屏打开及一键停止）以及根会话顶栏的 **子智能体快速切换器**。
 - **审批与表单**：权限审批、提问、Claude `AskUserQuestion` 表单（`elicitation/create`）与计划审批均在输入框上方处理。仅当 DSH 会话显式使用完全访问预设（`danger-full-access` 且 `approval: never`）且 CLI 提供 `allow_once` 时自动放行单次请求，持久授权、提问与计划审批始终人工确认。
 
 ### 提供方与模型目录（ACP 工作台）
@@ -97,9 +97,10 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 | `lib/manager.js` | 外部会话生命周期、能力探测、模型发现与交互仲裁 |
 | `lib/native.js` | `acp-*` LLM 适配器、`SubagentProvider` 注册、上下文交接、逐模型属性下发与流式事件转换 |
 | `lib/native-tools.js` | ACP 工具调用/结果/任务计划到 DSH 原生工具与 PTC 事件的映射 |
-| `lib/models.js` | 参数化模型协议、Cursor 模型目录解析、双思考项合并与旧变体迁移 |
+| `lib/delegation.js` / `continuations.js` / `mcp-stdio.js` | 跨引擎双向委派工具、`dsh_agents` Session-scoped MCP 桥接（HTTP / stdio）与 2 秒静默批合并回流 |
+| `lib/models.js` / `adapters.js` / `templates.js` | 参数化模型协议、Cursor 模型目录解析、CLI 协议适配与内置提供方预设模板 |
 | `lib/trace.js` / `forms.js` / `notices.js` / `usage.js` / `subscription.js` / `activity.js` | 轨迹折叠、表单校验、提醒与用量投影、订阅配额探针与本地统计、活动状态汇总 |
-| `lib/client.js` | 浏览器端界面组件（提供方与模型工作台、输入框快捷属性栏、CLI 设置与审批交互） |
+| `lib/client.js` | 浏览器端界面组件（提供方与模型工作台、右侧会话面板子智能体分栏、顶栏子智能体切换器、输入框快捷属性栏、CLI 设置与审批交互） |
 
 ## 开发检查
 

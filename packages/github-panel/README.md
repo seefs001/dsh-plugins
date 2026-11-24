@@ -6,7 +6,7 @@
 | --- | --- |
 | 运行位置 | Host + Web |
 | 前置依赖 | 宿主已安装并登录 GitHub CLI（`gh auth login`） |
-| 数据保存 | 无（仅内存 TTL 缓存） |
+| 数据保存 | 企业主机列表写入 `cordis.patch.yml`（`hosts`）；单会话隐藏的提及项存于浏览器 `localStorage`，其余仅内存 TTL 缓存 |
 
 ## 安装
 
@@ -26,6 +26,6 @@ dsh plugin --profile web add "link:$PWD/packages/github-panel"
 - **对话提及提取与定位**：自动扫描当前会话消息中提及的 GitHub 链接（Issue / PR / Actions Run）、跨仓库简写（`owner/repo#123`）以及同仓库编号（`#123`、`PR #123`、`Issue #123`），经单次批量 GraphQL 解析实时状态（含已关闭 / 已合并项），优先列在 **对话提及** 分组中；悬停可预览提及原句，点击行内定位图标或菜单中的「定位到对话提及处」可直接滚动并高亮对话中的原文位置（多处提及可循环定位，历史轮次按需加载）。
 - **右侧会话面板**：使用原生分栏与行样式展示仓库信息、对话提及项、打开中的 PR、Issue、近期 Actions 工作流运行和 Latest Release，支持悬停详情卡与长列表折叠；点击任意条目或分组标题直接在新标签页打开对应的 GitHub 页面。
 - **快捷菜单操作**：通过每行右侧的 `…` 菜单一键让 Agent 审查 PR / 排查 Issue / 诊断失败构建、引用链接到输入框、复制链接，或直接重跑失败的 Actions 任务。当前分支最新 Actions 失败且面板收起时，在标题栏开关显示红点提示。
-- **企业主机支持**：可在 `cordis.patch.yml` 的 `config.hosts` 中列出额外的 GitHub Enterprise 主机名（默认 `["github.com"]`）。
+- **企业主机支持**：可在 DSH Web 的 **Plugins** 页面直接编辑 GitHub Enterprise 主机名列表，或在 `cordis.patch.yml` 的 `config.hosts` 中配置（默认 `["github.com"]`）。
 
 更多说明见[在线中文文档](https://seefs001.github.io/dsh-plugins/docs/plugins/github-panel)。

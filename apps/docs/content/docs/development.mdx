@@ -25,8 +25,9 @@ packages/<name>/
 └── README.md
 ```
 
-绝大多数插件是无需构建的原生 ES 模块。三个例外：
+绝大多数插件是无需构建的原生 ES 模块。四个例外：
 
+- `canvas`：修改 `src/` 下画布运行时代码后运行 `pnpm --filter dsh-canvas build` 重新打包 `lib/client.runtime.js`。
 - `diagram-preview`：升级图表库后运行 `pnpm --filter dsh-diagram-preview build` 重新生成懒加载渲染器分片。
 - `pi-tools`：浏览器入口在根目录 `client.js`；改动 Go runner 或 Pi 依赖后运行 `pnpm --filter dsh-pi-tools build:runner:all`。
 - `message-actions`：浏览器源码在 `src/client.js`，运行 `pnpm --filter dsh-message-actions build` 生成 `lib/client.js`。
