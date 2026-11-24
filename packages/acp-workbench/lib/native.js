@@ -206,6 +206,8 @@ class AcpTurn {
     this.unsubscribe = null
     this.removeCancel = null
     this.queue = []
+    this.queueHead = 0
+    this.cachedMcpServers = null
     this.toolByAcpId = new Map()
     this.toolByDshId = new Map()
     this.toolsSeen = new Set()
@@ -221,6 +223,35 @@ class AcpTurn {
     this.finalized = false
     this.cleaned = false
     this.started = false
+  }
+
+  hasQueued() {
+    return this.queueHead < this.queue.length
+  }
+
+  peekQueue() {
+    return this.queue[this.queueHead]
+  }
+
+  shiftQueue() {
+    const item = this.queue[this.queueHead]
+    this.queue[this.queueHead] = undefined
+    this.queueHead++
+    if (this.queueHead >= 64 && this.queueHead * 2 >= this.queue.length) {
+      this.queue = this.queue.slice(this.queueHead)
+      this.queueHead = 0
+    } else if (this.queueHead === this.queue.length) {
+      this.queue.length = 0
+      this.queueHead = 0
+    }
+    return item
+  }
+
+  someQueued(predicate, offset = 0) {
+    for (let i = this.queueHead + offset; i < this.queue.length; i++) {
+      if (predicate(this.queue[i], i - this.queueHead)) return true
+    }
+    return false
   }
 
   wake() {
@@ -380,7 +411,8 @@ class AcpTurn {
   }
 
   toolMapOptions() {
-    return { mcpServers: this.native.forwardedMcpServerNames(this.agent) }
+    this.cachedMcpServers ??= this.native.forwardedMcpServerNames(this.agent)
+    return { mcpServers: this.cachedMcpServers }
   }
 
   emitSubCallStart(record, parentRecord) {
@@ -531,7 +563,10 @@ class AcpTurn {
       this.ingestTopToolUpdate(update)
       if (this.run && update.status !== 'completed' && update.status !== 'failed') {
         const label = compactPreview(update.title || update.name || update._meta?.claudeCode?.toolName, 80)
-        if (label) this.run.currentTool = label
+        if (label && this.run.currentTool !== label) {
+          this.run.currentTool = label
+          if (this.session) this.native.manager.notifyStream?.(this.session.id, 1_000)
+        }
       }
       this.wake()
       return
@@ -562,7 +597,12 @@ class AcpTurn {
           if (this.replyHead.length < 320) {
             this.replyHead += text.slice(0, 320 - this.replyHead.length)
             const preview = compactPreview(this.replyHead)
-            if (this.run && preview) this.run.preview = preview
+            if (this.run && preview && this.run.preview !== preview) {
+              this.run.preview = preview
+              if (this.session && this.agent.session.header.origin === 'subagent') {
+                this.native.manager.notifyStream?.(this.session.id, 1_000)
+              }
+            }
           }
         }
       }
@@ -611,6 +651,7 @@ class AcpTurn {
       turn: position.turn,
       step: position.step,
       nativeVersion: 2,
+      traceVersion: 0,
       state: 'preparing',
       reviewedAt: null,
       startedAt: timestamp(),
@@ -831,7 +872,7 @@ class AcpTurn {
     let nonToolSeenAt = null
     while (entries.some(entry => !entry.result)) {
       const aborted = signal.aborted || this.controller.signal.aborted
-      const hasNewTopOutput = this.queue.some(item =>
+      const hasNewTopOutput = this.someQueued(item =>
         (item.kind === 'thought' || item.kind === 'text') && item.text.trim() !== '')
       if (hasNewTopOutput && !this.hasActiveInteraction()) {
         nonToolSeenAt ??= Date.now()
@@ -854,9 +895,9 @@ class AcpTurn {
       }
     }
 
-    if (!this.settled && !this.queue.length) await Promise.resolve()
+    if (!this.settled && !this.hasQueued()) await Promise.resolve()
     const concluded = this.settled && !this.failure && !signal.aborted && !this.controller.signal.aborted
-      && this.result?.stopReason !== 'cancelled' && this.queue.length === 0
+      && this.result?.stopReason !== 'cancelled' && !this.hasQueued()
     if (concluded) await this.finalizeTurn()
     return {
       results: entries.map(entry => ({ callId: entry.block.id, result: entry.result })),
@@ -890,7 +931,7 @@ class AcpTurn {
         if (stepSignal?.aborted || this.controller.signal.aborted) {
           throw stepSignal?.reason ?? this.controller.signal.reason ?? new Error('Native request canceled')
         }
-        if (!this.queue.length) {
+        if (!this.hasQueued()) {
           if (pendingCalls.length > 0) {
             if (this.settled || Date.now() >= batchDeadline) break
             await this.waitUntil(batchDeadline, stepSignal)
@@ -901,14 +942,14 @@ class AcpTurn {
           continue
         }
 
-        const next = this.queue[0]
+        const next = this.peekQueue()
         if (pendingCalls.length > 0 && next.kind !== 'tool' && next.kind !== 'todo') {
           break
         }
 
         if (next.kind === 'tool') {
           if (!hasToolInput(next.record.tool) && !next.record.done && !this.settled) {
-            const hasLaterNonTool = this.queue.some((item, idx) => idx > 0 && item.kind !== 'tool' && item.kind !== 'todo')
+            const hasLaterNonTool = this.someQueued(item => item.kind !== 'tool' && item.kind !== 'todo', 1)
             if (!hasLaterNonTool) {
               if (pendingCalls.length > 0 && Date.now() >= batchDeadline) break
               if (pendingCalls.length === 0 && next.preparingIndex === undefined) {
@@ -929,7 +970,7 @@ class AcpTurn {
               if (pendingCalls.length > 0) break
             }
           }
-          this.queue.shift()
+          this.shiftQueue()
           const mapped = mapToolCall(next.record.tool, next.record.terminal, this.toolMapOptions())
           next.record.mapped = mapped
           next.record.emitted = true
@@ -956,7 +997,7 @@ class AcpTurn {
         }
 
         if (next.kind === 'todo') {
-          this.queue.shift()
+          this.shiftQueue()
           const serialized = JSON.stringify(next.todos)
           if (serialized === this.lastTodoJson) continue
           this.lastTodoJson = serialized
@@ -991,7 +1032,7 @@ class AcpTurn {
         }
 
         if (next.kind === 'image') {
-          this.queue.shift()
+          this.shiftQueue()
           let attachment = null
           let fallbackText = null
           try {
@@ -1020,7 +1061,7 @@ class AcpTurn {
           continue
         }
 
-        this.queue.shift()
+        this.shiftQueue()
         const nextKind = next.kind === 'thought' ? 'reasoning' : 'text'
         if (openKind !== nextKind) {
           yield* closeOpenBlock()
@@ -1246,6 +1287,7 @@ export class NativeAcp {
     }))
     this.disposers.push(this.ctx.on('workspace/session-archived', async ({ sessionId }) => {
       this.delegation.revokeSession(sessionId)
+      this.clearSessionOptions(sessionId)
       await Promise.all(this.sessions(sessionId, false).map(s => this.manager.disconnect(s, 'native-session-archived').catch(error => this.manager.log?.(error.message))))
       this.manager.changed()
     }))
@@ -1254,6 +1296,7 @@ export class NativeAcp {
     }))
     this.disposers.push(this.ctx.on('agent/disposed', ({ agent }) => {
       this.delegation.revokeSession(agent.id)
+      this.clearSessionOptions(agent.id)
       const current = this.active.get(agent.id)
       if (current) {
         current.controller.abort(new Error('Native DSH agent disposed'))
@@ -1374,7 +1417,18 @@ export class NativeAcp {
     return { model: resolved, stream: options => this.stream(options, resolved.id) }
   }
 
+  clearSessionOptions(sessionId) {
+    if (!sessionId) return
+    const prefix = `${sessionId}:`
+    for (const key of this.sessionOptions.keys()) {
+      if (key.startsWith(prefix)) this.sessionOptions.delete(key)
+    }
+  }
+
   sessions(sessionId, includeChildren = true) {
+    if (typeof this.manager.store.nativeSessions === 'function') {
+      return this.manager.store.nativeSessions(sessionId, includeChildren)
+    }
     return [...this.manager.store.sessions.values()].filter(s => s.native &&
       (s.native.sessionId === sessionId || (includeChildren && s.native.rootSessionId === sessionId)))
   }

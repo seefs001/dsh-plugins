@@ -126,10 +126,13 @@ export class WorkbenchStore {
     this.onError = onError
     this.sessions = new Map([...domain.table('sessions').entries()].map(([key, value]) => [key, structuredClone(value)]))
     this.providers = new Map([...domain.table('providers').entries()].map(([key, value]) => [key, structuredClone(value)]))
+    this.nativeBySession = new Map()
+    this.nativeByRoot = new Map()
     this.dirty = new Map()
     this.chunks = new Map()
     this.tail = Promise.resolve()
     this.failure = null
+    for (const session of this.sessions.values()) this.indexNativeSession(session)
     let needsFullScan = false
     for (const session of this.sessions.values()) {
       if (!Number.isInteger(session.eventSeq) || session.eventSeq < 0) {
@@ -183,10 +186,48 @@ export class WorkbenchStore {
     this.providers.delete(id)
   }
 
+  indexNativeSession(session) {
+    const native = session?.native
+    if (!native) return
+    if (typeof native.sessionId === 'string' && native.sessionId) {
+      let bucket = this.nativeBySession.get(native.sessionId)
+      if (!bucket) { bucket = new Set(); this.nativeBySession.set(native.sessionId, bucket) }
+      bucket.add(session.id)
+    }
+    if (typeof native.rootSessionId === 'string' && native.rootSessionId) {
+      let bucket = this.nativeByRoot.get(native.rootSessionId)
+      if (!bucket) { bucket = new Set(); this.nativeByRoot.set(native.rootSessionId, bucket) }
+      bucket.add(session.id)
+    }
+  }
+
+  nativeSessions(sessionId, includeChildren = true) {
+    const own = this.nativeBySession.get(sessionId)
+    const rooted = includeChildren ? this.nativeByRoot.get(sessionId) : null
+    if (!own?.size && !rooted?.size) return []
+    const result = []
+    const seen = new Set()
+    if (own) {
+      for (const id of own) {
+        const session = this.sessions.get(id)
+        if (session?.native) { seen.add(id); result.push(session) }
+      }
+    }
+    if (rooted) {
+      for (const id of rooted) {
+        if (seen.has(id)) continue
+        const session = this.sessions.get(id)
+        if (session?.native) { seen.add(id); result.push(session) }
+      }
+    }
+    return result
+  }
+
   async saveSession(session) {
     const copy = structuredClone(session)
     await this.enqueue(() => this.domain.table('sessions').put(copy.id, copy))
     this.sessions.set(session.id, session)
+    this.indexNativeSession(session)
   }
 
   append(session, type, data) {
@@ -229,7 +270,11 @@ export class WorkbenchStore {
     const sessions = [...new Set(chunks.map(([, c]) => c.sessionId))].map(id => structuredClone(this.sessions.get(id))).filter(Boolean)
     return this.enqueue(async () => {
       for (const [key, chunk] of chunks) await this.domain.table('chunks').put(key, chunk)
-      for (const session of sessions) await this.domain.table('sessions').put(session.id, session)
+      for (const session of sessions) {
+        await this.domain.table('sessions').put(session.id, session)
+        const live = this.sessions.get(session.id)
+        if (live) this.indexNativeSession(live)
+      }
       for (const [key, chunk] of chunks) {
         if (this.dirty.has(key)) continue
         const seq = this.sessions.get(chunk.sessionId)?.eventSeq ?? 0

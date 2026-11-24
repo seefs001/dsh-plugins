@@ -69,6 +69,11 @@ function waitQuietBatch(ctx, native, agent, signal) {
 export function installContinuations(native, isRoute) {
   const { ctx, disposers } = native
   const coalescedIds = new Set()
+  const pendingCleanups = new Set()
+  disposers.push(() => {
+    for (const cleanup of Array.from(pendingCleanups)) cleanup()
+    pendingCleanups.clear()
+  })
 
   // external: DSH send_message and subagent settlements target the next step, while an open ACP request only drains output there.
   disposers.push(ctx.on('agent/pre-step', async ({ agent, turn, modelSelection, signal, messages }, next) => {
@@ -94,9 +99,19 @@ export function installContinuations(native, isRoute) {
       if (sawMore) {
         const held = messages.slice()
         for (const msg of held) coalescedIds.add(msg.id)
-        const stopStatus = ctx.on('agent/status', ({ agent: target, status }) => {
-          if (target !== agent || status !== 'idle') return
+        let stopStatus = () => {}
+        let stopDisposed = () => {}
+        const releaseHeld = () => {
+          pendingCleanups.delete(releaseHeld)
           stopStatus()
+          stopDisposed()
+          for (const msg of held) coalescedIds.delete(msg.id)
+        }
+        stopStatus = ctx.on('agent/status', ({ agent: target, status }) => {
+          if (target !== agent || status !== 'idle') return
+          pendingCleanups.delete(releaseHeld)
+          stopStatus()
+          stopDisposed()
           queueMicrotask(() => {
             if (native.closing || ctx.agents.get(agent.id) !== agent) {
               for (const msg of held) coalescedIds.delete(msg.id)
@@ -108,6 +123,11 @@ export function installContinuations(native, isRoute) {
             }, 10_000)
           })
         })
+        stopDisposed = ctx.on('agent/disposed', ({ agent: target }) => {
+          if (target !== agent) return
+          releaseHeld()
+        })
+        pendingCleanups.add(releaseHeld)
         return { ...decision, messages: [] }
       }
     }

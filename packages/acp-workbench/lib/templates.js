@@ -15,6 +15,9 @@ export const PROVIDER_TEMPLATES = [
 ]
 
 const CLI_SEARCH_DIRS = ['.local/bin', '.bun/bin']
+const TEMPLATE_CACHE_TTL_MS = 60_000
+let cachedDefaultTemplates = null
+let cachedDefaultAt = 0
 
 export function resolveCliCommand(name, { home = homedir(), exists = existsSync } = {}) {
   for (const dir of CLI_SEARCH_DIRS) {
@@ -25,6 +28,22 @@ export function resolveCliCommand(name, { home = homedir(), exists = existsSync 
 }
 
 export function resolveProviderTemplates(options) {
+  if (options === undefined) {
+    const now = Date.now()
+    if (cachedDefaultTemplates && now - cachedDefaultAt < TEMPLATE_CACHE_TTL_MS) {
+      return cachedDefaultTemplates
+    }
+    cachedDefaultTemplates = PROVIDER_TEMPLATES.map(template => ({
+      id: template.id,
+      label: template.label,
+      bin: template.bin,
+      command: resolveCliCommand(template.bin),
+      args: [...template.args],
+      defaultProvider: template.defaultProvider,
+    }))
+    cachedDefaultAt = now
+    return cachedDefaultTemplates
+  }
   return PROVIDER_TEMPLATES.map(template => ({
     id: template.id,
     label: template.label,

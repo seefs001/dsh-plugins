@@ -1725,6 +1725,55 @@ button.aw-child-trigger:focus-visible{outline:none}
           }
         }
 
+        const memoComponent = typeof React.memo === 'function' ? React.memo : component => component
+        const clockListeners = new Set()
+        let clockNow = Date.now()
+        let clockTimer = null
+        const tickClock = () => {
+          if (typeof document !== 'undefined' && document.hidden) return
+          clockNow = Date.now()
+          for (const listener of Array.from(clockListeners)) listener()
+        }
+        const onClockVisibility = () => {
+          if (typeof document !== 'undefined' && !document.hidden && clockListeners.size > 0) tickClock()
+        }
+        const subscribeClock = listener => {
+          clockListeners.add(listener)
+          if (clockListeners.size === 1) {
+            clockNow = Date.now()
+            clockTimer = setInterval(tickClock, 1000)
+            if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onClockVisibility)
+          }
+          return () => {
+            clockListeners.delete(listener)
+            if (!clockListeners.size) {
+              clearInterval(clockTimer)
+              clockTimer = null
+              if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onClockVisibility)
+            }
+          }
+        }
+        const noopSubscribe = () => () => {}
+        const getClockNow = () => clockNow
+        ctx.effect(() => () => {
+          clearInterval(clockTimer)
+          clockTimer = null
+          clockListeners.clear()
+          if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onClockVisibility)
+        }, 'acp-workbench: shared clock')
+
+        function shallowEqual(a, b) {
+          if (Object.is(a, b)) return true
+          if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
+          const keysA = Object.keys(a)
+          const keysB = Object.keys(b)
+          if (keysA.length !== keysB.length) return false
+          for (const key of keysA) {
+            if (!Object.hasOwn(b, key) || !Object.is(a[key], b[key])) return false
+          }
+          return true
+        }
+
         const feed = { listeners: new Set(), watchers: new Set(), online: 'connectingFeed', stream: null }
         const notify = (set, change) => { for (const listener of Array.from(set)) listener(change) }
         const setOnline = value => { if (feed.online !== value) { feed.online = value; notify(feed.watchers) } }
@@ -1810,7 +1859,12 @@ button.aw-child-trigger:focus-visible{outline:none}
         const needsNativeLive = data => Boolean(
           data?.controls
           || data?.selected?.provider?.startsWith('acp-')
-          || (Array.isArray(data?.sessions) && data.sessions.length > 0),
+          || (Array.isArray(data?.sessions) && data.sessions.some(s =>
+            CONNECTED.has(s.state)
+            || s.activity?.group === 'working'
+            || s.activity?.group === 'attention'
+            || (s.interactions?.length ?? 0) > 0
+            || (s.backgroundTasks?.some(item => item.status === 'running') ?? false))),
         )
         const nativeSources = new Map()
         function nativeSource(sessionId) {
@@ -1822,10 +1876,24 @@ button.aw-child-trigger:focus-visible{outline:none}
           let unsubscribe = null
           let loading = false
           let again = false
+          let staleWhileHidden = false
+          let lastModelKey
+          const onVisibility = () => {
+            if (typeof document !== 'undefined' && !document.hidden && staleWhileHidden) {
+              staleWhileHidden = false
+              void refresh()
+            }
+          }
           const ensureLive = () => {
             if (unsubscribe || !controller) return
             unsubscribe = subscribeLive(change => {
-              if (!Array.isArray(change?.conversations) || change.conversations.includes(sessionId)) void refresh()
+              if (!Array.isArray(change?.conversations) || change.conversations.includes(sessionId)) {
+                if (typeof document !== 'undefined' && document.hidden) {
+                  staleWhileHidden = true
+                  return
+                }
+                void refresh()
+              }
             })
           }
           const dropLive = () => {
@@ -1853,14 +1921,25 @@ button.aw-child-trigger:focus-visible{outline:none}
             } finally { loading = false }
             if (controller && controller !== own) void refresh()
           }
+          const notifyModelKey = modelKey => {
+            if (modelKey === undefined) return
+            if (lastModelKey === undefined) { lastModelKey = modelKey; return }
+            if (lastModelKey === modelKey) return
+            lastModelKey = modelKey
+            void refresh()
+          }
           const stop = () => {
             controller?.abort(); controller = null; dropLive()
+            staleWhileHidden = false
+            lastModelKey = undefined
+            if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
             current = { data: null, error: '' }
             if (nativeSources.get(sessionId) === source) nativeSources.delete(sessionId)
           }
           const source = {
             getSnapshot: () => current,
             setOptions: route => publish({ ...current, optionsRoute: route }),
+            notifyModelKey,
             refresh,
             stop,
             subscribe(listener) {
@@ -1868,6 +1947,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               if (listeners.size === 1) {
                 nativeSources.set(sessionId, source)
                 controller = new AbortController()
+                if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
                 if (needsNativeLive(current.data)) ensureLive()
                 void refresh()
               }
@@ -1879,14 +1959,39 @@ button.aw-child-trigger:focus-visible{outline:none}
         }
         ctx.effect(() => () => { for (const source of nativeSources.values()) source.stop(); nativeSources.clear() }, 'acp-workbench: native subscriptions')
 
+        function useNativeSelector(sessionId, selector, isEqual = Object.is, modelKey) {
+          const source = React.useMemo(() => nativeSource(sessionId), [sessionId])
+          const cacheRef = React.useRef({ initialized: false, raw: null, value: undefined })
+          const selectorRef = React.useRef(selector)
+          selectorRef.current = selector
+          const equalRef = React.useRef(isEqual)
+          equalRef.current = isEqual
+          const getSelected = React.useCallback(() => {
+            const raw = source.getSnapshot()
+            const cache = cacheRef.current
+            if (cache.initialized && cache.raw === raw) return cache.value
+            const next = selectorRef.current(raw)
+            if (cache.initialized && equalRef.current(cache.value, next)) {
+              cache.raw = raw
+              return cache.value
+            }
+            cache.initialized = true
+            cache.raw = raw
+            cache.value = next
+            return next
+          }, [source])
+          const selected = React.useSyncExternalStore(source.subscribe, getSelected)
+          React.useEffect(() => {
+            source.notifyModelKey(modelKey)
+          }, [source, modelKey])
+          return selected
+        }
+
         function useNative(sessionId, modelKey) {
           const source = React.useMemo(() => nativeSource(sessionId), [sessionId])
           const snapshot = React.useSyncExternalStore(source.subscribe, source.getSnapshot)
-          const prevModelKey = React.useRef(modelKey)
           React.useEffect(() => {
-            if (prevModelKey.current === modelKey) return
-            prevModelKey.current = modelKey
-            if (modelKey !== undefined) void source.refresh()
+            source.notifyModelKey(modelKey)
           }, [source, modelKey])
           const [pending, setPending] = React.useState(0)
           const [error, setError] = React.useState('')
@@ -3269,6 +3374,7 @@ button.aw-child-trigger:focus-visible{outline:none}
           const run = session?.native.runs.findLast(matches)
           const active = !!run && ACTIVE_RUN.has(run.state)
           const target = run?.to ?? session?.eventSeq ?? 0
+          const traceTrigger = run?.traceVersion !== undefined ? `v:${run.traceVersion}:${run.state}` : `seq:${target}:${run?.state ?? ''}`
           const lateRevision = current ? run?.compactionRevision : view.data?.sessions.find(s => s.id === fallback?.id)?.native.compactionRevision
           const from = run?.from ?? 1
           const traceReady = !!fallback?.native.runs.some(matches)
@@ -3276,13 +3382,14 @@ button.aw-child-trigger:focus-visible{outline:none}
           React.useEffect(() => {
             const controller = new AbortController()
             setFallback(previous => reference && previous?.id === reference.sessionId && previous.native.runs.some(r => r.id === reference.turnId) ? previous : null)
-            let loading = false, again = false
-            readTrace.current = async () => {
+            let loading = false, again = false, throttleTimer = null, lastFetchedAt = 0
+            const execute = async () => {
               if (loading) { again = true; return }
               loading = true
               try {
                 do {
                   again = false
+                  lastFetchedAt = Date.now()
                   const value = await api({ action: 'native-trace', dshSessionId: sessionId, turn, step, messageId,
                     ...(reference ? { externalId: reference.sessionId, runId: reference.turnId } : {}) }, controller.signal)
                   if (controller.signal.aborted) return
@@ -3290,9 +3397,27 @@ button.aw-child-trigger:focus-visible{outline:none}
                 } while (again)
               } catch (failure) { if (!controller.signal.aborted) setError(failure.message) } finally { loading = false }
             }
-            return () => { controller.abort(); readTrace.current = null }
+            readTrace.current = immediate => {
+              if (controller.signal.aborted) return
+              const wait = immediate ? 0 : Math.max(0, 300 - (Date.now() - lastFetchedAt))
+              if (wait === 0) {
+                clearTimeout(throttleTimer)
+                throttleTimer = null
+                void execute()
+                return
+              }
+              if (throttleTimer) return
+              throttleTimer = setTimeout(() => {
+                throttleTimer = null
+                void execute()
+              }, wait)
+            }
+            return () => { clearTimeout(throttleTimer); controller.abort(); readTrace.current = null }
           }, [sessionId, turn, step, messageId, reference?.sessionId, reference?.turnId])
-          React.useEffect(() => { void readTrace.current?.() }, [sessionId, turn, step, messageId, reference?.sessionId, reference?.turnId, target, lateRevision])
+          React.useEffect(() => {
+            if (collapsible && !open) return
+            void readTrace.current?.(!active)
+          }, [sessionId, turn, step, messageId, reference?.sessionId, reference?.turnId, traceTrigger, lateRevision, collapsible, open, active])
           React.useEffect(() => {
             started.current = false
             generation.current++
@@ -3543,10 +3668,16 @@ button.aw-child-trigger:focus-visible{outline:none}
 
         function CliMenuOption({ sessionId, dismiss }) {
           const tt = useT()
-          const view = useNative(sessionId)
-          const provider = view.data?.providers.find(p => p.route === view.data.selected?.provider)
+          const provider = useNativeSelector(
+            sessionId,
+            snap => {
+              const found = snap.data?.providers.find(p => p.route === snap.data.selected?.provider)
+              return found ? { route: found.route, label: found.label } : null
+            },
+            shallowEqual,
+          )
           if (!provider) return null
-          return h('button', { type: 'button', role: 'menuitem', className: 'aw-menu-option', 'aria-haspopup': 'dialog', onClick: () => { dismiss(); view.setOptions(provider.route) } },
+          return h('button', { type: 'button', role: 'menuitem', className: 'aw-menu-option', 'aria-haspopup': 'dialog', onClick: () => { dismiss(); nativeSource(sessionId).setOptions(provider.route) } },
             h('span', null, tt('cliOptions')), h('span', { className: 'aw-menu-value' }, provider.label),
             h(IconChevronRightOutlineRegular, { size: 12, 'aria-hidden': true }))
         }
@@ -3685,9 +3816,17 @@ button.aw-child-trigger:focus-visible{outline:none}
         function AcpAttentionIndicator({ sessionId, panelShown }) {
           const tt = useT()
           const archivedIds = useArchivedSessionIds()
-          const view = useNative(sessionId)
-          const sessions = view.data?.sessions ?? EMPTY
-          const waiting = sessions.filter(s => s.native.sessionId !== sessionId && !s.native.retired && !s.archived && !archivedIds.has(s.native.sessionId) && s.interactions.length > 0).length
+          const waiting = useNativeSelector(
+            sessionId,
+            snap => {
+              const sessions = snap.data?.sessions ?? EMPTY
+              let count = 0
+              for (const s of sessions) {
+                if (s.native.sessionId !== sessionId && !s.native.retired && !s.archived && !archivedIds.has(s.native.sessionId) && s.interactions.length > 0) count++
+              }
+              return count
+            },
+          )
           if (panelShown || waiting === 0) return null
           return h('span', { className: 'aw-panel-attention', 'data-acp-attention': '' },
             h('span', { className: 'aw-sr-only' }, tt('attentionIndicator', { n: waiting })))
@@ -3719,16 +3858,6 @@ button.aw-child-trigger:focus-visible{outline:none}
           if (value < 1000) return String(Math.round(value))
           if (value < 1_000_000) return `${(value / 1000).toFixed(value >= 100_000 ? 0 : 1)}K`
           return `${(value / 1_000_000).toFixed(1)}M`
-        }
-
-        function panelRunDurationMs(child, nowMs) {
-          const run = child.native?.runs?.at(-1)
-          const start = run?.startedAt ? Date.parse(run.startedAt) : Date.parse(child.createdAt)
-          if (!Number.isFinite(start)) return null
-          const isLive = child.activity.group === 'working' || child.activity.group === 'attention'
-          const end = isLive ? nowMs : (run?.finishedAt ? Date.parse(run.finishedAt) : Date.parse(child.updatedAt))
-          if (!Number.isFinite(end)) return null
-          return Math.max(0, end - start)
         }
 
         function panelChildSummary(child, tt) {
@@ -3790,16 +3919,98 @@ button.aw-child-trigger:focus-visible{outline:none}
           return (usage.uncachedInputTokens ?? 0) + (usage.outputTokens ?? 0) + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0)
         }
 
-        function nativeDurationMs(summary, running, nowMs) {
-          const timing = summary?.projectionValues?.subagentTiming
-          if (!timing) return null
-          if (!timing.active) return Number.isFinite(timing.settledMs) ? timing.settledMs : null
-          const end = running ? nowMs : timing.active.through
-          const total = (timing.settledMs ?? 0) + Math.max(0, end - timing.active.since)
-          return Number.isFinite(total) ? total : null
+        function LiveDuration({ live, settledMs = 0, sinceMs, fixedMs, className }) {
+          const tt = useT()
+          const now = React.useSyncExternalStore(live ? subscribeClock : noopSubscribe, getClockNow, getClockNow)
+          const ms = live
+            ? (Number.isFinite(sinceMs) ? settledMs + Math.max(0, now - sinceMs) : null)
+            : (Number.isFinite(fixedMs) ? fixedMs : null)
+          if (ms === null) return null
+          const text = formatCompactDuration(ms, tt)
+          return className ? h('span', { className }, text) : text
         }
 
-        function collectSubagentRows(parentSessionId, { projections, summaries, statuses, acpSessions, archivedIds }) {
+        function subagentTimingSpec(item, isArchived) {
+          if (isArchived) return null
+          const acp = item.acp
+          if (acp) {
+            const run = acp.native?.runs?.at(-1)
+            const start = run?.startedAt ? Date.parse(run.startedAt) : Date.parse(acp.createdAt)
+            if (!Number.isFinite(start)) return null
+            const live = acp.activity.group === 'working' || acp.activity.group === 'attention'
+            if (live) return { live: true, settledMs: 0, sinceMs: start, fixedMs: null }
+            const end = run?.finishedAt ? Date.parse(run.finishedAt) : Date.parse(acp.updatedAt)
+            if (!Number.isFinite(end)) return null
+            return { live: false, settledMs: 0, sinceMs: null, fixedMs: Math.max(0, end - start) }
+          }
+          const timing = item.summary?.projectionValues?.subagentTiming
+          if (!timing) return null
+          if (!timing.active) {
+            return Number.isFinite(timing.settledMs) ? { live: false, settledMs: 0, sinceMs: null, fixedMs: timing.settledMs } : null
+          }
+          if (item.running) {
+            return { live: true, settledMs: timing.settledMs ?? 0, sinceMs: timing.active.since, fixedMs: null }
+          }
+          const total = (timing.settledMs ?? 0) + Math.max(0, timing.active.through - timing.active.since)
+          return Number.isFinite(total) ? { live: false, settledMs: 0, sinceMs: null, fixedMs: total } : null
+        }
+
+        function collectSubagentChildIds(parentSessionId, rootProjection, acpSessions) {
+          const ids = []
+          const seen = new Set()
+          for (const entry of rootProjection?.values?.subagentCatalog ?? EMPTY) {
+            if (entry?.id && !seen.has(entry.id)) {
+              seen.add(entry.id)
+              ids.push(entry.id)
+            }
+          }
+          for (const child of acpSessions ?? EMPTY) {
+            const sid = child?.native?.sessionId
+            if (!sid || child.native.retired || child.archived || seen.has(sid)) continue
+            if (sid !== parentSessionId && (!child.native.parentSessionId || child.native.parentSessionId === parentSessionId)) {
+              seen.add(sid)
+              ids.push(sid)
+            }
+          }
+          return ids
+        }
+
+        function selectSubagentStoreSlice(state, parentSessionId, acpSessions) {
+          const rootProjection = state?.projectionsBySession?.[parentSessionId] ?? null
+          const ids = collectSubagentChildIds(parentSessionId, rootProjection, acpSessions)
+          const summaries = {}
+          const nestedCounts = {}
+          for (const id of ids) {
+            summaries[id] = state?.byId?.[id] ?? null
+            nestedCounts[id] = state?.projectionsBySession?.[id]?.values?.subagentCatalog?.length ?? 0
+          }
+          return { rootProjection, ids, summaries, nestedCounts }
+        }
+
+        function equalSubagentStoreSlice(a, b) {
+          if (a === b) return true
+          if (!a || !b || a.rootProjection !== b.rootProjection || a.ids.length !== b.ids.length) return false
+          for (let i = 0; i < a.ids.length; i++) {
+            const id = a.ids[i]
+            if (id !== b.ids[i]) return false
+            if (a.summaries[id] !== b.summaries[id] || a.nestedCounts[id] !== b.nestedCounts[id]) return false
+          }
+          return true
+        }
+
+        function selectStatusMapSlice(statuses, ids) {
+          const running = {}
+          for (const id of ids) {
+            running[id] = statuses?.get?.(id)?.running === true
+          }
+          return running
+        }
+
+        function equalStatusMapSlice(a, b) {
+          return shallowEqual(a, b)
+        }
+
+        function collectSubagentRows(parentSessionId, { rootProjection, summaries, runningMap, acpSessions, archivedIds }) {
           const acpBySessionId = new Map()
           const directAcp = []
           for (const child of acpSessions ?? EMPTY) {
@@ -3809,7 +4020,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               directAcp.push(child)
             }
           }
-          const catalogEntries = projections?.[parentSessionId]?.values?.subagentCatalog ?? EMPTY
+          const catalogEntries = rootProjection?.values?.subagentCatalog ?? EMPTY
           const seen = new Set()
           const rows = []
           for (const entry of catalogEntries) {
@@ -3821,7 +4032,7 @@ button.aw-child-trigger:focus-visible{outline:none}
             const archived = !external && archivedIds.has(entry.id)
             const waiting = !archived && (acp?.interactions?.length ?? 0) > 0
             const running = !external && !archived && (
-              (statuses?.get?.(entry.id)?.running ?? summary?.running) === true
+              (runningMap?.[entry.id] ?? summary?.running) === true
               || acp?.activity?.group === 'working'
             )
             const review = !external && !archived && !waiting && !running && acp?.activity?.group === 'review'
@@ -3858,7 +4069,7 @@ button.aw-child-trigger:focus-visible{outline:none}
             const summary = summaries?.[sid]
             const archived = archivedIds.has(sid)
             const waiting = !archived && acp.interactions.length > 0
-            const running = !archived && (acp.activity.group === 'working' || (statuses?.get?.(sid)?.running ?? summary?.running) === true)
+            const running = !archived && (acp.activity.group === 'working' || (runningMap?.[sid] ?? summary?.running) === true)
             const review = !archived && !waiting && !running && acp.activity.group === 'review'
             const completed = !archived && !waiting && !running && !review && acp.activity.runState === 'completed'
             const sortAt = Date.parse(acp.native?.runs?.at(-1)?.startedAt || acp.updatedAt || acp.createdAt) || 0
@@ -3892,16 +4103,24 @@ button.aw-child-trigger:focus-visible{outline:none}
           }
         }
 
+        function useSubagentSlice(parentSessionId, { useSessions, useSessionStatus, acpSessions }) {
+          const storeSlice = typeof useSessions === 'function'
+            ? useSessions(state => selectSubagentStoreSlice(state, parentSessionId, acpSessions), equalSubagentStoreSlice)
+            : { rootProjection: null, ids: EMPTY, summaries: {}, nestedCounts: {} }
+          const runningMap = typeof useSessionStatus === 'function'
+            ? useSessionStatus(statuses => selectStatusMapSlice(statuses, storeSlice.ids), equalStatusMapSlice)
+            : null
+          return { ...storeSlice, runningMap }
+        }
+
         function UnifiedSubagentsRunningIndicator({ sessionId, panelShown, useSessions, useSessionStatus }) {
           const tt = useT()
           const archivedIds = useArchivedSessionIds()
-          const projections = typeof useSessions === 'function' ? useSessions(state => state.projectionsBySession) : null
-          const summaries = typeof useSessions === 'function' ? useSessions(state => state.byId) : null
-          const statuses = typeof useSessionStatus === 'function' ? useSessionStatus(value => value) : null
-          const view = useNative(sessionId)
+          const acpSessions = useNativeSelector(sessionId, snap => snap.data?.sessions ?? EMPTY)
+          const { rootProjection, summaries, runningMap } = useSubagentSlice(sessionId, { useSessions, useSessionStatus, acpSessions })
           const { active } = React.useMemo(
-            () => collectSubagentRows(sessionId, { projections, summaries, statuses, acpSessions: view.data?.sessions, archivedIds }),
-            [sessionId, projections, summaries, statuses, view.data?.sessions, archivedIds],
+            () => collectSubagentRows(sessionId, { rootProjection, summaries, runningMap, acpSessions, archivedIds }),
+            [sessionId, rootProjection, summaries, runningMap, acpSessions, archivedIds],
           )
           const running = active.filter(item => !item.external && item.running).length
           if (panelShown || running === 0) return null
@@ -3912,13 +4131,11 @@ button.aw-child-trigger:focus-visible{outline:none}
         function UnifiedSubagentsPanelProgress({ sessionId, useSessions, useSessionStatus }) {
           const tt = useT()
           const archivedIds = useArchivedSessionIds()
-          const projections = typeof useSessions === 'function' ? useSessions(state => state.projectionsBySession) : null
-          const summaries = typeof useSessions === 'function' ? useSessions(state => state.byId) : null
-          const statuses = typeof useSessionStatus === 'function' ? useSessionStatus(value => value) : null
-          const view = useNative(sessionId)
+          const acpSessions = useNativeSelector(sessionId, snap => snap.data?.sessions ?? EMPTY)
+          const { rootProjection, summaries, runningMap } = useSubagentSlice(sessionId, { useSessions, useSessionStatus, acpSessions })
           const { active, archived } = React.useMemo(
-            () => collectSubagentRows(sessionId, { projections, summaries, statuses, acpSessions: view.data?.sessions, archivedIds }),
-            [sessionId, projections, summaries, statuses, view.data?.sessions, archivedIds],
+            () => collectSubagentRows(sessionId, { rootProjection, summaries, runningMap, acpSessions, archivedIds }),
+            [sessionId, rootProjection, summaries, runningMap, acpSessions, archivedIds],
           )
           if (!active.length && !archived.length) return null
           if (!active.length) {
@@ -3948,36 +4165,42 @@ button.aw-child-trigger:focus-visible{outline:none}
               part.warn ? h('span', { className: 'aw-sp-progress-warn' }, part.text) : part.text)))
         }
 
+        const SubagentNestedBranch = memoComponent(function SubagentNestedBranch({
+          parentId,
+          depth,
+          useSessions,
+          useSessionStatus,
+          acpSessions,
+          archivedIds,
+          renderRow,
+        }) {
+          const { rootProjection, summaries, runningMap, nestedCounts } = useSubagentSlice(parentId, { useSessions, useSessionStatus, acpSessions })
+          const { active } = React.useMemo(
+            () => collectSubagentRows(parentId, { rootProjection, summaries, runningMap, acpSessions, archivedIds }),
+            [parentId, rootProjection, summaries, runningMap, acpSessions, archivedIds],
+          )
+          if (!active.length) return null
+          return h('ul', { className: 'aw-sp-nested' }, active.map(child => renderRow(child, false, depth, nestedCounts)))
+        })
+
         function UnifiedSubagentsPanelSection({ sessionId, dismissOverlay, useSessions, useSessionStatus, useAccess, renderFactorySlot }) {
           const tt = useT()
           const canWrite = typeof useAccess === 'function' ? useAccess('session/prompt') : false
           const archivedIds = useArchivedSessionIds()
-          const projections = typeof useSessions === 'function' ? useSessions(state => state.projectionsBySession) : null
-          const summaries = typeof useSessions === 'function' ? useSessions(state => state.byId) : null
-          const statuses = typeof useSessionStatus === 'function' ? useSessionStatus(value => value) : null
           const view = useNative(sessionId)
+          const acpSessions = view.data?.sessions ?? EMPTY
+          const { rootProjection, summaries, runningMap, nestedCounts } = useSubagentSlice(sessionId, { useSessions, useSessionStatus, acpSessions })
           const [unfolded, setUnfolded] = React.useState(false)
           const [archivedOpen, setArchivedOpen] = React.useState(false)
           const [expanded, setExpanded] = React.useState(() => new Set())
           const [archivingId, setArchivingId] = React.useState(null)
           const [archiveError, setArchiveError] = React.useState('')
-          const [now, setNow] = React.useState(() => Date.now())
 
           const { active, archived } = React.useMemo(
-            () => collectSubagentRows(sessionId, { projections, summaries, statuses, acpSessions: view.data?.sessions, archivedIds }),
-            [sessionId, projections, summaries, statuses, view.data?.sessions, archivedIds],
+            () => collectSubagentRows(sessionId, { rootProjection, summaries, runningMap, acpSessions, archivedIds }),
+            [sessionId, rootProjection, summaries, runningMap, acpSessions, archivedIds],
           )
-          const rootProjection = projections?.[sessionId]
           const hasError = rootProjection?.state === 'error'
-          const hasLive = active.some(item => item.running || item.waiting)
-          React.useEffect(() => {
-            if (!hasLive) return
-            setNow(Date.now())
-            const timer = setInterval(() => {
-              if (!document.hidden) setNow(Date.now())
-            }, 1000)
-            return () => clearInterval(timer)
-          }, [hasLive])
 
           if (!hasError && !active.length && !archived.length) return null
           const foldable = active.length > PANEL_FOLD_LIMIT + 1
@@ -4031,7 +4254,7 @@ button.aw-child-trigger:focus-visible{outline:none}
             }
           }
 
-          const renderRow = (item, isArchived, depth = 0) => {
+          const renderRow = (item, isArchived, depth = 0, counts = nestedCounts) => {
             const primary = item.label || item.name
             const acp = item.acp
             const rough = acp ? panelChildSummary(acp, tt) : null
@@ -4056,12 +4279,7 @@ button.aw-child-trigger:focus-visible{outline:none}
                   : item.completed
                     ? 'done'
                     : 'idle'
-            const durationMs = isArchived
-              ? null
-              : acp
-                ? panelRunDurationMs(acp, now)
-                : nativeDurationMs(item.summary, item.running, now)
-            const durationText = durationMs !== null ? formatCompactDuration(durationMs, tt) : ''
+            const timing = subagentTimingSpec(item, isArchived)
             const totalTokens = acp?.usage?.used || nativeTokenTotal(item.summary?.projectionValues?.tokenUsage)
             const tokensText = totalTokens > 0 ? tt('panelTokens', { value: formatCompactTokens(totalTokens) }) : ''
             const detailLine = isArchived
@@ -4072,14 +4290,8 @@ button.aw-child-trigger:focus-visible{outline:none}
             const detailClass = !isArchived && rough?.tone === 'warn' ? 'aw-sp-detail-warn' : !isArchived && rough?.tone === 'error' ? 'aw-sp-detail-error' : undefined
             const interactive = !item.external && !isArchived
             const busyRow = archivingId === item.id
-            const nestedEntries = !item.external && !isArchived && depth < 3
-              ? (projections?.[item.id]?.values?.subagentCatalog ?? EMPTY)
-              : EMPTY
-            const canExpand = nestedEntries.length > 0 && item.summary?.formatStatus !== 'migration-required'
+            const canExpand = !item.external && !isArchived && depth < 3 && (counts?.[item.id] ?? 0) > 0 && item.summary?.formatStatus !== 'migration-required'
             const isExpanded = canExpand && expanded.has(item.id)
-            const nestedRows = isExpanded
-              ? collectSubagentRows(item.id, { projections, summaries, statuses, acpSessions: view.data?.sessions, archivedIds }).active
-              : EMPTY
 
             const openMain = () => {
               if (!interactive) return
@@ -4125,7 +4337,7 @@ button.aw-child-trigger:focus-visible{outline:none}
             h('span', { 'data-row-part': 'trailing' },
               item.waiting
                 ? h('span', { className: 'aw-sp-badge-warn' }, tt('pending'))
-                : (durationText ? h('span', { className: 'aw-sp-duration' }, durationText) : null),
+                : (timing ? h(LiveDuration, { ...timing, className: 'aw-sp-duration' }) : null),
               interactive && acp?.activity?.stopId && canWrite
                 ? h(Tooltip, { label: tt('stop'), side: 'bottom', align: 'end', delayMs: 500, portal: true },
                   h('button', { type: 'button', className: 'aw-sp-btn aw-sp-stop', 'aria-label': tt('stop'), disabled: view.busy || acp.state === 'canceling', onClick: stopChild },
@@ -4157,7 +4369,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               : [item.name !== primary ? item.name : '', modeText].filter(Boolean)
             const facts = [
               ...(tokensText ? [{ kind: 'tokens', label: tokensText }] : []),
-              ...(durationText ? [{ kind: 'duration', label: durationText }] : []),
+              ...(timing ? [{ kind: 'duration', label: h(LiveDuration, timing) }] : []),
             ]
             const content = panelDetails ? panelDetails({
               title: primary,
@@ -4167,8 +4379,16 @@ button.aw-child-trigger:focus-visible{outline:none}
             }) : null
             return h('li', { key: item.id },
               content ? h(HoverCard, { grouped: true, anchor: rowEl, content }) : rowEl,
-              isExpanded && nestedRows.length > 0
-                ? h('ul', { className: 'aw-sp-nested' }, nestedRows.map(child => renderRow(child, false, depth + 1)))
+              isExpanded
+                ? h(SubagentNestedBranch, {
+                  parentId: item.id,
+                  depth: depth + 1,
+                  useSessions,
+                  useSessionStatus,
+                  acpSessions,
+                  archivedIds,
+                  renderRow,
+                })
                 : null)
           }
 
@@ -4255,8 +4475,10 @@ button.aw-child-trigger:focus-visible{outline:none}
 
         function AcpBackgroundTasksIndicator({ sessionId, panelShown }) {
           const tt = useT()
-          const view = useNative(sessionId)
-          const running = sessionBackgroundTasks(view.data, sessionId).filter(item => item.status === 'running').length
+          const running = useNativeSelector(
+            sessionId,
+            snap => sessionBackgroundTasks(snap.data, sessionId).filter(item => item.status === 'running').length,
+          )
           if (panelShown || running === 0) return null
           return h('span', { className: 'aw-panel-running', 'data-acp-bg-running': '' },
             h('span', { className: 'aw-sr-only' }, tt('bgTasksIndicator', { n: running })))
@@ -4264,20 +4486,24 @@ button.aw-child-trigger:focus-visible{outline:none}
 
         function AcpBackgroundTasksPanelProgress({ sessionId }) {
           const tt = useT()
-          const view = useNative(sessionId)
-          const running = sessionBackgroundTasks(view.data, sessionId).filter(item => item.status === 'running').length
+          const running = useNativeSelector(
+            sessionId,
+            snap => sessionBackgroundTasks(snap.data, sessionId).filter(item => item.status === 'running').length,
+          )
           if (!running) return null
           return h('span', { className: 'aw-sp-progress' }, tt('bgTasksRunning', { n: running }))
         }
 
-        function AcpBackgroundTaskRow({ task, expanded, now, onToggle, renderFactorySlot, tt, termLabels }) {
+        function AcpBackgroundTaskRow({ task, expanded, onToggle, renderFactorySlot, tt, termLabels }) {
           const live = task.status === 'running'
           const dot = bgTaskDotState(task)
           const kindLabel = bgTaskKindLabel(task.kind, tt)
           const statusText = bgTaskStatusLabel(task, tt)
-          const startMs = Number.isFinite(task.startedAt) ? task.startedAt : now
-          const endMs = live ? now : (Number.isFinite(task.finishedAt) ? task.finishedAt : startMs)
-          const duration = formatCompactDuration(Math.max(0, endMs - startMs), tt)
+          const startMs = Number.isFinite(task.startedAt) ? task.startedAt : Date.now()
+          const endMs = Number.isFinite(task.finishedAt) ? task.finishedAt : startMs
+          const timing = live
+            ? { live: true, settledMs: 0, sinceMs: startMs, fixedMs: null }
+            : { live: false, settledMs: 0, sinceMs: null, fixedMs: Math.max(0, endMs - startMs) }
           const labelRef = React.useRef(null)
           const marquee = typeof useHoverMarquee === 'function' ? useHoverMarquee(labelRef) : {}
           const summaryId = React.useId()
@@ -4297,7 +4523,7 @@ button.aw-child-trigger:focus-visible{outline:none}
             h('span', { className: 'aw-bg-glyph', 'aria-hidden': true }, h(StateDot, { state: dot })),
             labelEl,
             h('span', { id: summaryId, className: 'aw-sr-only' }, `${kindLabel} · ${statusText}`),
-            h('span', { className: 'aw-sp-duration' }, duration)),
+            h(LiveDuration, { ...timing, className: 'aw-sp-duration' })),
             h('span', { className: 'aw-bg-chev', 'data-open': expanded || undefined, 'aria-hidden': true },
               h(IconChevronDownOutlineRegular, { size: 14 })))
           const hoverLines = [
@@ -4310,7 +4536,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               title: task.label,
               lines: hoverLines,
               status: { state: dot, label: statusText },
-              facts: [{ kind: 'duration', label: duration }],
+              facts: [{ kind: 'duration', label: h(LiveDuration, timing) }],
             })
             : null
           return h('li', { className: 'aw-bg-item' },
@@ -4335,13 +4561,11 @@ button.aw-child-trigger:focus-visible{outline:none}
         function AcpBackgroundTasksPanelSection({ sessionId, renderFactorySlot }) {
           const tt = useT()
           const termLabels = useToolLabels()
-          const view = useNative(sessionId)
-          const tasks = sessionBackgroundTasks(view.data, sessionId)
+          const tasks = useNativeSelector(sessionId, snap => sessionBackgroundTasks(snap.data, sessionId))
           const [expandedId, setExpandedId] = React.useState(null)
           const [settledOpen, setSettledOpen] = React.useState(null)
           const [clearedIds, setClearedIds] = React.useState(() => new Set())
           const [unfolded, setUnfolded] = React.useState({ live: false, settled: false })
-          const [now, setNow] = React.useState(() => Date.now())
 
           const rows = React.useMemo(() => orderBackgroundTasks(tasks), [tasks])
           const liveRows = React.useMemo(() => rows.filter(item => item.status === 'running'), [rows])
@@ -4355,15 +4579,6 @@ button.aw-child-trigger:focus-visible{outline:none}
           const settledFoldable = settledRows.length > PANEL_FOLD_LIMIT + 1
           const openSettled = settledExpanded ? settledRows : EMPTY
           const shownSettled = settledFoldable && !unfolded.settled ? openSettled.slice(0, PANEL_FOLD_LIMIT) : openSettled
-
-          React.useEffect(() => {
-            if (!liveRows.length) return
-            setNow(Date.now())
-            const timer = setInterval(() => {
-              if (!document.hidden) setNow(Date.now())
-            }, 1000)
-            return () => clearInterval(timer)
-          }, [liveRows.length])
 
           if (liveRows.length + settledRows.length === 0) return null
 
@@ -4380,7 +4595,6 @@ button.aw-child-trigger:focus-visible{outline:none}
             key: task.id,
             task,
             expanded: expandedId === task.id,
-            now,
             onToggle: () => setExpandedId(current => current === task.id ? null : task.id),
             renderFactorySlot,
             tt,
@@ -4425,36 +4639,40 @@ button.aw-child-trigger:focus-visible{outline:none}
           const tt = useT()
           const archivedIds = useArchivedSessionIds()
           const address = typeof useSession === 'function' ? useSession(snapshot => snapshot?.subagent?.address) : undefined
-          const projections = typeof useSessions === 'function' ? useSessions(state => state.projectionsBySession) : null
-          const summaries = typeof useSessions === 'function' ? useSessions(state => state.byId) : null
-          const [busy, setBusy] = React.useState(false)
-          const [error, setError] = React.useState('')
-
-          const { parentId, displayName } = React.useMemo(() => {
-            const summary = summaries?.[sessionId]
-            let resolvedParent = address?.childSessionId === sessionId ? address.parentSessionId : undefined
-            if (!resolvedParent && summary?.origin === 'subagent') resolvedParent = summary.parentId
-            let catalogEntry = null
-            if (projections) {
-              if (resolvedParent) {
-                catalogEntry = projections[resolvedParent]?.values?.subagentCatalog?.find(entry => entry.id === sessionId) ?? null
-              }
-              if (!resolvedParent || !catalogEntry) {
-                for (const [pid, snapshot] of Object.entries(projections)) {
-                  const found = snapshot?.values?.subagentCatalog?.find(entry => entry.id === sessionId)
-                  if (found) {
-                    if (!resolvedParent) resolvedParent = pid
-                    if (!catalogEntry) catalogEntry = found
-                    break
+          const resolved = typeof useSessions === 'function'
+            ? useSessions(state => {
+              const summary = state?.byId?.[sessionId]
+              let resolvedParent = address?.childSessionId === sessionId ? address.parentSessionId : undefined
+              if (!resolvedParent && summary?.origin === 'subagent') resolvedParent = summary.parentId
+              let catalogEntry = null
+              const projections = state?.projectionsBySession
+              if (projections) {
+                if (resolvedParent) {
+                  catalogEntry = projections[resolvedParent]?.values?.subagentCatalog?.find(entry => entry.id === sessionId) ?? null
+                }
+                if (!resolvedParent || !catalogEntry) {
+                  for (const [pid, snapshot] of Object.entries(projections)) {
+                    const found = snapshot?.values?.subagentCatalog?.find(entry => entry.id === sessionId)
+                    if (found) {
+                      if (!resolvedParent) resolvedParent = pid
+                      if (!catalogEntry) catalogEntry = found
+                      break
+                    }
                   }
                 }
               }
-            }
-            const name = catalogEntry?.label || summary?.title || catalogEntry?.name || sessionId
-            return { parentId: resolvedParent, displayName: name }
-          }, [address, projections, summaries, sessionId])
+              return {
+                parentId: resolvedParent,
+                displayName: catalogEntry?.label || summary?.title || catalogEntry?.name || sessionId,
+                isSubagentOrigin: summary?.origin === 'subagent',
+              }
+            }, shallowEqual)
+            : { parentId: address?.childSessionId === sessionId ? address.parentSessionId : undefined, displayName: sessionId, isSubagentOrigin: false }
+          const [busy, setBusy] = React.useState(false)
+          const [error, setError] = React.useState('')
 
-          const isChild = Boolean(address || summaries?.[sessionId]?.origin === 'subagent' || parentId)
+          const { parentId, displayName, isSubagentOrigin } = resolved
+          const isChild = Boolean(address || isSubagentOrigin || parentId)
           const isArchived = archivedIds.has(sessionId)
           const accessAllowed = typeof useAccess === 'function'
             ? useAccess(isArchived ? 'workspace/unarchiveSession' : 'workspace/archiveSession') !== false
@@ -4703,29 +4921,51 @@ button.aw-child-trigger:focus-visible{outline:none}
         }
         function AcpTurnReplyToggle({ sessionId, turn, seq, openFile }) {
           const tt = useT()
-          const view = useNative(sessionId)
           const btnRef = React.useRef(null)
           const [traceOpen, setTraceOpen] = React.useState(false)
           const steps = (turn?.steps ?? EMPTY).map(step => step.data.get('assistant-step')).filter(Boolean)
           const acpStep = steps.findLast(step => step.finalNode?.source?.provider?.startsWith('acp-'))
-          const matchedSession = acpStep
-            ? view.data?.sessions.find(s => s.native?.route === acpStep.finalNode.source.provider)
-            : view.data?.sessions.find(s => s.native?.sessionId === sessionId && s.native.runs.some(r => r.turn === turn?.turn))
-          const matchedRun = matchedSession?.native?.runs.findLast(r => r.turn === turn?.turn)
-          const route = acpStep?.finalNode?.source?.provider ?? matchedSession?.native?.route
+          const acpProvider = acpStep?.finalNode?.source?.provider ?? null
+          const turnNo = turn?.turn
+          const turnMeta = useNativeSelector(
+            sessionId,
+            snap => {
+              const data = snap.data
+              if (!data) return null
+              const matchedSession = acpProvider
+                ? data.sessions.find(s => s.native?.route === acpProvider)
+                : data.sessions.find(s => s.native?.sessionId === sessionId && s.native.runs.some(r => r.turn === turnNo))
+              const matchedRun = matchedSession?.native?.runs.findLast(r => r.turn === turnNo) ?? null
+              const route = acpProvider ?? matchedSession?.native?.route ?? null
+              if (!route?.startsWith('acp-') || !matchedRun) return null
+              const providerLabel = data.providers.find(p => p.route === route)?.label ?? route.slice(4)
+              return {
+                route,
+                providerLabel,
+                sessionId: matchedSession.id,
+                cwd: matchedSession.cwd ?? null,
+                runId: matchedRun.id,
+                runState: matchedRun.state,
+                runNativeVersion: matchedRun.nativeVersion ?? 1,
+                runTools: matchedRun.tools ?? 0,
+                runError: matchedRun.error ?? null,
+                runStopReason: matchedRun.stopReason ?? null,
+              }
+            },
+            shallowEqual,
+          )
           const visibleBlocks = steps.flatMap(step => (step.blocks ?? EMPTY).filter(block =>
             block.kind !== 'reasoning' && block.kind !== 'tool-call' && (block.kind !== 'text' || block.text.trim() !== '')))
-          const isV2AcpTurn = !!route?.startsWith('acp-') && !!matchedRun && matchedRun.nativeVersion >= 2
-          const isAcpReply = !!route?.startsWith('acp-') && !!matchedRun && !(matchedRun.nativeVersion >= 2) && visibleBlocks.length > 0
+          const isV2AcpTurn = !!turnMeta && turnMeta.runNativeVersion >= 2
+          const isAcpReply = !!turnMeta && !(turnMeta.runNativeVersion >= 2) && visibleBlocks.length > 0
           const messageId = acpStep?.finalNode?.messageId ?? steps.at(-1)?.finalNode?.messageId
-          const replyKey = `${sessionId}:${turn?.turn ?? 0}:${messageId ?? seq}`
+          const replyKey = `${sessionId}:${turnNo ?? 0}:${messageId ?? seq}`
           const collapsed = React.useSyncExternalStore(
             subscribeCollapsedReplies,
             () => isAcpReply && isReplyCollapsed(replyKey),
             () => false,
           )
           React.useLayoutEffect(() => {
-            const turnNo = turn?.turn
             const container = btnRef.current?.closest('[data-chat-flow-kind="turn-tail"]')?.parentElement
             if (!isAcpReply || turnNo == null || !container) return undefined
             const selector = `[data-chat-flow-kind="assistant-step"][data-chat-turn="${CSS.escape(String(turnNo))}"]:not([data-chat-group-part="reasoning"])`
@@ -4750,13 +4990,13 @@ button.aw-child-trigger:focus-visible{outline:none}
                 }
               }
             }
-          }, [isAcpReply, collapsed, replyKey, turn?.turn, steps.length])
+          }, [isAcpReply, collapsed, replyKey, turnNo, steps.length])
           if (isV2AcpTurn) {
-            const active = ACTIVE_RUN.has(matchedRun.state)
-            const hasAlert = Boolean(matchedRun.error || matchedRun.state === 'failed' || matchedRun.state === 'interrupted')
-            const dotState = active ? 'ongoing' : matchedRun.state === 'failed' || matchedRun.error ? 'error' : matchedRun.state === 'interrupted' ? 'warning' : null
-            const toolCount = matchedRun.tools > 0 ? (matchedRun.tools === 1 ? tt('traceTool') : tt('traceTools', { n: matchedRun.tools })) : null
-            const resolvedOpenFile = openFile ?? makeOpenFile(sessionId, matchedSession?.cwd)
+            const active = ACTIVE_RUN.has(turnMeta.runState)
+            const hasAlert = Boolean(turnMeta.runError || turnMeta.runState === 'failed' || turnMeta.runState === 'interrupted')
+            const dotState = active ? 'ongoing' : turnMeta.runState === 'failed' || turnMeta.runError ? 'error' : turnMeta.runState === 'interrupted' ? 'warning' : null
+            const toolCount = turnMeta.runTools > 0 ? (turnMeta.runTools === 1 ? tt('traceTool') : tt('traceTools', { n: turnMeta.runTools })) : null
+            const resolvedOpenFile = openFile ?? makeOpenFile(sessionId, turnMeta.cwd)
             return h('div', { className: 'acpw aw-v2-trace' },
               h('button', {
                 type: 'button',
@@ -4768,18 +5008,18 @@ button.aw-child-trigger:focus-visible{outline:none}
               dotState ? h(StateDot, { state: settle(dotState, active), size: 7 }) : null,
               h('span', null, tt(traceOpen ? 'turnTraceHide' : 'turnTrace')),
               toolCount ? h('span', { className: 'aw-muted' }, `· ${toolCount}`) : null,
-              hasAlert && !traceOpen && matchedRun.stopReason && matchedRun.stopReason !== 'end_turn' ? h('span', { className: 'aw-muted' }, `· ${matchedRun.stopReason}`) : null,
+              hasAlert && !traceOpen && turnMeta.runStopReason && turnMeta.runStopReason !== 'end_turn' ? h('span', { className: 'aw-muted' }, `· ${turnMeta.runStopReason}`) : null,
               h(traceOpen ? IconChevronUpOutlineRegular : IconChevronDownOutlineRegular, { size: 12 })),
               traceOpen ? h(NativeTrace, {
                 sessionId,
                 openFile: resolvedOpenFile,
-                reference: { sessionId: matchedSession.id, turnId: matchedRun.id },
+                reference: { sessionId: turnMeta.sessionId, turnId: turnMeta.runId },
                 collapsible: false,
                 defaultOpen: true,
               }) : null)
           }
           if (!isAcpReply) return null
-          const providerLabel = view.data?.providers.find(p => p.route === route)?.label ?? route.slice(4)
+          const providerLabel = turnMeta.providerLabel
           const fullText = visibleBlocks.filter(b => b.kind === 'text').map(b => b.text).join('\n\n')
           const lineCount = fullText.trim() ? fullText.trim().split(/\r?\n/u).length : 0
           const imageCount = visibleBlocks.filter(b => b.kind === 'image').length
@@ -4936,14 +5176,31 @@ button.aw-child-trigger:focus-visible{outline:none}
           const tt = useT()
           const modelSelection = typeof useProjection === 'function' ? useProjection('modelSelection') : undefined
           const modelKey = modelSelection ? `${modelSelection.provider ?? ''}/${modelSelection.model ?? ''}` : undefined
-          const view = useNative(sessionId, modelKey)
-          const data = view.data
-          const sessions = data?.sessions ?? EMPTY
-          const provider = data?.providers.find(p => p.route === data.selected?.provider)
-          const binding = provider ? sessions.findLast(s => s.native.sessionId === sessionId && s.native.route === provider.route && !s.native.retired) : null
-          const report = binding && !binding.archived && data.contextReport?.externalId === binding.id ? data.contextReport : null
-          const w = report?.window
-          const available = Boolean(w && w.size > 0)
+          const report = useNativeSelector(
+            sessionId,
+            snap => {
+              const data = snap.data
+              if (!data) return null
+              const sessions = data.sessions ?? EMPTY
+              const provider = data.providers.find(p => p.route === data.selected?.provider)
+              const binding = provider ? sessions.findLast(s => s.native.sessionId === sessionId && s.native.route === provider.route && !s.native.retired) : null
+              const rep = binding && !binding.archived && data.contextReport?.externalId === binding.id ? data.contextReport : null
+              const w = rep?.window
+              if (!w || !(w.size > 0)) return null
+              return {
+                externalId: rep.externalId,
+                at: rep.at ?? null,
+                used: w.used,
+                size: w.size,
+                model: w.model ?? null,
+                costAmount: w.cost?.amount ?? null,
+                costCurrency: w.cost?.currency ?? null,
+              }
+            },
+            shallowEqual,
+            modelKey,
+          )
+          const available = Boolean(report)
           const [open, setOpen] = React.useState(false)
           const btnRef = React.useRef(null)
           const popRef = React.useRef(null)
@@ -4959,11 +5216,11 @@ button.aw-child-trigger:focus-visible{outline:none}
 
           if (!available) return null
 
-          const ratio = Math.min(1, Math.max(0, w.used / w.size))
+          const ratio = Math.min(1, Math.max(0, report.used / report.size))
           const percent = Math.round(ratio * 100)
           const dash = ratio > 0 ? Math.max(CTX_RING_C * 0.04, CTX_RING_C * ratio) : 0
           const tone = percent >= 95 ? 'danger' : percent >= 80 ? 'warn' : undefined
-          const label = tt('usageContext', { used: number(w.used), size: number(w.size), percent: number(percent) })
+          const label = tt('usageContext', { used: number(report.used), size: number(report.size), percent: number(percent) })
 
           const onPointerDown = () => {
             wasOpenRef.current = Boolean(popRef.current?.matches?.(':popover-open'))
@@ -5035,12 +5292,12 @@ button.aw-child-trigger:focus-visible{outline:none}
             h('div', { className: 'aw-ctx-head' },
               h('span', { className: 'aw-ctx-title' }, tt('contextRecent')),
               h('span', { className: 'aw-ctx-pct' }, `${number(percent)}%`)),
-            h('div', { className: 'aw-ctx-nums' }, `${number(w.used)} / ${number(w.size)}`),
+            h('div', { className: 'aw-ctx-nums' }, `${number(report.used)} / ${number(report.size)}`),
             h('div', { className: 'aw-ctx-bar', 'aria-hidden': true },
               h('i', { style: { width: `${Math.min(100, ratio * 100)}%` } })),
             h('div', { className: 'aw-ctx-meta' },
-              w.model ? h('span', null, tt('ctxModel', { model: w.model })) : null,
-              w.cost ? h('span', null, tt('ctxCost', { amount: costNumber(w.cost.amount), unit: w.cost.currency })) : null,
+              report.model ? h('span', null, tt('ctxModel', { model: report.model })) : null,
+              report.costAmount !== null && report.costCurrency ? h('span', null, tt('ctxCost', { amount: costNumber(report.costAmount), unit: report.costCurrency })) : null,
               report.at ? h('span', { className: 'aw-note' }, tt('ctxAt', { time: stamp(report.at) })) : null,
               h('small', { className: 'aw-note' }, tt('ctxScope')))))
         }
@@ -5380,15 +5637,33 @@ button.aw-child-trigger:focus-visible{outline:none}
             kick.current = refresh
             void refresh()
             let debounceTimer = null
+            let staleWhileHidden = false
+            const onVisibility = () => {
+              if (typeof document !== 'undefined' && !document.hidden && staleWhileHidden) {
+                staleWhileHidden = false
+                void refresh()
+              }
+            }
+            if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
             const unsubscribe = subscribeLive(change => {
               if (change && change.activityChanged === false && Array.isArray(change.conversations)) return
+              if (typeof document !== 'undefined' && document.hidden) {
+                staleWhileHidden = true
+                return
+              }
               if (debounceTimer) return
               debounceTimer = setTimeout(() => {
                 debounceTimer = null
                 void refresh()
               }, 250)
             })
-            return () => { clearTimeout(debounceTimer); controller.abort(); unsubscribe(); kick.current = null }
+            return () => {
+              clearTimeout(debounceTimer)
+              if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+              controller.abort()
+              unsubscribe()
+              kick.current = null
+            }
           }, [])
           return { data, ready, error, refresh: () => kick.current?.() }
         }

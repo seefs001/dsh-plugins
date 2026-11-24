@@ -502,10 +502,22 @@ export async function callProxyMcpTool(ctx, toolName, toolArgs, caller, signal, 
     const rawLimit = Number(args.limit)
     const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_LIST_LIMIT) : DEFAULT_LIST_LIMIT
 
+    const states = managerServerStates(ctx)
+    const knownServers = sortedNames(new Set([...states.keys(), ...availableServers]))
+    const toolsByServer = new Map(availableServers.map(name => [name, []]))
+    for (const definition of visibleDefinitions(ctx, caller)) {
+      const parsed = parseMcpToolName(definition?.name, knownServers)
+      if (!parsed || !toolsByServer.has(parsed.server)) continue
+      toolsByServer.get(parsed.server).push({
+        name: parsed.toolName,
+        description: typeof definition.description === 'string' ? definition.description : '',
+      })
+    }
+
     if (!server && !query) {
       let totalTools = 0
       const servers = availableServers.map(name => {
-        const count = listForwardedMcpTools(ctx, name, caller).length
+        const count = toolsByServer.get(name)?.length ?? 0
         totalTools += count
         return { name, toolCount: count }
       })
@@ -524,7 +536,7 @@ export async function callProxyMcpTool(ctx, toolName, toolArgs, caller, signal, 
     const terms = query ? query.toLowerCase().split(/\s+/u).filter(Boolean) : []
     const matched = []
     for (const srv of targetServers) {
-      for (const item of listForwardedMcpTools(ctx, srv, caller)) {
+      for (const item of toolsByServer.get(srv) ?? []) {
         if (terms.length) {
           const haystack = `${srv} ${item.name} ${item.description}`.toLowerCase()
           if (!terms.every(term => haystack.includes(term))) continue

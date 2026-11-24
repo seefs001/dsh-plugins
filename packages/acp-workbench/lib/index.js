@@ -30,12 +30,19 @@ export async function apply(ctx, config = {}) {
   const streams = new Set()
   const changedRecords = new Set()
   let globalChange = false
+  let workbenchChange = false
   const changedConversations = new Set()
-  const changed = (recordId, conversationId) => {
+  const changed = (recordId, conversationId, options) => {
     if (closed) return
-    if (typeof recordId === 'string') changedRecords.add(recordId)
-    else if (typeof conversationId === 'string') changedConversations.add(conversationId)
-    else globalChange = true
+    if (typeof recordId === 'string') {
+      changedRecords.add(recordId)
+      if (options?.workbench) workbenchChange = true
+    } else if (typeof conversationId === 'string') {
+      changedConversations.add(conversationId)
+    } else {
+      globalChange = true
+      workbenchChange = true
+    }
     revision++
     if (!changeTimer) changeTimer = setTimeout(() => {
       changeTimer = undefined
@@ -45,10 +52,12 @@ export async function apply(ctx, config = {}) {
         const binding = manager.store.sessions.get(id)?.native
         if (binding) { conversations.add(binding.sessionId); if (binding.rootSessionId) conversations.add(binding.rootSessionId) }
       }
-      const frame = `data: ${JSON.stringify({ revision, ...(globalChange ? {} : { conversations: [...conversations], activityChanged: changedRecords.size > 0 }) })}\n\n`
+      const frame = `data: ${JSON.stringify({ revision, ...(globalChange ? { global: true, activityChanged: true } : { conversations: [...conversations], activityChanged: workbenchChange }) })}\n\n`
       globalChange = false
+      workbenchChange = false
       changedRecords.clear()
       for (const res of streams) {
+        if (res.destroyed || res.writableEnded) { streams.delete(res); continue }
         if (res.writableLength > 1024 * 1024) res.end()
         else res.write(frame)
       }
@@ -122,7 +131,10 @@ export async function apply(ctx, config = {}) {
     res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' })
     res.write(`retry: 2000\ndata: ${JSON.stringify({ revision })}\n\n`)
     streams.add(res)
-    const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 25_000)
+    const heartbeat = setInterval(() => {
+      if (res.destroyed || res.writableEnded) { clearInterval(heartbeat); streams.delete(res); return }
+      res.write(': heartbeat\n\n')
+    }, 25_000)
     res.on('close', () => { clearInterval(heartbeat); streams.delete(res) })
   })
 

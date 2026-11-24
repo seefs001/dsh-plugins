@@ -204,7 +204,56 @@ export function summary(session, runtime) {
 
 const CLIENT_INFO = { name: 'dsh-acp-workbench', version: '0.2.0' }
 const DEFAULT_IDLE_DISCONNECT_MS = 15 * 60_000
-const DEFAULT_MAX_IDLE_RUNTIMES = 2
+const DEFAULT_MAX_IDLE_RUNTIMES = 4
+const LOCAL_USAGE_CACHE_TTL_MS = 60_000
+const STREAM_NOTIFY_MS = 400
+const TRACE_DIRECT_TYPES = new Set(['turn-result', 'stderr', 'interaction', 'interaction-result', 'interaction-expired', 'turn-error', 'configuration-error'])
+const TERMINAL_UPDATE_STATUS = new Set(['completed', 'failed', 'cancelled', 'canceled'])
+
+function affectsTrace(type, data) {
+  if (TRACE_DIRECT_TYPES.has(type)) return true
+  if (type === 'lifecycle') return Boolean(data?.message)
+  if (type !== 'notification' || data?.replay) return false
+  const cursorMethod = data.method?.replace(/^_/u, '')
+  if (cursorMethod === 'cursor/task' || cursorMethod === 'cursor/update_todos') return true
+  if (data.method !== 'session/update') return false
+  const update = data.params?.update
+  const kind = update?.sessionUpdate
+  if (!kind) return false
+  if (kind === 'agent_message_chunk' || kind === 'user_message_chunk') return Boolean(cliParentOf(update))
+  if (kind === 'agent_thought_chunk') return false
+  return kind === 'tool_call'
+    || kind === 'tool_call_update'
+    || kind === 'notice'
+    || kind === 'compaction_update'
+    || kind === 'compaction_summary_chunk'
+    || kind === 'plan'
+    || kind === 'plan_update'
+    || kind === 'plan_removed'
+    || kind === 'usage_update'
+}
+
+function notificationNotifyMode(method, params, replaying) {
+  if (replaying) return 'none'
+  if (method === '$/cancel_request' || method === 'session/complete_elicitation') return 'state'
+  const cursorMethod = method?.replace(/^_/u, '')
+  if (cursorMethod === 'cursor/update_todos' || cursorMethod === 'cursor/task') return 'state'
+  if (method !== 'session/update') return 'none'
+  const update = params?.update
+  const kind = update?.sessionUpdate
+  if (!kind) return 'none'
+  if (kind === 'agent_message_chunk' || kind === 'agent_thought_chunk' || kind === 'user_message_chunk') {
+    return cliParentOf(update) ? 'stream' : 'none'
+  }
+  if (kind === 'compaction_summary_chunk') return 'stream'
+  if (kind === 'tool_call_update') {
+    if (TERMINAL_UPDATE_STATUS.has(update.status)) return 'state'
+    if (Array.isArray(update.content) && update.content.some(item => item?.type === 'diff')) return 'state'
+    if (update.rawInput && typeof update.rawInput === 'object' && Object.keys(update.rawInput).length > 0) return 'state'
+    return 'stream'
+  }
+  return 'state'
+}
 
 export class Workbench {
   constructor({
@@ -243,6 +292,9 @@ export class Workbench {
     this.probes = new Set()
     this.authByProvider = new Map()
     this.probeByProvider = new Map()
+    this.streamNotifyTimers = new Map()
+    this.localUsageCache = null
+    this.localUsageCacheAt = 0
     this.closed = false
     this.store = new WorkbenchStore(domain, error => {
       this.log?.(`ACP storage: ${error.message}`)
@@ -291,6 +343,39 @@ export class Workbench {
     return session
   }
 
+  invalidateLocalUsageCache() {
+    this.localUsageCache = null
+    this.localUsageCacheAt = 0
+  }
+
+  localUsageSnapshot() {
+    const nowMs = Date.now()
+    if (this.localUsageCache && nowMs - this.localUsageCacheAt < LOCAL_USAGE_CACHE_TTL_MS) {
+      return this.localUsageCache
+    }
+    this.localUsageCache = computeLocalUsageByProvider(this.store.sessions.values(), nowMs)
+    this.localUsageCacheAt = nowMs
+    return this.localUsageCache
+  }
+
+  notifyStream(sessionId, delayMs = STREAM_NOTIFY_MS) {
+    if (this.closed || typeof sessionId !== 'string' || !sessionId) return
+    if (this.streamNotifyTimers.has(sessionId)) return
+    const timer = setTimeout(() => {
+      this.streamNotifyTimers.delete(sessionId)
+      if (!this.closed) this.changed(sessionId)
+    }, delayMs)
+    timer.unref?.()
+    this.streamNotifyTimers.set(sessionId, timer)
+  }
+
+  clearStreamNotify(sessionId) {
+    const timer = this.streamNotifyTimers.get(sessionId)
+    if (!timer) return
+    clearTimeout(timer)
+    this.streamNotifyTimers.delete(sessionId)
+  }
+
   snapshot() {
     const activeByProvider = {}
     let recentCwd = ''
@@ -314,7 +399,7 @@ export class Workbench {
       activeByProvider,
       authByProvider: Object.fromEntries(this.authByProvider),
       probeByProvider: Object.fromEntries(this.probeByProvider),
-      localUsageByProvider: computeLocalUsageByProvider(this.store.sessions.values()),
+      localUsageByProvider: this.localUsageSnapshot(),
       defaultCwd: recentCwd || homedir(),
       storageError: this.store.failure?.message ?? null,
     }
@@ -357,9 +442,18 @@ export class Workbench {
       storageError: this.store.failure?.message ?? null }
   }
 
-  record(session, type, data) {
+  record(session, type, data, { notify = true, workbench = false } = {}) {
     const event = this.store.append(session, type, data)
-    this.changed(session.id)
+    if (affectsTrace(type, data) && session.native?.runs?.length) {
+      const turnId = data?.turnId
+      const targetRun = turnId
+        ? session.native.runs.findLast(item => item.id === turnId) ?? session.native.runs.at(-1)
+        : session.native.runs.at(-1)
+      if (targetRun) targetRun.traceVersion = (targetRun.traceVersion ?? 0) + 1
+    }
+    if (type === 'turn-result') this.invalidateLocalUsageCache()
+    if (notify === 'stream') this.notifyStream(session.id)
+    else if (notify) this.changed(session.id, undefined, workbench ? { workbench: true } : undefined)
     for (const listener of this.listeners.get(session.id) ?? []) listener(event)
     return event
   }
@@ -426,10 +520,13 @@ export class Workbench {
     session.state = state
     if (state === 'idle') this.scheduleIdleReap(session)
     else this.clearIdleTimer(this.runtimes.get(session.id))
-    this.changed(session.id)
-    this.record(session, 'lifecycle', { state, ...detail })
-    await this.store.saveSession(session)
-    await this.store.flush()
+    this.record(session, 'lifecycle', { state, ...detail }, { workbench: true })
+    if (this.store.dirty?.size > 0) {
+      await this.store.flush()
+    } else {
+      await this.store.saveSession(session)
+      await this.store.flush()
+    }
   }
 
   async directory(value) {
@@ -475,10 +572,12 @@ export class Workbench {
         if (this.runtimes.has(session.id)) throw new Error('Disconnect before archiving')
         session.archived = true
         session.archivedAt = now()
+        this.invalidateLocalUsageCache()
         break
       case 'restore':
         session.archived = false
         delete session.archivedAt
+        this.invalidateLocalUsageCache()
         break
       default: throw new Error(`Unknown ACP action: ${op.action}`)
     }
@@ -721,7 +820,8 @@ export class Workbench {
       cwd, state: 'disconnected', remoteId: op.remoteId ?? null,
       createdAt: now(), updatedAt: now(), archived: false, eventSeq: 0, lastError: null, stopReason: null, native }
     await this.store.saveSession(session)
-    this.record(session, 'lifecycle', { state: 'disconnected', reason: op.remoteId ? 'imported' : 'created' })
+    this.invalidateLocalUsageCache()
+    this.record(session, 'lifecycle', { state: 'disconnected', reason: op.remoteId ? 'imported' : 'created' }, { workbench: true })
     await this.store.flush()
     if (op.connect !== false) await this.connect(session)
     return this.detail(session)
@@ -981,7 +1081,7 @@ export class Workbench {
           }
         },
         onStderr: text => {
-          if (this.isCurrent(session, runtime) && text) this.record(session, 'stderr', { text })
+          if (this.isCurrent(session, runtime) && text) this.record(session, 'stderr', { text }, { notify: 'stream' })
         },
         onExit: error => { void this.failed(session, runtime, error).catch(e => this.log?.(e.message)) },
       })
@@ -1103,8 +1203,9 @@ export class Workbench {
     }
     if (params.sessionId && session.remoteId && params.sessionId !== session.remoteId) return
     const owner = method === 'session/update' ? anchorCompaction(session, runtime, params, session.eventSeq + 1) : undefined
+    const notifyMode = notificationNotifyMode(method, params, runtime.replaying)
     const event = this.record(session, 'notification', { method, params, replay: runtime.replaying, turnId: runtime.turnId, ...(owner !== undefined && { compactionOwner: owner }),
-      ...(params.update?.sessionUpdate === 'notice' && session.state === 'starting' && { noticePhase: 'connect' }) })
+      ...(params.update?.sessionUpdate === 'notice' && session.state === 'starting' && { noticePhase: 'connect' }) }, { notify: notifyMode === 'none' ? false : notifyMode })
     if (method === '$/cancel_request') {
       const match = [...runtime.interactions].find(([, p]) => !p.responding && (p.public.kind === 'form' || p.public.kind === 'url') && p.wireId != null && p.wireId === params.requestId)
       if (match) {
@@ -1148,9 +1249,9 @@ export class Workbench {
       case 'config_option_update': {
         session.configOptions = update.configOptions ?? []
         const prov = this.store.providers.get(session.providerId)
-        await this.noteAdvertised(session.providerId, advertisedModels({ models: session.models, configOptions: session.configOptions }, session.capabilities, null, runtime.adapter), undefined, {
+        void this.noteAdvertised(session.providerId, advertisedModels({ models: session.models, configOptions: session.configOptions }, session.capabilities, null, runtime.adapter), undefined, {
           modes: advertisedModes({ modes: session.modes, configOptions: session.configOptions }, runtime.adapter, prov),
-        })
+        }).catch(error => this.log?.(error.message))
         break
       }
       case 'current_mode_update': session.modes = { ...session.modes, currentModeId: update.currentModeId }; break
@@ -1841,8 +1942,9 @@ export class Workbench {
         try { await runtime.connection?.stop() } catch (failure) { session.lastError += `; cleanup failed: ${failure.message}` }
         await this.transition(session, 'error', { message: session.lastError })
       } finally {
+        this.clearStreamNotify(session.id)
         if (this.runtimes.get(session.id) === runtime) this.runtimes.delete(session.id)
-        this.changed(session.id)
+        this.changed(session.id, undefined, { workbench: true })
       }
     })()
     return runtime.shutdown
@@ -1873,8 +1975,9 @@ export class Workbench {
         await this.transition(session, 'error', { message: session.lastError })
         throw error
       } finally {
+        this.clearStreamNotify(session.id)
         if (this.runtimes.get(session.id) === runtime) this.runtimes.delete(session.id)
-        this.changed(session.id)
+        this.changed(session.id, undefined, { workbench: true })
       }
     })()
     return runtime.shutdown
@@ -1882,6 +1985,8 @@ export class Workbench {
 
   async close() {
     this.closed = true
+    for (const timer of this.streamNotifyTimers.values()) clearTimeout(timer)
+    this.streamNotifyTimers.clear()
     const results = await Promise.allSettled([
       ...[...this.runtimes.keys()].map(id => this.disconnect(this.store.sessions.get(id), 'plugin-unload')),
       ...[...this.probes].map(connection => connection.stop()),
