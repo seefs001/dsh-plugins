@@ -694,6 +694,10 @@ class AcpTurn {
       : mapToolResult(mapped, record?.tool, record?.terminal, { cwd: this.session?.cwd, savedImages, ...options })
     entry.result = result
     if (record) record.resultLogged = true
+    if (!record?.syntheticTodo && !result.isError && mapped.name === 'todo_write' && Array.isArray(mapped.argumentsObj?.todos)) {
+      this.lastTodoJson = JSON.stringify(mapped.argumentsObj.todos)
+      try { agent.session.append('todo/write', { todos: mapped.argumentsObj.todos }) } catch {}
+    }
     if (log !== undefined) {
       agent.session.append('tool/result', {
         turn: log.turn,
@@ -850,6 +854,9 @@ class AcpTurn {
           const mapped = mapToolCall(next.record.tool, next.record.terminal)
           next.record.mapped = mapped
           next.record.emitted = true
+          if (mapped.name === 'todo_write' && Array.isArray(mapped.argumentsObj?.todos)) {
+            this.lastTodoJson = JSON.stringify(mapped.argumentsObj.todos)
+          }
           if (next.preparingIndex !== undefined) {
             const blockIndex = next.preparingIndex
             yield { type: 'tool-call-delta', index: blockIndex, id: next.record.dshCallId, name: mapped.name, argumentsDelta: mapped.argumentsJson }
