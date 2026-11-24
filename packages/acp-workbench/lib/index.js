@@ -75,7 +75,7 @@ export async function apply(ctx, config = {}) {
   }
   const register = (path, handler) => ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: BASE + path, handler }), `acp-workbench: ${path}`)
   ctx.effect(() => ctx.webServer.register({
-    kind: 'exact',
+    kind: 'prefix',
     path: BASE + '/mcp',
     auth: 'anonymous',
     handler: (req, res) => native.delegation.handleMcpRequest(req, res),

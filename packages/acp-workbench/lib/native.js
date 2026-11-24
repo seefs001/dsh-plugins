@@ -72,7 +72,7 @@ const timestamp = () => new Date().toISOString()
 const isRoute = value => typeof value === 'string' && value.startsWith(ACP_ROUTE_PREFIX)
 const checkpointOf = message => message.source?.replayState?.response?.acp
 
-function preparingToolName(tool, terminal) {
+function preparingToolName(tool, terminal, options) {
   const rawName = (tool?.name ?? tool?._meta?.claudeCode?.toolName ?? '').trim()
   const lower = rawName.toLowerCase()
   const kind = tool?.kind
@@ -87,7 +87,7 @@ function preparingToolName(tool, terminal) {
   if (lower === 'askuserquestion' || lower === 'ask_question') return 'ask_user_question'
   if (lower === 'agent' || lower === 'task' || lower === 'invoke_subagent') return 'subagent'
   if (lower === 'todowrite' || lower === 'todo_write' || lower === 'update_steps') return 'todo_write'
-  return mapToolCall(tool, terminal).name
+  return mapToolCall(tool, terminal, options).name
 }
 
 export function fullAccess(ctx, session) {
@@ -379,9 +379,13 @@ class AcpTurn {
     }
   }
 
+  toolMapOptions() {
+    return { mcpServers: this.native.forwardedMcpServerNames(this.agent) }
+  }
+
   emitSubCallStart(record, parentRecord) {
     if (record.subStarted || !parentRecord?.callLogged) return
-    record.mapped = mapToolCall(record.tool, record.terminal)
+    record.mapped = mapToolCall(record.tool, record.terminal, this.toolMapOptions())
     record.subStarted = true
     record.callLogged = true
     const rootCallId = this.rootCallIdFor(parentRecord)
@@ -404,7 +408,7 @@ class AcpTurn {
       if (!child.subFinished) this.emitSubCallResult(child, record, options)
     }
     record.subFinished = true
-    const mapped = record.mapped ?? mapToolCall(record.tool, record.terminal)
+    const mapped = record.mapped ?? mapToolCall(record.tool, record.terminal, this.toolMapOptions())
     const result = mapToolResult(mapped, record.tool, record.terminal, { cwd: this.session?.cwd, ...options })
     const rootCallId = this.rootCallIdFor(parentRecord)
     try {
@@ -740,7 +744,7 @@ class AcpTurn {
     }
     let mapped = record?.mapped ?? { name: entry.block.name, argumentsObj: {}, originalKind: 'other' }
     if (record && !record.syntheticTodo) {
-      const fresh = mapToolCall(record.tool, record.terminal)
+      const fresh = mapToolCall(record.tool, record.terminal, this.toolMapOptions())
       if (fresh.name === mapped.name) mapped = fresh
     }
     const savedImages = record && !record.syntheticTodo ? await this.saveToolImages(record.tool) : []
@@ -909,7 +913,7 @@ class AcpTurn {
               if (pendingCalls.length > 0 && Date.now() >= batchDeadline) break
               if (pendingCalls.length === 0 && next.preparingIndex === undefined) {
                 yield* closeOpenBlock()
-                const previewName = preparingToolName(next.record.tool, next.record.terminal)
+                const previewName = preparingToolName(next.record.tool, next.record.terminal, this.toolMapOptions())
                 if (previewName) {
                   next.preparingIndex = index
                   yield { type: 'block-start', index, blockType: 'tool-call' }
@@ -926,7 +930,7 @@ class AcpTurn {
             }
           }
           this.queue.shift()
-          const mapped = mapToolCall(next.record.tool, next.record.terminal)
+          const mapped = mapToolCall(next.record.tool, next.record.terminal, this.toolMapOptions())
           next.record.mapped = mapped
           next.record.emitted = true
           if (mapped.name === 'todo_write' && Array.isArray(mapped.argumentsObj?.todos)) {
@@ -1074,6 +1078,10 @@ export class NativeAcp {
 
   mcpServersFor(session) {
     return this.delegation.mcpServersFor(session)
+  }
+
+  forwardedMcpServerNames(agent) {
+    return this.delegation.forwardedServerNames(agent)
   }
 
   hasRunningChildren(agent) {

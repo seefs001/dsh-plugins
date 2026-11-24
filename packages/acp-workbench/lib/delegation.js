@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { visibleModels } from './models.js'
+import { callForwardedMcpTool, discoverDshMcpServers, listForwardedMcpTools } from './mcp-bridge.js'
 
 const execFileAsync = promisify(execFile)
 const STDIO_BRIDGE_PATH = fileURLToPath(new URL('./mcp-stdio.js', import.meta.url))
@@ -209,13 +210,39 @@ export class DelegationHub {
     this.sessionTokens = new Map()
   }
 
-  endpointUrl() {
+  endpointUrl(serverName = MCP_SERVER_NAME) {
     const web = this.ctx.get('webServer')
     const port = web?.port
     if (!port) return null
     const host = web.host === '::1' ? '[::1]' : '127.0.0.1'
     const proto = web.tls ? 'https' : 'http'
-    return `${proto}://${host}:${port}/acp-workbench/mcp`
+    const base = `${proto}://${host}:${port}/acp-workbench/mcp`
+    if (!serverName || serverName === MCP_SERVER_NAME) return base
+    return `${base}/${encodeURIComponent(serverName)}`
+  }
+
+  mcpEntry(name, url, token, supportsHttp) {
+    if (supportsHttp) {
+      return {
+        type: 'http',
+        name,
+        url,
+        headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
+      }
+    }
+    return {
+      name,
+      command: process.execPath,
+      args: [STDIO_BRIDGE_PATH],
+      env: [
+        { name: 'DSH_ACP_MCP_URL', value: url },
+        { name: 'DSH_ACP_MCP_TOKEN', value: token },
+      ],
+    }
+  }
+
+  forwardedServerNames(caller) {
+    return discoverDshMcpServers(this.ctx, caller, new Set([MCP_SERVER_NAME]))
   }
 
   issueToken(sessionId) {
@@ -242,26 +269,19 @@ export class DelegationHub {
   mcpServersFor(session) {
     const dshSessionId = session?.native?.sessionId
     if (!dshSessionId) return []
-    const url = this.endpointUrl()
-    if (!url) return []
+    const delegationUrl = this.endpointUrl(MCP_SERVER_NAME)
+    if (!delegationUrl) return []
     const token = this.issueToken(dshSessionId)
-    if (session.capabilities?.mcpCapabilities?.http === true) {
-      return [{
-        type: 'http',
-        name: MCP_SERVER_NAME,
-        url,
-        headers: [{ name: 'Authorization', value: `Bearer ${token}` }],
-      }]
+    const supportsHttp = session.capabilities?.mcpCapabilities?.http === true
+    const caller = this.ctx.agents?.get?.(dshSessionId)
+    const forwarded = this.forwardedServerNames(caller)
+    const entries = [this.mcpEntry(MCP_SERVER_NAME, delegationUrl, token, supportsHttp)]
+    for (const serverName of forwarded) {
+      const serverUrl = this.endpointUrl(serverName)
+      if (!serverUrl) continue
+      entries.push(this.mcpEntry(serverName, serverUrl, token, supportsHttp))
     }
-    return [{
-      name: MCP_SERVER_NAME,
-      command: process.execPath,
-      args: [STDIO_BRIDGE_PATH],
-      env: [
-        { name: 'DSH_ACP_MCP_URL', value: url },
-        { name: 'DSH_ACP_MCP_TOKEN', value: token },
-      ],
-    }]
+    return entries
   }
 
   async resolveDefaultDshRoute(caller) {
@@ -609,6 +629,31 @@ export class DelegationHub {
     }
   }
 
+  resolveTargetServer(req) {
+    let parsedUrl
+    try {
+      parsedUrl = new URL(req.url ?? '/acp-workbench/mcp', 'http://127.0.0.1')
+    } catch {
+      return { errorStatus: 400, errorCode: -32600, errorMessage: 'Invalid MCP request URL' }
+    }
+    const prefix = '/acp-workbench/mcp/'
+    if (parsedUrl.pathname.startsWith(prefix)) {
+      const rawSegment = parsedUrl.pathname.slice(prefix.length).replace(/\/+$/u, '')
+      if (!rawSegment || rawSegment.includes('/')) {
+        return { errorStatus: 404, errorCode: -32601, errorMessage: 'Unknown MCP bridge server path' }
+      }
+      try {
+        const decoded = decodeURIComponent(rawSegment)
+        if (!decoded) return { errorStatus: 404, errorCode: -32601, errorMessage: 'Unknown MCP bridge server path' }
+        return { server: decoded }
+      } catch {
+        return { errorStatus: 400, errorCode: -32600, errorMessage: 'Invalid MCP server name in path' }
+      }
+    }
+    const queryServer = parsedUrl.searchParams.get('server')?.trim()
+    return { server: queryServer || MCP_SERVER_NAME }
+  }
+
   async handleMcpRequest(req, res) {
     const remote = req.socket?.remoteAddress ?? ''
     if (!LOOPBACK.has(remote)) {
@@ -623,6 +668,17 @@ export class DelegationHub {
       writeJson(res, 401, { jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Invalid or expired ACP delegation token' } })
       return
     }
+    const resolved = this.resolveTargetServer(req)
+    if (resolved.errorStatus) {
+      writeJson(res, resolved.errorStatus, {
+        jsonrpc: '2.0',
+        id: null,
+        error: { code: resolved.errorCode, message: resolved.errorMessage },
+      })
+      return
+    }
+    const targetServer = resolved.server
+    const isDelegation = targetServer === MCP_SERVER_NAME
     if (req.method === 'DELETE') {
       res.writeHead(204, { 'cache-control': 'no-store' })
       res.end()
@@ -665,7 +721,7 @@ export class DelegationHub {
         result: {
           protocolVersion: typeof message.params?.protocolVersion === 'string' ? message.params.protocolVersion : MCP_PROTOCOL_VERSION,
           capabilities: { tools: {} },
-          serverInfo: { name: 'dsh-acp-agents', version: '0.2.0' },
+          serverInfo: { name: isDelegation ? 'dsh-acp-agents' : targetServer, version: '0.2.0' },
         },
       }, sessionHeader)
       return
@@ -677,13 +733,15 @@ export class DelegationHub {
     }
 
     if (method === 'tools/list') {
-      writeJson(res, 200, { jsonrpc: '2.0', id, result: { tools: MCP_TOOL_LIST } }, sessionHeader)
+      const caller = this.ctx.agents?.get?.(binding.sessionId)
+      const tools = isDelegation ? MCP_TOOL_LIST : listForwardedMcpTools(this.ctx, targetServer, caller)
+      writeJson(res, 200, { jsonrpc: '2.0', id, result: { tools } }, sessionHeader)
       return
     }
 
     if (method === 'tools/call') {
-      const caller = this.ctx.agents.get(binding.sessionId)
-      if (!caller) {
+      const caller = this.ctx.agents?.get?.(binding.sessionId)
+      if (isDelegation && !caller) {
         writeJson(res, 200, {
           jsonrpc: '2.0',
           id,
@@ -692,20 +750,27 @@ export class DelegationHub {
         return
       }
       const controller = new AbortController()
-      const onClose = () => controller.abort(new Error('MCP HTTP request closed'))
+      const onClose = () => {
+        if (!res.writableEnded) controller.abort(new Error('MCP HTTP request closed'))
+      }
       res.on('close', onClose)
       try {
         const toolName = message.params?.name
         const toolArgs = message.params?.arguments ?? {}
-        const value = await this.executeTool(toolName, toolArgs, caller, controller.signal)
-        writeJson(res, 200, {
-          jsonrpc: '2.0',
-          id,
-          result: {
-            content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
-            structuredContent: value,
-          },
-        }, sessionHeader)
+        if (isDelegation) {
+          const value = await this.executeTool(toolName, toolArgs, caller, controller.signal)
+          writeJson(res, 200, {
+            jsonrpc: '2.0',
+            id,
+            result: {
+              content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+              structuredContent: value,
+            },
+          }, sessionHeader)
+        } else {
+          const result = await callForwardedMcpTool(this.ctx, targetServer, toolName, toolArgs, caller, controller.signal)
+          writeJson(res, 200, { jsonrpc: '2.0', id, result }, sessionHeader)
+        }
       } catch (error) {
         writeJson(res, 200, {
           jsonrpc: '2.0',

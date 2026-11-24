@@ -94,7 +94,7 @@ export function hasToolInput(tool) {
 
 const DSH_DELEGATION_TOOLS = new Set(['list_providers', 'spawn_agent', 'list_agents', 'send_message', 'read_agent_result', 'interrupt_agent'])
 
-function mcpIdentity(tool) {
+function mcpIdentity(tool, options = {}) {
   const wireName = firstText(tool.name)
   const metaName = firstText(tool._meta?.claudeCode?.toolName)
   const raw = tool.rawInput
@@ -113,6 +113,22 @@ function mcpIdentity(tool) {
       const toolName = name.slice(agyPrefix.length)
       if (DSH_DELEGATION_TOOLS.has(toolName)) {
         return { server: 'dsh_agents', name: toolName, wireName: `mcp__dsh_agents__${toolName}`, args: raw }
+      }
+    }
+    if (name.startsWith('mcp_') && Array.isArray(options?.mcpServers) && options.mcpServers.length > 0) {
+      const servers = options.mcpServers.filter(item => typeof item === 'string' && item).toSorted((a, b) => b.length - a.length)
+      for (const server of servers) {
+        const prefixes = [`mcp_${server}_`]
+        const normalized = server.replaceAll('-', '_')
+        if (normalized !== server) prefixes.push(`mcp_${normalized}_`)
+        for (const prefix of prefixes) {
+          if (name.startsWith(prefix)) {
+            const toolName = name.slice(prefix.length)
+            if (toolName) {
+              return { server, name: toolName, wireName: `mcp__${server}__${toolName}`, args: raw }
+            }
+          }
+        }
       }
     }
     return null
@@ -340,9 +356,9 @@ function stripTitlePrefix(title) {
   return title.trim().slice(0, 200)
 }
 
-export function mapToolCall(tool, terminal) {
+export function mapToolCall(tool, terminal, options) {
   const input = isPlainObject(tool?.rawInput) ? tool.rawInput : {}
-  const mcp = mcpIdentity(tool ?? {})
+  const mcp = mcpIdentity(tool ?? {}, options)
   if (mcp) {
     const argsObj = safeObject(mcp.args)
     if (mcp.server === 'dsh_agents' && DSH_DELEGATION_TOOLS.has(mcp.name)) {
