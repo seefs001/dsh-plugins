@@ -50,7 +50,7 @@ run:
 ## 说明
 
 - Hub 的 `reply`、`finish_execution` MCP 工具及环境变量（`PASEO_*`、`GH_TOKEN`）仅挂载到对应 Hub 会话；所用预设需支持会话级 MCP 工具（如 `standard` 或 `pi`）。
-- Hub 续聊默认 `queue`，等待当前轮次结束；`steer` 请求 DSH 在最近的步骤边界接收输入。两者的回执都只确认 DSH 已接收，不代表模型已处理。`interrupt` 会被拒绝，不会改为排队；需要停止时请单独取消运行。
+- Hub 续聊支持 `queue`、`steer` 与 `interrupt`：当目标会话处于未加载、空闲或已归档状态时会自动恢复并唤醒启动新轮次；运行中会话收到 `steer` 会在最近步骤边界注入，收到 `interrupt` 会先取消当前轮次再排队启动新轮次。
 - worktree 支持 `branch-off` 模式（需启用 worktree 服务）；一台 Host 同一时间接入一个 Hub。
 
 详见[在线文档](https://seefs001.github.io/dsh-plugins/docs/plugins/paseo-hub)。

@@ -220,6 +220,22 @@ window.__ModuleLoader__.load({
       tvInspect: 'Inspect',
       tvInput: 'IN',
       tvOutput: 'OUT',
+      statusRow: 'Host and link status',
+      machine_laptop: 'Laptop',
+      machine_desktop: 'Desktop',
+      machine_mini: 'Mini',
+      machine_workstation: 'Workstation',
+      machine_cloud: 'Cloud',
+      machine_container: 'Container',
+      machine_board: 'Board',
+      machine_server: 'Server',
+      channel_local: 'Local',
+      channel_tailscale: 'Tailscale',
+      channel_direct: 'Direct',
+      latency: 'Ping',
+      latencyPending: 'Measuring…',
+      latencyOffline: 'Offline',
+      lastHeartbeat: 'Last heartbeat',
     }
 
     const ZH = {
@@ -428,6 +444,22 @@ window.__ModuleLoader__.load({
       tvInspect: '查看',
       tvInput: '输入',
       tvOutput: '输出',
+      statusRow: '宿主机与链路状态',
+      machine_laptop: '笔记本',
+      machine_desktop: '台式机',
+      machine_mini: '迷你主机',
+      machine_workstation: '工作站',
+      machine_cloud: '云主机',
+      machine_container: '容器',
+      machine_board: '开发板',
+      machine_server: '服务器',
+      channel_local: '本地',
+      channel_tailscale: 'Tailscale',
+      channel_direct: '直连',
+      latency: '延迟',
+      latencyPending: '测速中…',
+      latencyOffline: '离线',
+      lastHeartbeat: '上次心跳',
     }
 
     const CSS = `
@@ -466,6 +498,19 @@ window.__ModuleLoader__.load({
 .ph-banner-body{flex:1;min-width:0;margin:0;overflow-wrap:anywhere;white-space:pre-wrap;font:inherit}
 .ph-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ph-facts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 16px;margin:0;padding-top:12px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.ph-status-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:7px 10px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);min-width:0}
+.ph-status-item{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:100%}
+.ph-status-item>svg{flex:none;color:var(--dsw-alias-label-tertiary)}
+.ph-status-strong{color:var(--dsw-alias-label-primary);font-weight:500;white-space:nowrap}
+.ph-status-muted{color:var(--dsw-alias-label-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ph-status-proto{padding:0 5px;border-radius:4px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);font-family:var(--ph-mono);font-size:10.5px;line-height:16px;text-transform:uppercase;color:var(--dsw-alias-label-secondary);flex:none}
+.ph-status-sep{width:1px;height:12px;background:var(--dsw-alias-border-l1);flex:none}
+.ph-status-latency{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ph-status-latency[data-tone=ok]{color:var(--dsw-alias-state-success-primary)}
+.ph-status-latency[data-tone=warn]{color:var(--dsw-alias-state-warn-primary)}
+.ph-status-latency[data-tone=slow]{color:var(--dsw-alias-state-error-primary)}
+.ph-status-latency[data-tone=idle]{color:var(--dsw-alias-label-tertiary)}
+@container (max-width:560px){.ph-status-latency{margin-left:0}}
 .ph-fact{display:flex;flex-direction:column;gap:3px;min-width:0}
 .ph-fact dt{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
 .ph-fact dd{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:0;font-size:12.5px;line-height:18px;min-width:0;overflow-wrap:anywhere}
@@ -622,6 +667,68 @@ window.__ModuleLoader__.load({
     h('circle', { cx: 17.5, cy: 6.5, r: 2.5 }),
     h('circle', { cx: 12, cy: 17, r: 3 }),
     h('path', { d: 'M8 8.5l2.6 5.6M16 8.5l-2.6 5.6' }))
+
+    const MACHINE_KINDS = new Set(['laptop', 'desktop', 'mini', 'workstation', 'cloud', 'container', 'board', 'server'])
+    const PLATFORM_LABELS = { darwin: 'macOS', linux: 'Linux', win32: 'Windows' }
+
+    const formatLatency = ms => {
+      if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return null
+      if (ms < 1) return '<1 ms'
+      if (ms < 1000) return `${Math.round(ms)} ms`
+      return `${(ms / 1000).toFixed(1)} s`
+    }
+
+    const latencyTone = ms => {
+      if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return 'idle'
+      if (ms < 120) return 'ok'
+      if (ms < 350) return 'warn'
+      return 'slow'
+    }
+
+    const svgProps = size => ({
+      width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+      strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+    })
+
+    const IconMachine = ({ kind, size = 13 }) => {
+      const p = svgProps(size)
+      switch (kind) {
+        case 'laptop':
+          return h('svg', p, h('rect', { x: 4, y: 5, width: 16, height: 11, rx: 2 }), h('path', { d: 'M2 19h20' }))
+        case 'desktop':
+          return h('svg', p, h('rect', { x: 3, y: 4, width: 18, height: 12, rx: 2 }), h('path', { d: 'M8 20h8M12 16v4' }))
+        case 'mini':
+          return h('svg', p, h('rect', { x: 3, y: 7, width: 18, height: 10, rx: 2.5 }), h('circle', { cx: 17, cy: 12, r: 1 }))
+        case 'workstation':
+          return h('svg', p, h('rect', { x: 6, y: 3, width: 12, height: 18, rx: 2 }), h('path', { d: 'M9 7h6M9 11h6' }), h('circle', { cx: 12, cy: 16.5, r: 1 }))
+        case 'cloud':
+          return h('svg', p, h('path', { d: 'M7 18h10a4 4 0 0 0 .8-7.9A5.5 5.5 0 0 0 7.2 8.7 4 4 0 0 0 7 18Z' }))
+        case 'container':
+          return h('svg', p, h('path', { d: 'M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z' }), h('path', { d: 'M4 7.5 12 12l8-4.5M12 12v9' }))
+        case 'board':
+          return h('svg', p, h('rect', { x: 6, y: 6, width: 12, height: 12, rx: 2 }), h('path', { d: 'M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4' }))
+        default:
+          return h('svg', p, h('rect', { x: 3, y: 4, width: 18, height: 6, rx: 1.5 }), h('rect', { x: 3, y: 14, width: 18, height: 6, rx: 1.5 }), h('circle', { cx: 7, cy: 7, r: 0.7 }), h('circle', { cx: 7, cy: 17, r: 0.7 }))
+      }
+    }
+
+    const IconChannel = ({ kind, size = 12 }) => {
+      const p = svgProps(size)
+      if (kind === 'local') {
+        return h('svg', p, h('rect', { x: 3, y: 4, width: 18, height: 12, rx: 2 }), h('path', { d: 'M8 20h8M12 16v4' }))
+      }
+      if (kind === 'tailscale') {
+        return h('svg', p,
+          h('circle', { cx: 6, cy: 12, r: 1.5 }),
+          h('circle', { cx: 12, cy: 12, r: 1.5 }),
+          h('circle', { cx: 18, cy: 12, r: 1.5 }),
+          h('circle', { cx: 12, cy: 6, r: 1.5 }),
+          h('circle', { cx: 12, cy: 18, r: 1.5 }))
+      }
+      return h('svg', p, h('circle', { cx: 12, cy: 12, r: 9 }), h('path', { d: 'M3 12h18M12 3a13 13 0 0 1 0 18M12 3a13 13 0 0 0 0 18' }))
+    }
+
+    const IconLatency = ({ size = 12 }) => h('svg', svgProps(size), h('path', { d: 'M3 12h4l2.5-6 5 12 2.5-6H21' }))
 
     return {
       inject: ['slots', 'locale'],
@@ -823,6 +930,37 @@ window.__ModuleLoader__.load({
           return out
         }
 
+        function ConnectionStatusRow({ data }) {
+          const host = data.host ?? {}
+          const machineKind = MACHINE_KINDS.has(host.machineKind) ? host.machineKind : 'server'
+          const osLabel = PLATFORM_LABELS[host.platform] ?? host.platform ?? null
+          const hostMeta = [osLabel, host.hostname].filter(Boolean).join(' · ')
+          const channel = data.channel ?? null
+          const channelKind = channel?.kind === 'local' || channel?.kind === 'tailscale' ? channel.kind : 'direct'
+          const channelEndpoint = channel?.endpoint ?? null
+          const formattedLatency = data.state === 'connected' ? formatLatency(data.latencyMs) : null
+          const tone = data.state === 'connected' ? latencyTone(data.latencyMs) : 'idle'
+          const latencyText = data.state === 'connected'
+            ? (formattedLatency ?? t('latencyPending'))
+            : t('latencyOffline')
+          const latencyTitle = data.lastPongAt ? `${t('lastHeartbeat')}: ${fmt(data.lastPongAt)}` : undefined
+          return h('div', { className: 'ph-status-row', role: 'group', 'aria-label': t('statusRow') },
+            h('span', { className: 'ph-status-item', 'data-part': 'host', title: hostMeta || undefined },
+              h(IconMachine, { kind: machineKind, size: 13 }),
+              h('span', { className: 'ph-status-strong' }, t(`machine_${machineKind}`)),
+              hostMeta ? h('span', { className: 'ph-status-muted' }, hostMeta) : null),
+            channel ? h(React.Fragment, null,
+              h('span', { className: 'ph-status-sep', 'aria-hidden': true }),
+              h('span', { className: 'ph-status-item', 'data-part': 'channel', title: channelEndpoint ?? undefined },
+                h(IconChannel, { kind: channelKind, size: 12 }),
+                h('span', { className: 'ph-status-strong' }, t(`channel_${channelKind}`)),
+                channel.protocol ? h('span', { className: 'ph-status-proto' }, channel.protocol) : null,
+                channelEndpoint ? h('span', { className: 'ph-status-muted' }, channelEndpoint) : null)) : null,
+            h('span', { className: 'ph-status-item ph-status-latency', 'data-part': 'latency', 'data-tone': tone, title: latencyTitle },
+              h(IconLatency, { size: 12 }),
+              h('span', null, `${t('latency')} ${latencyText}`)))
+        }
+
         function ConnectionHero({ data }) {
           const { op, confirm, copy } = useApp()
           return h('section', { className: 'ph-hero', 'aria-labelledby': 'ph-conn' },
@@ -844,6 +982,7 @@ window.__ModuleLoader__.load({
                     onConfirm: () => op({ action: 'disconnect' }),
                   }),
                 }, t('disconnect')))),
+            h(ConnectionStatusRow, { data }),
             data.lastError ? h('div', { className: 'ph-banner', 'data-tone': data.state === 'revoked' ? 'error' : 'warn', role: 'status' },
               h(IconWarningTriangleOutlineRegular, { size: 14 }),
               h('p', { className: 'ph-banner-body' }, data.lastError)) : null,
@@ -1454,7 +1593,7 @@ window.__ModuleLoader__.load({
           const state = useResource('paseo-hub/state', { n: nonce }, fast)
           const data = state.data
           React.useEffect(() => setFast(data?.state === 'signing_in' || data?.state === 'connecting'), [data?.state])
-          const [tab, setTab] = React.useState(() => sessionStorage.getItem('paseo-hub:tab') || 'overview')
+          const [tab, setTab] = React.useState(() => (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('paseo-hub:tab') : null) || 'overview')
           const [tabArgs, setTabArgs] = React.useState(null)
           const [dialog, setDialog] = React.useState(null)
           const [toast, setToast] = React.useState(null)
@@ -1488,7 +1627,7 @@ window.__ModuleLoader__.load({
               copy: async text => {
                 try { await navigator.clipboard.writeText(text); setToast(t('copied')) } catch { setToast(t('opFailed')) }
               },
-              goto: (next, args = null) => { sessionStorage.setItem('paseo-hub:tab', next); setTab(next); setTabArgs(args) },
+              goto: (next, args = null) => { if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('paseo-hub:tab', next); setTab(next); setTabArgs(args) },
             }
           }, [nonce, refresh])
 

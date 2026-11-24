@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { open, realpath, stat } from 'node:fs/promises'
 import { basename, extname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { HUB_PROVIDER, providerSnapshotEntry, resolveModes, splitHubModelId, validateAgent } from './catalog.js'
+import { getCachedHostMachineKind, isHostMachineKindPrimed, resolveHostname, waitForHostMachineKind } from './machine.js'
 
 export const HUB_SERVER = 'hub'
 const PROTOCOL_FEATURES = {
@@ -61,6 +62,8 @@ export class HubBridge {
     this.config = options.config
     this.permissions = options.permissions
     this.daemonId = options.daemonId
+    this.hostname = options.hostname !== undefined ? options.hostname : resolveHostname()
+    this.machineKind = options.machineKind
     this.log = options.log
     this.journal = options.journal ?? { add() {} }
     this.watched = new Set()
@@ -92,21 +95,27 @@ export class HubBridge {
   }
 
   serverInfo() {
-    this.emit({
-      type: 'status',
-      payload: {
-        status: 'server_info',
-        serverId: `dsh-${this.daemonId}`,
-        hostname: null,
-        version: 'dsh-paseo-hub',
-        permissions: this.permissions,
-        features: PROTOCOL_FEATURES,
-      },
-    })
+    const emitInfo = machineKind => {
+      this.emit({
+        type: 'status',
+        payload: {
+          status: 'server_info',
+          serverId: `dsh-${this.daemonId}`,
+          hostname: this.hostname,
+          version: 'dsh-paseo-hub',
+          ...machineKind ? { machineKind } : {},
+          permissions: this.permissions,
+          features: PROTOCOL_FEATURES,
+        },
+      })
+    }
+    if (this.machineKind !== undefined) return emitInfo(this.machineKind)
+    if (isHostMachineKindPrimed()) return emitInfo(getCachedHostMachineKind())
+    return waitForHostMachineKind(150).then(emitInfo)
   }
 
   async receive(frame) {
-    if (frame?.type === 'hello') return this.serverInfo()
+    if (frame?.type === 'hello') return await this.serverInfo()
     if (frame?.type !== 'session' || typeof frame.message?.type !== 'string') return
     const message = frame.message
     const { type, requestId } = message
@@ -152,16 +161,16 @@ export class HubBridge {
     }
   }
 
-  async catalogs() {
+  async catalogs(cwd) {
     const [catalog, permissions] = await Promise.all([
-      this.ctx.sessionController.modelCatalog(),
+      cwd === undefined ? this.ctx.sessionController.modelCatalog() : this.ctx.sessionController.modelCatalog({ cwd }),
       Promise.resolve(this.ctx.get?.('permissionPresets')?.catalog?.()),
     ])
     return { catalog, modes: resolveModes(this.config, permissions) }
   }
 
   async providersSnapshot(message) {
-    const { catalog, modes } = await this.catalogs()
+    const { catalog, modes } = await this.catalogs(message.cwd)
     const now = new Date()
     this.reply('get_providers_snapshot_response', message.requestId, {
       ...message.cwd === undefined ? {} : { cwd: message.cwd },
@@ -174,7 +183,16 @@ export class HubBridge {
     let issues = []
     let error = null
     try {
-      issues = validateAgent(message, await this.catalogs())
+      const cwd = message.cwd
+      const catalogs = await this.catalogs(cwd)
+      issues = validateAgent({
+        provider: message.provider,
+        ...cwd === undefined ? {} : { cwd },
+        model: message.model,
+        modeId: message.modeId,
+        thinkingOptionId: message.thinkingOptionId,
+        providerOptions: message.providerOptions,
+      }, catalogs)
     } catch (failure) {
       error = failure?.message ?? String(failure)
     }
@@ -236,9 +254,10 @@ export class HubBridge {
       return existing.sessionId
     }
     if (typeof config.cwd !== 'string' || !isAbsolute(config.cwd)) throw new RpcError('Hub agent cwd must be an absolute path')
-    const { catalog, modes } = await this.catalogs()
+    const { catalog, modes } = await this.catalogs(config.cwd)
     const issues = validateAgent({
       provider: config.provider,
+      cwd: config.cwd,
       model: config.model,
       modeId: config.modeId,
       thinkingOptionId: config.thinkingOptionId,
@@ -348,21 +367,59 @@ export class HubBridge {
     }
   }
 
+  async ensureSessionReady(sessionId, run) {
+    let restored = false
+    const archivedInRegistry = this.ctx.workspaceRegistry?.archivedSessionIds?.includes(sessionId) === true
+    if (archivedInRegistry) {
+      await this.ctx.workspaceController.unarchiveSession({ sessionId })
+      restored = true
+    }
+    if (run.archivedAt !== null) {
+      await this.store.put({ ...run, archivedAt: null })
+      restored = true
+    }
+    if (this.ctx.agents.get(sessionId) === undefined) {
+      const found = await this.ctx.sessionController.resolveAgent(sessionId)
+      if (found && typeof found === 'object' && 'error' in found && found.error) {
+        throw new RpcError(found.error?.message ?? String(found.error))
+      }
+      restored = true
+    }
+    if (restored) {
+      this.journal.add({ kind: 'run.restored', message: 'Hub woke the run for an incoming message', sessionId })
+      this.publishUpdate(sessionId)
+    }
+    return restored
+  }
+
   async sendMessage(message) {
     const run = this.store.bySession(message.agentId)
     if (run === undefined) throw new RpcError(`Agent ${message.agentId} is not a Hub agent on this host`)
-    if (this.ctx.workspaceRegistry?.archivedSessionIds?.includes(message.agentId)) throw new RpcError('Agent workspace is archived; restore it first')
     const mode = message.activeTurnBehavior ?? 'queue'
-    if (mode !== 'queue' && mode !== 'steer') throw new RpcError(`DSH does not support activeTurnBehavior "${mode}" for Hub messages; send with queue or steer instead`)
+    if (mode !== 'queue' && mode !== 'steer' && mode !== 'interrupt') {
+      throw new RpcError(`DSH does not support activeTurnBehavior "${mode}" for Hub messages; send with queue, steer, or interrupt instead`)
+    }
+    const restored = await this.ensureSessionReady(message.agentId, run)
+    const running = this.ctx.agents.get(message.agentId)?.status === 'running'
+    if (mode === 'interrupt' && running) {
+      this.ctx.sessionController.cancel({ sessionId: message.agentId })
+    }
+    const promptMode = mode === 'steer' && running ? 'steer' : 'queue'
     await this.ctx.sessionController.prompt({
       requestId: String(message.messageId ?? message.requestId),
       sessionId: message.agentId,
-      mode,
+      mode: promptMode,
       content: [{ type: 'text', text: String(message.text ?? '') }],
     }, AbortSignal.timeout(30_000))
-    const guidance = mode === 'queue'
-      ? 'DSH accepted the follow-up for a turn after any current one. This does not confirm execution.'
-      : 'DSH accepted next-step input. This does not interrupt a turn or confirm that a running model received it.'
+    const guidance = !running
+      ? restored
+        ? 'DSH restored the session and started a new turn with your message.'
+        : 'The session was idle; DSH started a new turn with your message.'
+      : mode === 'interrupt'
+        ? 'DSH canceled the running turn and queued your message to start a new turn.'
+        : mode === 'steer'
+          ? 'DSH accepted next-step input for the running turn. This does not confirm that a running model received it.'
+          : 'DSH accepted the follow-up for a turn after any current one. This does not confirm execution.'
     this.journal.add({ kind: 'run.message', message: `Hub follow-up (${mode}): ${guidance} ${String(message.text ?? '').slice(0, 160)}`, sessionId: message.agentId })
     this.reply('send_agent_message_response', message.requestId, { agentId: message.agentId, accepted: true, deliveryStatus: 'queued', activeTurnBehavior: mode, guidance, error: null })
   }

@@ -1,3 +1,5 @@
+import { isAbsolute } from 'node:path'
+
 export const HUB_PROVIDER = 'dsh'
 export const HUB_PROVIDER_LABEL = 'DeepSeek Harness'
 
@@ -73,11 +75,14 @@ export function providerSnapshotEntry({ catalog, modes, now }) {
   }
 }
 
-export function validateAgent({ provider, model, modeId, thinkingOptionId, providerOptions }, { catalog, modes }) {
+export function validateAgent({ provider, cwd, model, modeId, thinkingOptionId, providerOptions }, { catalog, modes }) {
   const issues = []
   if (provider !== HUB_PROVIDER) {
     issues.push({ path: ['provider'], message: `This DeepSeek Harness host runs only provider '${HUB_PROVIDER}'` })
     return issues
+  }
+  if (cwd !== undefined && (typeof cwd !== 'string' || !isAbsolute(cwd))) {
+    issues.push({ path: ['cwd'], message: 'Hub agent cwd must be an absolute path' })
   }
   let resolved
   if (model !== undefined) {

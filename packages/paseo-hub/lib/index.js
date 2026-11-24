@@ -1,8 +1,8 @@
-import { hostname } from 'node:os'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { Schema } from './runtime.js'
+import { Schema, WebSocket } from './runtime.js'
 import {
   HubHttpError,
+  describeConnectionChannel,
   enrollDaemon,
   issueEnrollmentToken,
   normalizeHubOrigin,
@@ -14,6 +14,7 @@ import {
 import { HUB_SERVER, HubBridge } from './bridge.js'
 import { resolveModes } from './catalog.js'
 import { HubApi, ApiError, apiFailure, registerApiTools } from './api.js'
+import { getCachedHostMachineKind, primeHostMachineKind, resolveHostname, waitForHostMachineKind } from './machine.js'
 
 export const name = 'paseo-hub'
 export const inject = ['sessionController', 'agents', 'storageDomain', 'credentials', 'webServer', 'connection', 'tools', 'workspaceController', 'workspaceRegistry']
@@ -154,6 +155,8 @@ class Connector {
     this.state = 'not_connected'
     this.lastError = null
     this.connectedAt = null
+    this.latencyMs = null
+    this.lastPongAt = null
     this.login = null
     this.loginAbort = null
     this.enrolling = null
@@ -193,6 +196,7 @@ class Connector {
 
   snapshot() {
     const rel = this.relationship
+    const channel = describeConnectionChannel(rel?.webSocketUrl ?? rel?.hubOrigin)
     return {
       state: this.state,
       hubOrigin: rel?.hubOrigin ?? null,
@@ -203,6 +207,15 @@ class Connector {
       connectedAt: this.connectedAt,
       lastError: this.lastError,
       login: this.login,
+      host: {
+        hostname: resolveHostname(),
+        machineKind: getCachedHostMachineKind(),
+        platform: process.platform,
+        arch: process.arch,
+      },
+      channel,
+      latencyMs: this.state === 'connected' ? this.latencyMs : null,
+      lastPongAt: this.state === 'connected' ? this.lastPongAt : null,
     }
   }
 
@@ -298,7 +311,7 @@ class Connector {
         token,
         daemonId,
         idempotencyKey,
-        hostname: hostname().replace(/\.local$/u, ''),
+        hostname: resolveHostname() ?? undefined,
         serverId: `dsh-${daemonId}`,
         daemonPublicKey: `dsh-${daemonId}`,
         secret,
@@ -342,7 +355,9 @@ class Connector {
       return
     }
     this.state = this.connectedAt === null && this.state !== 'reconnecting' ? 'connecting' : 'reconnecting'
-    this.socket = openDaemonSocket({ webSocketUrl: rel.webSocketUrl, daemonId: rel.daemonId, secret }, {
+    this.latencyMs = null
+    this.lastPongAt = null
+    this.socket = openDaemonSocket({ webSocketUrl: rel.webSocketUrl, daemonId: rel.daemonId, secret, WebSocketImpl: WebSocket }, {
       connected: socket => {
         if (generation !== this.generation) return socket.close()
         const bridge = new HubBridge(this.ctx, {
@@ -351,6 +366,7 @@ class Connector {
           config: this.config,
           permissions: rel.permissions,
           daemonId: rel.daemonId,
+          hostname: resolveHostname(),
           log: (level, msg) => this.log(level, msg),
           journal: this.journal,
         })
@@ -367,6 +383,11 @@ class Connector {
         this.lastError = null
         this.retryDelay = RECONNECT_MIN_MS
         this.log('info', `connected to ${rel.hubOrigin}`)
+      },
+      heartbeat: ({ latencyMs, lastPongAt }) => {
+        if (generation !== this.generation) return
+        this.latencyMs = latencyMs
+        this.lastPongAt = lastPongAt
       },
       rejected: status => {
         if (generation !== this.generation) return
@@ -399,6 +420,8 @@ class Connector {
     this.bridge?.close()
     this.bridge = null
     this.socket = null
+    this.latencyMs = null
+    this.lastPongAt = null
   }
 
   scheduleReconnect(reason) {
@@ -510,6 +533,7 @@ const matches = (query, ...fields) => {
 }
 
 export function apply(ctx, config) {
+  void primeHostMachineKind()
   let connector
   let store
   let journal
@@ -661,7 +685,7 @@ export function apply(ctx, config) {
       if (!owner(res, peer)) return
       if (req.method !== 'GET') return sendJson(res, 405, { message: 'GET only' })
       try {
-        await ready
+        await Promise.all([ready, waitForHostMachineKind(150)])
         const presets = ctx.get('permissionPresets')
         const modes = resolveModes(config, presets?.catalog?.())
         sendJson(res, 200, {

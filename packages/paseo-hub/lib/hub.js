@@ -1,9 +1,37 @@
 import { createHash } from 'node:crypto'
-import { WebSocket } from './runtime.js'
 
 const REQUEST_TIMEOUT_MS = 15_000
 const PING_INTERVAL_MS = 10_000
 const PONG_TIMEOUT_MS = 45_000
+
+function isTailscaleIpv4(host) {
+  const parts = host.split('.')
+  if (parts.length !== 4) return false
+  const octets = parts.map(part => (/^\d+$/.test(part) ? Number(part) : Number.NaN))
+  if (octets.some(octet => !Number.isInteger(octet) || octet < 0 || octet > 255)) return false
+  return octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127
+}
+
+function isTailscaleHost(host) {
+  if (!host) return false
+  if (host.endsWith('.ts.net') && host.length > '.ts.net'.length) return true
+  return isTailscaleIpv4(host) || host.startsWith('fd7a:115c:a1e0:')
+}
+
+function isLoopbackHost(host) {
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]'
+}
+
+export function describeConnectionChannel(rawUrl) {
+  if (typeof rawUrl !== 'string' || !rawUrl.trim()) return null
+  let parsed
+  try { parsed = new URL(rawUrl) } catch { return null }
+  const host = parsed.hostname.toLowerCase()
+  const protocol = parsed.protocol === 'wss:' || parsed.protocol === 'https:' ? 'wss' : 'ws'
+  const kind = isLoopbackHost(host) ? 'local' : isTailscaleHost(host) ? 'tailscale' : 'direct'
+  const endpoint = parsed.host.replace(/:(?:443|80)$/u, '')
+  return { kind, protocol, secure: protocol === 'wss', endpoint }
+}
 
 export class HubHttpError extends Error {
   constructor(message, status) {
@@ -109,50 +137,89 @@ export async function revokeDaemon(origin, daemonId, secret) {
   if (status >= 400 && ![401, 403, 404].includes(status)) throw new HubHttpError(`Hub revocation failed (HTTP ${status})`, status)
 }
 
-export function openDaemonSocket({ webSocketUrl, daemonId, secret }, events) {
-  const socket = new WebSocket(webSocketUrl, {
-    handshakeTimeout: REQUEST_TIMEOUT_MS,
-    headers: {
-      authorization: `Bearer ${secret}`,
-      'x-paseo-daemon-id': daemonId,
-      'x-paseo-session-protocol': '1',
-    },
-  })
+export function openDaemonSocket({
+  webSocketUrl,
+  daemonId,
+  secret,
+  WebSocketImpl,
+  pingIntervalMs = PING_INTERVAL_MS,
+  pongTimeoutMs = PONG_TIMEOUT_MS,
+}, events) {
+  let closedEarly = false
+  let activeSocket = null
   let settled = false
   let heartbeat
   let lastPong = 0
+  let pingSentAt = 0
   const stop = () => { clearInterval(heartbeat); heartbeat = undefined }
-  const settle = (fn) => {
+  const settle = fn => {
     if (settled) return
     settled = true
     stop()
     fn()
   }
-  socket.on('pong', () => { lastPong = Date.now() })
-  socket.once('open', () => {
-    lastPong = Date.now()
-    heartbeat = setInterval(() => {
-      if (socket.readyState !== WebSocket.OPEN) return
-      if (Date.now() - lastPong >= PONG_TIMEOUT_MS) {
-        socket.terminate()
-        settle(() => events.failed(new Error('Hub WebSocket heartbeat timed out')))
-        return
-      }
+  const attach = Ws => {
+    if (closedEarly || settled) return
+    const socket = new Ws(webSocketUrl, {
+      handshakeTimeout: REQUEST_TIMEOUT_MS,
+      headers: {
+        authorization: `Bearer ${secret}`,
+        'x-paseo-daemon-id': daemonId,
+        'x-paseo-session-protocol': '1',
+      },
+    })
+    activeSocket = socket
+    const openState = Ws.OPEN ?? 1
+    const sendPing = () => {
+      if (socket.readyState !== openState) return
+      pingSentAt = performance.now()
       socket.ping()
-    }, PING_INTERVAL_MS)
-    heartbeat.unref?.()
-    events.connected(socket)
-  })
-  socket.once('unexpected-response', (_req, res) => {
-    const status = res.statusCode
-    res.destroy()
-    socket.terminate()
-    settle(() => (status === 401 || status === 403 ? events.rejected(status) : events.closed(1006, `HTTP ${status}`)))
-  })
-  socket.once('close', (code, reason) => settle(() => events.closed(code, reason?.toString?.() ?? '')))
-  socket.once('error', error => {
-    socket.terminate()
-    settle(() => events.failed(error))
-  })
-  return { close: () => { settled = true; stop(); socket.close() } }
+    }
+    socket.on('pong', () => {
+      const now = Date.now()
+      lastPong = now
+      const lastPongAt = new Date(now).toISOString()
+      if (pingSentAt > 0) {
+        const latencyMs = Math.max(0, Math.round(performance.now() - pingSentAt))
+        pingSentAt = 0
+        events.heartbeat?.({ latencyMs, lastPongAt })
+      }
+    })
+    socket.once('open', () => {
+      lastPong = Date.now()
+      sendPing()
+      heartbeat = setInterval(() => {
+        if (socket.readyState !== openState) return
+        if (Date.now() - lastPong >= pongTimeoutMs) {
+          socket.terminate()
+          settle(() => events.failed(new Error('Hub WebSocket heartbeat timed out')))
+          return
+        }
+        sendPing()
+      }, pingIntervalMs)
+      heartbeat.unref?.()
+      events.connected(socket)
+    })
+    socket.once('unexpected-response', (_req, res) => {
+      const status = res.statusCode
+      res.destroy()
+      socket.terminate()
+      settle(() => (status === 401 || status === 403 ? events.rejected(status) : events.closed(1006, `HTTP ${status}`)))
+    })
+    socket.once('close', (code, reason) => settle(() => events.closed(code, reason?.toString?.() ?? '')))
+    socket.once('error', error => {
+      socket.terminate()
+      settle(() => events.failed(error))
+    })
+  }
+  if (WebSocketImpl) attach(WebSocketImpl)
+  else void import('./runtime.js').then(({ WebSocket }) => attach(WebSocket)).catch(error => settle(() => events.failed(error)))
+  return {
+    close: () => {
+      closedEarly = true
+      settled = true
+      stop()
+      activeSocket?.close()
+    },
+  }
 }
