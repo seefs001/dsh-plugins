@@ -1,5 +1,5 @@
 export const name = 'branch-switcher'
-export const inject = ['commands', 'tools', 'subprocess', 'sandbox', 'sandboxPolicy', 'workingDirectory']
+export const inject = ['agents', 'commands', 'tools', 'subprocess', 'sandbox', 'sandboxPolicy', 'workingDirectory']
 export const OP_PATH = '/branch-switcher/op'
 
 const COMMAND = 'branch-switcher'
@@ -15,8 +15,21 @@ const GIT_ENV = {
   GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0', GIT_NO_LAZY_FETCH: '1', LC_ALL: 'C',
 }
 
+function hasStartedTurn(ctx, session, fallbackAgents) {
+  const agents = ctx.get?.('agents') ?? fallbackAgents
+  if (typeof agents?.turnBoundaryOf === 'function') {
+    const boundary = agents.turnBoundaryOf(session)
+    return boundary.lastTurn > 0 || boundary.openTurnStartSeq !== null
+  }
+  const events = typeof session?.snapshotEvents === 'function' ? session.snapshotEvents() : session?.events
+  return Array.isArray(events) && events.some(event => event.type === 'turn/start')
+}
+
 export class BranchSwitcher {
-  constructor(signal) { this.signal = signal }
+  constructor(signal, agents) {
+    this.signal = signal
+    this.agents = agents
+  }
 
   async run(agent, args, callerSignal) {
     if (!agent) throw new Error('A Session is required')
@@ -83,7 +96,7 @@ export class BranchSwitcher {
       try {
         maintenanceSignal.throwIfAborted()
         signal.throwIfAborted()
-        if (session.events.some(event => event.type === 'turn/start')) throw new Error('Branches can only be switched before the first message')
+        if (hasStartedTurn(ctx, session, this.agents)) throw new Error('Branches can only be switched before the first message')
         const policy = sandboxPolicy.resolve({ session })
         if (policy.mode === 'read-only') throw new Error('Branch switching is unavailable in read-only mode')
         if (workingDirectory.get(session) !== cwd) throw new Error('The Session directory changed; refresh the branch list')
@@ -118,7 +131,7 @@ async function readBody(req) {
 
 export function apply(ctx) {
   const lifetime = new AbortController()
-  const service = new BranchSwitcher(lifetime.signal)
+  const service = new BranchSwitcher(lifetime.signal, ctx.agents)
   const tasks = new Set()
   const run = (agent, args, signal) => {
     const task = service.run(agent, args, signal)
