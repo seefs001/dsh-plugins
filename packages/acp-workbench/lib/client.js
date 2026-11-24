@@ -5,7 +5,7 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const {
       Button, CodeBlock, DiffBlock, DisclosureRow, Input, JsonBlock, MarkdownText, Menu, Modal, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, TextShimmer, Tooltip, WebBlock, diffTotals, extractMarkdownPlainText,
-      IconBranchOutlineRegular, IconBrowseOutlineRegular, IconCheckOutlineRegular, IconChecklistOutlineRegular, IconClockOutlineRegular, IconCloseOutlineRegular, IconCodeOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconInspectOutlineRegular, IconPlayOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular, IconUsersOutlineRegular,
+      IconBranchOutlineRegular, IconBrowseOutlineRegular, IconCheckOutlineRegular, IconChecklistOutlineRegular, IconClockOutlineRegular, IconCloseOutlineRegular, IconCodeOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconInspectOutlineRegular, IconPlayOutlineRegular, IconRightUpOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular, IconStopFillRegular, IconUsersOutlineRegular,
       IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular,
       IconWarningTriangleOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
@@ -58,7 +58,7 @@ window.__ModuleLoader__.load({
       contextRecent: 'CLI context · last report', contextRecorded: 'Reported CLI context', contextReplay: 'Context in replayed history', ctxAt: 'Reported at {time}', ctxScope: 'Context window usage (not billing or quota).', ctxCost: 'Cumulative session cost: {amount} {unit}', ctxTotals: 'CLI session token totals', ctxTotalsScope: 'Cumulative session totals reported at the end of this turn.', ctxTotal: 'Total', ctxInput: 'Input', ctxOutput: 'Output', ctxCacheRead: 'Cache read', ctxCacheWrite: 'Cache write', ctxThought: 'Reasoning', ctxModel: 'Reported model: {model}',
       usageContext: 'Context {used} / {size} ({percent}%)', usageCost: 'Cost {amount} {currency}',
       unknownUsage: 'Not reported by this agent.',
-      children: 'ACP subagents', stop: 'Stop', pending: 'Needs you', expand: 'Show trace', collapse: 'Hide trace',
+      children: 'ACP subagents', childrenWaiting: '{n} waiting', childrenRunning: '{n} in progress', childrenReview: '{n} to review', childrenDone: '{n} completed', childrenIdle: '{n} idle', stop: 'Stop', pending: 'Needs you', expand: 'Show trace', collapse: 'Hide trace',
       'state.starting': 'Connecting', 'state.idle': 'Ready', 'state.running': 'Running', 'state.waiting': 'Needs your response',
       'state.canceling': 'Stopping', 'state.disconnected': 'Disconnected', 'state.error': 'Error', 'state.preparing': 'Preparing',
       'state.completed': 'Completed', 'state.interrupted': 'Interrupted', 'state.failed': 'Failed',
@@ -217,7 +217,7 @@ window.__ModuleLoader__.load({
       contextRecent: 'CLI 上下文 · 最近报告', contextRecorded: 'CLI 报告的上下文', contextReplay: '回放中的上下文报告', ctxAt: '报告时间：{time}', ctxScope: '当前上下文窗口占用（非计费或额度）。', ctxCost: '会话累计费用：{amount} {unit}', ctxTotals: 'CLI 会话累计 token', ctxTotalsScope: '本轮结束时 CLI 返回的会话累计总量。', ctxTotal: '总计', ctxInput: '输入', ctxOutput: '输出', ctxCacheRead: '缓存读取', ctxCacheWrite: '缓存写入', ctxThought: '推理', ctxModel: '报告模型：{model}',
       usageContext: '上下文 {used} / {size}（{percent}%）', usageCost: '费用 {amount} {currency}',
       unknownUsage: '此 Agent 尚未上报。',
-      children: 'ACP 子任务', stop: '停止', pending: '待处理', expand: '展开轨迹', collapse: '收起轨迹',
+      children: 'ACP 子任务', childrenWaiting: '{n} 待回应', childrenRunning: '{n} 进行中', childrenReview: '{n} 需查看', childrenDone: '{n} 已完成', childrenIdle: '{n} 未运行', stop: '停止', pending: '待处理', expand: '展开轨迹', collapse: '收起轨迹',
       'state.starting': '连接中', 'state.idle': '就绪', 'state.running': '执行中', 'state.waiting': '等待你回应',
       'state.canceling': '停止中', 'state.disconnected': '已断开', 'state.error': '错误', 'state.preparing': '准备中',
       'state.completed': '已完成', 'state.interrupted': '已中断', 'state.failed': '失败',
@@ -360,12 +360,10 @@ window.__ModuleLoader__.load({
 .aw-textarea:focus{border-color:var(--dsw-alias-state-business-primary)}
 .aw-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
 .aw-confirm-body{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);max-height:50vh;overflow:auto}
-.aw-toggle{display:inline-grid;place-items:center;flex:none;width:28px;height:28px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
-@media (hover:hover){.aw-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 
-.aw-dock{container-type:inline-size;display:flex;flex-direction:column;gap:8px;flex:none;margin:0 auto;
-  width:calc(100% - 2 * var(--dsh-composer-side-clearance,16px) - 32px);
-  max-width:var(--dsh-chat-content-width,calc(var(--dsh-composer-card-max-width,760px) - 32px))}
+.aw-dock{container-type:inline-size;display:flex;flex-direction:column;gap:var(--dsh-composer-stack-gap,6px);flex:none;margin:0 auto;
+  width:calc(100% - 2 * var(--dsh-composer-side-clearance,16px) - 4 * var(--dsh-composer-dock-inset,8px));
+  max-width:calc(var(--dsh-composer-card-max-width,760px) - 4 * var(--dsh-composer-dock-inset,8px))}
 .aw-card{position:relative;isolation:isolate;border-radius:var(--dsw-radius-lg,12px);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-panel);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}
 .aw-card::before{content:'';position:absolute;z-index:-1;inset:0;border-radius:inherit;pointer-events:none;background:var(--dsw-specific-menu,var(--dsw-alias-bg-base));backdrop-filter:var(--dsw-menu-backdrop-filter)}
 .aw-card[data-tone=warn]{--dsw-elevation-stroke-color:var(--dsw-alias-state-warn-secondary)}
@@ -464,9 +462,44 @@ window.__ModuleLoader__.load({
 .aw-plan-footer{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:8px 16px 12px}
 .aw-plan-footer .aw-reason{flex:1 1 180px;max-width:320px;margin-right:auto}
 
-.aw-child{border-top:.5px solid var(--dsw-alias-border-l1)}
-.aw-child-body{padding:0 12px 10px}
-.aw-child-ask{padding:0 12px 10px}
+.aw-children-card{overflow:hidden}
+.aw-children-body{display:flex;flex-direction:column;gap:4px;padding:6px 12px}
+.aw-children-head{display:flex;align-items:center;gap:10px;width:100%;padding:0;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.aw-children-lead{display:grid;flex:none;place-items:center;width:16px;height:16px;color:var(--dsw-alias-label-tertiary)}
+.aw-children-title{flex:none;font-size:13px;line-height:24px;font-weight:500;color:var(--dsw-alias-label-primary);white-space:nowrap}
+.aw-children-progress{flex:1 1 auto;min-width:0;overflow:hidden;font-size:13px;line-height:20px;font-weight:400;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;text-overflow:ellipsis;white-space:nowrap}
+.aw-children-progress-warn{color:var(--dsw-alias-state-warn-primary)}
+.aw-children-chevron{display:grid;flex:none;place-items:center;width:16px;height:16px;color:var(--dsw-alias-label-tertiary)}
+.aw-children-list{display:flex;flex-direction:column;gap:2px;margin:0 -6px;padding:0;list-style:none;max-height:min(45vh,360px);overflow-y:auto;overscroll-behavior:contain}
+.aw-children-fold{display:flex;align-items:center;min-height:24px;margin:4px 6px 0;padding-top:4px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.aw-children-fold-btn{display:inline-flex;align-items:center;gap:4px;padding:2px 0;border:0;border-radius:var(--dsw-radius-xs,4px);background:transparent;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;cursor:pointer}
+.aw-children-fold-btn:focus-visible{color:var(--dsw-alias-label-secondary)}
+@media (hover:hover){.aw-children-fold-btn:hover{color:var(--dsw-alias-label-secondary)}}
+.aw-children-fold-chevron{transition:transform 120ms ease;transform:rotate(-90deg)}
+.aw-children-fold-chevron[data-open=true]{transform:none}
+.aw-child{display:flex;flex-direction:column;min-width:0}
+.aw-child-line{position:relative;display:flex;align-items:center;gap:10px;min-height:28px;padding:4px 6px;border-radius:var(--dsw-radius-sm,8px);min-width:0}
+@media (hover:hover){.aw-child-line[data-interactive=true]:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.aw-child-line:has(>.aw-child-trigger:focus-visible){outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+.aw-child-trigger{display:flex;flex:1 1 auto;align-items:center;gap:10px;min-width:0;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left}
+button.aw-child-trigger{cursor:pointer}
+button.aw-child-trigger::after{content:'';position:absolute;inset:0;border-radius:inherit}
+button.aw-child-trigger:focus-visible{outline:none}
+.aw-child-glyph{display:grid;flex:none;place-items:center;width:16px;height:20px}
+.aw-child-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:20px;font-weight:400;color:var(--dsw-alias-label-primary)}
+.aw-child-status{flex:none;font-size:12px;line-height:20px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}
+.aw-child-status[data-tone=warn]{color:var(--dsw-alias-state-warn-primary)}
+.aw-child-status[data-tone=error]{color:var(--dsw-alias-state-error-primary)}
+.aw-child-actions{position:relative;z-index:1;display:inline-flex;flex:none;align-items:center;gap:2px}
+.aw-child-action{display:inline-flex;flex:none;align-items:center;justify-content:center;width:24px;height:24px;margin:-2px 0;padding:0;border:0;border-radius:var(--dsw-radius-xs,4px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;transition:color 120ms ease,background-color 120ms ease}
+@media (hover:hover){.aw-child-action:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.aw-child-stop:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-danger,color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent));color:var(--dsw-alias-state-error-primary)}}
+.aw-child-action:disabled{opacity:.4;cursor:default}
+.aw-child-chevron{display:grid;flex:none;place-items:center;width:16px;height:20px;color:var(--dsw-alias-label-tertiary);pointer-events:none}
+.aw-child-chevron>svg{transition:transform 120ms ease}
+.aw-child-chevron[data-open=true]>svg{transform:rotate(180deg)}
+.aw-child-ask{margin:4px 6px 6px}
+.aw-child-body{margin:2px 6px 6px;padding:6px 0 2px 26px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.aw-child-error{margin:2px 6px 4px 32px}
 
 .aw-review-patch{overflow:auto;max-width:100%;font:12px/1.55 ui-monospace,monospace}.aw-patch-line{display:grid;grid-template-columns:4em 4em minmax(max-content,1fr);min-width:max-content}.aw-patch-line>span,.aw-patch-line>button{text-align:end;padding:0 6px;color:var(--dsw-alias-label-tertiary)}.aw-patch-line>button{font:inherit;background:none;border:0;cursor:pointer;text-decoration:underline}.aw-patch-line>code{font:inherit;white-space:pre;padding-inline-start:7px}.aw-patch-line[data-side=add]{background:var(--dsw-alias-code-diff-added)}.aw-patch-line[data-side=del]{background:var(--dsw-alias-code-diff-deleted)}.aw-patch-hunk{color:var(--dsw-alias-label-secondary);white-space:pre;padding:3px 0}.aw-review-preview{border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:10px;min-width:0}
 .aw-task-lane{min-width:0;border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:8px;margin-inline-start:5px}.aw-task-origin{font-size:11px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}.aw-task-nav{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}.aw-task-nav>.aw-strong{overflow-wrap:anywhere}.aw-task-scope{display:grid;gap:4px;padding:7px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.aw-task-progress{min-width:0;font-size:13px}.aw-task-progress .aw-text{max-height:12em;overflow:auto}
@@ -1572,8 +1605,6 @@ window.__ModuleLoader__.load({
         }
         const truncated = n => t('truncated', { n: number(n) })
         const Json = ({ label, payload, open }) => h(JsonBlock, { label, payload, defaultOpen: !!open, truncatedLabel: truncated })
-        const Toggle = ({ open, onClick, label }) => h('button', { type: 'button', className: 'aw-toggle', 'aria-expanded': open, 'aria-label': label, title: label, onClick },
-          h(open ? IconChevronUpOutlineRegular : IconChevronDownOutlineRegular, { size: 14 }))
         function Status({ state, live = true }) {
           return h('span', { className: 'aw-row', style: { gap: 6, flexWrap: 'nowrap' } }, h(StateDot, { state: settle(DOT[state] ?? 'idle', live), size: 8 }), h('span', { className: 'aw-ellipsis' }, stateText(state)))
         }
@@ -3044,29 +3075,112 @@ window.__ModuleLoader__.load({
         }
         const stopOperation = session => ({ action: 'native-stop', dshSessionId: session.native.sessionId, externalId: session.id, stopId: session.activity.stopId })
 
-        function activityLabel(session) {
+        function childDotState(session) {
           const { group, runState } = session.activity
-          if (group === 'working' && runState === 'preparing' && !BUSY.has(session.state)) return stateText('preparing')
-          const connection = stateText(session.state)
-          return ['recent', 'review'].includes(group) && ['completed', 'interrupted', 'failed'].includes(runState)
-            ? `${stateText(runState)} · ${connection}` : connection
+          if (group === 'attention') return 'warning'
+          if (group === 'working') return 'ongoing'
+          if (group === 'review') return session.state === 'error' || runState === 'failed' ? 'error' : 'warning'
+          return runState === 'completed' ? 'done' : 'idle'
+        }
+
+        function childStatus(session, tt) {
+          const { group, runState } = session.activity
+          if (group === 'attention') return { text: tt('pending'), tone: 'warn' }
+          if (group === 'working') {
+            if (runState === 'preparing' && !BUSY.has(session.state)) return { text: stateText('preparing'), tone: null }
+            return { text: stateText(session.state === 'idle' ? 'running' : session.state), tone: null }
+          }
+          if (group === 'review') {
+            const label = ['failed', 'interrupted'].includes(runState) ? stateText(runState) : stateText('error')
+            return { text: label, tone: session.state === 'error' || runState === 'failed' ? 'error' : 'warn' }
+          }
+          return { text: runState === 'completed' ? stateText('completed') : stateText(session.state), tone: null }
         }
 
         function ChildRow({ child, sessionId, view, canWrite }) {
           const tt = useT()
           const [expanded, setExpanded] = React.useState(false)
+          const [openError, setOpenError] = React.useState('')
           const latest = child.native.runs.at(-1)
-          return h('div', { className: 'aw-child' },
-            h('div', { className: 'aw-bar' },
-              h(StateDot, { state: DOT[child.state] ?? 'idle' }),
-              h('span', { className: 'aw-strong aw-ellipsis' }, child.native.name ?? child.title),
-              h('span', { className: 'aw-muted' }, activityLabel(child)),
-              h('span', { className: 'aw-grow' }), h(OpenConversation, { session: child }),
-              child.activity.stopId ? h(Button, { size: 'sm', variant: 'ghost', disabled: !canWrite || view.busy || child.state === 'canceling', onClick: () => view.run(stopOperation(child)) }, tt('stop')) : null,
-              latest ? h(Toggle, { open: expanded, label: tt(expanded ? 'collapse' : 'expand'), onClick: () => setExpanded(!expanded) }) : null),
+          const name = child.native.name ?? child.title
+          const status = childStatus(child, tt)
+          const s = child.native
+          const isNested = s?.rootSessionId && s.sessionId !== s.rootSessionId
+          const openLabel = tt(isNested && !s.parentSessionId ? 'openRoot' : 'openConversation')
+          const body = h(React.Fragment, null,
+            h('span', { className: 'aw-child-glyph', 'aria-hidden': true }, h(StateDot, { state: childDotState(child) })),
+            h('span', { className: 'aw-child-name', title: name }, name),
+            h('span', { className: 'aw-child-status', 'data-tone': status.tone || undefined }, status.text))
+          return h('li', { className: 'aw-child' },
+            h('div', { className: 'aw-child-line', 'data-interactive': latest ? 'true' : undefined },
+              latest
+                ? h('button', { type: 'button', className: 'aw-child-trigger', 'aria-expanded': expanded, 'aria-label': `${name} · ${tt(expanded ? 'collapse' : 'expand')}`, onClick: () => setExpanded(v => !v) }, body)
+                : h('span', { className: 'aw-child-trigger' }, body),
+              h('div', { className: 'aw-child-actions' },
+                s ? h(Tooltip, { label: openLabel, side: 'top', align: 'end', delayMs: 500, portal: true },
+                  h('button', { type: 'button', className: 'aw-child-action', 'aria-label': openLabel, onClick: () => {
+                    setOpenError('')
+                    try { ctx.uiWorkspace.openSession(conversationTarget(s)) } catch (failure) { setOpenError(failure.message) }
+                  } }, h(IconRightUpOutlineRegular, { size: 14 }))) : null,
+                child.activity.stopId ? h(Tooltip, { label: tt('stop'), side: 'top', align: 'end', delayMs: 500, portal: true },
+                  h('button', { type: 'button', className: 'aw-child-action aw-child-stop', 'aria-label': tt('stop'), disabled: !canWrite || view.busy || child.state === 'canceling', onClick: () => view.run(stopOperation(child)) },
+                    h(IconStopFillRegular, { size: 12 }))) : null),
+              latest ? h('span', { className: 'aw-child-chevron', 'data-open': expanded ? 'true' : undefined, 'aria-hidden': true },
+                h(IconChevronDownOutlineRegular, { size: 14 })) : null),
+            openError ? h('p', { role: 'alert', className: 'aw-error aw-child-error' }, openError) : null,
             child.interactions.length ? h('div', { className: 'aw-child-ask aw-section' },
               child.interactions.map(item => h(InteractionCard, { key: item.id, item, sessionId: child.id, cwd: child.cwd, run: view.run, disabled: view.busy || !canWrite, inline: true }))) : null,
             expanded && latest ? h('div', { className: 'aw-child-body' }, h(NativeTrace, { sessionId, openFile: makeOpenFile(child.native?.sessionId ?? sessionId, child.cwd), reference: { sessionId: child.id, turnId: latest.id } })) : null)
+        }
+
+        function ChildrenCard({ childrenList, visible, quiet, sessionId, view, canWrite }) {
+          const tt = useT()
+          const hasAttention = visible.some(s => s.activity.group === 'attention')
+          const hasActive = visible.length > 0
+          const [collapsed, setCollapsed] = React.useState(() => !hasActive)
+          const [quietOpen, setQuietOpen] = React.useState(false)
+          const prevAttention = React.useRef(hasAttention)
+          React.useEffect(() => {
+            if (hasAttention && !prevAttention.current) setCollapsed(false)
+            prevAttention.current = hasAttention
+          }, [hasAttention])
+          let waiting = 0, running = 0, review = 0, done = 0, idle = 0
+          for (const child of childrenList) {
+            const { group, runState } = child.activity
+            if (group === 'attention') waiting++
+            else if (group === 'working') running++
+            else if (group === 'review') review++
+            else if (runState === 'completed') done++
+            else idle++
+          }
+          const parts = [
+            waiting ? { text: tt('childrenWaiting', { n: waiting }), warn: true } : null,
+            running ? { text: tt('childrenRunning', { n: running }), warn: false } : null,
+            review ? { text: tt('childrenReview', { n: review }), warn: false } : null,
+            done ? { text: tt('childrenDone', { n: done }), warn: false } : null,
+            idle ? { text: tt('childrenIdle', { n: idle }), warn: false } : null,
+          ].filter(Boolean)
+          const childRow = child => h(ChildRow, { key: child.id, child, sessionId, view, canWrite })
+          const showQuietDirectly = visible.length === 0
+          return h('section', { className: 'aw-card aw-children-card', 'data-tone': hasAttention ? 'warn' : undefined, 'aria-label': tt('children') },
+            h('div', { className: 'aw-children-body' },
+              h('button', { type: 'button', className: 'aw-children-head', 'aria-expanded': !collapsed, onClick: () => setCollapsed(v => !v) },
+                h('span', { className: 'aw-children-lead', 'aria-hidden': true }, h(IconUsersOutlineRegular, { size: 16 })),
+                h('span', { className: 'aw-children-title' }, tt('children')),
+                h('span', { className: 'aw-children-progress' },
+                  parts.map((part, index) => h(React.Fragment, { key: part.text },
+                    index > 0 ? '\u2002·\u2002' : null,
+                    part.warn ? h('span', { className: 'aw-children-progress-warn' }, part.text) : part.text))),
+                h('span', { className: 'aw-children-chevron', 'aria-hidden': true },
+                  h(collapsed ? IconChevronUpOutlineRegular : IconChevronDownOutlineRegular, { size: 16 }))),
+              !collapsed ? h('ul', { className: 'aw-children-list' },
+                visible.map(childRow),
+                showQuietDirectly ? quiet.map(childRow) : (quiet.length ? h(React.Fragment, null,
+                  h('li', { className: 'aw-children-fold' },
+                    h('button', { type: 'button', className: 'aw-children-fold-btn', 'aria-expanded': quietOpen, onClick: () => setQuietOpen(v => !v) },
+                      tt('quietChildren', { n: quiet.length }),
+                      h(IconChevronDownOutlineRegular, { size: 14, className: 'aw-children-fold-chevron', 'data-open': quietOpen ? 'true' : undefined }))),
+                  quietOpen ? quiet.map(childRow) : null) : null)) : null))
         }
 
         function PreviousMessages({ binding }) {
@@ -3250,20 +3364,17 @@ window.__ModuleLoader__.load({
           useCommandScope(props.sessionId, canWrite && data?.status === 'idle' && !view.error && binding?.state === 'idle' && !binding.archived ? binding.id : null, data?.commandStamp, provider?.label)
           const children = sessions.filter(s => s.native.sessionId !== props.sessionId && !s.native.retired && !s.archived)
           const visible = children.filter(s => ['attention', 'working', 'review'].includes(s.activity.group)).toSorted((a, b) => GROUPS.indexOf(a.activity.group) - GROUPS.indexOf(b.activity.group))
-          const quiet = children.filter(s => s.activity.group === 'recent')
+          const quiet = children.filter(s => !['attention', 'working', 'review'].includes(s.activity.group))
           const contextReport = binding && !binding.archived && data.contextReport?.externalId === binding.id ? data.contextReport : null
           const notices = binding && !binding.archived && data.noticeFeed?.externalId === binding.id && data.noticeFeed.remoteId === binding.remoteId && data.noticeFeed.items.length ? data.noticeFeed : null
           const canSteer = !!(binding && !binding.archived && data?.controls?.canSteer && canWrite)
           if (!notices && !contextReport && !own.length && !children.length && !canSteer && !view.error) return null
-          const childRow = child => h(ChildRow, { key: child.id, child, sessionId: props.sessionId, view, canWrite })
           return h('div', { className: 'acpw aw-dock' },
             own.flatMap(s => s.interactions.map(item => h(InteractionCard, { key: item.id, item, sessionId: s.id, cwd: s.cwd, run: view.run, disabled: view.busy || !canWrite }))),
             canSteer ? h(SteerBar, { key: 'steer:' + binding.id, sessionId: props.sessionId, externalId: binding.id, view, disabled: view.busy }) : null,
             notices ? h(ConnectionNotices, { key: 'notice:' + binding.id + ':' + notices.connection, report: notices }) : null,
             contextReport ? h(ContextReport, { key: 'context:' + binding.id, report: contextReport, title: tt('contextRecent') }) : null,
-            children.length ? h('section', { className: 'aw-card', 'aria-label': tt('children') },
-              h('div', { className: 'aw-bar' }, h('span', { className: 'aw-bar-title' }, tt('children')), h('span', { className: 'aw-muted' }, String(children.length))),
-              visible.map(childRow), quiet.length ? h('details', null, h('summary', null, tt('quietChildren', { n: quiet.length })), quiet.map(childRow)) : null) : null,
+            children.length ? h(ChildrenCard, { key: props.sessionId, childrenList: children, visible, quiet, sessionId: props.sessionId, view, canWrite }) : null,
             view.error ? h('p', { className: 'aw-error', role: 'alert' }, view.error) : null)
         }
 
