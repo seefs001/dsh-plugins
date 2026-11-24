@@ -119,7 +119,7 @@ description: 在 DSH 会话中直接运行 Cursor、Antigravity、Claude Code �
 ### 权限、表单与计划审批
 
 - **审批卡片**：工具权限请求、提问与计划审批显示在输入框上方，标明调用 ID、工作目录与各选项的作用范围（单次或后续沿用），并可展开 **查看最初的工具调用** 核对上下文。
-- **自动放行规则**：仅当所属 DSH 会话显式使用完全访问预设（`danger-full-access` 且 `approval: never`）且 CLI 提供 `allow_once` 选项时，才自动放行单次请求；持久授权、提问与计划审批始终需要人工确认。
+- **权限控制边界**：外部 CLI 运行在 DSH 沙箱之外；切换到 ACP 模型时会自动隐藏输入框左下角的 DSH 原生权限预设控件，审批与权限策略完全交由各 CLI 自身的模式与配置处理，不再根据 DSH 预设自动放行。
 - **CLI 表单提问**：Claude Code 的 `AskUserQuestion`（`elicitation/create`）以原生表单呈现单选、多选与补充输入，请勿在表单中填写密码或令牌。
 
 ### 提醒与用量

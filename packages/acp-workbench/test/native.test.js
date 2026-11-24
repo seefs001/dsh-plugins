@@ -645,44 +645,15 @@ test('setOption stores draft preferences before connecting and applyModel sends 
   await h.native.close()
 })
 
-test('autoApprove blocks multi-allow choosers and ExitPlanMode even in full-access', async () => {
+test('DSH full-access preset does not auto-approve ACP permission requests', async () => {
   const h = createHarness()
   h.ctx.get = key => key === 'permissionPresets'
-    ? { current: () => 'full-access', resolve: () => ({ sandbox: 'danger-full-access', approval: 'never' }) }
+    ? { current: () => 'danger-full-access', resolve: () => ({ sandbox: 'danger-full-access', approval: 'never' }) }
     : undefined
   await h.native.initialize()
-  const acpSession = { id: 'acp-ext-1', native: { sessionId: 'dsh-1' } }
 
-  assert.equal(h.native.autoApprove(acpSession, {
-    toolCall: { name: 'Bash', kind: 'execute' },
-    options: [
-      { optionId: 'allow', kind: 'allow_once' },
-      { optionId: 'reject', kind: 'reject_once' },
-    ],
-  }), 'allow')
-
-  assert.equal(h.native.autoApprove(acpSession, {
-    toolCall: { name: 'Bash', kind: 'execute' },
-    options: [
-      { optionId: 'allow-once', kind: 'allow_once' },
-      { optionId: 'allow-always', kind: 'allow_always' },
-      { optionId: 'reject', kind: 'reject_once' },
-    ],
-  }), 'allow-once')
-
-  assert.equal(h.native.autoApprove(acpSession, {
-    toolCall: { name: 'Bash', kind: 'execute' },
-    options: [
-      { optionId: 'allow-a', kind: 'allow_once' },
-      { optionId: 'allow-b', kind: 'allow_once' },
-      { optionId: 'reject', kind: 'reject_once' },
-    ],
-  }), null)
-
-  assert.equal(h.native.autoApprove(acpSession, {
-    toolCall: { _meta: { claudeCode: { toolName: 'ExitPlanMode' } }, kind: 'other' },
-    options: [{ optionId: 'allow', kind: 'allow_once' }],
-  }), null)
+  assert.equal(h.native.autoApprove, undefined)
+  assert.equal('fullAccess' in h.native.snapshot('dsh-1'), false)
 
   await h.native.close()
 })

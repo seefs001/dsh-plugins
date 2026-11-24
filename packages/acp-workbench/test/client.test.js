@@ -138,6 +138,13 @@ test('acp-workbench client registers background tasks panel slots, keeps en/zh k
   assert.equal(sectionEntry.options.label(), 'ACP 后台任务')
 
   const progressEntry = slots.get('conversation.session.panel.section.actions:acp-background-tasks')
+  const permissionGuard = slots.get('conversation.input.left:acp-permission-guard')
+  assert.ok(permissionGuard)
+  assert.equal(permissionGuard.component({ useProjection: () => ({ provider: 'deepseek', model: 'deepseek-chat' }) }), null)
+  const hiddenSentinel = permissionGuard.component({ useProjection: () => ({ provider: 'acp-cursor', model: 'default' }) })
+  assert.equal(hiddenSentinel?.type, 'span')
+  assert.equal(hiddenSentinel?.props?.['data-acp-permission-hidden'], 'true')
+  assert.equal(hiddenSentinel?.props?.hidden, true)
   assert.ok(progressEntry)
   const indicatorEntry = slots.get('conversation.session.panel.indicator:acp-background-tasks.running')
   assert.ok(indicatorEntry)

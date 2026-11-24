@@ -18,7 +18,7 @@ import {
   wireModelId,
 } from './models.js'
 import { allocateSubagentName, extractToolImages, hasToolInput, isToolTerminal, makeCallId, mapPlanTodos, mapToolCall, mapToolResult } from './native-tools.js'
-import { booleanSelectValues, isInteractivePermission } from './adapters.js'
+import { booleanSelectValues } from './adapters.js'
 
 function compactPreview(raw, max = 140) {
   if (typeof raw !== 'string') return ''
@@ -90,16 +90,6 @@ function preparingToolName(tool, terminal, options) {
   return mapToolCall(tool, terminal, options).name
 }
 
-export function fullAccess(ctx, session) {
-  const presets = ctx.get?.('permissionPresets')
-  if (!presets || !session) return false
-  try {
-    const name = presets.current(session)
-    if (name === 'auto' || name === 'custom') return false
-    const spec = presets.resolve(name)
-    return spec.sandbox === 'danger-full-access' && spec.approval === 'never'
-  } catch { return false }
-}
 const pointer = (content, note = 'See raw execution events for the original content.') =>
   `\n[ACP ${content.type}${content.mimeType ? ` ${content.mimeType}` : ''}${content.uri || content.resource?.uri ? `: ${content.uri ?? content.resource.uri}` : ''}. ${note}]\n`
 
@@ -1433,15 +1423,6 @@ export class NativeAcp {
       (s.native.sessionId === sessionId || (includeChildren && s.native.rootSessionId === sessionId)))
   }
 
-  autoApprove(session, params) {
-    const owner = session.native?.sessionId
-    const agent = owner ? this.ctx.agents.get(owner) : null
-    if (!agent || !fullAccess(this.ctx, agent.session)) return null
-    if (isInteractivePermission(params)) return null
-    const options = params?.options ?? []
-    return options.find(option => option.kind === 'allow_once')?.optionId ?? null
-  }
-
   snapshot(sessionId) {
     const agent = this.ctx.agents.get(sessionId), selected = agent?.model.current() ?? null, sessions = this.sessions(sessionId)
     const binding = sessions.findLast(s => s.native.sessionId === sessionId && s.native.route === selected?.provider && !s.native.retired)
@@ -1513,7 +1494,6 @@ export class NativeAcp {
       }),
       selected,
       controls,
-      fullAccess: fullAccess(this.ctx, agent?.session),
       status: agent?.status ?? 'idle',
     }
   }

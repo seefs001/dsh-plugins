@@ -875,6 +875,9 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-wait-icon{display:inline-flex;flex:none;align-items:center;justify-content:center;width:calc(16px + var(--dsh-content-font-delta,0px));height:calc(16px + var(--dsh-content-font-delta,0px));color:inherit}
 .aw-wait-icon>svg{width:calc(14px + var(--dsh-content-font-delta,0px));height:calc(14px + var(--dsh-content-font-delta,0px))}
 .aw-wait-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.aw-acp-permission-guard{display:none!important}
+:has(> [data-slot="conversation.input.left"] [data-acp-permission-hidden]) > div > [data-slot="conversation.input.permission"]{display:none!important}
+:has(> [data-slot="conversation.input.left"] [data-acp-permission-hidden]) > div:has(> [data-slot="conversation.input.permission"]):not(:has(> [data-slot="conversation.input.plan"] > *)){display:none}
 @media (max-width:720px){.aw-q-head{padding:12px 12px 0 18px}.aw-q-title-wrap,.aw-q-desc{margin-inline:18px}.aw-q-options{padding:4px 8px}.aw-q-title{font-size:15px;line-height:21px}.aw-q-option,.aw-q-custom-row{padding:8px 6px}.aw-q-footer{padding:0 12px}}
 @media (prefers-reduced-motion:reduce){.aw-q-option-row,.aw-q-custom-row,.aw-tb-btn,.aw-tb-chev{transition:none}}
 `
@@ -5096,6 +5099,12 @@ button.aw-child-trigger:focus-visible{outline:none}
           })
         }
 
+        function NativePermissionGuard({ useProjection }) {
+          const modelSelection = typeof useProjection === 'function' ? useProjection('modelSelection') : undefined
+          if (typeof modelSelection?.provider !== 'string' || !modelSelection.provider.startsWith('acp-')) return null
+          return h('span', { className: 'aw-acp-permission-guard', 'data-acp-permission-hidden': 'true', hidden: true, 'aria-hidden': true })
+        }
+
         function NativeModelControls({ sessionId, useAccess, useProjection }) {
           const tt = useT()
           const modelSelection = typeof useProjection === 'function' ? useProjection('modelSelection') : undefined
@@ -5583,6 +5592,7 @@ button.aw-child-trigger:focus-visible{outline:none}
 
         ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, CliMenuOption))
         ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({ name: 'conversation.input.overlay', id: 'acp-settings', order: 40 }, CliSettingsOverlay))
+        ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'acp-permission-guard', order: -100 }, NativePermissionGuard))
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-model-controls', order: 900 }, NativeModelControls))
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-context-ring', order: 2500 }, NativeContextRing))
         ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'acp-native', order: 40 }, NativeDock))
