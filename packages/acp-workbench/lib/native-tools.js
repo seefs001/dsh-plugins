@@ -101,10 +101,19 @@ function mcpIdentity(tool) {
   if (wireName && metaName && wireName !== metaName) return null
   const name = wireName || metaName
   if (name) {
-    if (!name.startsWith('mcp__')) return null
-    const index = name.indexOf('__', 5)
-    if (index > 5 && firstText(name.slice(5, index)) && firstText(name.slice(index + 2))) {
-      return { server: name.slice(5, index), name: name.slice(index + 2), wireName: name, args: raw }
+    if (name.startsWith('mcp__')) {
+      const index = name.indexOf('__', 5)
+      if (index > 5 && firstText(name.slice(5, index)) && firstText(name.slice(index + 2))) {
+        return { server: name.slice(5, index), name: name.slice(index + 2), wireName: name, args: raw }
+      }
+      return null
+    }
+    const agyPrefix = 'mcp_dsh_agents_'
+    if (name.startsWith(agyPrefix)) {
+      const toolName = name.slice(agyPrefix.length)
+      if (DSH_DELEGATION_TOOLS.has(toolName)) {
+        return { server: 'dsh_agents', name: toolName, wireName: `mcp__dsh_agents__${toolName}`, args: raw }
+      }
     }
     return null
   }

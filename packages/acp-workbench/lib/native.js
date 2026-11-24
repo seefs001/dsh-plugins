@@ -20,6 +20,16 @@ import {
 import { allocateSubagentName, extractToolImages, hasToolInput, isToolTerminal, makeCallId, mapPlanTodos, mapToolCall, mapToolResult } from './native-tools.js'
 import { booleanSelectValues, isInteractivePermission } from './adapters.js'
 
+function compactPreview(raw, max = 140) {
+  if (typeof raw !== 'string') return ''
+  for (const line of raw.split(/\r?\n/u)) {
+    const cleaned = line.replace(/^[#>*`\s-]+/u, '').replace(/\s+/gu, ' ').trim()
+    if (!cleaned) continue
+    return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned
+  }
+  return ''
+}
+
 function coerceOptionValue(option, value) {
   if (!option || value === undefined) return undefined
   if (option.type === 'boolean') {
@@ -188,6 +198,7 @@ class AcpTurn {
     this.externalId = null
     this.session = null
     this.run = null
+    this.replyHead = ''
     this.controller = new AbortController()
     this.doneDeferred = Promise.withResolvers()
     this.done = this.doneDeferred.promise
@@ -514,6 +525,10 @@ class AcpTurn {
       }
 
       this.ingestTopToolUpdate(update)
+      if (this.run && update.status !== 'completed' && update.status !== 'failed') {
+        const label = compactPreview(update.title || update.name || update._meta?.claudeCode?.toolName, 80)
+        if (label) this.run.currentTool = label
+      }
       this.wake()
       return
     }
@@ -538,7 +553,14 @@ class AcpTurn {
         const text = content.type === 'text' ? content.text
           : content.type === 'resource' && typeof content.resource?.text === 'string' ? content.resource.text
             : pointer(content)
-        if (typeof text === 'string' && text !== '') this.queue.push({ kind: 'text', text })
+        if (typeof text === 'string' && text !== '') {
+          this.queue.push({ kind: 'text', text })
+          if (this.replyHead.length < 320) {
+            this.replyHead += text.slice(0, 320 - this.replyHead.length)
+            const preview = compactPreview(this.replyHead)
+            if (this.run && preview) this.run.preview = preview
+          }
+        }
       }
       this.wake()
       return
@@ -589,6 +611,7 @@ class AcpTurn {
       reviewedAt: null,
       startedAt: timestamp(),
       from: (this.session.eventSeq ?? 0) + 1,
+      ...(this.model && this.model !== DEFAULT_MODEL ? { model: this.model } : {}),
     }
     this.session.native.runs.push(this.run)
     await this.native.manager.store.saveSession(this.session)
@@ -646,6 +669,7 @@ class AcpTurn {
     this.finalized = true
     this.settleOpenSubCalls({ interrupted: this.result?.stopReason === 'cancelled' })
     if (this.run && this.session) {
+      delete this.run.currentTool
       this.run.state = this.result?.stopReason === 'cancelled' ? 'interrupted' : 'completed'
       this.run.stopReason = this.result?.stopReason ?? null
       this.run.to = this.session.eventSeq
@@ -660,6 +684,7 @@ class AcpTurn {
   async failTurn(error) {
     if (!this.finalized && this.run && this.session) {
       this.finalized = true
+      delete this.run.currentTool
       this.run.state = this.controller.signal.aborted ? 'interrupted' : 'failed'
       this.run.error = error.message ?? String(error)
       this.run.to = this.session.eventSeq
@@ -1399,7 +1424,23 @@ export class NativeAcp {
       commandStamp: binding?.state === 'idle' && !binding.archived ? this.manager.commandReport(binding)?.stamp ?? null : null,
       noticeFeed: connectionNotices(binding, runtime),
       providers: [...this.manager.store.providers.values()].map(p => ({ id: p.id, label: p.label, route: this.route(p.id) })),
-      sessions: sessions.map(s => ({ ...this.manager.overview(s), native: { ...s.native, runs: s.native.runs.slice(-128) } })),
+      sessions: sessions.map(s => {
+        const providerRecord = this.manager.store.providers.get(s.providerId)
+        const liveModel = this.ctx.agents.get(s.native.sessionId)?.model.current()?.model
+        const latestRun = s.native.runs.at(-1)
+        const model = (liveModel && liveModel !== DEFAULT_MODEL ? liveModel : null)
+          ?? latestRun?.model
+          ?? s.configOptions?.find(item => item?.category === 'model' && item.type !== 'boolean')?.currentValue
+          ?? s.models?.currentModelId
+          ?? null
+        return {
+          ...this.manager.overview(s),
+          providerLabel: providerRecord?.label ?? s.providerId,
+          model: model && model !== DEFAULT_MODEL ? model : null,
+          usage: s.lastContext?.window ? { used: s.lastContext.window.used, size: s.lastContext.window.size } : null,
+          native: { ...s.native, runs: s.native.runs.slice(-128) },
+        }
+      }),
       selected,
       controls,
       fullAccess: fullAccess(this.ctx, agent?.session),
