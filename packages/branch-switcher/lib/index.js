@@ -1,3 +1,5 @@
+import path from 'node:path'
+
 export const name = 'branch-switcher'
 export const inject = ['agents', 'commands', 'tools', 'subprocess', 'sandbox', 'sandboxPolicy', 'workingDirectory']
 export const OP_PATH = '/branch-switcher/op'
@@ -5,14 +7,109 @@ export const OP_PATH = '/branch-switcher/op'
 const COMMAND = 'branch-switcher'
 const MAX_OUTPUT = 1024 * 1024
 const MAX_BODY = 64 * 1024
-const GIT_ENV = {
-  ...Object.fromEntries([
-    'GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY',
-    'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_CONFIG', 'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_COUNT',
-    'GIT_CEILING_DIRECTORIES', 'GIT_PREFIX', 'GIT_SHALLOW_FILE', 'GIT_GRAFT_FILE',
-    'GIT_REPLACE_REF_BASE', 'GIT_ATTR_SOURCE',
-  ].map(key => [key, undefined])),
-  GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0', GIT_NO_LAZY_FETCH: '1', LC_ALL: 'C',
+const MAX_EXEC_CACHE = 16
+const LOCAL_HEAD_PREFIX = 'refs/heads/'
+const RETRYABLE_EXEC_CODES = new Set(['ENOENT', 'EACCES', 'ENOEXEC', 'UNKNOWN'])
+const STRIPPED_GIT_ENV = [
+  'GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_CONFIG', 'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_COUNT',
+  'GIT_CEILING_DIRECTORIES', 'GIT_PREFIX', 'GIT_SHALLOW_FILE', 'GIT_GRAFT_FILE',
+  'GIT_REPLACE_REF_BASE', 'GIT_ATTR_SOURCE', 'GIT_IMPLICIT_WORK_TREE', 'GIT_NAMESPACE',
+  'GIT_SUPER_PREFIX', 'GIT_DISCOVERY_ACROSS_FILESYSTEM',
+]
+
+const executableCaches = new WeakMap()
+
+export function buildGitEnv(baseEnv = process.env) {
+  const env = Object.fromEntries(STRIPPED_GIT_ENV.map(key => [key, undefined]))
+  for (const key of Object.keys(baseEnv ?? {})) {
+    if (/^GIT_CONFIG_(?:KEY|VALUE)_\d+$/i.test(key)) env[key] = undefined
+  }
+  env.GIT_TERMINAL_PROMPT = '0'
+  env.GIT_OPTIONAL_LOCKS = '0'
+  env.GIT_NO_LAZY_FETCH = '1'
+  env.LC_ALL = 'C'
+  return env
+}
+
+export function buildAbsolutePathEnv(baseEnv = process.env, platform = process.platform) {
+  const pathMod = platform === 'win32' ? path.win32 : path.posix
+  const sep = platform === 'win32' ? ';' : ':'
+  let pathKey = 'PATH'
+  let rawPath = baseEnv?.PATH
+  if (rawPath === undefined && platform === 'win32' && baseEnv) {
+    const entry = Object.entries(baseEnv).find(([key]) => key.toUpperCase() === 'PATH')
+    if (entry) [pathKey, rawPath] = entry
+  }
+  const dirs = []
+  if (typeof rawPath === 'string' && rawPath) {
+    for (const segment of rawPath.split(sep)) {
+      const cleaned = platform === 'win32' && segment.startsWith('"') && segment.endsWith('"')
+        ? segment.slice(1, -1)
+        : segment
+      if (!cleaned || !pathMod.isAbsolute(cleaned)) continue
+      if (!dirs.includes(cleaned)) dirs.push(cleaned)
+    }
+  }
+  const filteredPath = dirs.join(sep)
+  return {
+    env: rawPath === undefined ? undefined : { [pathKey]: filteredPath },
+    key: `${platform}\0${filteredPath}`,
+  }
+}
+
+function getExecutableCache(subprocess) {
+  let cache = executableCaches.get(subprocess)
+  if (!cache) {
+    cache = new Map()
+    executableCaches.set(subprocess, cache)
+  }
+  return cache
+}
+
+async function resolveGitExecutable(subprocess, signal) {
+  const { env, key } = buildAbsolutePathEnv()
+  const cache = getExecutableCache(subprocess)
+  const cached = cache.get(key)
+  if (cached) return { executable: cached, key, cache }
+  const executable = await subprocess.resolveExecutable('git', env, signal)
+  if (typeof executable !== 'string' || !executable || !path.isAbsolute(executable)) {
+    throw Object.assign(new Error('Resolved git executable must be an absolute path'), { code: 'ENOENT' })
+  }
+  if (cache.size >= MAX_EXEC_CACHE) {
+    const oldest = cache.keys().next().value
+    if (oldest !== undefined) cache.delete(oldest)
+  }
+  cache.set(key, executable)
+  return { executable, key, cache }
+}
+
+function isSameOrAncestorPath(ancestor, target) {
+  const rel = path.relative(path.resolve(ancestor), path.resolve(target))
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel))
+}
+
+async function resolveWorktreeRoot(git) {
+  const output = (await git([
+    'rev-parse',
+    '--is-inside-work-tree',
+    '--is-bare-repository',
+    '--is-inside-git-dir',
+    '--absolute-git-dir',
+    '--show-prefix',
+    '--show-toplevel',
+  ])).text
+  const lines = output.split(/\r?\n/)
+  if (lines.length < 6) throw new Error('Current directory is not inside a Git work tree')
+  const [insideWorkTree, isBare, insideGitDir, gitDir, prefix, root] = lines
+  if (insideWorkTree !== 'true' || isBare !== 'false' || insideGitDir !== 'false' || !root || !gitDir) {
+    throw new Error('Current directory is not inside a Git work tree')
+  }
+  const canonicalCwd = prefix ? path.resolve(root, prefix) : path.resolve(root)
+  if (isSameOrAncestorPath(gitDir, root) || isSameOrAncestorPath(gitDir, canonicalCwd)) {
+    throw new Error('Current directory is not inside a Git work tree')
+  }
+  return root
 }
 
 function hasStartedTurn(ctx, session, fallbackAgents) {
@@ -49,41 +146,64 @@ export class BranchSwitcher {
     const git = async (argv, allowed = [0]) => {
       const timeout = AbortSignal.any([signal, AbortSignal.timeout(15_000)])
       const policy = sandboxPolicy.resolve({ session })
-      const executable = await subprocess.resolveExecutable('git', undefined, timeout)
-      const command = [executable, '--no-optional-locks', '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', ...argv]
-      let confined = command
-      if (policy.mode !== 'danger-full-access') {
-        const sandbox = ctx.get('sandbox')
-        if (!sandbox) throw new Error(`The Session execution environment requires a sandbox provider in ${policy.mode} mode`)
-        confined = (await sandbox.confine(command, policy, timeout)).argv
-      }
-      timeout.throwIfAborted()
-      const child = subprocess.spawn({
-        argv: confined, cwd, env: GIT_ENV, signal: timeout, graceMs: 1000,
-        stdio: { stdin: 'ignore', stdout: { maxBytes: MAX_OUTPUT }, stderr: { maxBytes: MAX_OUTPUT } },
-      })
-      try {
-        const outcome = await child.done
+      const env = buildGitEnv()
+      const runOnce = async () => {
+        const { executable, key, cache } = await resolveGitExecutable(subprocess, timeout)
+        const command = [executable, '--no-optional-locks', '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', ...argv]
+        let confined = command
+        if (policy.mode !== 'danger-full-access') {
+          const sandbox = ctx.get('sandbox')
+          if (!sandbox) throw new Error(`The Session execution environment requires a sandbox provider in ${policy.mode} mode`)
+          confined = (await sandbox.confine(command, policy, timeout)).argv
+        }
         timeout.throwIfAborted()
-        const stdout = child.collected.stdout.readFrom(0)
-        const stderr = child.collected.stderr.readFrom(0)
-        if (!allowed.includes(outcome.exitCode)) throw new Error(stderr.text.trim() || `git ${argv[0]} failed (${outcome.signal ?? outcome.exitCode})`)
-        if (stdout.lossy || stderr.lossy) throw new Error('Git output exceeded 1 MiB; narrow the repository branch list')
-        return { text: stdout.text.trimEnd(), exitCode: outcome.exitCode }
-      } finally {
-        child.terminate()
-        await child.waitForExit()
+        let child
+        try {
+          child = subprocess.spawn({
+            argv: confined, cwd, env, signal: timeout, graceMs: 1000,
+            stdio: { stdin: 'ignore', stdout: { maxBytes: MAX_OUTPUT }, stderr: { maxBytes: MAX_OUTPUT } },
+          })
+          const outcome = await child.done
+          timeout.throwIfAborted()
+          const stdout = child.collected.stdout.readFrom(0)
+          const stderr = child.collected.stderr.readFrom(0)
+          if (!allowed.includes(outcome.exitCode)) throw new Error(stderr.text.trim() || `git ${argv[0]} failed (${outcome.signal ?? outcome.exitCode})`)
+          if (stdout.lossy || stderr.lossy) throw new Error('Git output exceeded 1 MiB; narrow the repository branch list')
+          return { text: stdout.text.trimEnd(), exitCode: outcome.exitCode }
+        } catch (error) {
+          throw { error, key, cache }
+        } finally {
+          if (child) {
+            child.terminate()
+            await child.waitForExit()
+          }
+        }
+      }
+      try {
+        return await runOnce()
+      } catch (wrapped) {
+        const failure = wrapped && typeof wrapped === 'object' && 'error' in wrapped ? wrapped.error : wrapped
+        const code = failure?.code ?? failure?.cause?.code
+        if (!RETRYABLE_EXEC_CODES.has(code) || timeout.aborted || !wrapped?.cache) throw failure
+        wrapped.cache.delete(wrapped.key)
+        try {
+          return await runOnce()
+        } catch (retryWrapped) {
+          throw retryWrapped && typeof retryWrapped === 'object' && 'error' in retryWrapped ? retryWrapped.error : retryWrapped
+        }
       }
     }
     const current = async () => {
       const result = await git(['symbolic-ref', '--quiet', 'HEAD'], [0, 1])
-      return result.exitCode === 0 ? result.text.replace(/^refs\/heads\//, '') : null
+      if (result.exitCode !== 0) return null
+      const ref = result.text.trim()
+      return ref.startsWith(LOCAL_HEAD_PREFIX) ? ref.slice(LOCAL_HEAD_PREFIX.length) : null
     }
-    const root = (await git(['rev-parse', '--show-toplevel'])).text
+    const root = await resolveWorktreeRoot(git)
     if (args.action === 'list') {
       const branch = await current()
       const refs = (await git(['for-each-ref', '--sort=-committerdate', '--format=%(refname:lstrip=2)', 'refs/heads/'])).text
-      const branches = refs ? refs.split('\n') : []
+      const branches = refs ? refs.split(/\r?\n/).filter(Boolean) : []
       return { root, cwd, current: branch, branches: branch ? [branch, ...branches.filter(value => value !== branch)] : branches }
     }
     if (typeof args.branch !== 'string' || !args.branch || args.branch.includes('\0')) throw new Error('An existing local branch is required')
@@ -101,8 +221,8 @@ export class BranchSwitcher {
         if (policy.mode === 'read-only') throw new Error('Branch switching is unavailable in read-only mode')
         if (workingDirectory.get(session) !== cwd) throw new Error('The Session directory changed; refresh the branch list')
         if (await current() !== args.current) throw new Error('The current branch changed; refresh the branch list')
-        await git(['show-ref', '--verify', '--quiet', `refs/heads/${args.branch}`])
         if (args.branch !== args.current) {
+          await git(['show-ref', '--verify', '--quiet', `refs/heads/${args.branch}`])
           maintenanceSignal.throwIfAborted()
           await git(['switch', '--no-guess', '--', args.branch])
         }

@@ -225,9 +225,9 @@ export function apply(ctx, config = {}) {
         return
       }
       const { signal, cleanup } = makeSignal(res)
+      let target = null
       try {
         const body = await readJsonBody(req)
-        let target = null
         if (body.owner && body.repo) {
           target = validateRepoTarget(body.host || 'github.com', body.owner, body.repo, allowedHosts)
         } else {
@@ -248,7 +248,7 @@ export function apply(ctx, config = {}) {
         }
         sendJson(res, 400, { ok: false, message: `Unsupported action: ${String(body.action ?? '')}` })
       } catch (error) {
-        const info = classifyGhError(error, 'github.com')
+        const info = classifyGhError(error, target?.host || 'github.com')
         sendJson(res, 400, { ok: false, authState: info.authState, message: info.message })
       } finally {
         cleanup()

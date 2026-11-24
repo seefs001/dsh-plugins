@@ -65,9 +65,10 @@ window.__ModuleLoader__.load({
     }
 
     function trigger(panel) {
-      if (panel === null || panel.checkout?.state !== 'ready') return null
+      if (panel == null || panel.checkout?.state !== 'ready') return null
       const { checkout } = panel.checkout
-      const local = panel.local === null ? '' : panel.local.files.map(f => `${f.path}:${f.additions}:${f.deletions}`).join('|')
+      const localFiles = Array.isArray(panel.local?.files) ? panel.local.files : null
+      const local = localFiles === null ? '' : localFiles.map(f => `${f.path}:${f.additions}:${f.deletions}`).join('|')
       return `${checkout.root}\n${checkout.branch}\n${checkout.commit}\n${local}`
     }
 
@@ -187,9 +188,9 @@ window.__ModuleLoader__.load({
         function GitChangesPill({ sessionId, t }) {
           const panel = usePanel(sessionId)
           const sum = useUncommitted(sessionId, trigger(panel))
-          if (panel === null || panel.checkout?.state !== 'ready') return null
+          if (panel == null || panel.checkout?.state !== 'ready') return null
           const { checkout } = panel.checkout
-          const branch = checkout.branch ?? (checkout.commit ? checkout.commit.slice(0, 7) : t('detached'))
+          const branch = checkout.branch || (checkout.commit ? checkout.commit.slice(0, 7) : t('detached'))
           const parts = []
           if (sum == null) {
             parts.push(h('span', { key: 'state' }, t(sum === undefined ? 'loading' : 'unavailable')))
@@ -276,7 +277,7 @@ window.__ModuleLoader__.load({
           return () => { unsubscribe(); dispose?.() }
         })
       },
-      _internal: { totals, localAddress },
+      _internal: { totals, localAddress, trigger },
     }
   },
 })

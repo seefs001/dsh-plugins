@@ -1,4 +1,7 @@
 import { execFile } from 'node:child_process'
+import { constants as fsConstants } from 'node:fs'
+import { access, lstat, realpath, stat } from 'node:fs/promises'
+import path from 'node:path'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
@@ -13,19 +16,172 @@ const SNIPPET_BEFORE = 36
 const SNIPPET_AFTER = 48
 const DEFAULT_HOSTS = ['github.com']
 const VALID_SEGMENT = /^[A-Za-z0-9._-]+$/
+const RETRYABLE_EXEC_CODES = new Set(['ENOENT', 'EACCES', 'ENOEXEC', 'UNKNOWN'])
+const MAX_EXEC_CACHE = 32
+const LOCAL_HEAD_PREFIX = 'refs/heads/'
+const REMOTE_REF_PREFIX = 'refs/remotes/'
 
-const STRIPPED_GIT_ENV = [
+const STRIPPED_GIT_ENV = new Set([
   'GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY',
   'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_CONFIG', 'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_COUNT',
   'GIT_CEILING_DIRECTORIES', 'GIT_PREFIX', 'GIT_SHALLOW_FILE', 'GIT_GRAFT_FILE',
-  'GIT_REPLACE_REF_BASE', 'GIT_ATTR_SOURCE',
-]
+  'GIT_REPLACE_REF_BASE', 'GIT_ATTR_SOURCE', 'GIT_IMPLICIT_WORK_TREE', 'GIT_NAMESPACE',
+  'GIT_SUPER_PREFIX', 'GIT_DISCOVERY_ACROSS_FILESYSTEM',
+])
 
 const SECRET_ENV_PATTERN = /(?:^DSH_|TOKEN|SECRET|PASSWORD|KEY)/i
 
-function buildGitEnv() {
-  const env = { ...process.env }
-  for (const key of STRIPPED_GIT_ENV) delete env[key]
+const executableCache = new Map()
+const executableInflight = new Map()
+
+function readEnvKey(env, name, platform = process.platform) {
+  if (!env || typeof env !== 'object') return undefined
+  if (env[name] !== undefined) return env[name]
+  if (platform !== 'win32') return undefined
+  const target = name.toUpperCase()
+  for (const [key, value] of Object.entries(env)) {
+    if (key.toUpperCase() === target) return value
+  }
+  return undefined
+}
+
+function getAbsolutePathDirs(env, platform = process.platform) {
+  const rawPath = readEnvKey(env, 'PATH', platform)
+  if (typeof rawPath !== 'string' || !rawPath) return []
+  const pathMod = platform === 'win32' ? path.win32 : path.posix
+  const sep = platform === 'win32' ? ';' : ':'
+  const dirs = []
+  for (const segment of rawPath.split(sep)) {
+    const cleaned = platform === 'win32' && segment.startsWith('"') && segment.endsWith('"')
+      ? segment.slice(1, -1)
+      : segment
+    if (!cleaned || !pathMod.isAbsolute(cleaned)) continue
+    if (!dirs.includes(cleaned)) dirs.push(cleaned)
+  }
+  return dirs
+}
+
+function getPathExtensions(command, env, platform = process.platform) {
+  if (platform !== 'win32') return ['']
+  if (path.win32.extname(command) !== '') return ['']
+  const raw = readEnvKey(env, 'PATHEXT', platform) ?? '.COM;.EXE;.BAT;.CMD'
+  const exts = String(raw).split(';').map(ext => ext.trim()).filter(Boolean)
+  return exts.length > 0 ? exts : ['.COM', '.EXE', '.BAT', '.CMD']
+}
+
+function createEnoent(command) {
+  return Object.assign(new Error(`Executable not found in PATH: ${command}`), { code: 'ENOENT' })
+}
+
+async function defaultIsExecutableFile(filePath, platform = process.platform) {
+  try {
+    const info = await stat(filePath)
+    if (!info.isFile()) return false
+    await access(filePath, platform === 'win32' ? fsConstants.F_OK : fsConstants.X_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function executableCacheKey(command, env, platform = process.platform) {
+  const pathVal = readEnvKey(env, 'PATH', platform) ?? ''
+  const extVal = platform === 'win32' ? (readEnvKey(env, 'PATHEXT', platform) ?? '') : ''
+  return `${platform}\0${command}\0${pathVal}\0${extVal}`
+}
+
+export function clearExecutableCache() {
+  executableCache.clear()
+  executableInflight.clear()
+}
+
+export async function resolveCliExecutable(command, options = {}) {
+  const {
+    env = process.env,
+    platform = process.platform,
+    isExecutableFile = defaultIsExecutableFile,
+    cache = executableCache,
+    inflight = executableInflight,
+    signal,
+  } = options
+  signal?.throwIfAborted()
+  if (typeof command !== 'string' || !command) throw createEnoent(String(command ?? ''))
+  const pathMod = platform === 'win32' ? path.win32 : path.posix
+  if (pathMod.isAbsolute(command)) {
+    const ok = await isExecutableFile(command, platform)
+    signal?.throwIfAborted()
+    if (ok) return command
+    throw createEnoent(command)
+  }
+  if (command.includes('/') || (platform === 'win32' && command.includes('\\'))) {
+    throw createEnoent(command)
+  }
+
+  const key = executableCacheKey(command, env, platform)
+  if (cache.has(key)) return cache.get(key)
+  let lookup = inflight.get(key)
+  if (!lookup) {
+    lookup = (async () => {
+      const dirs = getAbsolutePathDirs(env, platform)
+      const exts = getPathExtensions(command, env, platform)
+      for (const dir of dirs) {
+        for (const ext of exts) {
+          const candidate = pathMod.join(dir, `${command}${ext}`)
+          if (await isExecutableFile(candidate, platform)) {
+            if (cache.size >= MAX_EXEC_CACHE) {
+              const oldest = cache.keys().next().value
+              if (oldest !== undefined) cache.delete(oldest)
+            }
+            cache.set(key, candidate)
+            return candidate
+          }
+        }
+      }
+      throw createEnoent(command)
+    })().finally(() => {
+      if (inflight.get(key) === lookup) inflight.delete(key)
+    })
+    inflight.set(key, lookup)
+  }
+  const resolved = await lookup
+  signal?.throwIfAborted()
+  return resolved
+}
+
+export async function execResolvedCli(command, args, execOptions = {}, deps = {}) {
+  const {
+    execFile: execFileFn = execFileAsync,
+    resolveExecutable = resolveCliExecutable,
+    cache = executableCache,
+    inflight = executableInflight,
+    platform = process.platform,
+    isExecutableFile = defaultIsExecutableFile,
+  } = deps
+  const env = execOptions.env ?? process.env
+  const key = executableCacheKey(command, env, platform)
+  const resolveOpts = { env, platform, isExecutableFile, cache, inflight, signal: execOptions.signal }
+  const resolved = await resolveExecutable(command, resolveOpts)
+  try {
+    return await execFileFn(resolved, args, execOptions)
+  } catch (error) {
+    const code = error?.code ?? error?.cause?.code
+    if (!RETRYABLE_EXEC_CODES.has(code) || execOptions.signal?.aborted) throw error
+    cache.delete(key)
+    inflight.delete(key)
+    const retried = await resolveExecutable(command, resolveOpts)
+    return await execFileFn(retried, args, execOptions)
+  }
+}
+
+export function buildGitEnv(baseEnv = process.env) {
+  const env = {}
+  for (const [key, value] of Object.entries(baseEnv)) {
+    if (value === undefined) continue
+    const upper = key.toUpperCase()
+    if (STRIPPED_GIT_ENV.has(upper)) continue
+    if (/^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(upper)) continue
+    env[key] = value
+  }
   env.GIT_TERMINAL_PROMPT = '0'
   env.GIT_OPTIONAL_LOCKS = '0'
   env.GIT_NO_LAZY_FETCH = '1'
@@ -124,61 +280,252 @@ export function parseGitRemotesOutput(text) {
   return map
 }
 
-export function selectGitHubRemote(remotesMap, upstreamRef, allowedHosts) {
-  const candidates = []
-  if (typeof upstreamRef === 'string' && upstreamRef.includes('/')) {
-    const upstreamRemote = upstreamRef.split('/')[0]
-    if (upstreamRemote) candidates.push(upstreamRemote)
-  }
-  candidates.push('origin', 'upstream')
+function matchRemotePrefix(refName, remotesMap) {
+  if (typeof refName !== 'string' || !refName) return null
+  let best = null
   for (const name of remotesMap.keys()) {
-    if (!candidates.includes(name)) candidates.push(name)
+    if (!refName.startsWith(`${name}/`)) continue
+    if (best === null || name.length > best.length) best = name
   }
+  return best
+}
+
+export function parseBranchRemoteConfig(rawNullOutput) {
+  const branchRemotes = new Map()
+  const branchMerges = new Map()
+  const branchPushRemotes = new Map()
+  let pushDefault = null
+
+  for (const record of String(rawNullOutput || '').split('\0')) {
+    if (!record) continue
+    const nl = record.indexOf('\n')
+    if (nl < 0) continue
+    const key = record.slice(0, nl)
+    const value = record.slice(nl + 1).trim()
+    if (!value) continue
+    if (key === 'remote.pushdefault') {
+      pushDefault = value
+      continue
+    }
+    if (!key.startsWith('branch.')) continue
+    const dot = key.lastIndexOf('.')
+    if (dot <= 'branch.'.length) continue
+    const branchName = key.slice('branch.'.length, dot)
+    const field = key.slice(dot + 1)
+    if (field === 'remote') branchRemotes.set(branchName, value)
+    else if (field === 'merge') branchMerges.set(branchName, value)
+    else if (field === 'pushremote') branchPushRemotes.set(branchName, value)
+  }
+
+  return { branchRemotes, branchMerges, branchPushRemotes, pushDefault }
+}
+
+function parseRemoteHeadRemotes(rawOutput, remotesMap) {
+  const found = []
+  for (const line of String(rawOutput || '').split(/\r?\n/)) {
+    if (!line) continue
+    const [ref = '', symref = ''] = line.split('\0')
+    if (!symref || !ref.startsWith(REMOTE_REF_PREFIX)) continue
+    const shortRef = ref.slice(REMOTE_REF_PREFIX.length)
+    const remoteName = matchRemotePrefix(shortRef, remotesMap)
+    if (!remoteName) continue
+    if (shortRef.slice(remoteName.length + 1) === 'HEAD' && !found.includes(remoteName)) {
+      found.push(remoteName)
+    }
+  }
+  return found
+}
+
+function resolveBranchRemoteHints(branch, config, remoteHeadRemotes, remotesMap) {
+  let configuredRemote = null
+  if (branch) {
+    let cursor = branch
+    const visited = new Set()
+    while (cursor && !visited.has(cursor)) {
+      visited.add(cursor)
+      const remote = config.branchRemotes.get(cursor)
+      if (!remote) break
+      if (remote !== '.') {
+        configuredRemote = remote
+        break
+      }
+      const merge = config.branchMerges.get(cursor)
+      if (!merge || !merge.startsWith(LOCAL_HEAD_PREFIX)) break
+      cursor = merge.slice(LOCAL_HEAD_PREFIX.length)
+    }
+  }
+
+  const branchPushRemote = branch ? (config.branchPushRemotes.get(branch) ?? null) : null
+  const trackedRemotes = []
+  for (const preferred of ['main', 'master']) {
+    const remote = config.branchRemotes.get(preferred)
+    if (remote && remote !== '.' && remotesMap.has(remote) && !trackedRemotes.includes(remote)) {
+      trackedRemotes.push(remote)
+    }
+  }
+  for (const remote of config.branchRemotes.values()) {
+    if (remote && remote !== '.' && remotesMap.has(remote) && !trackedRemotes.includes(remote)) {
+      trackedRemotes.push(remote)
+    }
+  }
+
+  return {
+    configuredRemote,
+    branchPushRemote,
+    pushDefault: config.pushDefault,
+    remoteHeadRemotes,
+    trackedRemotes,
+  }
+}
+
+export function selectGitHubRemote(remotesMap, upstreamRef, allowedHosts, hints = {}) {
+  const candidates = []
+  const addCandidate = name => {
+    if (typeof name === 'string' && name && !candidates.includes(name)) candidates.push(name)
+  }
+
+  if (typeof upstreamRef === 'string' && upstreamRef.includes('/')) {
+    const matched = matchRemotePrefix(upstreamRef, remotesMap)
+    addCandidate(matched ?? upstreamRef.split('/')[0])
+  }
+  addCandidate(hints.configuredRemote)
+  addCandidate(hints.branchPushRemote)
+  addCandidate(hints.pushDefault)
+  addCandidate('origin')
+  addCandidate('upstream')
+  for (const name of hints.remoteHeadRemotes ?? []) addCandidate(name)
+  for (const name of hints.trackedRemotes ?? []) addCandidate(name)
+  for (const name of remotesMap.keys()) addCandidate(name)
 
   for (const name of candidates) {
     const entry = remotesMap.get(name)
     if (!entry) continue
-    const parsed = parseGitHubRemoteUrl(entry.fetch ?? entry.push, allowedHosts)
+    const parsed = parseGitHubRemoteUrl(entry.fetch, allowedHosts) ?? parseGitHubRemoteUrl(entry.push, allowedHosts)
     if (parsed) return { ...parsed, remoteName: name }
   }
   return null
 }
 
-async function runGit(cwd, args, signal) {
+function isSameOrAncestorPath(ancestor, target) {
+  const rel = path.relative(path.resolve(ancestor), path.resolve(target))
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel))
+}
+
+async function isBareRepoShapedDir(dir) {
+  try {
+    const [headInfo, objectsInfo, refsInfo] = await Promise.all([
+      stat(path.join(dir, 'HEAD')),
+      stat(path.join(dir, 'objects')),
+      stat(path.join(dir, 'refs')),
+    ])
+    return headInfo.isFile() && objectsInfo.isDirectory() && refsInfo.isDirectory()
+  } catch {
+    return false
+  }
+}
+
+async function hasGitMarkerAt(dir) {
+  try {
+    await lstat(path.join(dir, '.git'))
+    const info = await stat(path.join(dir, '.git'))
+    return info.isDirectory() || info.isFile()
+  } catch {
+    return false
+  }
+}
+
+async function hasEnclosingWorktreeMarker(cwd) {
+  let cwdInfo
+  try {
+    cwdInfo = await stat(cwd)
+  } catch {
+    return false
+  }
+  if (!cwdInfo.isDirectory()) return false
+
+  let dir = await realpath(cwd).catch(() => path.resolve(cwd))
+  while (true) {
+    if (path.basename(dir) === '.git') return false
+    if (await hasGitMarkerAt(dir)) return true
+    if (await isBareRepoShapedDir(dir)) return false
+    const parent = path.dirname(dir)
+    if (parent === dir) return false
+    dir = parent
+  }
+}
+
+async function runGitRaw(cwd, args, signal) {
   const combined = signal ? AbortSignal.any([signal, AbortSignal.timeout(GIT_TIMEOUT_MS)]) : AbortSignal.timeout(GIT_TIMEOUT_MS)
-  const { stdout } = await execFileAsync(
+  const { stdout } = await execResolvedCli(
     'git',
     ['--no-optional-locks', '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', ...args],
     { cwd, env: buildGitEnv(), maxBuffer: MAX_BUFFER, signal: combined, encoding: 'utf8' },
   )
+  return stdout
+}
+
+async function runGit(cwd, args, signal) {
+  const stdout = await runGitRaw(cwd, args, signal)
   return stdout.trim()
 }
 
-export async function detectGitHubRepo(cwd, allowedHosts, signal) {
+export async function resolveGitWorktreeRoot(cwd, signal) {
   if (typeof cwd !== 'string' || !cwd) return null
-  let root
+  if (!(await hasEnclosingWorktreeMarker(cwd))) return null
+  let raw
   try {
-    root = await runGit(cwd, ['rev-parse', '--show-toplevel'], signal)
+    raw = await runGitRaw(cwd, [
+      'rev-parse',
+      '--is-inside-work-tree',
+      '--is-bare-repository',
+      '--is-inside-git-dir',
+      '--absolute-git-dir',
+      '--show-prefix',
+      '--show-toplevel',
+    ], signal)
   } catch {
     return null
   }
+  const lines = raw.replace(/\r?\n$/, '').split(/\r?\n/)
+  if (lines.length < 6) return null
+  const [insideWorkTree, isBare, insideGitDir, gitDir, prefix, root] = lines
+  if (insideWorkTree !== 'true' || isBare !== 'false' || insideGitDir !== 'false') return null
+  if (!root || !gitDir) return null
+
+  const canonicalRoot = await realpath(root).catch(() => path.resolve(root))
+  const canonicalGitDir = await realpath(gitDir).catch(() => path.resolve(gitDir))
+  const canonicalCwd = prefix ? path.resolve(canonicalRoot, prefix) : canonicalRoot
+  if (isSameOrAncestorPath(canonicalGitDir, canonicalRoot) || isSameOrAncestorPath(canonicalGitDir, canonicalCwd)) {
+    return null
+  }
+  if (!(await hasGitMarkerAt(canonicalRoot))) return null
+  return root
+}
+
+export async function detectGitHubRepo(cwd, allowedHosts, signal) {
+  const root = await resolveGitWorktreeRoot(cwd, signal)
   if (!root) return null
 
-  const [remotesRes, branchRes, shaRes, upstreamRes] = await Promise.allSettled([
+  const [remotesRes, branchRes, shaRes, upstreamRes, configRes, remoteRefsRes] = await Promise.allSettled([
     runGit(root, ['remote', '-v'], signal),
-    runGit(root, ['symbolic-ref', '--quiet', '--short', 'HEAD'], signal),
+    runGit(root, ['symbolic-ref', '--quiet', 'HEAD'], signal),
     runGit(root, ['rev-parse', '--short', 'HEAD'], signal),
     runGit(root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'], signal),
+    runGitRaw(root, ['config', '--null', '--get-regexp', '^(branch\\..*\\.(remote|merge|pushremote)|remote\\.pushdefault)$'], signal),
+    runGitRaw(root, ['for-each-ref', '--format=%(refname)%00%(symref)', REMOTE_REF_PREFIX], signal),
   ])
 
   if (remotesRes.status !== 'fulfilled') return null
   const remotesMap = parseGitRemotesOutput(remotesRes.value)
-  const selected = selectGitHubRemote(remotesMap, upstreamRes.status === 'fulfilled' ? upstreamRes.value : null, allowedHosts)
-  if (!selected) return null
-
-  const branch = branchRes.status === 'fulfilled' && branchRes.value ? branchRes.value : null
+  const rawHead = branchRes.status === 'fulfilled' ? branchRes.value : ''
+  const branch = rawHead.startsWith(LOCAL_HEAD_PREFIX) ? rawHead.slice(LOCAL_HEAD_PREFIX.length) : null
   const shortSha = shaRes.status === 'fulfilled' && shaRes.value ? shaRes.value : null
   const upstream = upstreamRes.status === 'fulfilled' && upstreamRes.value ? upstreamRes.value : null
+  const config = parseBranchRemoteConfig(configRes.status === 'fulfilled' ? configRes.value : '')
+  const remoteHeadRemotes = parseRemoteHeadRemotes(remoteRefsRes.status === 'fulfilled' ? remoteRefsRes.value : '', remotesMap)
+  const hints = resolveBranchRemoteHints(branch, config, remoteHeadRemotes, remotesMap)
+  const selected = selectGitHubRemote(remotesMap, upstream, allowedHosts, hints)
+  if (!selected) return null
 
   return {
     ...selected,
@@ -257,7 +604,7 @@ function firstDiagnosticLine(text) {
 
 async function runGh(args, signal, timeoutMs = GH_TIMEOUT_MS) {
   const combined = signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs)
-  const { stdout } = await execFileAsync('gh', args, {
+  const { stdout } = await execResolvedCli('gh', args, {
     env: buildGhEnv(),
     maxBuffer: MAX_BUFFER,
     signal: combined,
