@@ -5,7 +5,8 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const NS = 'gitChanges'
     const SLOT = 'conversation.composer.dock'
-    const DEBOUNCE_MS = 400
+    const DEBOUNCE_MS = 1200
+    const MAX_CACHE = 32
     const TAB_SLOT = 'sidebar.right.pane.tab'
     const CHANGES_ID = '@deepseek-ai/dsh-experimental-client-ui-forge/changes'
     const TAB_PRIORITY = -10
@@ -103,27 +104,59 @@ window.__ModuleLoader__.load({
     }
 
     function createUncommitted(ctx) {
+      const cache = new Map()
+      const remember = (sessionId, entry) => {
+        cache.delete(sessionId)
+        cache.set(sessionId, entry)
+        if (cache.size > MAX_CACHE) {
+          const oldest = cache.keys().next().value
+          if (oldest !== undefined) cache.delete(oldest)
+        }
+      }
       return function useUncommitted(sessionId, key) {
-        const [summary, setResult] = React.useState(null)
+        const cached = sessionId !== undefined ? cache.get(sessionId) : undefined
+        const [summary, setResult] = React.useState(() => (cached?.key === key ? cached : null))
         React.useEffect(() => {
           if (sessionId === undefined || key === null) { setResult(null); return undefined }
+          const hit = cache.get(sessionId)
+          if (hit?.key === key) { setResult(hit); return undefined }
           const controller = new AbortController()
-          const timer = setTimeout(async () => {
-            try {
-              const result = await ctx.remote.forgePanel.localDiff(sessionId, { kind: 'uncommitted' }, controller.signal)
+          let timer = null
+          const schedule = () => {
+            if (controller.signal.aborted) return
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+            clearTimeout(timer)
+            timer = setTimeout(async () => {
+              timer = null
               if (controller.signal.aborted) return
-              const value = result?.ok ? result.value : null
-              setResult({ key, sum: totals(value?.files, value?.omitted) })
-            } catch (error) {
-              if (!controller.signal.aborted) {
-                console.warn('[dsh-git-changes] uncommitted diff failed:', error)
-                setResult({ key, sum: null })
+              if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+              try {
+                const result = await ctx.remote.forgePanel.localDiff(sessionId, { kind: 'uncommitted' }, controller.signal)
+                if (controller.signal.aborted) return
+                const value = result?.ok ? result.value : null
+                const next = { key, sum: totals(value?.files, value?.omitted) }
+                remember(sessionId, next)
+                setResult(next)
+              } catch (error) {
+                if (!controller.signal.aborted) {
+                  console.warn('[dsh-git-changes] uncommitted diff failed:', error)
+                  setResult({ key, sum: null })
+                }
               }
-            }
-          }, DEBOUNCE_MS)
-          return () => { clearTimeout(timer); controller.abort() }
+            }, DEBOUNCE_MS)
+          }
+          const onVisibility = () => {
+            if (document.visibilityState !== 'hidden' && cache.get(sessionId)?.key !== key) schedule()
+          }
+          schedule()
+          if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+          return () => {
+            clearTimeout(timer)
+            controller.abort()
+            if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+          }
         }, [sessionId, key])
-        return summary?.key === key ? summary.sum : undefined
+        return summary?.key === key ? summary.sum : (cached?.key === key ? cached.sum : undefined)
       }
     }
 

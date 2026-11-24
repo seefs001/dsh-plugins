@@ -105,6 +105,14 @@ window.__ModuleLoader__.load({
       const chat = conversation?.target?.('chat')?.getSnapshot?.()
       const grouped = conversation?.snapshot?.getSnapshot?.()?.views?.grouped?.('chat')
       const { value, hiddenRetryRpcIds } = entry
+      const hasHiding = value.hiddenRanges.length > 0 || value.hiddenSeqs.length > 0 || hiddenRetryRpcIds.size > 0
+      if (!hasHiding && !rec.hadHidden) {
+        rec.lastOrder = chat?.order
+        rec.lastEntries = grouped?.entries
+        rec.lastValue = value
+        rec.lastRetrySize = hiddenRetryRpcIds.size
+        return
+      }
       if (!force && rec.lastOrder === chat?.order && rec.lastEntries === grouped?.entries
         && rec.lastValue === value && rec.lastRetrySize === hiddenRetryRpcIds.size) return
       rec.lastOrder = chat?.order
@@ -113,7 +121,6 @@ window.__ModuleLoader__.load({
       rec.lastRetrySize = hiddenRetryRpcIds.size
       const hiddenNodes = new Set()
       const hiddenGroups = new Set()
-      const hasHiding = value.hiddenRanges.length > 0 || value.hiddenSeqs.length > 0 || hiddenRetryRpcIds.size > 0
       if (hasHiding && chat?.nodes) {
         for (const key of chat.order ?? []) {
           if (isNodeHidden(chat.nodes.get(key), value, hiddenRetryRpcIds)) hiddenNodes.add(key)
@@ -126,17 +133,20 @@ window.__ModuleLoader__.load({
           }
         }
       }
+      let anyHidden = false
       for (const child of flowEl.children) {
         const nodeKey = child.getAttribute('data-chat-node-key')
         const groupKey = child.getAttribute('data-chat-group-key')
         const shouldHide = (nodeKey !== null && hiddenNodes.has(nodeKey))
           || (groupKey !== null && hiddenGroups.has(groupKey))
         if (shouldHide) {
+          anyHidden = true
           if (!child.hasAttribute('data-dme-hidden')) child.setAttribute('data-dme-hidden', '')
         } else if (child.hasAttribute('data-dme-hidden')) {
           child.removeAttribute('data-dme-hidden')
         }
       }
+      rec.hadHidden = anyHidden
     }
     function syncAllFlows(ctx, sessionId, entry, force) {
       for (const [flowEl, rec] of entry.flows) syncFlow(ctx, flowEl, rec, sessionId, entry, force)
@@ -167,6 +177,7 @@ window.__ModuleLoader__.load({
     }
     function disposeStore(entry, restoreDom) {
       for (const [flowEl, rec] of entry.flows) {
+        if (rec.frame) cancelAnimationFrame(rec.frame)
         rec.observer.disconnect()
         if (restoreDom) {
           for (const child of flowEl.children) {
@@ -210,8 +221,17 @@ window.__ModuleLoader__.load({
       ensureBinding(ctx, sessionId, entry)
       let rec = entry.flows.get(flowEl)
       if (!rec) {
-        const observer = new MutationObserver(() => syncFlow(ctx, flowEl, rec, sessionId, entry, true))
-        rec = { refs: 0, observer, lastOrder: null, lastEntries: null, lastValue: null, lastRetrySize: -1 }
+        const schedule = () => {
+          const { value, hiddenRetryRpcIds } = entry
+          if (!rec.hadHidden && value.hiddenRanges.length === 0 && value.hiddenSeqs.length === 0 && hiddenRetryRpcIds.size === 0) return
+          if (rec.frame) return
+          rec.frame = requestAnimationFrame(() => {
+            rec.frame = 0
+            syncFlow(ctx, flowEl, rec, sessionId, entry, true)
+          })
+        }
+        const observer = new MutationObserver(schedule)
+        rec = { refs: 0, observer, frame: 0, hadHidden: false, lastOrder: null, lastEntries: null, lastValue: null, lastRetrySize: -1 }
         entry.flows.set(flowEl, rec)
         observer.observe(flowEl, { childList: true })
       }
@@ -220,6 +240,7 @@ window.__ModuleLoader__.load({
       return () => {
         rec.refs--
         if (rec.refs <= 0) {
+          if (rec.frame) cancelAnimationFrame(rec.frame)
           rec.observer.disconnect()
           entry.flows.delete(flowEl)
           maybeDisposeStore(sessionId, entry)

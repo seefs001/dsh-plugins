@@ -6,7 +6,18 @@ import { AcpConnection, RpcError } from './transport.js'
 import { WorkbenchStore } from './store.js'
 import { advertisedModels, advertisedModes, inputModalities } from './models.js'
 import { extractAgentMeta, resolveAdapter } from './adapters.js'
-import { contextWindow } from './usage.js'
+import { contextWindow, rateLimitInfo } from './usage.js'
+import {
+  accountFromAuthStatus,
+  buildClaudeSubscription,
+  computeLocalUsageByProvider,
+  mergeRateLimitIntoSubscription,
+  normalizeAntigravityUsage,
+  normalizeCodexRateLimits,
+  normalizeCursorCliUsage,
+  probeCodexAppServer,
+  runJsonCli,
+} from './subscription.js'
 import { rememberNotice } from './notices.js'
 import { formFields, formResponse, urlElicitation, urlResponse } from './forms.js'
 import { activityOf } from './activity.js'
@@ -45,9 +56,11 @@ export function summary(session, runtime) {
 }
 
 const CLIENT_INFO = { name: 'dsh-acp-workbench', version: '0.2.0' }
+const DEFAULT_IDLE_DISCONNECT_MS = 15 * 60_000
+const DEFAULT_MAX_IDLE_RUNTIMES = 2
 
 export class Workbench {
-  constructor({ domain, subprocess, changed, modelsChanged, log, autoApprove, asyncWakeup }) {
+  constructor({ domain, subprocess, changed, modelsChanged, log, autoApprove, asyncWakeup, idleDisconnectMs, maxIdleRuntimes }) {
     this.subprocess = subprocess
     this.changed = changed
     this.modelsChanged = modelsChanged
@@ -56,6 +69,8 @@ export class Workbench {
     this.asyncWakeupSettleMs = asyncWakeup?.settleMs ?? ASYNC_WAKEUP_SETTLE_MS
     this.asyncWakeupSilentSettleMs = asyncWakeup?.silentSettleMs ?? ASYNC_WAKEUP_SILENT_SETTLE_MS
     this.asyncWakeupIdleTimeoutMs = asyncWakeup?.idleTimeoutMs ?? ASYNC_WAKEUP_IDLE_TIMEOUT_MS
+    this.idleDisconnectMs = idleDisconnectMs ?? DEFAULT_IDLE_DISCONNECT_MS
+    this.maxIdleRuntimes = maxIdleRuntimes ?? DEFAULT_MAX_IDLE_RUNTIMES
     this.runtimes = new Map()
     this.listeners = new Map()
     this.probes = new Set()
@@ -121,6 +136,7 @@ export class Workbench {
       providerTemplates: resolveProviderTemplates(),
       activeByProvider,
       authByProvider: Object.fromEntries(this.authByProvider),
+      localUsageByProvider: computeLocalUsageByProvider(this.store.sessions.values()),
       defaultCwd: recentCwd || homedir(),
       storageError: this.store.failure?.message ?? null,
     }
@@ -170,8 +186,58 @@ export class Workbench {
     }
   }
 
+  clearIdleTimer(runtime) {
+    if (!runtime) return
+    clearTimeout(runtime.idleTimer)
+    runtime.idleTimer = null
+    runtime.idleSince = 0
+  }
+
+  canAutoReap(session, runtime) {
+    if (!session || !runtime || runtime.closing || runtime.shutdown) return false
+    if (session.state !== 'idle' || runtime.turnId || runtime.interactions.size > 0) return false
+    if (!session.remoteId) return false
+    return Boolean(session.capabilities?.sessionCapabilities?.resume || session.capabilities?.loadSession)
+  }
+
+  scheduleIdleReap(session) {
+    const runtime = this.runtimes.get(session.id)
+    if (!runtime) return
+    this.clearIdleTimer(runtime)
+    if (!this.canAutoReap(session, runtime)) return
+    runtime.idleSince = Date.now()
+    if (this.idleDisconnectMs > 0) {
+      runtime.idleTimer = setTimeout(() => {
+        if (this.isCurrent(session, runtime) && this.canAutoReap(session, runtime)) {
+          void this.disconnect(session, 'idle-timeout').catch(error => this.log?.(error.message))
+        }
+      }, this.idleDisconnectMs)
+      runtime.idleTimer.unref?.()
+    }
+    if (Number.isFinite(this.maxIdleRuntimes) && this.maxIdleRuntimes >= 0) {
+      const candidates = []
+      for (const [id, candidateRuntime] of this.runtimes) {
+        if (id === session.id) continue
+        const candidateSession = this.store.sessions.get(id)
+        if (this.canAutoReap(candidateSession, candidateRuntime)) {
+          candidates.push({ session: candidateSession, idleSince: candidateRuntime.idleSince || 0 })
+        }
+      }
+      const totalIdle = candidates.length + 1
+      if (totalIdle > this.maxIdleRuntimes) {
+        candidates.sort((a, b) => a.idleSince - b.idleSince)
+        const overflow = totalIdle - this.maxIdleRuntimes
+        for (const item of candidates.slice(0, overflow)) {
+          void this.disconnect(item.session, 'idle-evicted').catch(error => this.log?.(error.message))
+        }
+      }
+    }
+  }
+
   async transition(session, state, detail = {}) {
     session.state = state
+    if (state === 'idle') this.scheduleIdleReap(session)
+    else this.clearIdleTimer(this.runtimes.get(session.id))
     this.changed(session.id)
     this.record(session, 'lifecycle', { state, ...detail })
     await this.store.saveSession(session)
@@ -201,6 +267,7 @@ export class Workbench {
       case 'diagnose': return this.probe(op.providerId, op.cwd, 'diagnose')
       case 'models': return this.probe(op.providerId, op.cwd, 'models')
       case 'discover': return this.probe(op.providerId, op.cwd, 'discover', op.cursor)
+      case 'usage': return this.refreshUsage(op.providerId, op.cwd)
       default: break
     }
     const session = this.session(op.sessionId)
@@ -253,7 +320,8 @@ export class Workbench {
     const provider = { id, label: str(raw.label, 'label', 100), command, args: raw.args, models: cleanModels,
       ...(hiddenModels.length ? { hiddenModels } : {}),
       ...(previous?.advertised ? { advertised: previous.advertised } : {}),
-      ...(previous?.defaults ? { defaults: previous.defaults } : {}) }
+      ...(previous?.defaults ? { defaults: previous.defaults } : {}),
+      ...(previous?.subscription ? { subscription: previous.subscription } : {}) }
     await this.store.saveProvider(provider)
     this.changed()
     return provider
@@ -269,8 +337,11 @@ export class Workbench {
           ...(typeof item.email === 'string' && item.email ? { email: item.email } : {}),
           ...(typeof item.name === 'string' && item.name ? { name: item.name } : {}),
           ...(typeof item.label === 'string' && item.label ? { label: item.label } : {}),
+          ...(typeof item.description === 'string' && item.description ? { description: item.description } : {}),
+          ...(typeof item.active === 'boolean' ? { active: item.active } : {}),
           ...(typeof item.methodId === 'string' && item.methodId ? { methodId: item.methodId } : {}),
           ...(typeof item.subscriptionType === 'string' && item.subscriptionType ? { subscriptionType: item.subscriptionType } : {}),
+          ...(typeof item._meta?.claudeCode?.detail === 'string' && item._meta.claudeCode.detail ? { detail: item._meta.claudeCode.detail } : {}),
         }))
         .filter(item => Object.keys(item).length > 0)
       : []
@@ -280,6 +351,24 @@ export class Workbench {
     if (prev && prev.state === next.state && JSON.stringify(prev.accounts) === JSON.stringify(next.accounts)) return
     this.authByProvider.set(providerId, next)
     this.changed()
+  }
+
+  async saveProviderSubscription(providerId, subscription) {
+    const provider = this.store.providers.get(providerId)
+    if (!provider || !subscription) return null
+    await this.store.saveProvider({ ...provider, subscription })
+    this.changed()
+    return subscription
+  }
+
+  async noteRateLimit(providerId, rateLimit) {
+    if (!providerId || !rateLimit) return
+    const provider = this.store.providers.get(providerId)
+    if (!provider) return
+    const adapter = resolveAdapter({ providerId: provider.id, command: provider.command })
+    const next = mergeRateLimitIntoSubscription(provider.subscription, rateLimit, adapter.id, now())
+    if (!next) return
+    await this.saveProviderSubscription(providerId, next)
   }
 
   async noteAdvertised(providerId, models, capabilities, { modes, meta, authoritative = false } = {}) {
@@ -346,6 +435,11 @@ export class Workbench {
     try { await connection.request('session/close', { sessionId }, 2_000) } catch {}
   }
 
+  async deleteRemoteSession(connection, capabilities, sessionId) {
+    if (!sessionId || !capabilities?.sessionCapabilities?.delete || connection?.closed) return
+    try { await connection.request('session/delete', { sessionId }, 2_000) } catch {}
+  }
+
   async probePerModelCatalog(connection, result, adapter) {
     const sessionId = result?.sessionId
     const modelOption = (result?.configOptions ?? []).find(item => item?.category === 'model' && item.type === 'select')
@@ -407,12 +501,13 @@ export class Workbench {
     return new AcpConnection(child, handlers)
   }
 
-  async withProbe(providerId, rawCwd, use) {
+  async withProbe(providerId, rawCwd, use, options = {}) {
     const provider = this.provider(providerId)
     const cwd = await this.directory(typeof rawCwd === 'string' && rawCwd.trim() ? rawCwd : homedir())
     const connection = await this.spawn(provider, cwd, {
       onNotification: (method, params) => {
         if (method === 'auth/status_update' || method === '_auth/status_update') this.recordAuthStatus(provider.id, params)
+        options.onNotification?.(method, params)
       },
       onRequest: () => { throw new RpcError('Client operations are unavailable during CLI setup', -32601) },
     })
@@ -484,6 +579,121 @@ export class Workbench {
         }
       }
       return this.historyPage(connection, info, cwd, cursor)
+    })
+  }
+
+  async refreshUsage(providerId, rawCwd) {
+    const provider = this.provider(providerId)
+    const cwd = await this.directory(typeof rawCwd === 'string' && rawCwd.trim() ? rawCwd : homedir())
+    const adapter = resolveAdapter({ providerId: provider.id, command: provider.command })
+    const fetchedAt = now()
+
+    if (adapter.id === 'cursor') {
+      const [aboutRes, statusRes] = await Promise.allSettled([
+        runJsonCli(this.subprocess, provider.command, ['about', '--format', 'json'], cwd, 10_000),
+        runJsonCli(this.subprocess, provider.command, ['status', '--format', 'json'], cwd, 10_000),
+      ])
+      const aboutJson = aboutRes.status === 'fulfilled' ? aboutRes.value : null
+      const statusJson = statusRes.status === 'fulfilled' ? statusRes.value : null
+      if (!aboutJson && !statusJson) {
+        const message = aboutRes.reason?.message ?? statusRes.reason?.message ?? 'Failed to inspect Cursor CLI status'
+        throw new Error(message)
+      }
+      const subscription = normalizeCursorCliUsage(aboutJson, statusJson, fetchedAt)
+      await this.saveProviderSubscription(provider.id, subscription)
+      return subscription
+    }
+
+    if (adapter.id === 'codex') {
+      try {
+        const { accountResult, rateLimitsResult } = await probeCodexAppServer(this.subprocess, provider.command, cwd, CLIENT_INFO, 12_000)
+        const subscription = normalizeCodexRateLimits(accountResult, rateLimitsResult, fetchedAt)
+        await this.saveProviderSubscription(provider.id, subscription)
+        return subscription
+      } catch (error) {
+        if (!provider.command) throw error
+      }
+    }
+
+    if (adapter.id === 'claude-code') {
+      const textChunks = []
+      let probeRateLimit = null
+      let targetSessionId = null
+      return this.withProbe(provider.id, cwd, async ({ connection, info }) => {
+        if (info.agentCapabilities?.auth?.status) {
+          try {
+            const authResp = await connection.request('auth/status', {}, 5_000)
+            if (authResp && typeof authResp === 'object') this.recordAuthStatus(provider.id, authResp)
+          } catch {}
+        }
+        const created = await connection.request('session/new', { cwd, mcpServers: [] }, 60_000)
+        targetSessionId = created?.sessionId ?? null
+        try {
+          if (targetSessionId) {
+            await connection.request('session/prompt', {
+              sessionId: targetSessionId,
+              prompt: [{ type: 'text', text: '/usage' }],
+            }, 25_000)
+          }
+        } finally {
+          await this.closeRemoteSession(connection, info.agentCapabilities, targetSessionId)
+          await this.deleteRemoteSession(connection, info.agentCapabilities, targetSessionId)
+        }
+        const subscription = buildClaudeSubscription({
+          markdown: textChunks.join(''),
+          authStatus: this.authByProvider.get(provider.id),
+          rateLimit: probeRateLimit,
+          fetchedAt,
+        })
+        await this.saveProviderSubscription(provider.id, subscription)
+        return subscription
+      }, {
+        onNotification: (method, params) => {
+          if (method !== 'session/update') return
+          if (targetSessionId && params?.sessionId && params.sessionId !== targetSessionId) return
+          const update = params?.update
+          if (update?.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text' && typeof update.content.text === 'string') {
+            textChunks.push(update.content.text)
+          } else if (update?.sessionUpdate === 'usage_update') {
+            const rl = rateLimitInfo(update)
+            if (rl) probeRateLimit = rl
+          }
+        },
+      })
+    }
+
+    return this.withProbe(provider.id, cwd, async ({ connection, info }) => {
+      const detected = resolveAdapter({ providerId: provider.id, command: provider.command, agentInfo: info.agentInfo, capabilities: info.agentCapabilities })
+      if (info.agentCapabilities?.auth?.status) {
+        try {
+          const authResp = await connection.request('auth/status', {}, 5_000)
+          if (authResp && typeof authResp === 'object') this.recordAuthStatus(provider.id, authResp)
+        } catch {}
+      }
+      if (detected.id === 'antigravity') {
+        const result = await connection.request('session/new', { cwd, mcpServers: [] }, 60_000)
+        try {
+          const meta = extractAgentMeta(info, result)
+          if (meta) await this.noteAdvertised(provider.id, [], info.agentCapabilities, { meta })
+          const subscription = normalizeAntigravityUsage(meta?.tier, this.authByProvider.get(provider.id), fetchedAt)
+          await this.saveProviderSubscription(provider.id, subscription)
+          return subscription
+        } finally {
+          await this.closeRemoteSession(connection, info.agentCapabilities, result?.sessionId)
+        }
+      }
+      const account = accountFromAuthStatus(this.authByProvider.get(provider.id))
+      const subscription = {
+        fetchedAt,
+        adapterId: detected.id,
+        source: 'acp-initialize',
+        quotaSupported: false,
+        quotaNote: account?.state === 'unauthenticated' ? 'signed_out' : 'acp_not_exposed',
+        ...(account ? { account } : {}),
+        windows: [],
+      }
+      await this.saveProviderSubscription(provider.id, subscription)
+      return subscription
     })
   }
 
@@ -657,14 +867,20 @@ export class Workbench {
       }
       case 'usage_update': {
         const window = contextWindow(update)
-        if (window && !runtime.replaying && session.remoteId && params.sessionId === session.remoteId && !cliParentOf(update)) {
-          session.lastContext = { remoteId: session.remoteId, at: event.at, window }
-          const currentModelId = session.configOptions?.find(o => o.category === 'model')?.currentValue ?? session.models?.currentModelId
-          if (currentModelId && currentModelId !== 'default') {
-            void this.noteModelContextWindow(session.providerId, currentModelId, window.size)
+        const rateLimit = rateLimitInfo(update)
+        if (!runtime.replaying && session.remoteId && params.sessionId === session.remoteId && !cliParentOf(update)) {
+          if (window) {
+            session.lastContext = { remoteId: session.remoteId, at: event.at, window }
+            const currentModelId = session.configOptions?.find(o => o.category === 'model')?.currentValue ?? session.models?.currentModelId
+            if (currentModelId && currentModelId !== 'default') {
+              void this.noteModelContextWindow(session.providerId, currentModelId, window.size)
+            }
+            if (window.model && window.model !== currentModelId) {
+              void this.noteModelContextWindow(session.providerId, window.model, window.size)
+            }
           }
-          if (window.model && window.model !== currentModelId) {
-            void this.noteModelContextWindow(session.providerId, window.model, window.size)
+          if (rateLimit) {
+            void this.noteRateLimit(session.providerId, rateLimit)
           }
         }
         break
@@ -1052,6 +1268,7 @@ export class Workbench {
     if (!this.isCurrent(session, runtime)) return
     const deferred = runtime.deferredEnd
     runtime.closing = true
+    this.clearIdleTimer(runtime)
     clearTimeout(runtime.cancelTimer)
     this.clearDeferredEnd(runtime)
     this.expire(session, runtime, 'connection-failed')
@@ -1077,6 +1294,7 @@ export class Workbench {
     if (runtime.shutdown) return runtime.shutdown
     const deferred = runtime.deferredEnd
     runtime.closing = true
+    this.clearIdleTimer(runtime)
     clearTimeout(runtime.cancelTimer)
     this.clearDeferredEnd(runtime)
     this.expire(session, runtime, reason)

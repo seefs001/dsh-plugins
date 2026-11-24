@@ -267,19 +267,56 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
           return () => { offs.forEach(off => { try { off() } catch {} }); window.removeEventListener('focus', refreshConfig) }
         }, 'auto-review-model: chip data')
 
-        function useReviewLog(sessionId, enabled) {
+        function useReviewLog(sessionId, enabled, live) {
           const [log, setLog] = React.useState({ status: 'loading', entries: [] })
           React.useEffect(() => {
             if (!enabled || !sessionId) return undefined
-            const es = new EventSource(`auto-review-model/log/events?session=${encodeURIComponent(sessionId)}`)
-            es.addEventListener('message', e => {
-              let data = null
-              try { data = JSON.parse(e.data) } catch {}
-              if (data && Array.isArray(data.entries)) setLog({ status: 'ready', entries: data.entries })
-            })
-            es.addEventListener('error', () => setLog(l => ({ ...l, status: 'unavailable' })))
-            return () => es.close()
-          }, [sessionId, enabled])
+            const controller = new AbortController()
+            let lastFetchedAt = 0
+            const fetchLog = (force = false) => {
+              if (!force && Date.now() - lastFetchedAt < 15_000) return
+              lastFetchedAt = Date.now()
+              fetch(`auto-review-model/log?session=${encodeURIComponent(sessionId)}`, {
+                headers: { accept: 'application/json' },
+                cache: 'no-store',
+                signal: controller.signal,
+              })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+                .then(data => {
+                  if (!controller.signal.aborted && data && Array.isArray(data.entries)) {
+                    setLog({ status: 'ready', entries: data.entries })
+                  }
+                })
+                .catch(() => {
+                  if (!controller.signal.aborted) setLog(l => (l.status === 'ready' ? l : { ...l, status: 'unavailable' }))
+                })
+            }
+            if (live) {
+              const es = new EventSource(`auto-review-model/log/events?session=${encodeURIComponent(sessionId)}`)
+              es.addEventListener('message', e => {
+                let data = null
+                try { data = JSON.parse(e.data) } catch {}
+                if (data && Array.isArray(data.entries)) {
+                  lastFetchedAt = Date.now()
+                  setLog({ status: 'ready', entries: data.entries })
+                }
+              })
+              es.addEventListener('error', () => setLog(l => ({ ...l, status: 'unavailable' })))
+              return () => { controller.abort(); es.close() }
+            }
+            fetchLog(true)
+            const onWake = () => {
+              if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+              fetchLog(false)
+            }
+            window.addEventListener('focus', onWake)
+            document.addEventListener('visibilitychange', onWake)
+            return () => {
+              controller.abort()
+              window.removeEventListener('focus', onWake)
+              document.removeEventListener('visibilitychange', onWake)
+            }
+          }, [sessionId, enabled, live])
           return log
         }
 
@@ -451,8 +488,8 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
           const data = React.useSyncExternalStore(subscribe, () => shared)
           const permissions = useProjection('permissions')
           const auto = permissions?.currentValue === 'auto'
-          const log = useReviewLog(sessionId, auto)
           const [open, setOpen] = React.useState(false)
+          const log = useReviewLog(sessionId, auto, open)
           const anchor = React.useRef(null)
           const close = React.useCallback(() => setOpen(false), [])
           if (!auto || data.config === null) return null

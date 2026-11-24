@@ -1450,7 +1450,12 @@ window.__ModuleLoader__.load({
           const [dialog, setDialog] = React.useState(null)
           const [toast, setToast] = React.useState(null)
           const [, tick] = React.useReducer(n => n + 1, 0)
-          React.useEffect(() => { const id = setInterval(tick, 30_000); return () => clearInterval(id) }, [])
+          React.useEffect(() => {
+            const id = setInterval(() => {
+              if (typeof document === 'undefined' || document.visibilityState === 'visible') tick()
+            }, 30_000)
+            return () => clearInterval(id)
+          }, [])
           React.useEffect(() => { if (!toast) return undefined; const id = setTimeout(() => setToast(null), 1600); return () => clearTimeout(id) }, [toast])
 
           const refresh = React.useCallback(() => setNonce(n => n + 1), [])

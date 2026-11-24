@@ -67,7 +67,8 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 
 采用左侧提供方列表 + 右侧模型目录主区设计：
 
-- **提供方概览与预设模板**：左侧显示各 CLI 提供方的可见/总模型数、命令行预览与活跃连接状态；顶部 **新增提供方** 与 **CLI 配置** 内置常见 ACP CLI 预设模板，可一键填入默认命令与参数（已有同名 ID 时自动避重）。
+- **提供方概览与预设模板**：左侧显示各 CLI 提供方的可见/总模型数、已缓存订阅档位或峰值用量百分比、命令行预览与活跃连接状态；顶部 **新增提供方** 与 **CLI 配置** 内置常见 ACP CLI 预设模板，可一键填入默认命令与参数（已有同名 ID 时自动避重）。
+- **订阅与用量卡片**：展示各提供方的登录状态、账号与订阅档位、按需刷新的配额窗口进度条与重置时间（Claude Code 通过 ACP `/usage` 与 `_claude/rateLimit`、Codex 通过 `codex app-server`、Cursor 通过 CLI `about`/`status`、Antigravity 通过 ACP 档位元信息），以及基于 DSH 本地记录的近 24 小时、近 7 天与累计会话/轮次统计。
 - **模型目录筛选与可见性管理**：按名称/ID 搜索，支持按 `全部 / 已显示 / 已隐藏 / 思考 / Fast / 多上下文` 标签快速过滤，直观展示思考强度、上下文窗口、Fast、图片输入与输出上限，支持全部显示/全部隐藏与顶部未保存更改提示。
 - **按需展开的配置与诊断**：命令行参数与工作目录覆盖收纳在可折叠的 **CLI 配置** 面板，协议能力与原始 JSON 诊断收纳在可关闭的 **检查能力** 面板，不干扰模型目录浏览。
 
@@ -96,7 +97,7 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 | `lib/native.js` | `acp-*` LLM 适配器、`SubagentProvider` 注册、上下文交接、逐模型属性下发与流式事件转换 |
 | `lib/native-tools.js` | ACP 工具调用/结果/任务计划到 DSH 原生工具与 PTC 事件的映射 |
 | `lib/models.js` | 参数化模型协议、Cursor 模型目录解析、双思考项合并与旧变体迁移 |
-| `lib/trace.js` / `forms.js` / `notices.js` / `usage.js` / `activity.js` | 轨迹折叠、表单校验、提醒与用量投影、活动状态汇总 |
+| `lib/trace.js` / `forms.js` / `notices.js` / `usage.js` / `subscription.js` / `activity.js` | 轨迹折叠、表单校验、提醒与用量投影、订阅配额探针与本地统计、活动状态汇总 |
 | `lib/client.js` | 浏览器端界面组件（提供方与模型工作台、输入框快捷属性栏、CLI 设置与审批交互） |
 
 ## 开发检查

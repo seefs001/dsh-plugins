@@ -64,10 +64,12 @@
     },
     "client": {
       "platform": "web",
-      "immediately": true,
       "inject": [
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-tool",
         "@deepseek-ai/dsh-api-session-controller",
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-sidebar-right"

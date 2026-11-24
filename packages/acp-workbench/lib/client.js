@@ -127,7 +127,19 @@ window.__ModuleLoader__.load({
       modelContext: 'Context: {n} tokens', modelOutput: 'Output limit: {n} tokens', modelInput: 'Input: {types}',
       modelEfforts: 'Reasoning: {levels}', modelInfoUnknown: 'No model details advertised', modalityText: 'text', modalityImage: 'image',
       supported: 'Advertised', unsupported: 'Not supported', unreported: 'Not reported', authMethods: 'Sign-in methods', rawResult: 'Raw result', none: 'None advertised',
-      tierLabel: 'Plan tier', authLabel: 'Account', authSignedIn: 'Signed in', authSignedOut: 'Signed out',
+      tierLabel: 'Plan tier', authLabel: 'Account', authSignedIn: 'Signed in', authSignedOut: 'Signed out', authUnknown: 'Not checked',
+      subHeading: 'Subscription & usage', refreshUsage: 'Refresh usage', refreshingUsage: 'Refreshing…', usageUpdated: 'Subscription and usage updated.', usageUpdatedAt: 'Updated {time}', usageOpenDashboard: 'Usage dashboard ↗',
+      quotaLimit5h: '5-hour window', quotaLimit7d: '7-day window', quotaLimitModel7d: 'Weekly · {model}', quotaLimitDuration: '{hours}h window', quotaLimitExtra: 'Extra usage',
+      quotaStatusWarn: 'Near limit', quotaStatusRejected: 'Limit reached', quotaResetsAt: 'Resets {time}',
+      quotaResetCredits: '{n} reset credits available', quotaCreditsBalance: 'Credits: {balance}', quotaCreditsUnlimited: 'Unlimited credits',
+      quotaExtraEnabled: 'Extra usage enabled', quotaExtraActive: 'Using extra usage',
+      quotaHintUnfetched: 'Click “Refresh usage” to read the signed-in account and subscription quota from this CLI.',
+      quotaNoteCliNotExposed: 'This CLI reports account tier only; real-time personal quota is not exposed via CLI or ACP.',
+      quotaNoteAcpNotExposed: 'This provider does not expose subscription quota over ACP or non-interactive CLI yet.',
+      quotaNoteCustomOrApi: 'No subscription rate limits returned (may be using an API key, custom endpoint, or disabled non-essential traffic).',
+      quotaNoteSignedOut: 'CLI is not signed in. Sign in from a terminal, then refresh.',
+      localUsageLabel: 'Local DSH activity', localUsage24h: '24h: {sessions} sessions · {turns} turns', localUsage7d: '7d: {sessions} sessions · {turns} turns', localUsageTotal: 'Total: {sessions} sessions · {turns} turns',
+      cliActivityLabel: 'This machine (CLI)', cliActivityPeriod: '{period}: {requests} reqs · {sessions} sessions',
       urlElicitation: 'External link confirmation', urlOpen: 'Open link', urlAccept: 'Confirm', urlDecline: 'Decline', urlHelp: 'Inspect the link before opening or confirming.',
       steerLabel: 'Steer active turn', steerPlaceholder: 'Send guidance to the running turn without canceling…', steerSend: 'Steer',
       'cap.loadSession': 'Load session', 'cap.resume': 'Resume', 'cap.fork': 'Fork', 'cap.close': 'Close', 'cap.options': 'Session options',
@@ -271,7 +283,19 @@ window.__ModuleLoader__.load({
       modelContext: '上下文：{n} tokens', modelOutput: '输出上限：{n} tokens', modelInput: '输入：{types}',
       modelEfforts: '思考强度：{levels}', modelInfoUnknown: 'CLI 未公布模型信息', modalityText: '文本', modalityImage: '图片',
       supported: '已公布', unsupported: '不支持', unreported: '未公布', authMethods: '登录方式', rawResult: '原始结果', none: '未公布',
-      tierLabel: '订阅档位', authLabel: '登录状态', authSignedIn: '已登录', authSignedOut: '未登录',
+      tierLabel: '订阅档位', authLabel: '登录状态', authSignedIn: '已登录', authSignedOut: '未登录', authUnknown: '未检测',
+      subHeading: '订阅与用量', refreshUsage: '刷新用量', refreshingUsage: '刷新中…', usageUpdated: '订阅与用量已刷新。', usageUpdatedAt: '更新于 {time}', usageOpenDashboard: '查看网页用量 ↗',
+      quotaLimit5h: '5 小时窗口', quotaLimit7d: '7 天总量', quotaLimitModel7d: '7 天 · {model}', quotaLimitDuration: '{hours} 小时窗口', quotaLimitExtra: '超额用量',
+      quotaStatusWarn: '接近上限', quotaStatusRejected: '已达上限', quotaResetsAt: '重置于 {time}',
+      quotaResetCredits: '可用免费重置次数：{n}', quotaCreditsBalance: '额度余额：{balance}', quotaCreditsUnlimited: '无限额度',
+      quotaExtraEnabled: '已开启超额用量', quotaExtraActive: '正在使用超额用量',
+      quotaHintUnfetched: '点击“刷新用量”读取当前 CLI 的登录账号与订阅配额。',
+      quotaNoteCliNotExposed: '该 CLI 仅提供订阅档位与账号信息，未暴露个人订阅的实时配额接口。',
+      quotaNoteAcpNotExposed: '该提供方目前未通过 ACP 或非交互 CLI 暴露订阅配额。',
+      quotaNoteCustomOrApi: '未返回 claude.ai 订阅配额（当前可能使用 API Key、自定义网关，或关闭了非必要流量）。',
+      quotaNoteSignedOut: '当前 CLI 未登录，请先在终端完成登录后再刷新。',
+      localUsageLabel: 'DSH 本地记录', localUsage24h: '近 24h：{sessions} 会话 · {turns} 轮', localUsage7d: '近 7d：{sessions} 会话 · {turns} 轮', localUsageTotal: '累计：{sessions} 会话 · {turns} 轮',
+      cliActivityLabel: '本机 CLI 统计', cliActivityPeriod: '{period}：{requests} 请求 · {sessions} 会话',
       urlElicitation: '外部链接确认', urlOpen: '打开链接', urlAccept: '确认', urlDecline: '拒绝', urlHelp: '请核对链接后再打开或确认。',
       steerLabel: '引导当前轮次', steerPlaceholder: '无需中止，直接向运行中的轮次补充指令…', steerSend: '发送引导',
       'cap.loadSession': '加载会话', 'cap.resume': '恢复会话', 'cap.fork': '分支会话', 'cap.close': '关闭会话', 'cap.options': '会话选项',
@@ -535,7 +559,26 @@ window.__ModuleLoader__.load({
 .aw-pill{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:999px;font-size:11px;line-height:17px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-module-platform);border:.5px solid var(--dsw-alias-border-l1);white-space:nowrap}
 .aw-pill[data-tone=fast]{color:var(--dsw-alias-state-warn-primary);background:var(--dsw-alias-state-warn-tertiary);border-color:transparent}
 .aw-pill[data-tone=accent]{color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-state-business-tertiary);border-color:transparent}
+.aw-pill[data-tone=error]{color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-interactive-bg-hover-danger);border-color:transparent}
 .aw-pill[data-tone=thought]{color:var(--dsw-alias-label-primary)}
+.aw-sub-card{display:flex;flex-direction:column;gap:12px;padding:14px 16px;border-radius:var(--dsw-radius-xl,16px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-card-fill);min-width:0}
+.aw-sub-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.aw-sub-head h3{font-size:13px;font-weight:500;line-height:20px}
+.aw-sub-account{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;font-size:12px;line-height:18px}
+.aw-quota-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.aw-quota-item{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:var(--dsw-radius-md,10px);border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-module-platform);min-width:0}
+.aw-quota-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
+.aw-quota-label{font-size:12px;font-weight:500;color:var(--dsw-alias-label-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aw-quota-pct{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.aw-quota-pct[data-tone=warn]{color:var(--dsw-alias-state-warn-primary)}
+.aw-quota-pct[data-tone=error]{color:var(--dsw-alias-state-error-primary)}
+.aw-quota-track{width:100%;height:6px;border-radius:999px;background:var(--dsw-alias-border-l1);overflow:hidden}
+.aw-quota-fill{display:block;height:100%;border-radius:inherit;background:var(--dsw-alias-state-business-primary);transition:width 180ms ease}
+.aw-quota-fill[data-tone=warn]{background:var(--dsw-alias-state-warn-primary)}
+.aw-quota-fill[data-tone=error]{background:var(--dsw-alias-state-error-primary)}
+.aw-quota-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.aw-sub-stats{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;padding-top:10px;border-top:.5px solid var(--dsw-alias-border-l1);font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.aw-sub-stats strong{font-weight:500;color:var(--dsw-alias-label-secondary)}
 .aw-steer{display:flex;align-items:center;gap:8px;padding:6px 8px}
 .aw-steer .aw-input{flex:1 1 auto;min-width:0}
 .aw-steer button{flex:none;white-space:nowrap}
@@ -1363,6 +1406,11 @@ window.__ModuleLoader__.load({
           },
         }), 'acp-workbench: CLI composer commands')
 
+        const needsNativeLive = data => Boolean(
+          data?.controls
+          || data?.selected?.provider?.startsWith('acp-')
+          || (Array.isArray(data?.sessions) && data.sessions.length > 0),
+        )
         const nativeSources = new Map()
         function nativeSource(sessionId) {
           const existing = nativeSources.get(sessionId)
@@ -1373,6 +1421,16 @@ window.__ModuleLoader__.load({
           let unsubscribe = null
           let loading = false
           let again = false
+          const ensureLive = () => {
+            if (unsubscribe || !controller) return
+            unsubscribe = subscribeLive(change => {
+              if (!Array.isArray(change?.conversations) || change.conversations.includes(sessionId)) void refresh()
+            })
+          }
+          const dropLive = () => {
+            unsubscribe?.()
+            unsubscribe = null
+          }
           const publish = value => { current = value; notify(listeners) }
           const refresh = async () => {
             if (!controller) return
@@ -1384,14 +1442,18 @@ window.__ModuleLoader__.load({
                 again = false
                 try {
                   const data = await api({ action: 'native-snapshot', dshSessionId: sessionId }, own.signal)
-                  if (!own.signal.aborted) publish({ data, error: '', optionsRoute: current.optionsRoute === data.selected?.provider ? current.optionsRoute : null })
+                  if (!own.signal.aborted) {
+                    if (needsNativeLive(data)) ensureLive()
+                    else dropLive()
+                    publish({ data, error: '', optionsRoute: current.optionsRoute === data.selected?.provider ? current.optionsRoute : null })
+                  }
                 } catch (error) { if (!own.signal.aborted) publish({ ...current, error: error.message }) }
               } while (again && !own.signal.aborted)
             } finally { loading = false }
             if (controller && controller !== own) void refresh()
           }
           const stop = () => {
-            controller?.abort(); controller = null; unsubscribe?.(); unsubscribe = null
+            controller?.abort(); controller = null; dropLive()
             current = { data: null, error: '' }
             if (nativeSources.get(sessionId) === source) nativeSources.delete(sessionId)
           }
@@ -1405,9 +1467,7 @@ window.__ModuleLoader__.load({
               if (listeners.size === 1) {
                 nativeSources.set(sessionId, source)
                 controller = new AbortController()
-                unsubscribe = subscribeLive(change => {
-                  if (!Array.isArray(change?.conversations) || change.conversations.includes(sessionId)) void refresh()
-                })
+                if (needsNativeLive(current.data)) ensureLive()
                 void refresh()
               }
               return () => { listeners.delete(listener); if (!listeners.size) stop() }
@@ -1418,9 +1478,15 @@ window.__ModuleLoader__.load({
         }
         ctx.effect(() => () => { for (const source of nativeSources.values()) source.stop(); nativeSources.clear() }, 'acp-workbench: native subscriptions')
 
-        function useNative(sessionId) {
+        function useNative(sessionId, modelKey) {
           const source = React.useMemo(() => nativeSource(sessionId), [sessionId])
           const snapshot = React.useSyncExternalStore(source.subscribe, source.getSnapshot)
+          const prevModelKey = React.useRef(modelKey)
+          React.useEffect(() => {
+            if (prevModelKey.current === modelKey) return
+            prevModelKey.current = modelKey
+            if (modelKey !== undefined) void source.refresh()
+          }, [source, modelKey])
           const [pending, setPending] = React.useState(0)
           const [error, setError] = React.useState('')
           const run = React.useCallback(async op => {
@@ -3098,7 +3164,9 @@ window.__ModuleLoader__.load({
         function NativeDock(props) {
           const tt = useT()
           const canWrite = props.useAccess('session/prompt')
-          const view = useNative(props.sessionId)
+          const modelSelection = typeof props.useProjection === 'function' ? props.useProjection('modelSelection') : undefined
+          const modelKey = modelSelection ? `${modelSelection.provider ?? ''}/${modelSelection.model ?? ''}` : undefined
+          const view = useNative(props.sessionId, modelKey)
           const data = view.data
           const sessions = data?.sessions ?? EMPTY
           const own = sessions.filter(s => s.native.sessionId === props.sessionId && s.interactions.length)
@@ -3330,9 +3398,11 @@ window.__ModuleLoader__.load({
           })
         }
 
-        function NativeModelControls({ sessionId, useAccess }) {
+        function NativeModelControls({ sessionId, useAccess, useProjection }) {
           const tt = useT()
-          const view = useNative(sessionId)
+          const modelSelection = typeof useProjection === 'function' ? useProjection('modelSelection') : undefined
+          const modelKey = modelSelection ? `${modelSelection.provider ?? ''}/${modelSelection.model ?? ''}` : undefined
+          const view = useNative(sessionId, modelKey)
           const canWrite = useAccess('session/prompt')
           const controls = view.data?.controls
           if (!controls) return null
@@ -3592,7 +3662,7 @@ window.__ModuleLoader__.load({
         }
 
         function useWorkbench() {
-          const [data, setData] = React.useState({ providers: EMPTY, providerTemplates: EMPTY, activeByProvider: {}, authByProvider: {}, defaultCwd: '', storageError: null })
+          const [data, setData] = React.useState({ providers: EMPTY, providerTemplates: EMPTY, activeByProvider: {}, authByProvider: {}, localUsageByProvider: {}, defaultCwd: '', storageError: null })
           const [ready, setReady] = React.useState(false)
           const [error, setError] = React.useState('')
           const kick = React.useRef(null)
@@ -3620,8 +3690,16 @@ window.__ModuleLoader__.load({
             }
             kick.current = refresh
             void refresh()
-            const unsubscribe = subscribeLive(() => { void refresh() })
-            return () => { controller.abort(); unsubscribe(); kick.current = null }
+            let debounceTimer = null
+            const unsubscribe = subscribeLive(change => {
+              if (change && change.activityChanged === false && Array.isArray(change.conversations)) return
+              if (debounceTimer) return
+              debounceTimer = setTimeout(() => {
+                debounceTimer = null
+                void refresh()
+              }, 250)
+            })
+            return () => { clearTimeout(debounceTimer); controller.abort(); unsubscribe(); kick.current = null }
           }, [])
           return { data, ready, error, refresh: () => kick.current?.() }
         }
@@ -3659,12 +3737,145 @@ window.__ModuleLoader__.load({
         }
         const authSummary = (status, tt) => {
           if (!status) return ''
-          const first = status.accounts?.[0]
+          const first = status.accounts?.find(item => item?.active) ?? status.accounts?.[0]
           const identity = first?.email || first?.name || first?.label || ''
           const state = status.state === 'authenticated' || status.state === 'signed_in' ? tt('authSignedIn')
             : status.state === 'unauthenticated' || status.state === 'signed_out' ? tt('authSignedOut')
               : status.state
           return [state, identity].filter(Boolean).join(' · ')
+        }
+
+        const formatShortTime = iso => {
+          if (!iso) return ''
+          const date = new Date(iso)
+          if (Number.isNaN(date.getTime())) return ''
+          const sameDay = new Date().toDateString() === date.toDateString()
+          return new Intl.DateTimeFormat(undefined, sameDay
+            ? { hour: '2-digit', minute: '2-digit' }
+            : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)
+        }
+
+        const formatQuotaWindowLabel = (win, tt) => {
+          if (win.windowKind === 'five_hour') return tt('quotaLimit5h')
+          if (win.windowKind === 'seven_day') return tt('quotaLimit7d')
+          if (win.windowKind === 'model_weekly' && win.modelName) return tt('quotaLimitModel7d', { model: win.modelName })
+          if (win.windowKind === 'extra_usage') return tt('quotaLimitExtra')
+          if (win.windowKind === 'model_window' && win.modelName) {
+            return win.windowMinutes ? `${win.modelName} (${+(win.windowMinutes / 60).toFixed(1)}h)` : win.modelName
+          }
+          if (win.windowKind === 'duration' && win.windowMinutes) {
+            return tt('quotaLimitDuration', { hours: +(win.windowMinutes / 60).toFixed(1) })
+          }
+          return win.label || win.id
+        }
+
+        const formatQuotaReset = (win, tt) => {
+          if (win.resetsAt) {
+            const formatted = formatShortTime(win.resetsAt)
+            if (formatted) return tt('quotaResetsAt', { time: formatted })
+          }
+          if (win.resetsText) return tt('quotaResetsAt', { time: win.resetsText })
+          return ''
+        }
+
+        const quotaTone = win => {
+          if (win.status === 'rejected' || (typeof win.usedPercent === 'number' && win.usedPercent >= 95)) return 'error'
+          if (win.status === 'allowed_warning' || (typeof win.usedPercent === 'number' && win.usedPercent >= 80)) return 'warn'
+          return 'accent'
+        }
+
+        const effectiveAccount = (provider, authStatus) => {
+          const cached = provider?.subscription?.account
+          const liveFirst = authStatus?.accounts?.find(item => item?.active) ?? authStatus?.accounts?.[0]
+          const liveState = authStatus?.state === 'authenticated' || authStatus?.state === 'signed_in' ? 'authenticated'
+            : authStatus?.state === 'unauthenticated' || authStatus?.state === 'signed_out' ? 'unauthenticated'
+              : liveFirst ? 'authenticated' : undefined
+          const tierName = provider?.advertised?.meta?.tier?.name
+          const state = liveState ?? cached?.state ?? (tierName ? 'authenticated' : 'unknown')
+          const email = liveFirst?.email ?? cached?.email
+          const name = liveFirst?.name ?? cached?.name
+          const label = liveFirst?.label ?? cached?.label
+          const plan = cached?.plan ?? liveFirst?.subscriptionType ?? tierName
+          const authDetail = cached?.authDetail ?? liveFirst?.description ?? liveFirst?.detail
+          return { state, email, name, label, plan, authDetail }
+        }
+
+        const quotaNoteText = (sub, tt) => {
+          if (!sub) return tt('quotaHintUnfetched')
+          if (sub.quotaNote === 'signed_out') return tt('quotaNoteSignedOut')
+          if (sub.quotaNote === 'cli_not_exposed') return tt('quotaNoteCliNotExposed')
+          if (sub.quotaNote === 'acp_not_exposed') return tt('quotaNoteAcpNotExposed')
+          if (sub.quotaNote === 'custom_endpoint_or_api') return tt('quotaNoteCustomOrApi')
+          return ''
+        }
+
+        function SubscriptionCard({ provider, authStatus, localUsage, busy, refreshing, onRefresh }) {
+          const tt = useT()
+          const sub = provider?.subscription ?? null
+          const account = effectiveAccount(provider, authStatus)
+          const windows = sub?.windows ?? EMPTY
+          const dotState = account.state === 'authenticated' ? 'done' : account.state === 'unauthenticated' ? 'warning' : 'idle'
+          const stateLabel = account.state === 'authenticated' ? tt('authSignedIn')
+            : account.state === 'unauthenticated' ? tt('authSignedOut')
+              : tt('authUnknown')
+          const identity = account.email || account.name || account.label || ''
+          const updatedLabel = sub?.fetchedAt ? tt('usageUpdatedAt', { time: formatShortTime(sub.fetchedAt) }) : ''
+          const noteText = windows.length === 0 ? quotaNoteText(sub, tt) : ''
+          const credits = sub?.credits
+          const extraUsage = sub?.extraUsage
+          const activity = sub?.activity
+          const hasLocal = localUsage && (localUsage.total.sessions > 0 || localUsage.total.turns > 0)
+
+          return h('section', { className: 'aw-sub-card', 'aria-label': tt('subHeading') },
+            h('div', { className: 'aw-sub-head' },
+              h('h3', { className: 'aw-grow' }, tt('subHeading')),
+              updatedLabel ? h('span', { className: 'aw-note' }, updatedLabel) : null,
+              sub?.dashboardUrl ? h('a', { className: 'aw-url-link', href: sub.dashboardUrl, target: '_blank', rel: 'noopener noreferrer' }, tt('usageOpenDashboard')) : null,
+              h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: onRefresh }, refreshing ? tt('refreshingUsage') : tt('refreshUsage'))),
+            h('div', { className: 'aw-sub-account' },
+              h(StateDot, { state: dotState, size: 7 }),
+              h('span', { className: 'aw-strong' }, stateLabel),
+              identity ? h('span', { className: 'aw-note' }, identity) : null,
+              account.plan ? h('span', { className: 'aw-pill', 'data-tone': 'accent' }, account.plan) : null,
+              account.authDetail && account.authDetail !== identity && account.authDetail !== account.plan
+                ? h('span', { className: 'aw-pill' }, account.authDetail) : null,
+              sub?.liveRateLimit?.status === 'rejected'
+                ? h('span', { className: 'aw-pill', 'data-tone': 'error' }, tt('quotaStatusRejected'))
+                : sub?.liveRateLimit?.status === 'allowed_warning'
+                  ? h('span', { className: 'aw-pill', 'data-tone': 'fast' }, tt('quotaStatusWarn')) : null),
+            windows.length > 0 ? h('div', { className: 'aw-quota-grid' },
+              windows.map(win => {
+                const pct = typeof win.usedPercent === 'number' ? Math.max(0, Math.min(100, win.usedPercent)) : null
+                const tone = quotaTone(win)
+                const resetLabel = formatQuotaReset(win, tt)
+                const statusBadge = win.status === 'rejected' ? tt('quotaStatusRejected')
+                  : win.status === 'allowed_warning' ? tt('quotaStatusWarn') : ''
+                return h('div', { key: win.id, className: 'aw-quota-item' },
+                  h('div', { className: 'aw-quota-top' },
+                    h('span', { className: 'aw-quota-label' }, formatQuotaWindowLabel(win, tt)),
+                    pct !== null ? h('span', { className: 'aw-quota-pct', 'data-tone': tone }, `${pct}%`) : null),
+                  pct !== null ? h('div', { className: 'aw-quota-track', role: 'progressbar', 'aria-valuenow': pct, 'aria-valuemin': 0, 'aria-valuemax': 100 },
+                    h('span', { className: 'aw-quota-fill', 'data-tone': tone, style: { width: `${pct}%` } })) : null,
+                  (resetLabel || statusBadge) ? h('div', { className: 'aw-quota-meta' },
+                    h('span', null, resetLabel),
+                    statusBadge ? h('span', { className: 'aw-pill', 'data-tone': tone === 'error' ? 'error' : 'fast' }, statusBadge) : null) : null)
+              })) : null,
+            (extraUsage?.enabled || credits?.unlimited || credits?.hasCredits || credits?.resetCreditsAvailable) ? h('div', { className: 'aw-pills' },
+              extraUsage?.enabled ? h('span', { className: 'aw-pill', 'data-tone': extraUsage.active ? 'fast' : undefined }, extraUsage.active ? tt('quotaExtraActive') : tt('quotaExtraEnabled')) : null,
+              credits?.unlimited ? h('span', { className: 'aw-pill', 'data-tone': 'accent' }, tt('quotaCreditsUnlimited')) : null,
+              credits?.hasCredits && credits.balance ? h('span', { className: 'aw-pill' }, tt('quotaCreditsBalance', { balance: credits.balance })) : null,
+              credits?.resetCreditsAvailable ? h('span', { className: 'aw-pill' }, tt('quotaResetCredits', { n: credits.resetCreditsAvailable })) : null) : null,
+            noteText ? h('p', { className: 'aw-note' }, noteText) : null,
+            (hasLocal || activity?.day || activity?.week) ? h('div', { className: 'aw-sub-stats' },
+              hasLocal ? h(React.Fragment, null,
+                h('strong', null, tt('localUsageLabel')),
+                h('span', null, tt('localUsage24h', localUsage.last24h)),
+                h('span', null, tt('localUsage7d', localUsage.last7d)),
+                h('span', null, tt('localUsageTotal', localUsage.total))) : null,
+              (activity?.day || activity?.week) ? h(React.Fragment, null,
+                h('strong', null, tt('cliActivityLabel')),
+                activity.day ? h('span', null, tt('cliActivityPeriod', { period: '24h', ...activity.day })) : null,
+                activity.week ? h('span', null, tt('cliActivityPeriod', { period: '7d', ...activity.week })) : null) : null) : null)
         }
 
         const capabilityTags = info => {
@@ -3779,13 +3990,14 @@ window.__ModuleLoader__.load({
             h(Switch, { checked: !hidden, disabled: busy, label: model.name ?? model.id, onChange: checked => onToggle(model.id, checked) }))
         }
 
-        function ProviderWorkbench({ providers, providerTemplates, activeByProvider, authByProvider, defaultCwd, run, busy, creating, setCreating }) {
+        function ProviderWorkbench({ providers, providerTemplates, activeByProvider, authByProvider, localUsageByProvider, defaultCwd, run, busy, creating, setCreating }) {
           const tt = useT()
           const templates = providerTemplates?.length ? providerTemplates : FALLBACK_PROVIDER_TEMPLATES
           const existingIds = React.useMemo(() => new Set(providers.map(provider => provider.id)), [providers])
           const [editing, setEditing] = React.useState(providers[0]?.id ?? '')
           const [draft, setDraft] = React.useState(() => providers[0] ? { ...providers[0], args: JSON.stringify(providers[0].args) } : blankProvider())
           const [showConfig, setShowConfig] = React.useState(false)
+          const [usageRefreshing, setUsageRefreshing] = React.useState(false)
           const [notice, setNotice] = React.useState('')
           const [statusBanner, setStatusBanner] = React.useState('')
           const [probeCwd, setProbeCwd] = React.useState('')
@@ -3893,6 +4105,17 @@ window.__ModuleLoader__.load({
             const value = await run({ action: 'diagnose', providerId: saved.id, cwd: effectiveCwd })
             if (value) setReport(value)
           }
+          const refreshUsage = async () => {
+            if (!saved) return
+            setStatusBanner('')
+            setUsageRefreshing(true)
+            try {
+              const value = await run({ action: 'usage', providerId: saved.id, cwd: effectiveCwd })
+              if (value) setStatusBanner(tt('usageUpdated'))
+            } finally {
+              setUsageRefreshing(false)
+            }
+          }
           const saveVisibility = async () => {
             if (!saved) return
             const value = await run({ action: 'provider-save', provider: { ...saved, hiddenModels } })
@@ -3905,7 +4128,8 @@ window.__ModuleLoader__.load({
             setHiddenModels(old => shown ? old.filter(item => item !== id) : [...new Set([...old, id])])
           }
           const modes = saved?.advertised?.modes?.options ?? EMPTY
-          const tier = saved?.advertised?.meta?.tier
+          const accountInfo = saved ? effectiveAccount(saved, authByProvider?.[saved.id]) : null
+          const tierName = accountInfo?.plan || saved?.advertised?.meta?.tier?.name || ''
           const authText = authSummary(saved ? authByProvider?.[saved.id] : null, tt)
 
           const filterChips = [
@@ -3932,6 +4156,9 @@ window.__ModuleLoader__.load({
                     : active?.connected
                       ? tt('activeConnected', { n: active.connected })
                       : null
+                const railPlan = provider.subscription?.account?.plan || provider.advertised?.meta?.tier?.name || ''
+                const railWindows = provider.subscription?.windows ?? EMPTY
+                const peakPct = railWindows.reduce((max, item) => typeof item.usedPercent === 'number' ? Math.max(max, item.usedPercent) : max, -1)
                 return h('button', {
                   key: provider.id, type: 'button', className: 'aw-prov',
                   'aria-current': !creating && saved?.id === provider.id,
@@ -3944,6 +4171,8 @@ window.__ModuleLoader__.load({
                   h(Tag, { tone: 'quiet' }, provider.id)),
                 h('span', { className: 'aw-prov-meta' },
                   h('span', null, total ? tt('modelsBadgeCount', { shown, total }) : tt('modelsNotFetched')),
+                  railPlan ? h('span', null, `· ${railPlan}`) : null,
+                  peakPct >= 0 ? h('span', null, `· ${peakPct}%`) : null,
                   activeLabel ? h('span', null, `· ${activeLabel}`) : null),
                 h('span', { className: 'aw-item-sub aw-mono aw-ellipsis' }, [provider.command, ...provider.args].join(' ')))
               })),
@@ -3965,14 +4194,22 @@ window.__ModuleLoader__.load({
                         h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: refreshModels }, tt('refreshModels')),
                         h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: checkCapabilities }, tt('diagnose')),
                         h(Button, { size: 'sm', variant: showConfig ? 'outline' : 'ghost', 'aria-expanded': showConfig, disabled: busy, onClick: () => setShowConfig(v => !v) }, tt(showConfig ? 'hideConfig' : 'providerConfig')))),
-                    (tier?.name || authText || saved.advertised?.meta?.steering) ? h('div', { className: 'aw-pills' },
-                      tier?.name ? h('span', { className: 'aw-pill', 'data-tone': 'accent' }, tier.name) : null,
+                    (tierName || authText || saved.advertised?.meta?.steering) ? h('div', { className: 'aw-pills' },
+                      tierName ? h('span', { className: 'aw-pill', 'data-tone': 'accent' }, tierName) : null,
                       authText ? h('span', { className: 'aw-pill' }, `${tt('authLabel')}: ${authText}`) : null,
                       saved.advertised?.meta?.steering ? h('span', { className: 'aw-pill' }, tt('cap.steering')) : null) : null,
                     modes.length ? h('div', { className: 'aw-pills' },
                       h('span', { className: 'aw-note' }, `${tt('modesLabel')}:`),
                       modes.map(mode => h('span', { key: mode.value, className: 'aw-pill' }, mode.name ?? mode.value))) : null,
                     statusBanner ? h('p', { className: 'aw-note', role: 'status' }, statusBanner) : null),
+                  h(SubscriptionCard, {
+                    provider: saved,
+                    authStatus: authByProvider?.[saved.id] ?? null,
+                    localUsage: localUsageByProvider?.[saved.id] ?? null,
+                    busy,
+                    refreshing: usageRefreshing,
+                    onRefresh: refreshUsage,
+                  }),
                   showConfig ? h(ProviderForm, {
                     saved, draft, templates, existingIds, busy, notice, probeCwd, defaultCwd: activeWorkspacePath || defaultCwd,
                     onApplyTemplate: applyTemplate, onResetBlank: resetBlank,
@@ -4046,6 +4283,7 @@ window.__ModuleLoader__.load({
                 providerTemplates: view.data.providerTemplates,
                 activeByProvider: view.data.activeByProvider,
                 authByProvider: view.data.authByProvider,
+                localUsageByProvider: view.data.localUsageByProvider,
                 defaultCwd: view.data.defaultCwd,
                 run, busy, creating, setCreating,
               })),

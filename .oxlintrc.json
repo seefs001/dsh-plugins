@@ -16,6 +16,7 @@
     "packages/diagram-preview/lib/client.graphviz.js",
     "packages/diagram-preview/lib/client.mermaid.js",
     "packages/message-actions/lib/client.js",
+    "packages/message-actions/lib/client.markdown.js",
     "packages/pi-tools/lib/generated/**",
     "apps/docs/.next/**",
     "apps/docs/.source/**",

@@ -394,28 +394,69 @@ window.__ModuleLoader__.load({
         const tf = (key, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{${k}}`, () => String(v)), t(key))
 
         const store = createStore()
+        const GROUPS_REFRESH_THROTTLE_MS = 15_000
+        let groupsChannel = null
+        let lastFetchedAt = 0
+        let inflight = null
 
-        let stream
+        const applyGroups = (groups, share = false) => {
+          if (!Array.isArray(groups)) return false
+          lastFetchedAt = Date.now()
+          store.set({ groups, status: 'ready' })
+          if (share && groupsChannel) {
+            try { BroadcastChannel.prototype.postMessage.call(groupsChannel, { groups }) } catch {}
+          }
+          return true
+        }
+
+        const fetchGroups = (force = false) => {
+          if (!force && store.getSnapshot().status === 'ready' && Date.now() - lastFetchedAt < GROUPS_REFRESH_THROTTLE_MS) return
+          if (inflight) return
+          if (store.getSnapshot().status !== 'ready') store.set({ status: 'loading' })
+          const req = fetch('session-groups/state', { headers: { accept: 'application/json' }, cache: 'no-store' })
+            .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+            .then(data => {
+              if (!applyGroups(data?.groups, false)) store.set({ status: 'error' })
+            })
+            .catch(() => {
+              if (store.getSnapshot().status !== 'ready') store.set({ status: 'error' })
+            })
+            .finally(() => { if (inflight === req) inflight = null })
+          inflight = req
+        }
+
         const connect = () => {
-          stream?.close()
-          store.set({ status: 'loading' })
-          stream = new EventSource('session-groups/events')
-          stream.addEventListener('message', event => {
-            try {
-              const { groups } = JSON.parse(event.data)
-              store.set(Array.isArray(groups) ? { groups, status: 'ready' } : { status: 'error' })
-            } catch { store.set({ status: 'error' }) }
-          })
-          stream.addEventListener('error', () => store.set({ status: 'error' }))
+          lastFetchedAt = 0
+          fetchGroups(true)
         }
         ctx.effect(() => {
-          connect()
-          return () => stream.close()
+          const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('dsh-session-groups-sync') : null
+          groupsChannel = channel
+          const onWake = () => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+            fetchGroups(false)
+          }
+          const onMessage = event => {
+            if (Array.isArray(event?.data?.groups)) applyGroups(event.data.groups, false)
+          }
+          window.addEventListener('focus', onWake)
+          document.addEventListener('visibilitychange', onWake)
+          channel?.addEventListener('message', onMessage)
+          fetchGroups(true)
+          return () => {
+            window.removeEventListener('focus', onWake)
+            document.removeEventListener('visibilitychange', onWake)
+            channel?.removeEventListener('message', onMessage)
+            channel?.close()
+            if (groupsChannel === channel) groupsChannel = null
+          }
         }, 'session-groups: follow Host state')
 
         const op = async payload => {
           try {
-            return await postOp(payload)
+            const res = await postOp(payload)
+            if (Array.isArray(res?.groups)) applyGroups(res.groups, true)
+            return res
           } catch (error) {
             ctx.contextMenus.notify(`${t('opFailed')}: ${error?.message ?? error}`, false)
             throw error
@@ -425,7 +466,8 @@ window.__ModuleLoader__.load({
         const addMany = async (groupId, sessionIds) => {
           if (!sessionIds.length) return
           try {
-            await postOp({ action: 'add_many', groupId, sessionIds })
+            const res = await postOp({ action: 'add_many', groupId, sessionIds })
+            if (Array.isArray(res?.groups)) applyGroups(res.groups, true)
           } catch {
             for (const sessionId of sessionIds) {
               await op({ action: 'add', groupId, sessionId })
@@ -1115,21 +1157,68 @@ window.__ModuleLoader__.load({
           const [found, setFound] = React.useState({ area: null, searching: false })
           React.useEffect(() => {
             let frame = 0
+            let watchedArea = null
+            let watchedRoot = null
+            let watchedInput = null
+            let bodyObserver = null
+            let rootObserver = null
+
+            const detachInput = () => {
+              if (watchedInput) {
+                watchedInput.removeEventListener('input', schedule)
+                watchedInput = null
+              }
+            }
+            const detachRoot = () => {
+              rootObserver?.disconnect()
+              rootObserver = null
+              watchedRoot = null
+            }
+            const attachBody = () => {
+              if (bodyObserver) return
+              bodyObserver = new MutationObserver(schedule)
+              bodyObserver.observe(document.body, { childList: true, subtree: true })
+            }
+            const detachBody = () => {
+              bodyObserver?.disconnect()
+              bodyObserver = null
+            }
             const check = () => {
               frame = 0
-              const area = document.querySelector('[data-sidebar-list-area]')
-              const input = document.querySelector('[data-sidebar-workspace-header] input')
+              const area = watchedArea?.isConnected ? watchedArea : document.querySelector('[data-sidebar-list-area]')
+              const input = watchedInput?.isConnected ? watchedInput : document.querySelector('[data-sidebar-workspace-header] input')
+              watchedArea = area
+              if (input !== watchedInput) {
+                detachInput()
+                if (input) {
+                  watchedInput = input
+                  watchedInput.addEventListener('input', schedule)
+                }
+              }
+              if (area) {
+                detachBody()
+                const root = area.parentElement ?? document.body
+                if (root !== watchedRoot) {
+                  detachRoot()
+                  watchedRoot = root
+                  rootObserver = new MutationObserver(schedule)
+                  rootObserver.observe(root, { childList: true })
+                }
+              } else {
+                detachRoot()
+                attachBody()
+              }
               const searching = Boolean(input && input.value.trim())
               setFound(prev => prev.area === area && prev.searching === searching ? prev : { area, searching })
             }
             const schedule = () => { if (!frame) frame = requestAnimationFrame(check) }
             check()
-            const observer = new MutationObserver(schedule)
-            observer.observe(document.body, { childList: true, subtree: true })
-            document.addEventListener('input', schedule, true)
+            const offLayout = ctx.layout.panelInfo.subscribe(schedule)
             return () => {
-              observer.disconnect()
-              document.removeEventListener('input', schedule, true)
+              offLayout()
+              detachBody()
+              detachRoot()
+              detachInput()
               if (frame) cancelAnimationFrame(frame)
             }
           }, [])

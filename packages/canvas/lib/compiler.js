@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
 export const ALLOWED_IMPORT = 'dsh/canvas'
+export const ALLOWED_IMPORTS = new Set(['dsh/canvas', 'react', 'lucide-react'])
 export const MAX_SOURCE_BYTES = 256 * 1024
 
 const FORBIDDEN_GLOBALS = new Set([
@@ -44,12 +45,15 @@ const TS_LIB_DIR = dirname(require.resolve('typescript'))
 
 const libSourceCache = new Map()
 let cachedSdkSourceFile = null
+let cachedSdkRaw = null
 let previousProgram
 
 function getSdkSourceFile() {
-  if (!cachedSdkSourceFile) {
-    const text = readFileSync(SDK_PATH, 'utf8')
+  const text = readFileSync(SDK_PATH, 'utf8')
+  if (!cachedSdkSourceFile || cachedSdkRaw !== text) {
+    cachedSdkRaw = text
     cachedSdkSourceFile = ts.createSourceFile(VIRTUAL_SDK, text, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS)
+    previousProgram = undefined
   }
   return cachedSdkSourceFile
 }
@@ -83,11 +87,11 @@ function isPropertyAccessTarget(node) {
   if (ts.isMethodSignature(parent) && parent.name === node) return true
   if (ts.isBindingElement(parent) && parent.propertyName === node) return true
   if (ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent)) return true
-  if (ts.isTypeReferenceNode(parent) || ts.isInterfaceDeclaration(parent) || ts.isTypeAliasDeclaration(parent)) return true
-  if (ts.isParameter(parent) && parent.name === node) return true
-  if (ts.isVariableDeclaration(parent) && parent.name === node) return true
-  if (ts.isFunctionDeclaration(parent) && parent.name === node) return true
-  if (ts.isJsxAttribute(parent) && parent.name === node) return true
+  if (ts.isTypeReferenceNode(parent)) return true
+  if (ts.isInterfaceDeclaration(parent) || ts.isTypeAliasDeclaration(parent)) return true
+  if ((ts.isParameter(parent) || ts.isVariableDeclaration(parent) || ts.isFunctionDeclaration(parent)) && parent.name === node) {
+    return true
+  }
   return false
 }
 
@@ -102,16 +106,16 @@ function validatePolicy(sourceFile) {
   function visit(node) {
     if (ts.isImportDeclaration(node)) {
       const spec = ts.isStringLiteral(node.moduleSpecifier) ? node.moduleSpecifier.text : ''
-      if (spec !== ALLOWED_IMPORT) {
+      if (!ALLOWED_IMPORTS.has(spec)) {
         report(
           node.moduleSpecifier,
           'CANVAS_IMPORT',
-          `Import from "${spec}" is not allowed. Canvas files may import only from "${ALLOWED_IMPORT}".`,
+          `Import from "${spec}" is not allowed. Canvas files may import only from "dsh/canvas", "react", or "lucide-react".`,
         )
       }
     } else if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
       const spec = ts.isStringLiteral(node.moduleSpecifier) ? node.moduleSpecifier.text : ''
-      if (spec !== ALLOWED_IMPORT) {
+      if (!ALLOWED_IMPORTS.has(spec)) {
         report(
           node.moduleSpecifier,
           'CANVAS_EXPORT_FROM',
@@ -121,85 +125,91 @@ function validatePolicy(sourceFile) {
     } else if (ts.isExportAssignment(node) && !node.isExportEquals) {
       hasDefaultExport = true
     } else if (
-      (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node))
-      && node.modifiers?.some(m => m.kind === ts.SyntaxKind.DefaultKeyword)
+      (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) &&
+      node.modifiers?.some(m => m.kind === ts.SyntaxKind.DefaultKeyword)
     ) {
       hasDefaultExport = true
     } else if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
-      if (node.exportClause.elements.some(el => el.name.text === 'default')) hasDefaultExport = true
+      for (const el of node.exportClause.elements) {
+        if (el.name.text === 'default') hasDefaultExport = true
+      }
     } else if (ts.isCallExpression(node)) {
       if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
         report(node, 'CANVAS_DYNAMIC_IMPORT', 'Dynamic import() is not allowed in Canvas files.')
       } else if (ts.isIdentifier(node.expression) && node.expression.text === 'require') {
-        report(node, 'CANVAS_REQUIRE', 'Direct require() calls are not allowed. Use ES imports from "dsh/canvas".')
+        report(node, 'CANVAS_REQUIRE', 'Direct require() is not allowed; use ES imports from "dsh/canvas", "react", or "lucide-react".')
       }
     } else if (ts.isPropertyAccessExpression(node)) {
-      const targetName = ts.isIdentifier(node.expression) ? node.expression.text : ''
-      const propName = node.name.text
-      if ((targetName === 'window' || targetName === 'globalThis' || targetName === 'self') && FORBIDDEN_GLOBALS.has(propName)) {
-        report(node, 'CANVAS_FORBIDDEN_API', `Access to ${targetName}.${propName} is not allowed in Canvas files.`)
-      } else if (targetName === 'navigator' && FORBIDDEN_NAVIGATOR_PROPS.has(propName)) {
-        report(node, 'CANVAS_FORBIDDEN_API', `Access to navigator.${propName} is not allowed in Canvas files.`)
+      const prop = node.name.text
+      const targetText = node.expression.getText(sourceFile)
+      if (
+        (targetText === 'window' || targetText === 'globalThis' || targetText === 'self') &&
+        FORBIDDEN_GLOBALS.has(prop)
+      ) {
+        report(node, 'CANVAS_FORBIDDEN_API', `Access to ${targetText}.${prop} is forbidden in the Canvas sandbox.`)
+      } else if (targetText === 'navigator' && FORBIDDEN_NAVIGATOR_PROPS.has(prop)) {
+        report(node, 'CANVAS_FORBIDDEN_API', `Access to navigator.${prop} is forbidden in the Canvas sandbox.`)
       }
     } else if (ts.isIdentifier(node) && FORBIDDEN_GLOBALS.has(node.text) && !isPropertyAccessTarget(node)) {
-      report(node, 'CANVAS_FORBIDDEN_API', `Global "${node.text}" is not allowed in Canvas files. Embed all data inline.`)
+      report(node, 'CANVAS_FORBIDDEN_API', `Use of "${node.text}" is forbidden in the Canvas sandbox.`)
     }
     ts.forEachChild(node, visit)
   }
 
   visit(sourceFile)
-
   if (!hasDefaultExport) {
     errors.push({
       severity: 'error',
       line: 1,
       column: 1,
       code: 'CANVAS_DEFAULT_EXPORT',
-      message: 'Canvas file must default-export a React component (e.g. `export default function MyCanvas() { ... }`).',
+      message: 'Canvas file must have a default export React component (`export default function ...`).',
     })
   }
   return errors
 }
 
-function runTypeCheck(sourceFile) {
-  const sdkFile = getSdkSourceFile()
+function typeCheck(entrySourceFile) {
+  const sdkSourceFile = getSdkSourceFile()
   const host = {
     getSourceFile(fileName) {
-      if (fileName === VIRTUAL_ENTRY) return sourceFile
-      if (fileName === VIRTUAL_SDK) return sdkFile
+      if (fileName === VIRTUAL_ENTRY) return entrySourceFile
+      if (fileName === VIRTUAL_SDK) return sdkSourceFile
       return getLibSourceFile(fileName)
     },
-    getDefaultLibFileName: options => join(TS_LIB_DIR, ts.getDefaultLibFileName(options)),
     writeFile() {},
-    getCurrentDirectory: () => '/__dsh_canvas__',
-    getCanonicalFileName: fileName => fileName,
+    getDefaultLibFileName: () => 'lib.es2022.d.ts',
     useCaseSensitiveFileNames: () => true,
+    getCanonicalFileName: fileName => fileName,
+    getCurrentDirectory: () => '/__dsh_canvas__',
     getNewLine: () => '\n',
     fileExists(fileName) {
       if (fileName === VIRTUAL_ENTRY || fileName === VIRTUAL_SDK) return true
       return getLibSourceFile(fileName) !== undefined
     },
-    readFile() { return undefined },
-    resolveModuleNames(moduleNames) {
-      return moduleNames.map(name => (name === ALLOWED_IMPORT ? { resolvedFileName: VIRTUAL_SDK, isExternalLibraryImport: true } : undefined))
+    readFile() {
+      return undefined
     },
+    directoryExists: () => true,
+    getDirectories: () => [],
   }
 
   const program = ts.createProgram([VIRTUAL_SDK, VIRTUAL_ENTRY], COMPILER_OPTIONS, host, previousProgram)
   previousProgram = program
 
-  const rawDiagnostics = [
-    ...program.getSyntacticDiagnostics(sourceFile),
-    ...program.getSemanticDiagnostics(sourceFile),
+  const raw = [
+    ...program.getSyntacticDiagnostics(entrySourceFile),
+    ...program.getSemanticDiagnostics(entrySourceFile),
   ]
 
-  return rawDiagnostics.map(diag => {
-    const start = typeof diag.start === 'number' ? diag.start : 0
-    const { line, column } = positionOf(sourceFile, start)
+  return raw.map(diag => {
+    const loc = diag.file && typeof diag.start === 'number'
+      ? positionOf(diag.file, diag.start)
+      : { line: 1, column: 1 }
     return {
       severity: diag.category === ts.DiagnosticCategory.Warning ? 'warning' : 'error',
-      line,
-      column,
+      line: loc.line,
+      column: loc.column,
       code: `TS${diag.code}`,
       message: ts.flattenDiagnosticMessageText(diag.messageText, '\n'),
     }
@@ -211,7 +221,7 @@ export function compileCanvas(source) {
     return {
       ok: false,
       compiled: null,
-      diagnostics: [{ severity: 'error', line: 1, column: 1, code: 'CANVAS_SOURCE', message: 'Canvas source must be a string.' }],
+      diagnostics: [{ severity: 'error', line: 1, column: 1, code: 'CANVAS_INPUT', message: 'Canvas source must be a string.' }],
     }
   }
   if (Buffer.byteLength(source, 'utf8') > MAX_SOURCE_BYTES) {
@@ -222,54 +232,95 @@ export function compileCanvas(source) {
     }
   }
 
-  const sourceFile = ts.createSourceFile(VIRTUAL_ENTRY, source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX)
-  const policyErrors = validatePolicy(sourceFile)
-  const tsDiagnostics = runTypeCheck(sourceFile)
+  const entrySourceFile = ts.createSourceFile(VIRTUAL_ENTRY, source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX)
+  const policyDiagnostics = validatePolicy(entrySourceFile)
+  const tsDiagnostics = typeCheck(entrySourceFile)
+  const diagnostics = [...policyDiagnostics, ...tsDiagnostics]
+  const hasErrors = diagnostics.some(d => d.severity === 'error')
 
-  const seen = new Set()
-  const diagnostics = []
-  for (const diag of [...policyErrors, ...tsDiagnostics]) {
-    const key = `${diag.line}:${diag.column}:${diag.code}:${diag.message}`
-    if (!seen.has(key)) {
-      seen.add(key)
-      diagnostics.push(diag)
-    }
+  if (hasErrors) {
+    return { ok: false, compiled: null, diagnostics }
   }
 
-  const hasPolicyBlock = policyErrors.length > 0
-  const hasSyntaxError = tsDiagnostics.some(d => /^TS1\d{3}$/.test(d.code))
-  let compiled = null
+  const transpiled = ts.transpileModule(source, {
+    fileName: VIRTUAL_ENTRY,
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.CommonJS,
+      jsx: ts.JsxEmit.React,
+      esModuleInterop: true,
+    },
+    reportDiagnostics: true,
+  })
 
-  if (!hasPolicyBlock && !hasSyntaxError) {
-    const emitted = ts.transpileModule(source, {
-      compilerOptions: {
-        target: ts.ScriptTarget.ES2022,
-        module: ts.ModuleKind.CommonJS,
-        jsx: ts.JsxEmit.React,
-        esModuleInterop: true,
-      },
-      fileName: VIRTUAL_ENTRY,
-    })
-    compiled = emitted.outputText
+  const transpileErrors = (transpiled.diagnostics ?? []).map(diag => ({
+    severity: 'error',
+    line: 1,
+    column: 1,
+    code: `TS${diag.code}`,
+    message: ts.flattenDiagnosticMessageText(diag.messageText, '\n'),
+  }))
+
+  if (transpileErrors.length > 0) {
+    return { ok: false, compiled: null, diagnostics: [...diagnostics, ...transpileErrors] }
   }
 
-  const errorCount = diagnostics.filter(d => d.severity === 'error').length
   return {
-    ok: errorCount === 0 && typeof compiled === 'string',
-    compiled,
+    ok: true,
+    compiled: transpiled.outputText,
     diagnostics,
   }
 }
 
-export function formatDiagnosticsSummary(diagnostics) {
-  if (!Array.isArray(diagnostics) || diagnostics.length === 0) return 'Canvas TypeScript check: no errors'
-  const errors = diagnostics.filter(d => d.severity === 'error')
-  if (errors.length === 0) return 'Canvas TypeScript check: no errors'
-  const lines = errors.slice(0, 12).map(d => `  L${d.line}:${d.column} [${d.code}] ${d.message}`)
-  const extra = errors.length > 12 ? `\n  ...and ${errors.length - 12} more error(s)` : ''
-  return `Canvas TypeScript check: ${errors.length} error(s)\n${lines.join('\n')}${extra}`
+export function compileArtifact(source, kind = 'react') {
+  if (kind === 'react') return compileCanvas(source)
+  if (typeof source !== 'string') {
+    return {
+      ok: false,
+      compiled: null,
+      diagnostics: [{ severity: 'error', line: 1, column: 1, code: 'CANVAS_INPUT', message: 'Artifact source must be a string.' }],
+    }
+  }
+  if (Buffer.byteLength(source, 'utf8') > MAX_SOURCE_BYTES) {
+    return {
+      ok: false,
+      compiled: null,
+      diagnostics: [{ severity: 'error', line: 1, column: 1, code: 'CANVAS_SIZE', message: `Artifact source exceeds ${MAX_SOURCE_BYTES} bytes.` }],
+    }
+  }
+
+  const diagnostics = []
+  if (kind === 'html') {
+    if (/<script[^>]+src\s*=/i.test(source)) {
+      diagnostics.push({ severity: 'error', line: 1, column: 1, code: 'CANVAS_HTML_EXTERNAL', message: 'External <script src> is forbidden in HTML artifacts.' })
+    }
+    if (/\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(/i.test(source)) {
+      diagnostics.push({ severity: 'error', line: 1, column: 1, code: 'CANVAS_FORBIDDEN_API', message: 'Network APIs (fetch/XHR/WebSocket/EventSource) are forbidden in HTML artifacts.' })
+    }
+    return { ok: diagnostics.length === 0, compiled: diagnostics.length === 0 ? source : null, diagnostics }
+  }
+
+  if (kind === 'svg') {
+    if (!/<svg[\s>]/i.test(source)) {
+      diagnostics.push({ severity: 'error', line: 1, column: 1, code: 'CANVAS_SVG_ROOT', message: 'SVG artifact must contain an <svg> element.' })
+    }
+    if (/<script[\s>]/i.test(source) || /\son[a-z]+\s*=/i.test(source) || /javascript:/i.test(source)) {
+      diagnostics.push({ severity: 'error', line: 1, column: 1, code: 'CANVAS_SVG_UNSAFE', message: 'Scripts and inline event handlers are forbidden in SVG artifacts.' })
+    }
+    return { ok: diagnostics.length === 0, compiled: diagnostics.length === 0 ? source : null, diagnostics }
+  }
+
+  return compileCanvas(source)
 }
 
 export function getSdkDeclarations() {
   return readFileSync(SDK_PATH, 'utf8')
+}
+
+export function formatDiagnosticsSummary(diagnostics) {
+  if (!diagnostics.length) return 'No errors.'
+  return diagnostics
+    .slice(0, 12)
+    .map(d => `L${d.line}:${d.column} [${d.code}] ${d.message}`)
+    .join('\n')
 }

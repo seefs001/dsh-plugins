@@ -61,74 +61,235 @@ window.__ModuleLoader__.load({
 
     function startFrame() {
       const nonce = document.currentScript.nonce
-      window.addEventListener('message', async function receive(event) {
+      window.addEventListener('message', function init(event) {
         if (event.source !== window.parent || !event.ports[0]) return
-        window.removeEventListener('message', receive)
+        window.removeEventListener('message', init)
         const port = event.ports[0]
-        const { library, engine, code, scheme } = event.data
+        const { library, engine } = event.data
+        let vizPromise = null
+        let lastScheme = null
         try {
           const script = document.createElement('script')
           script.nonce = nonce
           script.textContent = library
           document.head.append(script)
-          let svg
-          if (engine === 'mermaid') {
-            window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', htmlLabels: false,
-              theme: scheme === 'dark' ? 'dark' : 'default', suppressErrorRendering: true })
-            svg = (await window.mermaid.render('diagram', code, document.body)).svg
-          } else if (engine === 'graphviz') {
-            const viz = await window.Viz.instance()
-            svg = viz.renderString(code, { format: 'svg' })
-          } else {
-            const option = JSON.parse(code)
-            if (!option || typeof option !== 'object' || Array.isArray(option) || !('series' in option || 'baseOption' in option)) {
-              throw new Error('Expected an ECharts option object with series or baseOption')
-            }
-            const chart = window.echarts.init(null, scheme === 'dark' ? 'dark' : undefined,
-              { renderer: 'svg', ssr: true, width: 760, height: 420 })
-            try {
-              chart.setOption({ ...option, animation: false })
-              svg = chart.renderToSVGString()
-            } finally { chart.dispose() }
-          }
-          port.postMessage({ svg })
+          port.postMessage({ ready: true })
         } catch (err) {
-          port.postMessage({ error: String(err?.message || err).slice(0, 360) })
-        } finally { port.close() }
+          port.postMessage({ ready: false, error: String(err?.message || err).slice(0, 360) })
+          port.close()
+          return
+        }
+        port.addEventListener('message', async ({ data }) => {
+          const { id, code, scheme } = data
+          try {
+            let svg
+            if (engine === 'mermaid') {
+              if (lastScheme !== scheme) {
+                window.mermaid.initialize({
+                  startOnLoad: false, securityLevel: 'strict', htmlLabels: false,
+                  theme: scheme === 'dark' ? 'dark' : 'default', suppressErrorRendering: true,
+                })
+                lastScheme = scheme
+              }
+              const renderId = `diagram-${id}`
+              svg = (await window.mermaid.render(renderId, code, document.body)).svg
+              document.getElementById(renderId)?.remove()
+              document.getElementById(`d${renderId}`)?.remove()
+            } else if (engine === 'graphviz') {
+              if (!vizPromise) vizPromise = window.Viz.instance()
+              const viz = await vizPromise
+              svg = viz.renderString(code, { format: 'svg' })
+            } else {
+              const option = JSON.parse(code)
+              if (!option || typeof option !== 'object' || Array.isArray(option) || !('series' in option || 'baseOption' in option)) {
+                throw new Error('Expected an ECharts option object with series or baseOption')
+              }
+              const chart = window.echarts.init(null, scheme === 'dark' ? 'dark' : undefined,
+                { renderer: 'svg', ssr: true, width: 760, height: 420 })
+              try {
+                chart.setOption({ ...option, animation: false })
+                svg = chart.renderToSVGString()
+              } finally { chart.dispose() }
+            }
+            port.postMessage({ id, svg })
+          } catch (err) {
+            port.postMessage({ id, error: String(err?.message || err).slice(0, 360) })
+          }
+        })
+        port.start()
       })
     }
 
-    function renderInFrame(stage, request, signal, timeoutText) {
-      const frame = document.createElement('iframe')
-      frame.sandbox = 'allow-scripts'
-      frame.tabIndex = -1
-      frame.setAttribute('aria-hidden', 'true')
-      const nonce = Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, '0')).join('')
-      const policy = `default-src 'none'; script-src 'nonce-${nonce}' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'`
-      frame.srcdoc = `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><body><script nonce="${nonce}">(${startFrame.toString()})();</script>`
-      return new Promise((resolve, reject) => {
+    const MAX_SVG_CACHE = 64
+
+    function createRendererPool() {
+      const svgCache = new Map()
+      const workers = new Map()
+      const libraryPromises = new Map()
+      let host = null
+      let nextJobId = 1
+
+      const getHost = () => {
+        if (host?.isConnected) return host
+        host = document.createElement('div')
+        host.className = 'dsh-diagram-stage'
+        host.setAttribute('aria-hidden', 'true')
+        document.body.append(host)
+        return host
+      }
+
+      const getCached = key => {
+        const value = svgCache.get(key)
+        if (value === undefined) return undefined
+        svgCache.delete(key)
+        svgCache.set(key, value)
+        return value
+      }
+
+      const setCached = (key, value) => {
+        svgCache.delete(key)
+        svgCache.set(key, value)
+        if (svgCache.size > MAX_SVG_CACHE) {
+          const oldest = svgCache.keys().next().value
+          if (oldest !== undefined) svgCache.delete(oldest)
+        }
+      }
+
+      const loadLibrary = engine => {
+        let promise = libraryPromises.get(engine)
+        if (!promise) {
+          promise = require.async(`./client.${engine}.js`).catch(err => {
+            libraryPromises.delete(engine)
+            throw err
+          })
+          libraryPromises.set(engine, promise)
+        }
+        return promise
+      }
+
+      const destroyWorker = engine => {
+        const worker = workers.get(engine)
+        if (!worker) return
+        workers.delete(engine)
+        worker.destroyed = true
+        worker.port1?.close()
+        worker.port2?.close()
+        worker.frame?.remove()
+      }
+
+      const createWorker = async (engine, timeoutText) => {
+        const library = await loadLibrary(engine)
+        const frame = document.createElement('iframe')
+        frame.sandbox = 'allow-scripts'
+        frame.tabIndex = -1
+        frame.setAttribute('aria-hidden', 'true')
+        const nonce = Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, '0')).join('')
+        const policy = `default-src 'none'; script-src 'nonce-${nonce}' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'`
+        frame.srcdoc = `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><body><script nonce="${nonce}">(${startFrame.toString()})();</script>`
         const { port1, port2 } = new MessageChannel()
-        const done = (fn, value) => {
-          clearTimeout(timer)
-          signal.removeEventListener('abort', abort)
+        const worker = { frame, port1, port2, queue: Promise.resolve(), destroyed: false }
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error(timeoutText)), 20_000)
+          const onReady = ({ data }) => {
+            clearTimeout(timer)
+            if (data?.ready) resolve()
+            else reject(new Error(data?.error || 'Renderer failed to initialize'))
+          }
+          port1.addEventListener('message', onReady, { once: true })
+          port1.start()
+          // external: sandboxed srcdoc iframe has opaque origin, so transfer a private MessagePort with '*'
+          frame.addEventListener('load', () => {
+            try { frame.contentWindow.postMessage({ engine, library }, '*', [port2]) }
+            catch (err) { clearTimeout(timer); reject(err) }
+          }, { once: true })
+          getHost().append(frame)
+        }).catch(err => {
           port1.close()
           port2.close()
           frame.remove()
-          fn(value)
+          throw err
+        })
+        return worker
+      }
+
+      const getWorker = (engine, timeoutText) => {
+        let entry = workers.get(engine)
+        if (!entry || entry.destroyed) {
+          const promise = createWorker(engine, timeoutText).then(w => {
+            if (workers.get(engine) === entry) workers.set(engine, w)
+            else { w.port1.close(); w.port2.close(); w.frame.remove() }
+            return w
+          }).catch(err => {
+            if (workers.get(engine) === entry) workers.delete(engine)
+            throw err
+          })
+          entry = { pending: promise, queue: Promise.resolve(), destroyed: false }
+          workers.set(engine, entry)
         }
-        const abort = () => done(reject, signal.reason)
-        const timer = setTimeout(() => done(reject, new Error(timeoutText)), 20000)
-        signal.addEventListener('abort', abort, { once: true })
-        port1.addEventListener('message', ({ data }) => typeof data.svg === 'string' && data.svg
-          ? done(resolve, data.svg) : done(reject, new Error(data.error)), { once: true })
-        port1.start()
-        // external: sandboxed srcdoc iframe has opaque origin, so transfer a private MessagePort with '*'
-        frame.addEventListener('load', () => {
-          try { frame.contentWindow.postMessage(request, '*', [port2]) }
-          catch (err) { done(reject, err) }
-        }, { once: true })
-        stage.append(frame)
-      })
+        return entry
+      }
+
+      const render = (engine, code, scheme, signal, timeoutText) => {
+        const cacheKey = `${engine}\0${scheme}\0${code}`
+        const cached = getCached(cacheKey)
+        if (cached !== undefined) return Promise.resolve(cached)
+        const entry = getWorker(engine, timeoutText)
+        const run = async () => {
+          if (signal.aborted) throw signal.reason
+          const worker = entry.pending ? await entry.pending : entry
+          if (worker.destroyed) throw new Error(timeoutText)
+          if (signal.aborted) throw signal.reason
+          const id = nextJobId++
+          return await new Promise((resolve, reject) => {
+            const cleanup = () => {
+              clearTimeout(timer)
+              signal.removeEventListener('abort', onAbort)
+              worker.port1.removeEventListener('message', onMessage)
+            }
+            const onAbort = () => {
+              cleanup()
+              reject(signal.reason)
+            }
+            const onMessage = ({ data }) => {
+              if (data?.id !== id) return
+              cleanup()
+              if (typeof data.svg === 'string' && data.svg) {
+                setCached(cacheKey, data.svg)
+                resolve(data.svg)
+              } else {
+                reject(new Error(data?.error || 'Renderer failed'))
+              }
+            }
+            const timer = setTimeout(() => {
+              cleanup()
+              destroyWorker(engine)
+              reject(new Error(timeoutText))
+            }, 20_000)
+            signal.addEventListener('abort', onAbort, { once: true })
+            worker.port1.addEventListener('message', onMessage)
+            try {
+              worker.port1.postMessage({ id, code, scheme })
+            } catch (err) {
+              cleanup()
+              destroyWorker(engine)
+              reject(err)
+            }
+          })
+        }
+        const job = entry.queue.then(run, run)
+        entry.queue = job.catch(() => {})
+        return job
+      }
+
+      const dispose = () => {
+        for (const engine of workers.keys()) destroyWorker(engine)
+        workers.clear()
+        svgCache.clear()
+        host?.remove()
+        host = null
+      }
+
+      return { getCached, render, dispose }
     }
 
     return {
@@ -146,32 +307,34 @@ window.__ModuleLoader__.load({
           document.head.append(style)
           return () => style.remove()
         })
+        const pool = createRendererPool()
+        ctx.effect(() => () => pool.dispose(), 'diagram-preview: renderer pool')
         const subscribe = fn => ctx.on('theme/change', fn)
         const getScheme = () => ctx.theme.getTheme().active.colorScheme
+        const toDataUrl = svg => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 
         function Diagram({ lang, code, children, t, scheme }) {
           const engine = engines[lang]
-          const stage = React.useRef(null)
           const [source, setSource] = React.useState(false)
           const [size, setSize] = React.useState('medium')
           const [openRatio, setOpenRatio] = React.useState(null)
           const image = React.useRef(null)
-          const [picture, setPicture] = React.useState('')
+          const [picture, setPicture] = React.useState(() => {
+            if (engine === 'svg') return toDataUrl(code)
+            const cached = pool.getCached(`${engine}\0${scheme}\0${code}`)
+            return cached !== undefined ? toDataUrl(cached) : ''
+          })
           const [error, setError] = React.useState('')
           const [attempt, retry] = React.useReducer(n => n + 1, 0)
           React.useEffect(() => {
+            if (engine === 'svg') { setPicture(toDataUrl(code)); return undefined }
+            const cached = pool.getCached(`${engine}\0${scheme}\0${code}`)
+            if (cached !== undefined) { setPicture(toDataUrl(cached)); return undefined }
             const controller = new AbortController()
             const { signal } = controller
-            async function render() {
-              let svg = code
-              if (engine !== 'svg') {
-                const library = await require.async(`./client.${engine}.js`)
-                if (signal.aborted) return
-                svg = await renderInFrame(stage.current, { engine, library, code, scheme }, signal, t('timeout'))
-              }
-              if (!signal.aborted) setPicture(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`)
-            }
-            render().catch(err => { if (!signal.aborted) setError(err.message || t('invalid')) })
+            pool.render(engine, code, scheme, signal, t('timeout'))
+              .then(svg => { if (!signal.aborted) setPicture(toDataUrl(svg)) })
+              .catch(err => { if (!signal.aborted) setError(err?.message || t('invalid')) })
             return () => controller.abort()
           }, [engine, code, scheme, attempt, t])
 
@@ -188,7 +351,6 @@ window.__ModuleLoader__.load({
               !showCode && picture && h('select', { 'aria-label': t('size'), title: t('size'), value: size, onChange: e => setSize(e.target.value) },
                 ['small', 'medium', 'large'].map(s => h('option', { key: s, value: s }, t(s)))),
               button(t('preview'), !showCode, preview), button(t('code'), showCode, () => setSource(true)))),
-            h('div', { className: 'dsh-diagram-stage', ref: stage }),
             error && h('div', { role: 'status', 'data-failed': '' }, `${t('failed')} ${error}`),
             showCode ? children : picture
               ? h('div', { className: 'dsh-diagram-picture', 'data-paper': paper },

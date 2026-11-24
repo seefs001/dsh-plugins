@@ -31,6 +31,12 @@ const ADAPTERS = {
     mapDefaultToAuto: false,
     probePerModelConfig: true,
   },
+  codex: {
+    id: 'codex',
+    catalogMode: 'probe-models',
+    mapDefaultToAuto: false,
+    probePerModelConfig: true,
+  },
   generic: {
     id: 'generic',
     catalogMode: 'probe-models',
@@ -52,6 +58,9 @@ export function resolveAdapter({ providerId, command, agentInfo, capabilities } 
   }
   if (agentName.includes('cursor') || providerId === 'cursor' || bin === 'cursor-agent' || bin === 'agent') {
     return ADAPTERS.cursor
+  }
+  if (agentName.includes('codex') || providerId === 'codex' || bin === 'codex-acp' || bin === 'codex') {
+    return ADAPTERS.codex
   }
   return ADAPTERS.generic
 }

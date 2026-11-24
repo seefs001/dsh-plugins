@@ -150,10 +150,109 @@ declare module 'dsh/canvas' {
     | { type: 'openFile'; path: string; line?: number; column?: number }
     | { type: 'askInChat'; prompt: string }
     | { type: 'copyText'; text: string }
+    | {
+        type: 'patchData'
+        uri: string
+        mode?: 'merge' | 'replace' | 'upsertItem' | 'removeItem'
+        patch?: Record<string, any>
+        value?: any
+        item?: Record<string, any>
+        id?: string | number
+        listKey?: string
+        idKey?: string
+        content?: string
+      }
+    | { type: 'sendToSession'; sessionId: string; prompt: string; mode?: 'queue' | 'steer' }
+    | { type: 'triggerSchedule'; taskId: string }
+    | { type: 'openCanvas'; path: string; scope?: 'workspace' | 'global' }
+
+  export interface CanvasFileOptions {
+    parse?: 'auto' | 'json' | 'text' | 'markdown' | 'lines'
+  }
+
+  export interface CanvasFileResult<T = any> {
+    loading: boolean
+    exists: boolean
+    data: T | null
+    content: string
+    frontmatter: Record<string, any> | null
+    path: string
+    relativePath: string
+    mtimeMs: number
+    error: string
+    refresh: () => void
+  }
+
+  export interface CanvasGlobOptions {
+    parse?: 'auto' | 'json' | 'text' | 'markdown' | 'lines'
+    frontmatter?: boolean
+    limit?: number
+  }
+
+  export interface CanvasGlobEntry<T = any> {
+    uri: string
+    exists: boolean
+    path: string
+    relativePath: string
+    mtimeMs: number
+    size: number
+    data: T | null
+    content: string
+    frontmatter: Record<string, any> | null
+    error: string
+  }
+
+  export interface CanvasGlobResult<T = any> {
+    loading: boolean
+    files: readonly CanvasGlobEntry<T>[]
+    error: string
+    refresh: () => void
+  }
+
+  export type HostDataSource = 'sessions' | 'schedules' | 'git'
+
+  export interface HostSessionInfo {
+    id: string
+    title: string
+    cwd: string
+    status: string
+    updatedAt: number
+  }
+
+  export interface HostScheduleInfo {
+    id: string
+    title: string
+    status: string
+    scheduledAt: string
+    scheduledAtLocal: string
+    targetKind: string
+    targetSessionId: string
+  }
+
+  export interface HostGitInfo {
+    isGit: boolean
+    branch: string
+    dirtyCount: number
+    files: readonly { status: string; path: string }[]
+    worktrees: readonly { path: string; branch: string; head: string }[]
+  }
+
+  export interface CanvasHostDataResult<T = any> {
+    loading: boolean
+    data: T | null
+    error: string
+    refresh: () => void
+  }
 
   export function useHostTheme(): CanvasHostTheme
   export function useCanvasState<T>(key: string, defaultValue: T): [T, SetCanvasState<T>]
   export function useCanvasAction(): (action: CanvasAction) => void
+  export function useCanvasFile<T = any>(uri: string, options?: CanvasFileOptions): CanvasFileResult<T>
+  export function useCanvasGlob<T = any>(pattern: string, options?: CanvasGlobOptions): CanvasGlobResult<T>
+  export function useHostData(source: 'sessions', params?: { cwd?: string }): CanvasHostDataResult<readonly HostSessionInfo[]>
+  export function useHostData(source: 'schedules', params?: { active?: boolean }): CanvasHostDataResult<readonly HostScheduleInfo[]>
+  export function useHostData(source: 'git', params?: { cwd?: string }): CanvasHostDataResult<HostGitInfo>
+  export function useHostData<T = any>(source: HostDataSource, params?: Record<string, any>): CanvasHostDataResult<T>
 
   export const colorPalette: Record<Color, string>
   export const categoryPaletteDark: CategoryPalette
@@ -467,4 +566,252 @@ declare module 'dsh/canvas' {
     onNodeClick?: (node: DAGLayoutNode) => void
     style?: CSSProperties
   }): ReactElement | null
+
+  export type IconName =
+    | 'Activity' | 'AlertCircle' | 'AlertTriangle' | 'Archive'
+    | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowUpRight'
+    | 'Bell' | 'BookOpen' | 'Bot' | 'Bug' | 'Calendar'
+    | 'Check' | 'CheckCircle2' | 'ChevronDown' | 'ChevronLeft' | 'ChevronRight' | 'ChevronUp'
+    | 'Clock' | 'Code2' | 'Columns3' | 'Copy' | 'Cpu' | 'Database' | 'Download'
+    | 'Edit3' | 'ExternalLink' | 'Eye' | 'EyeOff' | 'FileCode' | 'FileText' | 'Filter' | 'Flame' | 'Folder'
+    | 'GitBranch' | 'GitCommit' | 'GitPullRequest' | 'Globe' | 'Inbox' | 'Info'
+    | 'Layers' | 'LayoutDashboard' | 'Link2' | 'ListTodo' | 'Lock' | 'Maximize2' | 'MessageSquare' | 'Minimize2' | 'Minus' | 'MoreHorizontal'
+    | 'Pause' | 'Pin' | 'Play' | 'Plus' | 'RefreshCw' | 'Search' | 'Send' | 'Settings' | 'Shield' | 'SlidersHorizontal' | 'Sparkles' | 'Square' | 'Star'
+    | 'Tag' | 'Terminal' | 'Trash2' | 'Unlock' | 'Wrench' | 'X' | 'XCircle' | 'Zap'
+
+  export const ICON_NAMES: readonly IconName[]
+
+  export interface IconProps {
+    name?: IconName
+    size?: number
+    color?: string
+    strokeWidth?: number
+    className?: string
+    style?: CSSProperties
+  }
+
+  export function Icon(props: IconProps & { name: IconName }): ReactElement | null
+
+  export function Markdown(props: { content: string; style?: CSSProperties }): ReactElement
+
+  export function CodeBlock(props: {
+    code: string
+    language?: string
+    showLineNumbers?: boolean
+    maxHeight?: number | string
+    style?: CSSProperties
+  }): ReactElement
+
+  export function Modal(props: {
+    open: boolean
+    title?: ReactNode
+    subtitle?: ReactNode
+    onClose?: () => void
+    width?: number
+    footer?: ReactNode
+    children?: ReactNode
+  }): ReactElement | null
+
+  export function Drawer(props: {
+    open: boolean
+    title?: ReactNode
+    subtitle?: ReactNode
+    onClose?: () => void
+    width?: number
+    side?: 'left' | 'right'
+    footer?: ReactNode
+    children?: ReactNode
+  }): ReactElement | null
+
+  export function SplitPane(props: {
+    left: ReactNode
+    right: ReactNode
+    leftWidth?: number | string
+    minLeft?: number
+    gap?: number
+    style?: CSSProperties
+  }): ReactElement
+
+  export function EmptyState(props: {
+    icon?: IconName
+    title?: ReactNode
+    description?: ReactNode
+    action?: ReactNode
+    style?: CSSProperties
+  }): ReactElement
+
+  export function ProgressBar(props: {
+    value: number
+    max?: number
+    label?: ReactNode
+    tone?: 'accent' | 'success' | 'warning' | 'error'
+    height?: number
+    style?: CSSProperties
+  }): ReactElement
+
+  export function SearchInput(props: {
+    value: string
+    onChange?: (value: string) => void
+    placeholder?: string
+    style?: CSSProperties
+  }): ReactElement
+
+  export interface KeyValueItem {
+    key?: string
+    label: ReactNode
+    value: ReactNode
+  }
+
+  export function KeyValue(props: {
+    items: readonly KeyValueItem[]
+    columns?: number
+    style?: CSSProperties
+  }): ReactElement
+
+  export interface TimelineItem {
+    id?: string
+    title: ReactNode
+    detail?: ReactNode
+    time?: string
+    tone?: 'accent' | 'success' | 'warning' | 'error'
+  }
+
+  export function Timeline(props: {
+    items: readonly TimelineItem[]
+    style?: CSSProperties
+  }): ReactElement
+
+  export interface KanbanColumn {
+    id: string
+    title: string
+    tone?: 'neutral' | 'accent' | 'success' | 'warning' | 'error'
+  }
+
+  export interface KanbanCard {
+    id: string
+    column: string
+    title: string
+    subtitle?: string
+    badge?: string
+    tags?: readonly string[]
+    [key: string]: any
+  }
+
+  export function Kanban<T extends KanbanCard = KanbanCard>(props: {
+    columns: readonly KanbanColumn[]
+    items: readonly T[]
+    onCardClick?: (card: T) => void
+    onMove?: (card: T, toColumn: string) => void
+    renderFooter?: (card: T) => ReactNode
+    style?: CSSProperties
+  }): ReactElement
+}
+
+declare module 'react' {
+  import type {
+    CSSProperties,
+    ReactNode,
+    ReactElement,
+    RefObject,
+  } from 'dsh/canvas'
+  export type { CSSProperties, ReactNode, ReactElement, RefObject }
+  export const Fragment: (props: { children?: ReactNode }) => ReactElement | null
+  export function useState<S>(initialState: S | (() => S)): [S, (action: S | ((prev: S) => S)) => void]
+  export function useState<S = undefined>(): [S | undefined, (action: S | undefined | ((prev: S | undefined) => S | undefined)) => void]
+  export function useEffect(effect: () => void | (() => void), deps?: readonly unknown[]): void
+  export function useMemo<T>(factory: () => T, deps: readonly unknown[]): T
+  export function useCallback<T extends (...args: any[]) => any>(callback: T, deps: readonly unknown[]): T
+  export function useRef<T>(initialValue: T): RefObject<T>
+  export function useRef<T = undefined>(): RefObject<T | undefined>
+  export function useReducer<S, A>(reducer: (state: S, action: A) => S, initialState: S): [S, (action: A) => void]
+  export function createElement(...args: any[]): ReactElement
+  const ReactDefault: {
+    Fragment: typeof Fragment
+    useState: typeof useState
+    useEffect: typeof useEffect
+    useMemo: typeof useMemo
+    useCallback: typeof useCallback
+    useRef: typeof useRef
+    useReducer: typeof useReducer
+    createElement: typeof createElement
+  }
+  export default ReactDefault
+}
+
+declare module 'lucide-react' {
+  import type { IconProps, ReactElement } from 'dsh/canvas'
+  type LucideComponent = (props: Omit<IconProps, 'name'>) => ReactElement | null
+  export const Activity: LucideComponent
+  export const AlertCircle: LucideComponent
+  export const AlertTriangle: LucideComponent
+  export const Archive: LucideComponent
+  export const ArrowDown: LucideComponent
+  export const ArrowLeft: LucideComponent
+  export const ArrowRight: LucideComponent
+  export const ArrowUp: LucideComponent
+  export const ArrowUpRight: LucideComponent
+  export const Bell: LucideComponent
+  export const BookOpen: LucideComponent
+  export const Bot: LucideComponent
+  export const Bug: LucideComponent
+  export const Calendar: LucideComponent
+  export const Check: LucideComponent
+  export const CheckCircle2: LucideComponent
+  export const ChevronDown: LucideComponent
+  export const ChevronLeft: LucideComponent
+  export const ChevronRight: LucideComponent
+  export const ChevronUp: LucideComponent
+  export const Clock: LucideComponent
+  export const Code2: LucideComponent
+  export const Columns3: LucideComponent
+  export const Copy: LucideComponent
+  export const Cpu: LucideComponent
+  export const Database: LucideComponent
+  export const Download: LucideComponent
+  export const Edit3: LucideComponent
+  export const ExternalLink: LucideComponent
+  export const Eye: LucideComponent
+  export const EyeOff: LucideComponent
+  export const FileCode: LucideComponent
+  export const FileText: LucideComponent
+  export const Filter: LucideComponent
+  export const Flame: LucideComponent
+  export const Folder: LucideComponent
+  export const GitBranch: LucideComponent
+  export const GitCommit: LucideComponent
+  export const GitPullRequest: LucideComponent
+  export const Globe: LucideComponent
+  export const Inbox: LucideComponent
+  export const Info: LucideComponent
+  export const Layers: LucideComponent
+  export const LayoutDashboard: LucideComponent
+  export const Link2: LucideComponent
+  export const ListTodo: LucideComponent
+  export const Lock: LucideComponent
+  export const Maximize2: LucideComponent
+  export const MessageSquare: LucideComponent
+  export const Minimize2: LucideComponent
+  export const Minus: LucideComponent
+  export const MoreHorizontal: LucideComponent
+  export const Pause: LucideComponent
+  export const Pin: LucideComponent
+  export const Play: LucideComponent
+  export const Plus: LucideComponent
+  export const RefreshCw: LucideComponent
+  export const Search: LucideComponent
+  export const Send: LucideComponent
+  export const Settings: LucideComponent
+  export const Shield: LucideComponent
+  export const SlidersHorizontal: LucideComponent
+  export const Sparkles: LucideComponent
+  export const Square: LucideComponent
+  export const Star: LucideComponent
+  export const Tag: LucideComponent
+  export const Terminal: LucideComponent
+  export const Trash2: LucideComponent
+  export const Unlock: LucideComponent
+  export const Wrench: LucideComponent
+  export const X: LucideComponent
+  export const XCircle: LucideComponent
+  export const Zap: LucideComponent
 }

@@ -1,8 +1,12 @@
 import { watch } from 'node:fs'
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 export const CANVAS_EXT = '.canvas.tsx'
+export const HTML_EXT = '.canvas.html'
+export const SVG_EXT = '.canvas.svg'
+export const CANVAS_EXTENSIONS = [CANVAS_EXT, HTML_EXT, SVG_EXT]
 export const DEFAULT_DIR = '.dsh/canvases'
 export const MAX_CANVASES = 50
 
@@ -23,6 +27,30 @@ const SKIP_DIRS = new Set([
   '__pycache__',
 ])
 
+export function getGlobalCanvasesRoot() {
+  const envHome = process.env.DSH_HOME
+  const dshHome = typeof envHome === 'string' && envHome.trim() ? resolve(envHome.trim()) : join(homedir(), '.dsh')
+  return join(dshHome, 'canvases')
+}
+
+export function getArtifactKind(filePath) {
+  if (typeof filePath !== 'string') return 'react'
+  if (filePath.endsWith(HTML_EXT)) return 'html'
+  if (filePath.endsWith(SVG_EXT)) return 'svg'
+  return 'react'
+}
+
+export function isCanvasFileName(name) {
+  return typeof name === 'string' && CANVAS_EXTENSIONS.some(ext => name.endsWith(ext))
+}
+
+export function stripCanvasExtension(name) {
+  for (const ext of CANVAS_EXTENSIONS) {
+    if (name.endsWith(ext)) return name.slice(0, -ext.length)
+  }
+  return name
+}
+
 export function isWithinDirectory(rootDir, targetPath) {
   const root = resolve(rootDir)
   const target = resolve(targetPath)
@@ -33,8 +61,8 @@ export function isWithinDirectory(rootDir, targetPath) {
 export function normalizeSlug(name) {
   const raw = String(name ?? '')
     .trim()
-    .replace(/\.canvas\.tsx$/i, '')
-    .replace(/\.tsx$/i, '')
+    .replace(/\.canvas\.(?:tsx|html|svg)$/i, '')
+    .replace(/\.(?:tsx|html|svg)$/i, '')
   const cleaned = raw
     .replace(/[^a-zA-Z0-9_-]+/g, '-')
     .replace(/-+/g, '-')
@@ -43,7 +71,13 @@ export function normalizeSlug(name) {
   return cleaned || 'untitled'
 }
 
-export function resolveCanvasPath(cwd, inputPath) {
+function extFromKind(kind) {
+  if (kind === 'html') return HTML_EXT
+  if (kind === 'svg') return SVG_EXT
+  return CANVAS_EXT
+}
+
+export function resolveCanvasPath(cwd, inputPath, kind) {
   if (typeof cwd !== 'string' || !cwd.trim() || !isAbsolute(cwd)) {
     throw new Error('Workspace directory (cwd) must be an absolute path.')
   }
@@ -51,17 +85,21 @@ export function resolveCanvasPath(cwd, inputPath) {
   const raw = typeof inputPath === 'string' ? inputPath.trim() : ''
   if (!raw || raw.includes('\0')) throw new Error('Canvas path or name is required.')
 
+  const defaultExt = extFromKind(kind)
   let target
   if (isAbsolute(raw)) {
     target = resolve(raw)
-  } else if (raw.includes('/') || raw.includes('\\') || (raw.includes('.') && !raw.endsWith(CANVAS_EXT))) {
+  } else if (raw.includes('/') || raw.includes('\\') || (raw.includes('.') && !isCanvasFileName(raw))) {
     target = resolve(root, raw)
+  } else if (isCanvasFileName(raw)) {
+    const ext = CANVAS_EXTENSIONS.find(e => raw.endsWith(e)) ?? defaultExt
+    target = resolve(root, DEFAULT_DIR, `${normalizeSlug(raw)}${ext}`)
   } else {
-    target = resolve(root, DEFAULT_DIR, `${normalizeSlug(raw)}${CANVAS_EXT}`)
+    target = resolve(root, DEFAULT_DIR, `${normalizeSlug(raw)}${defaultExt}`)
   }
 
-  if (!target.endsWith(CANVAS_EXT)) {
-    throw new Error(`Canvas file must end with "${CANVAS_EXT}".`)
+  if (!isCanvasFileName(target)) {
+    throw new Error(`Canvas file must end with "${CANVAS_EXT}", "${HTML_EXT}", or "${SVG_EXT}".`)
   }
   if (!isWithinDirectory(root, target)) {
     throw new Error('Canvas path must stay within the session workspace directory.')
@@ -69,10 +107,41 @@ export function resolveCanvasPath(cwd, inputPath) {
   return target
 }
 
+export function resolveGlobalCanvasPath(inputPath, kind) {
+  const root = getGlobalCanvasesRoot()
+  const raw = typeof inputPath === 'string' ? inputPath.trim() : ''
+  if (!raw || raw.includes('\0')) throw new Error('Canvas path or name is required.')
+  const defaultExt = extFromKind(kind)
+  let target
+  if (isAbsolute(raw)) {
+    target = resolve(raw)
+  } else if (isCanvasFileName(raw)) {
+    const ext = CANVAS_EXTENSIONS.find(e => raw.endsWith(e)) ?? defaultExt
+    target = resolve(root, `${normalizeSlug(raw)}${ext}`)
+  } else {
+    target = resolve(root, `${normalizeSlug(raw)}${defaultExt}`)
+  }
+  if (!isCanvasFileName(target)) {
+    throw new Error(`Canvas file must end with "${CANVAS_EXT}", "${HTML_EXT}", or "${SVG_EXT}".`)
+  }
+  if (!isWithinDirectory(root, target)) {
+    throw new Error('Global canvas path must stay within ~/.dsh/canvases.')
+  }
+  return target
+}
+
 export function deriveTitle(filePath, source = '') {
-  const h1 = /<H1[^>]*>([^<{]+)<\/H1>/.exec(source)
-  if (h1?.[1]?.trim()) return h1[1].trim().slice(0, 80)
-  const stem = basename(filePath, CANVAS_EXT)
+  const kind = getArtifactKind(filePath)
+  if (kind === 'html' || kind === 'svg') {
+    const titleTag = /<title[^>]*>([^<]+)<\/title>/i.exec(source)
+    if (titleTag?.[1]?.trim()) return titleTag[1].trim().slice(0, 80)
+    const h1Html = /<h1[^>]*>([^<]+)<\/h1>/i.exec(source)
+    if (h1Html?.[1]?.trim()) return h1Html[1].trim().slice(0, 80)
+  } else {
+    const h1 = /<H1[^>]*>([^<{]+)<\/H1>/.exec(source)
+    if (h1?.[1]?.trim()) return h1[1].trim().slice(0, 80)
+  }
+  const stem = stripCanvasExtension(basename(filePath))
   return stem
     .split(/[-_]+/)
     .filter(Boolean)
@@ -92,7 +161,7 @@ async function scanDir(dir, depth, maxDepth, found) {
   for (const entry of entries) {
     if (found.length >= MAX_CANVASES) return
     const full = join(dir, entry.name)
-    if (entry.isFile() && entry.name.endsWith(CANVAS_EXT)) {
+    if (entry.isFile() && isCanvasFileName(entry.name)) {
       found.push(full)
     } else if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue
@@ -113,7 +182,7 @@ export async function discoverCanvasFiles(cwd) {
     const entries = await readdir(defaultDir, { withFileTypes: true })
     entries.sort((a, b) => a.name.localeCompare(b.name))
     for (const entry of entries) {
-      if (entry.isFile() && entry.name.endsWith(CANVAS_EXT)) {
+      if (entry.isFile() && isCanvasFileName(entry.name)) {
         const full = join(defaultDir, entry.name)
         seen.add(full)
         found.push(full)
@@ -132,6 +201,21 @@ export async function discoverCanvasFiles(cwd) {
   return found
 }
 
+export async function discoverGlobalCanvasFiles() {
+  const root = getGlobalCanvasesRoot()
+  const found = []
+  try {
+    const entries = await readdir(root, { withFileTypes: true })
+    entries.sort((a, b) => a.name.localeCompare(b.name))
+    for (const entry of entries) {
+      if (entry.isFile() && isCanvasFileName(entry.name) && found.length < MAX_CANVASES) {
+        found.push(join(root, entry.name))
+      }
+    }
+  } catch {}
+  return found
+}
+
 export async function readCanvasFile(cwd, filePath) {
   const full = resolveCanvasPath(cwd, filePath)
   const [source, info] = await Promise.all([readFile(full, 'utf8'), stat(full)])
@@ -140,18 +224,45 @@ export async function readCanvasFile(cwd, filePath) {
     path: full,
     relativePath: rel,
     name: basename(full),
+    kind: getArtifactKind(full),
+    scope: 'workspace',
     title: deriveTitle(full, source),
     source,
-    mtimeMs: Math.trunc(info.mtimeMs),
+    mtimeMs: info.mtimeMs,
     size: info.size,
   }
 }
 
-export async function writeCanvasFile(cwd, inputPath, source) {
-  const full = resolveCanvasPath(cwd, inputPath)
+export async function readGlobalCanvasFile(filePath) {
+  const root = getGlobalCanvasesRoot()
+  const full = resolveGlobalCanvasPath(filePath)
+  const [source, info] = await Promise.all([readFile(full, 'utf8'), stat(full)])
+  const rel = `~/.dsh/canvases/${relative(root, full).split(sep).join('/')}`
+  return {
+    path: full,
+    relativePath: rel,
+    name: basename(full),
+    kind: getArtifactKind(full),
+    scope: 'global',
+    title: deriveTitle(full, source),
+    source,
+    mtimeMs: info.mtimeMs,
+    size: info.size,
+  }
+}
+
+export async function writeCanvasFile(cwd, inputPath, source, kind) {
+  const full = resolveCanvasPath(cwd, inputPath, kind)
   await mkdir(dirname(full), { recursive: true })
   await writeFile(full, source, 'utf8')
   return readCanvasFile(cwd, full)
+}
+
+export async function writeGlobalCanvasFile(inputPath, source, kind) {
+  const full = resolveGlobalCanvasPath(inputPath, kind)
+  await mkdir(dirname(full), { recursive: true })
+  await writeFile(full, source, 'utf8')
+  return readGlobalCanvasFile(full)
 }
 
 export async function deleteCanvasFile(cwd, inputPath) {
@@ -160,19 +271,118 @@ export async function deleteCanvasFile(cwd, inputPath) {
   return full
 }
 
-export function computeLineDiff(beforeText = '', afterText = '') {
-  const a = beforeText === '' ? [] : beforeText.split('\n')
-  const b = afterText === '' ? [] : afterText.split('\n')
-  const maxMatrix = 900
-  if (a.length > maxMatrix || b.length > maxMatrix) {
-    const lines = []
-    a.forEach((content, idx) => lines.push({ type: 'removed', oldLine: idx + 1, content }))
-    b.forEach((content, idx) => lines.push({ type: 'added', newLine: idx + 1, content }))
-    return { added: b.length, removed: a.length, lines }
+export async function deleteGlobalCanvasFile(inputPath) {
+  const full = resolveGlobalCanvasPath(inputPath)
+  await unlink(full)
+  return full
+}
+
+export function createWorkspaceWatcher(cwd, onChange) {
+  const root = resolve(cwd)
+  const watched = new Map()
+  let timer = null
+
+  const schedule = () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      timer = null
+      onChange()
+    }, 180)
   }
 
+  const syncDirs = dirs => {
+    const next = new Set(dirs)
+    for (const [dir, handle] of watched) {
+      if (!next.has(dir)) {
+        try { handle.close() } catch {}
+        watched.delete(dir)
+      }
+    }
+    for (const dir of next) {
+      if (watched.has(dir)) continue
+      try {
+        const handle = watch(dir, { persistent: false }, (_event, filename) => {
+          if (!filename || isCanvasFileName(String(filename)) || String(filename) === '.dsh' || String(filename) === 'canvases') {
+            schedule()
+          }
+        })
+        handle.on('error', () => {
+          try { handle.close() } catch {}
+          watched.delete(dir)
+        })
+        watched.set(dir, handle)
+      } catch {}
+    }
+  }
+
+  return {
+    sync(filePaths = []) {
+      const dirs = [root, join(root, '.dsh'), join(root, DEFAULT_DIR)]
+      for (const file of filePaths) dirs.push(dirname(file))
+      syncDirs(dirs)
+    },
+    close() {
+      clearTimeout(timer)
+      for (const handle of watched.values()) {
+        try { handle.close() } catch {}
+      }
+      watched.clear()
+    },
+  }
+}
+
+export function createGlobalCanvasWatcher(onChange) {
+  const root = getGlobalCanvasesRoot()
+  let handle = null
+  let timer = null
+  const schedule = () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      timer = null
+      onChange()
+    }, 180)
+  }
+  const ensure = () => {
+    if (handle) return
+    try {
+      handle = watch(root, { persistent: false }, (_event, filename) => {
+        if (!filename || isCanvasFileName(String(filename))) schedule()
+      })
+      handle.on('error', () => {
+        try { handle.close() } catch {}
+        handle = null
+      })
+    } catch {}
+  }
+  ensure()
+  return {
+    sync() { ensure() },
+    close() {
+      clearTimeout(timer)
+      try { handle?.close() } catch {}
+      handle = null
+    },
+  }
+}
+
+export function computeLineDiff(beforeSource, afterSource) {
+  const a = beforeSource ? beforeSource.split('\n') : []
+  const b = afterSource ? afterSource.split('\n') : []
   const m = a.length
   const n = b.length
+
+  if (m === 0 && n === 0) return { added: 0, removed: 0, lines: [] }
+  if (m * n > 200_000) {
+    return {
+      added: n,
+      removed: m,
+      lines: [
+        ...a.slice(0, 60).map((content, idx) => ({ type: 'removed', oldLine: idx + 1, content })),
+        ...b.slice(0, 60).map((content, idx) => ({ type: 'added', newLine: idx + 1, content })),
+      ],
+    }
+  }
+
   const dp = Array.from({ length: m + 1 }, () => new Uint32Array(n + 1))
   for (let i = m - 1; i >= 0; i--) {
     for (let j = n - 1; j >= 0; j--) {
@@ -180,86 +390,57 @@ export function computeLineDiff(beforeText = '', afterText = '') {
     }
   }
 
-  const lines = []
+  const raw = []
   let i = 0
   let j = 0
   let added = 0
   let removed = 0
   while (i < m && j < n) {
     if (a[i] === b[j]) {
-      lines.push({ type: 'context', oldLine: i + 1, newLine: j + 1, content: a[i] })
+      raw.push({ type: 'context', oldLine: i + 1, newLine: j + 1, content: a[i] })
       i++
       j++
     } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-      lines.push({ type: 'removed', oldLine: i + 1, content: a[i] })
+      raw.push({ type: 'removed', oldLine: i + 1, content: a[i] })
       removed++
       i++
     } else {
-      lines.push({ type: 'added', newLine: j + 1, content: b[j] })
+      raw.push({ type: 'added', newLine: j + 1, content: b[j] })
       added++
       j++
     }
   }
   while (i < m) {
-    lines.push({ type: 'removed', oldLine: i + 1, content: a[i] })
+    raw.push({ type: 'removed', oldLine: i + 1, content: a[i] })
     removed++
     i++
   }
   while (j < n) {
-    lines.push({ type: 'added', newLine: j + 1, content: b[j] })
+    raw.push({ type: 'added', newLine: j + 1, content: b[j] })
     added++
     j++
   }
-  return { added, removed, lines }
-}
 
-export function createWorkspaceWatcher(cwd, onChange) {
-  const watchers = new Map()
-  let closed = false
-  let timer = null
-
-  const schedule = () => {
-    if (closed) return
-    clearTimeout(timer)
-    timer = setTimeout(() => {
-      if (!closed) onChange()
-    }, 140)
+  const keep = new Uint8Array(raw.length)
+  for (let idx = 0; idx < raw.length; idx++) {
+    if (raw[idx].type !== 'context') {
+      const start = Math.max(0, idx - 2)
+      const end = Math.min(raw.length - 1, idx + 2)
+      for (let k = start; k <= end; k++) keep[k] = 1
+    }
   }
 
-  const attachDir = dir => {
-    if (closed || watchers.has(dir)) return
-    try {
-      const watcher = watch(dir, { persistent: false }, (_eventType, fileName) => {
-        if (!fileName || String(fileName).endsWith(CANVAS_EXT) || String(fileName) === '.dsh' || String(fileName) === 'canvases') {
-          schedule()
-        }
-      })
-      watcher.on('error', () => {
-        watcher.close()
-        watchers.delete(dir)
-      })
-      watchers.set(dir, watcher)
-    } catch {}
+  const lines = []
+  let skipped = false
+  for (let idx = 0; idx < raw.length; idx++) {
+    if (keep[idx]) {
+      if (skipped && lines.length > 0) lines.push({ type: 'hunk', content: '...' })
+      skipped = false
+      lines.push(raw[idx])
+    } else {
+      skipped = true
+    }
   }
 
-  return {
-    sync(filePaths = []) {
-      if (closed) return
-      const desired = new Set([resolve(cwd), join(resolve(cwd), '.dsh'), join(resolve(cwd), DEFAULT_DIR)])
-      for (const file of filePaths) desired.add(dirname(resolve(file)))
-      for (const [dir, watcher] of watchers) {
-        if (!desired.has(dir)) {
-          watcher.close()
-          watchers.delete(dir)
-        }
-      }
-      for (const dir of desired) attachDir(dir)
-    },
-    close() {
-      closed = true
-      clearTimeout(timer)
-      for (const watcher of watchers.values()) watcher.close()
-      watchers.clear()
-    },
-  }
+  return { added, removed, lines: lines.slice(0, 240) }
 }

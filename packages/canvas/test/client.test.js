@@ -46,3 +46,128 @@ test('readJsonResponse handles empty and non-JSON error responses without Syntax
   const ok = await readJsonResponse(new Response(JSON.stringify({ enabled: true }), { status: 200 }))
   assert.deepEqual(ok, { enabled: true })
 })
+
+test('apply uses real DSH locale, theme, and layout client APIs during boot and render', () => {
+  const reactStub = {
+    Fragment: Symbol('Fragment'),
+    createElement: (type, props, ...children) => ({ type, props, children }),
+    useSyncExternalStore: (subscribe, getSnapshot) => {
+      const off = subscribe(() => {})
+      if (typeof off === 'function') off()
+      return getSnapshot()
+    },
+    useMemo: fn => fn(),
+    useEffect: () => {},
+    useCallback: fn => fn,
+    useState: init => [typeof init === 'function' ? init() : init, () => {}],
+    useRef: current => ({ current }),
+  }
+  const { plugin: livePlugin } = loadClient(fileURLToPath(new URL('../lib/client.js', import.meta.url)), { react: reactStub })
+
+  const registeredDicts = new Map()
+  const slotEntries = new Map()
+  const sidebarTabs = []
+  const commands = []
+  const openedTabs = []
+  const selectedPanels = []
+  const themeListeners = new Set()
+
+  const locale = {
+    register(ns, dicts) {
+      registeredDicts.set(ns, dicts)
+      return () => registeredDicts.delete(ns)
+    },
+    bind(ns) {
+      return (key, vars) => {
+        const raw = registeredDicts.get(ns)?.en?.[key] ?? key
+        return vars ? raw.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? '')) : raw
+      }
+    },
+    subscribe: () => () => {},
+    getSnapshot: () => ({ active: 'en' }),
+  }
+  const theme = {
+    getTheme: () => ({ active: { colorScheme: 'light' } }),
+  }
+  const layout = {
+    selectPanel: panelId => selectedPanels.push(panelId),
+  }
+
+  const ctx = {
+    locale,
+    theme,
+    sidebarRight: {
+      openTab: (kind, opts) => openedTabs.push({ kind, opts }),
+      openResource: () => {},
+    },
+    sidebarRightTabs: {
+      register: def => {
+        sidebarTabs.push(def)
+        return () => {}
+      },
+    },
+    slots: {
+      inject: (_name, fn) => fn(),
+      register: (opts, component) => {
+        slotEntries.set(`${opts.name}:${opts.id ?? opts.key ?? ''}`, { opts, component })
+        return () => {}
+      },
+    },
+    effect: (fn, label) => (label === 'canvas: styles' ? undefined : fn()),
+    on: (event, fn) => {
+      if (event === 'theme/change') themeListeners.add(fn)
+      return () => themeListeners.delete(fn)
+    },
+    get: name => (name === 'layout' ? layout : undefined),
+    inject: (deps, fn) => {
+      if (deps.includes('commandUi')) {
+        fn({
+          effect: cb => cb(),
+          commandUi: {
+            register: cmd => {
+              commands.push(cmd)
+              return () => {}
+            },
+          },
+        })
+      }
+    },
+  }
+
+  livePlugin.apply(ctx)
+
+  const panelEntry = slotEntries.get('sidebar.panellist:dsh-canvas-apps')
+  assert.ok(panelEntry)
+  assert.equal(panelEntry.opts.label(), 'Canvases')
+
+  assert.equal(sidebarTabs.length, 1)
+  assert.equal(sidebarTabs[0].title(), 'Canvas')
+  assert.equal(sidebarTabs[0].guide[0].title(), 'Canvas')
+  assert.match(sidebarTabs[0].guide[0].description(), /Live sandboxed/)
+
+  assert.equal(commands.length, 1)
+  assert.equal(commands[0].label(), 'Canvas')
+  commands[0].ui.run()
+  assert.equal(openedTabs.length, 1)
+  assert.equal(openedTabs[0].kind, 'dsh-canvas')
+
+  const tabTitle = slotEntries.get('sidebar.right.pane.tab.title:dsh-canvas')
+  assert.ok(tabTitle.component())
+
+  const panelSlot = slotEntries.get('sidebar.right.pane.tab:dsh-canvas')
+  const workspaceEl = panelSlot.component({ sessionId: '', useTabInfo: () => ({ tab: null }) })
+  assert.ok(workspaceEl.type(workspaceEl.props))
+
+  const toolCard = slotEntries.get('tool.call.toolview:canvas_write')
+  const cardEl = toolCard.component({
+    phase: 'result',
+    block: {
+      kind: 'tool_result',
+      call: { argsRaw: JSON.stringify({ path: 'board.canvas.tsx', scope: 'global' }) },
+      content: [{ type: 'text', text: JSON.stringify({ title: 'Board', scope: 'global', revision: 1 }) }],
+    },
+  })
+  const actionsDiv = cardEl.children.find(c => c?.props?.className === 'cv-toolcard-actions')
+  actionsDiv.children[0].props.onClick()
+  assert.deepEqual(selectedPanels, ['dsh-canvas-apps'])
+})

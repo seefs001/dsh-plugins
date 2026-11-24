@@ -3,6 +3,7 @@ import { createToolSearchToolDefinition, invoke } from './pi.js'
 import { borrowRunnerPool } from './moe-runner.js'
 import { createCodemodeToolDefinition } from './codemode-budget.js'
 import { INTERNAL_PREFIX } from './loadout.js'
+import { MAX_PERSISTED_VALUE_BYTES, jsonByteLength } from './state.js'
 import { rememberNestedSkill, nestedSkillProofs } from './skill-context.js'
 import { withCodemodeSyntaxGuidance } from './codemode-syntax.js'
 import { aliasToolCall } from './claude-aliases.js'
@@ -111,6 +112,7 @@ export class PiExecutor {
     this.loadout = loadout
     this.active = new Set()
     this.structuredErrors = new WeakMap()
+    this.ephemeralStores = new WeakMap()
     this.disposed = false
     this.pipeline = new ToolExecutionPipeline(ctx, {
       get: (name, scope, toolSet) => !name.startsWith(INTERNAL_PREFIX)
@@ -221,7 +223,10 @@ export class PiExecutor {
       models: false,
       appendEntry: (_type, value) => { writes = value },
     })
-    const store = this.loadout.stateOf(exec.agent).store
+    const persistedStore = this.loadout.stateOf(exec.agent).store
+    const session = exec.agent?.session
+    const ephemeral = session ? this.ephemeralStores.get(session) : undefined
+    const store = ephemeral ? { ...persistedStore, ...Object.fromEntries(ephemeral) } : persistedStore
     const context = {
       tools: this.loadout.callable(this.ctx.tools.definitions(exec.agent, exec.toolSet), exec.agent),
       executeTool: (name, input, options) => nested.call(name, input, options),
@@ -231,8 +236,38 @@ export class PiExecutor {
       const native = await invoke(definition, args, current, context)
       const result = withCodemodeSyntaxGuidance(native, nested.nextId, current.signal)
       const proofs = !result.isError && nested.skills.size ? nestedSkillProofs(nested.skills, result.content) : []
+      let persistedWrites
+      if (writes && !result.isError) {
+        const deleted = Array.isArray(writes.delete) ? writes.delete : []
+        const setEntries = writes.set && typeof writes.set === 'object' ? Object.entries(writes.set) : []
+        const keptSet = {}
+        const deletedSet = new Set(deleted)
+        let sessionEphemeral = ephemeral
+        if (session) {
+          for (const key of deleted) sessionEphemeral?.delete(key)
+        }
+        for (const [key, value] of setEntries) {
+          if (jsonByteLength(value) <= MAX_PERSISTED_VALUE_BYTES) {
+            keptSet[key] = value
+            sessionEphemeral?.delete(key)
+          } else {
+            deletedSet.add(key)
+            if (session) {
+              if (!sessionEphemeral) {
+                sessionEphemeral = new Map()
+                this.ephemeralStores.set(session, sessionEphemeral)
+              }
+              sessionEphemeral.set(key, value)
+            }
+          }
+        }
+        if (sessionEphemeral && sessionEphemeral.size === 0 && session) this.ephemeralStores.delete(session)
+        if (Object.keys(keptSet).length > 0 || deletedSet.size > 0) {
+          persistedWrites = { set: keptSet, delete: [...deletedSet] }
+        }
+      }
       return { ...result, ...proofs.length ? { details: { ...result.details, visibleSkillProofs: proofs } } : {},
-        ...writes && !result.isError ? { state: { version: 1, kind: 'store', writes } } : {} }
+        ...persistedWrites ? { state: { version: 1, kind: 'store', writes: persistedWrites } } : {} }
     } finally {
       controller.abort(new Error('Script completed'))
       await nested.drain()

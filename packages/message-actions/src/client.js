@@ -1,6 +1,4 @@
 import React from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import {
   DisclosureRow, JsonBlock, Tag, TextShimmer,
   IconInspectOutlineRegular, IconSparkleRegular,
@@ -173,10 +171,43 @@ const markdownComponents = {
   pre: ({ children }) => h('pre', { tabIndex: 0 }, children),
   table: ({ children }) => h('div', { className: 'dma-table', tabIndex: 0 }, h('table', null, children)),
 }
-const markdownPlugins = [remarkGfm]
+let markdownRenderer = null
+let markdownPromise = null
+function loadMarkdownRenderer() {
+  if (markdownRenderer) return Promise.resolve(markdownRenderer)
+  if (!markdownPromise) {
+    const loader = typeof globalThis.__dshMessageActionsRequireAsync === 'function'
+      ? globalThis.__dshMessageActionsRequireAsync
+      : null
+    if (!loader) return Promise.resolve(null)
+    markdownPromise = loader('./client.markdown.js')
+      .then(mod => {
+        markdownRenderer = mod?.default ?? mod ?? null
+        return markdownRenderer
+      })
+      .catch(() => {
+        markdownPromise = null
+        return null
+      })
+  }
+  return markdownPromise
+}
+
 function Markdown({ text }) {
+  const [Renderer, setRenderer] = React.useState(() => markdownRenderer)
+  React.useEffect(() => {
+    if (Renderer) return undefined
+    let active = true
+    void loadMarkdownRenderer().then(loaded => {
+      if (active && loaded) setRenderer(() => loaded)
+    })
+    return () => { active = false }
+  }, [Renderer])
+  if (!Renderer) {
+    return h('div', { className: 'dma-result dma-markdown', style: { whiteSpace: 'pre-wrap' } }, text)
+  }
   return h('div', { className: 'dma-result dma-markdown' },
-    h(ReactMarkdown, { remarkPlugins: markdownPlugins, components: markdownComponents }, text))
+    h(Renderer, { text, components: markdownComponents }))
 }
 
 function Wand() {

@@ -1,4 +1,104 @@
 const CHUNK_SIZE = 64
+const FLUSH_DEBOUNCE_MS = 1000
+const MAX_DIFF_PAIR_CHARS = 32 * 1024
+const MAX_DIFF_SIDE_CHARS = 32 * 1024
+const MAX_NEW_TEXT_CHARS = 64 * 1024
+const DIFF_CONTEXT_LINES = 5
+
+function truncateText(text, limit) {
+  if (typeof text !== 'string' || text.length <= limit) return text
+  const omitted = text.length - limit
+  return `${text.slice(0, limit)}\n… [truncated ${omitted} chars]`
+}
+
+function compactDiffWindow(oldText, newText) {
+  if (oldText.length + newText.length <= MAX_DIFF_PAIR_CHARS) return { oldText, newText }
+  const oldLines = oldText.split('\n')
+  const newLines = newText.split('\n')
+  const minLen = Math.min(oldLines.length, newLines.length)
+  let prefix = 0
+  while (prefix < minLen && oldLines[prefix] === newLines[prefix]) prefix++
+  let suffix = 0
+  while (
+    suffix < minLen - prefix
+    && oldLines[oldLines.length - 1 - suffix] === newLines[newLines.length - 1 - suffix]
+  ) suffix++
+  const start = Math.max(0, prefix - DIFF_CONTEXT_LINES)
+  const oldEnd = Math.min(oldLines.length, oldLines.length - suffix + DIFF_CONTEXT_LINES)
+  const newEnd = Math.min(newLines.length, newLines.length - suffix + DIFF_CONTEXT_LINES)
+  const trimmedOld = oldLines.slice(start, oldEnd).join('\n')
+  const trimmedNew = newLines.slice(start, newEnd).join('\n')
+  return {
+    oldText: truncateText(trimmedOld, MAX_DIFF_SIDE_CHARS),
+    newText: truncateText(trimmedNew, MAX_DIFF_SIDE_CHARS),
+  }
+}
+
+function compactDiffBlock(item) {
+  if (!item || typeof item !== 'object' || item.type !== 'diff') return item
+  const hasOld = typeof item.oldText === 'string'
+  const hasNew = typeof item.newText === 'string'
+  if (hasOld && hasNew && item.oldText.length + item.newText.length > MAX_DIFF_PAIR_CHARS) {
+    const compacted = compactDiffWindow(item.oldText, item.newText)
+    return { ...item, ...compacted, compacted: true }
+  }
+  if (!hasOld && hasNew && item.newText.length > MAX_NEW_TEXT_CHARS) {
+    return { ...item, newText: truncateText(item.newText, MAX_NEW_TEXT_CHARS), compacted: true }
+  }
+  if (hasOld && !hasNew && item.oldText.length > MAX_NEW_TEXT_CHARS) {
+    return { ...item, oldText: truncateText(item.oldText, MAX_NEW_TEXT_CHARS), compacted: true }
+  }
+  return item
+}
+
+function compactEventData(type, clonedData) {
+  if (type !== 'notification' || clonedData?.method !== 'session/update') return clonedData
+  const update = clonedData.params?.update
+  if (!update || (update.sessionUpdate !== 'tool_call_update' && update.sessionUpdate !== 'tool_call')) return clonedData
+  if (!Array.isArray(update.content) || !update.content.some(item => item?.type === 'diff')) return clonedData
+  let changed = false
+  const nextContent = update.content.map(item => {
+    const compacted = compactDiffBlock(item)
+    if (compacted !== item) changed = true
+    return compacted
+  })
+  if (!changed) return clonedData
+  return {
+    ...clonedData,
+    params: {
+      ...clonedData.params,
+      update: { ...update, content: nextContent },
+    },
+  }
+}
+
+function diffUpdateCallId(event) {
+  if (event?.type !== 'notification' || event.data?.method !== 'session/update') return null
+  const update = event.data.params?.update
+  if (update?.sessionUpdate !== 'tool_call_update' || typeof update.toolCallId !== 'string' || !update.toolCallId) return null
+  if (!Array.isArray(update.content) || !update.content.some(item => item?.type === 'diff' && (typeof item.newText === 'string' || typeof item.oldText === 'string'))) return null
+  return update.toolCallId
+}
+
+function elideSupersededDiff(event) {
+  const update = event.data.params.update
+  const nextContent = update.content.map(item => (
+    item?.type === 'diff' && (typeof item.newText === 'string' || typeof item.oldText === 'string')
+      ? { type: 'diff', ...(item.path === undefined ? {} : { path: item.path }), superseded: true }
+      : item
+  ))
+  return {
+    ...event,
+    data: {
+      ...event.data,
+      params: {
+        ...event.data.params,
+        update: { ...update, content: nextContent },
+      },
+    },
+  }
+}
+
 const schema = check => ({
   parse(value) { if (!check(value)) throw new Error('Invalid ACP workbench storage record'); return value },
   safeParse(value) { try { return { success: true, data: this.parse(value) } } catch (error) { return { success: false, error } } },
@@ -74,18 +174,31 @@ export class WorkbenchStore {
       this.chunks.set(key, chunk)
     }
     this.dirty.set(key, chunk)
-    const event = { seq, at: new Date().toISOString(), type, data: structuredClone(data) }
-    chunk.events.push(event)
+    const at = new Date().toISOString()
+    const cloned = structuredClone(data)
+    const liveEvent = { seq, at, type, data: cloned }
+    const compactedData = compactEventData(type, cloned)
+    const persistedEvent = compactedData === cloned ? liveEvent : { seq, at, type, data: compactedData }
+    const callId = diffUpdateCallId(persistedEvent)
+    if (callId !== null) {
+      for (let i = chunk.events.length - 1; i >= 0; i--) {
+        if (diffUpdateCallId(chunk.events[i]) === callId) {
+          chunk.events[i] = elideSupersededDiff(chunk.events[i])
+        }
+      }
+    }
+    chunk.events.push(persistedEvent)
     session.eventSeq = seq
-    session.updatedAt = event.at
-    if (!this.timer) this.timer = setTimeout(() => { this.flush().catch(() => {}) }, 150)
-    return event
+    session.updatedAt = at
+    if (!this.timer) this.timer = setTimeout(() => { this.flush().catch(() => {}) }, FLUSH_DEBOUNCE_MS)
+    return liveEvent
   }
 
   async flush() {
     clearTimeout(this.timer)
     this.timer = undefined
-    const chunks = [...this.dirty].map(([key, chunk]) => [key, structuredClone(chunk)])
+    if (this.dirty.size === 0) return this.tail
+    const chunks = [...this.dirty].map(([key, chunk]) => [key, { sessionId: chunk.sessionId, events: chunk.events.slice() }])
     this.dirty.clear()
     const sessions = [...new Set(chunks.map(([, c]) => c.sessionId))].map(id => structuredClone(this.sessions.get(id))).filter(Boolean)
     return this.enqueue(async () => {

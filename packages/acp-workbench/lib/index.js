@@ -5,7 +5,7 @@ import { NativeAcp } from './native.js'
 export const name = 'acp-workbench'
 export const inject = ['storageDomain', 'subprocess', 'webServer', 'connection', 'llm', 'agents', 'sessions', 'subagents', 'attachments']
 const BASE = '/acp-workbench'
-const USER_ONLY = new Set(['provider-save', 'provider-remove', 'diagnose', 'models', 'discover', 'respond', 'configure', 'native-stop', 'native-steer', 'native-reset', 'native-connect', 'native-discover', 'native-adopt', 'native-fork', 'native-command', 'native-set-option'])
+const USER_ONLY = new Set(['provider-save', 'provider-remove', 'diagnose', 'models', 'discover', 'usage', 'respond', 'configure', 'native-stop', 'native-steer', 'native-reset', 'native-connect', 'native-discover', 'native-adopt', 'native-fork', 'native-command', 'native-set-option'])
 
 function send(res, status, value) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })

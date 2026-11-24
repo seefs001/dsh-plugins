@@ -358,6 +358,12 @@ window.__ModuleLoader__.load({
       hashAria: '角色',
     }
 
+    const ROLES_SYNC_CHANNEL = 'dsh-roles-sync'
+    const ROLES_REFRESH_THROTTLE_MS = 30_000
+    const broadcastRoles = data => {
+      try { store.channel?.postMessage({ type: 'state', data }) } catch {}
+    }
+
     async function op(body) {
       const r = await fetch('roles/op', {
         signal: AbortSignal.timeout(20_000),
@@ -368,7 +374,11 @@ window.__ModuleLoader__.load({
       let data = null
       try { data = await r.json() } catch {}
       if (!r.ok) throw new Error(data?.message ?? `HTTP ${r.status}`)
-      if (data?.roles && body.action !== 'preview') store.set(readyState(data))
+      if (data?.roles && body.action !== 'preview') {
+        store.set(readyState(data))
+        store.lastFetchedAt = Date.now()
+        broadcastRoles(data)
+      }
       return data
     }
 
@@ -382,7 +392,10 @@ window.__ModuleLoader__.load({
         limits: { name: 60, icon: 8, description: 300, prompt: 40_000, skillDescription: 500, whenToUse: 500, skillContent: 60_000, roles: 100, skills: 20 },
       },
       listeners: new Set(),
-      es: null,
+      inflight: null,
+      lastFetchedAt: 0,
+      channel: null,
+      cleanup: null,
       get: () => store.state,
       set(patch) { store.state = { ...store.state, ...patch }; store.listeners.forEach(fn => fn()) },
       subscribe(fn) {
@@ -393,32 +406,58 @@ window.__ModuleLoader__.load({
           if (store.listeners.size === 0) store.close()
         }
       },
+      fetchState(force = false) {
+        if (!force && store.state.status === 'ready' && Date.now() - store.lastFetchedAt < ROLES_REFRESH_THROTTLE_MS) return
+        if (store.inflight) return
+        const req = fetch('roles/state', { headers: { accept: 'application/json' }, cache: 'no-store' })
+          .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(new Error(d?.message ?? `HTTP ${r.status}`)), () => Promise.reject(new Error(`HTTP ${r.status}`))))
+          .then(d => {
+            if (d && Array.isArray(d.roles)) {
+              store.lastFetchedAt = Date.now()
+              store.set(readyState(d))
+            }
+          })
+          .catch(error => {
+            if (store.state.status === 'loading') store.set({ status: 'error', error: error.message })
+          })
+          .finally(() => { if (store.inflight === req) store.inflight = null })
+        store.inflight = req
+      },
       open() {
-        if (store.es) return
-        const es = new EventSource('roles/events')
-        store.es = es
-        es.addEventListener('message', e => {
-          let data = null
-          try { data = JSON.parse(e.data) } catch {}
-          if (data && Array.isArray(data.roles)) store.set(readyState(data))
-        })
-        es.addEventListener('error', () => {
-          if (store.state.status === 'loading') {
-            fetch('roles/state', { headers: { accept: 'application/json' } })
-              .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(new Error(d?.message ?? `HTTP ${r.status}`)), () => Promise.reject(new Error(`HTTP ${r.status}`))))
-              .then(d => store.set(readyState(d)))
-              .catch(error => store.set({ status: 'error', error: error.message }))
+        if (store.cleanup) return
+        const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(ROLES_SYNC_CHANNEL) : null
+        store.channel = channel
+        const onWake = () => {
+          if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+          store.fetchState(false)
+        }
+        const onMessage = event => {
+          const data = event?.data?.data
+          if (data && Array.isArray(data.roles)) {
+            store.lastFetchedAt = Date.now()
+            store.set(readyState(data))
           }
-        })
+        }
+        window.addEventListener('focus', onWake)
+        document.addEventListener('visibilitychange', onWake)
+        channel?.addEventListener('message', onMessage)
+        store.cleanup = () => {
+          window.removeEventListener('focus', onWake)
+          document.removeEventListener('visibilitychange', onWake)
+          channel?.removeEventListener('message', onMessage)
+          channel?.close()
+          if (store.channel === channel) store.channel = null
+        }
+        store.fetchState(store.state.status !== 'ready')
       },
       close() {
-        store.es?.close()
-        store.es = null
+        store.cleanup?.()
+        store.cleanup = null
       },
       reload() {
-        store.close()
+        store.lastFetchedAt = 0
         store.set({ status: 'loading', error: null })
-        if (store.listeners.size > 0) store.open()
+        if (store.listeners.size > 0) store.fetchState(true)
       },
     }
     const useRoles = () => React.useSyncExternalStore(store.subscribe, store.get)

@@ -520,10 +520,57 @@ window.__ModuleLoader__.load({
           const [found, setFound] = React.useState({ area: null, suspended: true, manual: false })
           React.useEffect(() => {
             let frame = 0
+            let watchedArea = null
+            let watchedRoot = null
+            let watchedInput = null
+            let bodyObserver = null
+            let rootObserver = null
+
+            const detachInput = () => {
+              if (watchedInput) {
+                watchedInput.removeEventListener('input', schedule)
+                watchedInput = null
+              }
+            }
+            const detachRoot = () => {
+              rootObserver?.disconnect()
+              rootObserver = null
+              watchedRoot = null
+            }
+            const attachBody = () => {
+              if (bodyObserver) return
+              bodyObserver = new MutationObserver(schedule)
+              bodyObserver.observe(document.body, { childList: true, subtree: true })
+            }
+            const detachBody = () => {
+              bodyObserver?.disconnect()
+              bodyObserver = null
+            }
             const check = () => {
               frame = 0
-              const area = document.querySelector('[data-sidebar-list-area]')
-              const input = document.querySelector('[data-sidebar-workspace-header] input')
+              const area = watchedArea?.isConnected ? watchedArea : document.querySelector('[data-sidebar-list-area]')
+              const input = watchedInput?.isConnected ? watchedInput : document.querySelector('[data-sidebar-workspace-header] input')
+              watchedArea = area
+              if (input !== watchedInput) {
+                detachInput()
+                if (input) {
+                  watchedInput = input
+                  watchedInput.addEventListener('input', schedule)
+                }
+              }
+              if (area) {
+                detachBody()
+                const root = area.parentElement ?? document.body
+                if (root !== watchedRoot) {
+                  detachRoot()
+                  watchedRoot = root
+                  rootObserver = new MutationObserver(schedule)
+                  rootObserver.observe(root, { childList: true })
+                }
+              } else {
+                detachRoot()
+                attachBody()
+              }
               // external: DSH workspace view order is only exposed via localStorage dsh.workspace.view.v5
               let view
               try { view = JSON.parse(localStorage.getItem('dsh.workspace.view.v5')) } catch {}
@@ -533,10 +580,14 @@ window.__ModuleLoader__.load({
             }
             const schedule = () => { if (!frame) frame = requestAnimationFrame(check) }
             check()
-            const observer = new MutationObserver(schedule)
-            observer.observe(document.body, { childList: true, subtree: true })
-            document.addEventListener('input', schedule, true); window.addEventListener('storage', schedule)
-            return () => { observer.disconnect(); window.removeEventListener('storage', schedule); document.removeEventListener('input', schedule, true); if (frame) cancelAnimationFrame(frame) }
+            window.addEventListener('storage', schedule)
+            return () => {
+              detachBody()
+              detachRoot()
+              detachInput()
+              window.removeEventListener('storage', schedule)
+              if (frame) cancelAnimationFrame(frame)
+            }
           }, [])
           return found
         }
