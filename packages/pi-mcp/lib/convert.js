@@ -58,6 +58,11 @@ export function convertServer(name, raw) {
   throw new Error('entry needs "command" (stdio) or "url" (streamable HTTP)')
 }
 
+const serverNames = value => new Set((Array.isArray(value) ? value : [])
+  .filter(item => typeof item === 'string')
+  .map(item => item.trim())
+  .filter(Boolean))
+
 export function convertConfig(document, options = {}) {
   if (document === null || typeof document !== 'object' || Array.isArray(document)) {
     throw new Error('mcp.json must contain a configuration object')
@@ -65,12 +70,8 @@ export function convertConfig(document, options = {}) {
   const servers = document.mcpServers
   if (servers === undefined) return { entries: new Map(), skipped: [] }
   if (typeof servers !== 'object' || servers === null || Array.isArray(servers)) throw new Error('"mcpServers" must be an object')
-  const disabled = new Set(
-    (Array.isArray(options.disabledServers) ? options.disabledServers : [])
-      .filter(item => typeof item === 'string')
-      .map(item => item.trim())
-      .filter(Boolean),
-  )
+  const disabled = serverNames(options.disabledServers)
+  const eager = serverNames(options.eagerServers)
   const entries = new Map()
   const skipped = []
   const seen = new Set()
@@ -84,7 +85,9 @@ export function convertConfig(document, options = {}) {
     seen.add(key)
     try {
       const entry = convertServer(name, raw)
-      if (entry) entries.set(name, entry)
+      if (!entry) continue
+      if (eager.has(name)) entry.toolLoading = 'eager'
+      entries.set(name, entry)
     } catch (error) {
       skipped.push({ name, reason: error.message })
     }

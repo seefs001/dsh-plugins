@@ -92,7 +92,10 @@ export async function apply(ctx, config = {}) {
     }
     const disabledList = combinedDisabled()
     const disabledSet = new Set(disabledList)
-    const { entries, skipped } = convertConfig(parsed, { disabledServers: disabledList })
+    const { entries, skipped } = convertConfig(parsed, {
+      disabledServers: disabledList,
+      eagerServers: config?.eagerServers,
+    })
     const skippedMap = new Map(skipped.map(s => [s.name, s.reason]))
     for (const { name: server, reason } of skipped) logger.warn(`pi-mcp: skipped "${server}": ${reason}`)
 
