@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "GitHub panel",
+    "description": "Display linked GitHub repository details, open PRs, issues, Actions runs, and releases in the right session panel and sidebar."
+  }
+}

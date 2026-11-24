@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-31 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
+32 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [在线文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -43,6 +43,7 @@
 | [`dsh-workspace-manager`](packages/workspace-manager) | 查看已保存的工作区记录并清理失效条目。 | Host + Web |
 | [`dsh-branch-switcher`](packages/branch-switcher) | 新会话发第一条消息前直接切换已有本地分支。需要 Change requests & worktrees。 | Host + Web |
 | [`dsh-git-changes`](packages/git-changes) | 在输入框下方显示当前分支和未提交改动统计，点击打开右侧 diff。需要 Change requests & worktrees。 | Web |
+| [`dsh-github-panel`](packages/github-panel) | 会话目录关联 GitHub 仓库时，在右侧会话面板展示仓库概览、打开中的 PR、Issue、Actions 状态与最新发布，并在右栏查看详情。需要 `gh` CLI。 | Host + Web |
 | [`dsh-keep-awake`](packages/keep-awake) | DSH Host 运行期间阻止 macOS 闲置休眠。 | Host |
 
 ### 对话阅读

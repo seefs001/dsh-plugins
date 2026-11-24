@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "GitHub 面板",
+    "description": "当会话目录关联 GitHub 仓库时，在右侧会话面板展示仓库概览、打开中的 PR、Issue、Actions 状态与最新发布，并在右栏查看详情。"
+  }
+}
