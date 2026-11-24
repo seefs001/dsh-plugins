@@ -60,7 +60,20 @@ const DEFAULT_IDLE_DISCONNECT_MS = 15 * 60_000
 const DEFAULT_MAX_IDLE_RUNTIMES = 2
 
 export class Workbench {
-  constructor({ domain, subprocess, changed, modelsChanged, log, autoApprove, asyncWakeup, idleDisconnectMs, maxIdleRuntimes }) {
+  constructor({
+    domain,
+    subprocess,
+    changed,
+    modelsChanged,
+    log,
+    autoApprove,
+    asyncWakeup,
+    idleDisconnectMs,
+    maxIdleRuntimes,
+    chunkRetentionDays,
+    archivedChunkRetentionDays,
+    maxChunkBytes,
+  }) {
     this.subprocess = subprocess
     this.changed = changed
     this.modelsChanged = modelsChanged
@@ -71,6 +84,9 @@ export class Workbench {
     this.asyncWakeupIdleTimeoutMs = asyncWakeup?.idleTimeoutMs ?? ASYNC_WAKEUP_IDLE_TIMEOUT_MS
     this.idleDisconnectMs = idleDisconnectMs ?? DEFAULT_IDLE_DISCONNECT_MS
     this.maxIdleRuntimes = maxIdleRuntimes ?? DEFAULT_MAX_IDLE_RUNTIMES
+    this.chunkRetentionDays = Number.isFinite(chunkRetentionDays) && chunkRetentionDays >= 0 ? chunkRetentionDays : undefined
+    this.archivedChunkRetentionDays = Number.isFinite(archivedChunkRetentionDays) && archivedChunkRetentionDays >= 0 ? archivedChunkRetentionDays : undefined
+    this.maxChunkBytes = Number.isFinite(maxChunkBytes) && maxChunkBytes >= 0 ? maxChunkBytes : undefined
     this.runtimes = new Map()
     this.listeners = new Map()
     this.probes = new Set()
@@ -100,6 +116,15 @@ export class Workbench {
       }
     }
     await this.store.flush()
+    const pruned = await this.store.pruneChunks({
+      ...(this.chunkRetentionDays !== undefined ? { maxAgeDays: this.chunkRetentionDays } : {}),
+      ...(this.archivedChunkRetentionDays !== undefined ? { archivedMaxAgeDays: this.archivedChunkRetentionDays } : {}),
+      ...(this.maxChunkBytes !== undefined ? { maxTotalBytes: this.maxChunkBytes } : {}),
+      activeSessionIds: new Set(this.runtimes.keys()),
+    })
+    if (pruned.deletedChunks > 0) {
+      this.log?.(`ACP storage pruned ${pruned.deletedChunks} chunk(s) across ${pruned.deletedSessions} session(s) (${Math.round(pruned.freedBytes / 1024)} KiB)`)
+    }
   }
 
   provider(id) {
@@ -285,8 +310,12 @@ export class Workbench {
       case 'archive':
         if (this.runtimes.has(session.id)) throw new Error('Disconnect before archiving')
         session.archived = true
+        session.archivedAt = now()
         break
-      case 'restore': session.archived = false; break
+      case 'restore':
+        session.archived = false
+        delete session.archivedAt
+        break
       default: throw new Error(`Unknown ACP action: ${op.action}`)
     }
     session.updatedAt = now()

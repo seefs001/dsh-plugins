@@ -4,6 +4,10 @@ const MAX_DIFF_PAIR_CHARS = 32 * 1024
 const MAX_DIFF_SIDE_CHARS = 32 * 1024
 const MAX_NEW_TEXT_CHARS = 64 * 1024
 const DIFF_CONTEXT_LINES = 5
+const DEFAULT_CHUNK_RETENTION_DAYS = 30
+const DEFAULT_ARCHIVED_CHUNK_RETENTION_DAYS = 7
+const DEFAULT_MAX_CHUNK_BYTES = 50 * 1024 * 1024
+const DAY_MS = 24 * 60 * 60 * 1000
 
 function truncateText(text, limit) {
   if (typeof text !== 'string' || text.length <= limit) return text
@@ -126,9 +130,31 @@ export class WorkbenchStore {
     this.chunks = new Map()
     this.tail = Promise.resolve()
     this.failure = null
-    for (const [, chunk] of domain.table('chunks').entries()) {
-      const session = this.sessions.get(chunk.sessionId)
-      if (session) session.eventSeq = Math.max(session.eventSeq ?? 0, chunk.events.at(-1)?.seq ?? 0)
+    let needsFullScan = false
+    for (const session of this.sessions.values()) {
+      if (!Number.isInteger(session.eventSeq) || session.eventSeq < 0) {
+        needsFullScan = true
+        break
+      }
+    }
+    const chunksTable = domain.table('chunks')
+    if (needsFullScan) {
+      for (const [, chunk] of chunksTable.entries()) {
+        const session = this.sessions.get(chunk.sessionId)
+        if (session) session.eventSeq = Math.max(session.eventSeq ?? 0, chunk.events.at(-1)?.seq ?? 0)
+      }
+    } else {
+      for (const session of this.sessions.values()) {
+        let index = Math.floor(Math.max(0, (session.eventSeq ?? 0) - 1) / CHUNK_SIZE)
+        for (let probe = 0; probe < 8; probe++) {
+          const chunk = chunksTable.get(`${session.id}_${index}`)
+          if (!chunk) break
+          const lastSeq = chunk.events.at(-1)?.seq ?? 0
+          if (lastSeq > (session.eventSeq ?? 0)) session.eventSeq = lastSeq
+          if (chunk.events.length < CHUNK_SIZE) break
+          index += 1
+        }
+      }
     }
   }
 
@@ -225,6 +251,98 @@ export class WorkbenchStore {
       }
     }
     return { events: result, next: result.at(-1)?.seq ?? from, total: session.eventSeq ?? 0, more: false }
+  }
+
+  async deleteChunkKeys(keys) {
+    if (!keys.length) return 0
+    for (const key of keys) {
+      this.dirty.delete(key)
+      this.chunks.delete(key)
+    }
+    const table = this.domain.table('chunks')
+    await this.enqueue(async () => {
+      if (typeof table.deleteMany === 'function') {
+        await table.deleteMany(keys)
+        return
+      }
+      for (const key of keys) await table.delete(key)
+    })
+    return keys.length
+  }
+
+  async deleteSessionChunks(sessionId) {
+    const table = this.domain.table('chunks')
+    const keys = []
+    for (const [key, chunk] of table.entries()) {
+      if (chunk?.sessionId === sessionId) keys.push(key)
+    }
+    return this.deleteChunkKeys(keys)
+  }
+
+  async pruneChunks({
+    maxAgeDays = DEFAULT_CHUNK_RETENTION_DAYS,
+    archivedMaxAgeDays = DEFAULT_ARCHIVED_CHUNK_RETENTION_DAYS,
+    maxTotalBytes = DEFAULT_MAX_CHUNK_BYTES,
+    activeSessionIds = new Set(),
+    nowMs = Date.now(),
+  } = {}) {
+    if (maxAgeDays <= 0 && archivedMaxAgeDays <= 0 && maxTotalBytes <= 0) {
+      return { deletedChunks: 0, deletedSessions: 0, freedBytes: 0 }
+    }
+    const table = this.domain.table('chunks')
+    const groups = new Map()
+    for (const [key, chunk] of table.entries()) {
+      const sessionId = chunk?.sessionId ?? ''
+      let group = groups.get(sessionId)
+      if (!group) {
+        group = { sessionId, keys: [], bytes: 0 }
+        groups.set(sessionId, group)
+      }
+      group.keys.push(key)
+      group.bytes += Buffer.byteLength(JSON.stringify(chunk), 'utf8')
+    }
+    const keysToDelete = []
+    let deletedSessions = 0
+    let freedBytes = 0
+    const remaining = []
+    let remainingBytes = 0
+    for (const group of groups.values()) {
+      if (activeSessionIds.has(group.sessionId)) {
+        remainingBytes += group.bytes
+        continue
+      }
+      const session = this.sessions.get(group.sessionId)
+      if (!session) {
+        keysToDelete.push(...group.keys)
+        deletedSessions += 1
+        freedBytes += group.bytes
+        continue
+      }
+      const archived = session.archived === true
+      const stamp = Date.parse(archived ? (session.archivedAt ?? session.updatedAt ?? session.createdAt ?? '') : (session.updatedAt ?? session.createdAt ?? ''))
+      const ageMs = Number.isFinite(stamp) ? Math.max(0, nowMs - stamp) : 0
+      const limitDays = archived ? archivedMaxAgeDays : maxAgeDays
+      if (limitDays > 0 && Number.isFinite(stamp) && ageMs >= limitDays * DAY_MS) {
+        keysToDelete.push(...group.keys)
+        deletedSessions += 1
+        freedBytes += group.bytes
+        continue
+      }
+      remaining.push({ ...group, archived, stamp: Number.isFinite(stamp) ? stamp : 0 })
+      remainingBytes += group.bytes
+    }
+    if (maxTotalBytes > 0 && remainingBytes > maxTotalBytes) {
+      remaining.sort((a, b) => (a.archived === b.archived ? a.stamp - b.stamp : a.archived ? -1 : 1))
+      for (const group of remaining) {
+        if (remainingBytes <= maxTotalBytes) break
+        keysToDelete.push(...group.keys)
+        deletedSessions += 1
+        freedBytes += group.bytes
+        remainingBytes -= group.bytes
+      }
+    }
+    const deletedChunks = await this.deleteChunkKeys(keysToDelete)
+    return { deletedChunks, deletedSessions, freedBytes }
   }
 
   async close() {

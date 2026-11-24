@@ -32,6 +32,8 @@ export function convertServer(name, raw) {
 
   const entry = {}
   if (typeof raw.timeout === 'number' && raw.timeout > 0) entry.toolCallTimeoutMs = Math.round(raw.timeout * 1000)
+  if (raw.exposure === 'deferred' || raw.exposure === 'on-demand') entry.toolLoading = 'on-demand'
+  else if (raw.exposure === 'eager' || raw.exposure === 'direct') entry.toolLoading = 'eager'
 
   if (raw.command !== undefined && type !== 'http' && type !== 'streamable-http') {
     if (typeof raw.command !== 'string' || !raw.command) throw new Error('command must be a non-empty string')
@@ -56,17 +58,24 @@ export function convertServer(name, raw) {
   throw new Error('entry needs "command" (stdio) or "url" (streamable HTTP)')
 }
 
-export function convertConfig(document) {
+export function convertConfig(document, options = {}) {
   if (document === null || typeof document !== 'object' || Array.isArray(document)) {
     throw new Error('mcp.json must contain a configuration object')
   }
   const servers = document.mcpServers
   if (servers === undefined) return { entries: new Map(), skipped: [] }
   if (typeof servers !== 'object' || servers === null || Array.isArray(servers)) throw new Error('"mcpServers" must be an object')
+  const disabled = new Set(
+    (Array.isArray(options.disabledServers) ? options.disabledServers : [])
+      .filter(item => typeof item === 'string')
+      .map(item => item.trim())
+      .filter(Boolean),
+  )
   const entries = new Map()
   const skipped = []
   const seen = new Set()
   for (const [name, raw] of Object.entries(servers)) {
+    if (disabled.has(name)) continue
     const key = name.replaceAll('-', '_')
     if (seen.has(key)) {
       skipped.push({ name, reason: 'duplicates another server name after "-"/"_" normalization' })

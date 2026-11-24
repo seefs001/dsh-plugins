@@ -74,6 +74,7 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 
 ## 上下文交接与恢复
 
+- **上下文交接与恢复**（补充说明）：转发给外部 CLI 时会自动跳过 DSH 宿主专属的 `skill` 目录提醒，并将重复包含 JSON 与 `rendered_markdown` 的 Nowledge Mem 上下文快照折叠为 Markdown 正文；当第三方功能（如 `@deepseek-ai/dsh-timeline` 周期摘要）向 `acp-*` 路由发起带 `purpose` 的辅助补全请求时，可通过 `config.utilityProvider` / `config.utilityModel` / `config.utilityReasoningEffort`（或环境变量 `DSH_ACP_UTILITY_PROVIDER` / `DSH_ACP_UTILITY_MODEL` / `DSH_ACP_UTILITY_EFFORT`）透明回退到普通文本模型。
 - 每个 DSH 会话与每个 ACP 提供方一一绑定；会话分叉会建立新的远端上下文。
 - 首次接入或从普通 DSH 模型切回时，自动交接未同步的历史文本（上限 **200,000 字符**，超限报错）。
 - 断线重连或冷子任务续聊优先调用 `session/resume`，不支持时回退 `session/load`；Host 重启后中断的轮次标记为 `interrupted`，不会自动重发。
@@ -86,7 +87,7 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 | --- | --- |
 | `providers` | 提供方配置、隐藏模型清单与缓存的能力/模型/模式目录 |
 | `sessions` | 外部会话绑定、`native` 关联与各轮运行摘要 |
-| `chunks` | 原始 ACP 事件分块（每块 64 条，150 ms 合并刷盘） |
+| `chunks` | 原始 ACP 事件分块（每块 64 条，1000 ms 合并刷盘，大 diff 自动窗口裁剪；启动按 `chunkRetentionDays` / `archivedChunkRetentionDays` / `maxChunkBytes` 自动清理旧分块） |
 
 | 模块 | 职责 |
 | --- | --- |

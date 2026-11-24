@@ -1,6 +1,13 @@
 - insert:
     - id: acp-workbench
       name: dsh-acp-workbench
+      config:
+        utilityProvider: !!js "process.env.DSH_ACP_UTILITY_PROVIDER ?? ''"
+        utilityModel: !!js "process.env.DSH_ACP_UTILITY_MODEL ?? ''"
+        utilityReasoningEffort: !!js "process.env.DSH_ACP_UTILITY_EFFORT ?? ''"
+        chunkRetentionDays: 30
+        archivedChunkRetentionDays: 7
+        maxChunkBytes: 52428800
     - id: acp-workbench-cursor
       name: '@deepseek-ai/dsh-tool-subagent'
       config:

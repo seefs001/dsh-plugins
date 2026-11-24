@@ -177,6 +177,7 @@ description: 在 DSH 会话中直接运行 Cursor、Antigravity、Claude Code �
 - **会话绑定与交接**：每个 DSH 会话与每个 ACP 提供方一一绑定，分叉会话会创建独立远端上下文。首次使用或从普通 DSH 模型切回时自动交接未同步的历史文本（上限 **200,000 字符**，超限报错）。
 - **重连与恢复**：断线重连或冷子任务续聊优先调用 `session/resume`，不支持时回退 `session/load`。Host 重启后中断的运行标记为 `interrupted`，需人工决定是否继续。
 - **附件**：CLI 支持图片时转发当前输入图片，返回图片写入 DSH 附件系统；普通文件通过本机只读路径或 resource link 传递。
-- **存储位置**：DSH 核心保存原生会话消息；外部绑定、配置与原始事件分块保存在 Host 的 `acp_workbench` storage domain。
+- **存储位置**：DSH 核心保存原生会话消息；外部绑定、配置与原始事件分块保存在 Host 的 `acp_workbench` storage domain（大 diff 自动窗口裁剪，并按保留天数与总容量上限自动清理旧分块）。
+- **辅助补全回退与上下文过滤**：转发给外部 CLI 时自动跳过 DSH 宿主专属的 `skill` 目录提醒并去重 Nowledge Mem 快照；第三方功能向 `acp-*` 发起带 `purpose` 的辅助补全（如 Timeline 周期摘要）时，可通过 `config.utilityProvider` / `config.utilityModel` / `config.utilityReasoningEffort`（或 `DSH_ACP_UTILITY_*` 环境变量）透明回退到普通文本模型。
 
 更多表结构与模块划分见 [packages/acp-workbench/README.md](https://github.com/seefs001/dsh-plugins/tree/main/packages/acp-workbench/README.md)。

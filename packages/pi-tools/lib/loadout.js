@@ -57,7 +57,7 @@ export class PiLoadout {
       liveLoadouts.add(this)
       return () => liveLoadouts.delete(this)
     })
-    if (this.scopedNames.size || this.globalNames.size) {
+    if (this.scope !== undefined) {
       ctx.on('agent/created', ({ agent }) => { this.bindAgent(agent); this.sync() })
       ctx.on('agent/disposed', ({ agent }) => this.releaseAgent(agent))
       ctx.on('session/event', (_session, event) => {
@@ -162,9 +162,14 @@ export class PiLoadout {
       })).toSorted((a, b) => a.name.localeCompare(b.name)),
     ]
     const saved = savedDefaultsOf(agentPreset)
+    const available = new Set(tools.map(tool => tool.name))
+    const hasEffectiveSaved = saved !== undefined && (
+      saved.include.some(name => available.has(name))
+      || saved.exclude.some(name => available.has(name))
+    )
     return { tools, defaults: tools.filter(tool => this.defaultEnabled(tool.name, agentPreset)).map(tool => tool.name),
       configuredDefaults: tools.filter(tool => this.configuredDefault(tool.name)).map(tool => tool.name),
-      customDefaults: saved !== undefined, mcpExposure: this.config.mcpExposure }
+      customDefaults: hasEffectiveSaved, mcpExposure: this.config.mcpExposure }
   }
 
   parseSelection(value) {
@@ -198,6 +203,10 @@ export class PiLoadout {
     return name.startsWith('mcp__') || RESOURCE_TOOLS.has(name)
   }
 
+  isMcpLoader(name) {
+    return name.startsWith('mcp__') && name.endsWith('__load_tools') && this.serverOf(name) !== undefined
+  }
+
   accepts(name) {
     if (PI_NAMES.has(name) || name.startsWith(INTERNAL_PREFIX)) return false
     if (!this.isMcp(name)) return true
@@ -215,7 +224,7 @@ export class PiLoadout {
       const globals = this.ctx.tools.definitions()
       const available = new Map(globals.filter(tool => this.accepts(tool.name) && !this.scopedNames.has(tool.name)
         && (this.globalNames.has(tool.name) || this.ctx.tools.executable(tool.name) === tool))
-        .map(tool => [tool.name, { original: tool, passthrough: this.globalNames.has(tool.name) }]))
+        .map(tool => [tool.name, { original: tool, passthrough: this.globalNames.has(tool.name) || this.isMcpLoader(tool.name) }]))
       for (const name of this.scopedNames) {
         const original = this.ctx.tools.get(name, this.scope)
         if (original && this.ctx.tools.get(name) !== original) available.set(name, { original, sourceScope: this.scope, passthrough: true })
@@ -257,7 +266,7 @@ export class PiLoadout {
         this.bridges.set(name, record)
         this.internal.set(alias, name)
       }
-      if (this.scopedNames.size || this.globalNames.size) {
+      if (this.scope !== undefined && (this.scopedNames.size || this.globalNames.size || [...this.bridges.values()].some(bridge => bridge.passthrough))) {
         for (const agent of this.ctx.get('agents')?.list() ?? []) this.bindAgent(agent)
         for (const agent of this.agentBindings.keys()) this.syncAgentMask(agent)
       }
@@ -375,7 +384,7 @@ export class PiLoadout {
   }
 
   exposure(name) {
-    if (this.agentScoped(name)) return 'direct'
+    if (this.agentScoped(name) || this.isMcpLoader(name)) return 'direct'
     return this.isMcp(name) ? toToolExposure(this.config.mcpExposure) : 'direct'
   }
 

@@ -61,13 +61,15 @@ export function piAiProviders(editor) {
   return {}
 }
 
-export const responsesProviders = providers => Object.entries(providers).filter(([, p]) => p?.api === RESPONSES_API).map(([id]) => id)
+const isResponsesProvider = (id, p) => isRecord(p) && (p.api === RESPONSES_API || (p.api === undefined && id === 'openai'))
+export const responsesProviders = providers => Object.entries(providers).filter(([id, p]) => isResponsesProvider(id, p)).map(([id]) => id)
 
 export function routeOf(providers, id) {
   const p = providers[id]
   if (!isRecord(p)) throw new SearchError(`provider "${id}" is not configured in llm-pi-ai`)
-  if (p.api !== RESPONSES_API) throw new SearchError(`provider "${id}" uses ${p.api ?? 'an unknown api'}, not ${RESPONSES_API}`)
-  const baseURL = str(p.baseURL).replace(/\/+$/, '').replace(/\/responses$/, '')
+  if (!isResponsesProvider(id, p)) throw new SearchError(`provider "${id}" uses ${p.api ?? 'an unknown api'}, not ${RESPONSES_API}`)
+  const rawBaseURL = str(p.baseURL) || (id === 'openai' ? 'https://api.openai.com/v1' : '')
+  const baseURL = rawBaseURL.replace(/\/+$/, '').replace(/\/responses$/, '')
   if (!URL.canParse(baseURL)) throw new SearchError(`provider "${id}" has no usable baseURL`)
   const headers = isRecord(p.headers) ? Object.fromEntries(Object.entries(p.headers).filter(([, v]) => typeof v === 'string')) : {}
   return { baseURL, apiKeyEnv: str(p.apiKeyEnv), headers }

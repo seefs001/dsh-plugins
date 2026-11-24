@@ -13,9 +13,20 @@ export function piConfigPath(env = process.env) {
   return join(env.PI_CODING_AGENT_DIR || join(homedir(), '.pi', 'agent'), 'mcp.json')
 }
 
-export async function apply(ctx) {
+function resolveDisabledServers(config, env = process.env) {
+  const fromConfig = Array.isArray(config?.disabledServers)
+    ? config.disabledServers.filter(item => typeof item === 'string').map(item => item.trim()).filter(Boolean)
+    : []
+  const fromEnv = typeof env.DSH_PI_MCP_DISABLED_SERVERS === 'string'
+    ? env.DSH_PI_MCP_DISABLED_SERVERS.split(',').map(item => item.trim()).filter(Boolean)
+    : []
+  return [...new Set([...fromConfig, ...fromEnv])]
+}
+
+export async function apply(ctx, config = {}) {
   const logger = ctx.logger
   const file = piConfigPath()
+  const disabledServers = resolveDisabledServers(config)
   const active = new Map()
   let disposed = false
   let timer
@@ -34,12 +45,12 @@ export async function apply(ctx) {
       if (error.code === 'ENOENT') return new Map()
       throw error
     }
-    let config
-    try { config = JSON.parse(text) } catch (error) {
+    let parsed
+    try { parsed = JSON.parse(text) } catch (error) {
       // external: JSON.parse error messages quote raw input, which can leak secret headers or env values
       throw new Error('invalid JSON', { cause: error })
     }
-    const { entries, skipped } = convertConfig(config)
+    const { entries, skipped } = convertConfig(parsed, { disabledServers })
     for (const { name: server, reason } of skipped) logger.warn(`pi-mcp: skipped "${server}": ${reason}`)
     return entries
   }

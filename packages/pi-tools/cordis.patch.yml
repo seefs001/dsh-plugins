@@ -22,11 +22,6 @@
               toolName: subagent
               modelSelection: true
               modelDiscovery: true
-          - id: pi-subagent-fork
-            name: '@deepseek-ai/dsh-tool-subagent'
-            config:
-              provider: fork
-              toolName: subagent_fork
           - id: pi-ask-user
             name: '@deepseek-ai/dsh-tool-ask-user'
           - id: pi-skill-filesystem
@@ -109,7 +104,6 @@
               mcpExposure: codemode
               scopedTools:
                 - subagent
-                - subagent_fork
                 - list_subagent_models
                 - send_message
                 - list_agents
@@ -137,7 +131,7 @@
                 - plugin_manager
                 - plugin_market
                 - cordis_inspect
-              globalTools: [grok_search, openai_search, openai_image, grok_image, subagent_antigravity, subagent_cursor, subagent_acp_claude_code, session_lifecycle, timeline_tree, timeline_tasks, timeline_pull, timeline_read, timeline_reply]
+              globalTools: [grok_search, openai_search, openai_image, grok_image, subagent_antigravity, subagent_cursor, subagent_acp_claude_code, session_lifecycle, timeline_tree, timeline_tasks, timeline_pull, timeline_read, timeline_reply, session_search, session_event_search, session_trace, session_event_trace, session_event_read, enter_worktree, exit_worktree, terminal_open, terminal_send, terminal_read, terminal_signal, terminal_close, terminal_list]
               # Mounted and listed in the picker, but off until the session selects them.
               optInTools:
                 - session_lifecycle
@@ -148,6 +142,30 @@
                 - plugin_manager
                 - plugin_market
                 - cordis_inspect
+                - schedule_create
+                - schedule_list
+                - schedule_view
+                - schedule_edit
+                - create_goal
+                - get_goal
+                - update_goal
+                - openai_image
+                - grok_image
+                - workflow
+                - subagent_antigravity
+                - subagent_cursor
+                - subagent_acp_claude_code
+                - timeline_tree
+                - timeline_tasks
+                - timeline_pull
+                - timeline_read
+                - timeline_reply
+                - terminal_open
+                - terminal_send
+                - terminal_read
+                - terminal_signal
+                - terminal_close
+                - terminal_list
           - id: pi-project-instructions
             name: '@deepseek-ai/dsh-agent-instructions'
             config:
@@ -171,6 +189,14 @@
                       model: gpt-6.2-astra
                       headroomTokens: 60000
                       # Keep the summary output cap independent of pressure headroom.
+                      maxTokens: 65536
+                    - provider: openai
+                      model: gpt-6.2-sol
+                      headroomTokens: 60000
+                      maxTokens: 65536
+                    - provider: messages
+                      model: claude-opus-5-5
+                      headroomTokens: 64000
                       maxTokens: 65536
               - id: pi-command-compact
                 name: '@deepseek-ai/dsh-command-compact'

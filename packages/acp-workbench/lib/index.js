@@ -23,7 +23,7 @@ async function body(req) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
-export async function apply(ctx) {
+export async function apply(ctx, config = {}) {
   let revision = 0
   let changeTimer
   let closed = false
@@ -59,8 +59,11 @@ export async function apply(ctx) {
   const manager = new Workbench({ domain, subprocess: ctx.subprocess, changed,
     modelsChanged: providerId => bridge.native && ctx.emit('llm/models-updated', bridge.native.route(providerId)),
     log: message => ctx.logger.warn(message),
-    autoApprove: (session, params) => bridge.native?.autoApprove(session, params) ?? null })
-  const native = new NativeAcp(ctx, manager)
+    autoApprove: (session, params) => bridge.native?.autoApprove(session, params) ?? null,
+    chunkRetentionDays: config.chunkRetentionDays,
+    archivedChunkRetentionDays: config.archivedChunkRetentionDays,
+    maxChunkBytes: config.maxChunkBytes })
+  const native = new NativeAcp(ctx, manager, config)
   bridge.native = native
   try { await manager.initialize(); await native.initialize() } catch (error) { await native.close(); await manager.close(); throw error }
 
