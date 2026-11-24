@@ -494,3 +494,135 @@ test('Workbench tracks Antigravity background tasks across deferred end_turn, ti
 
   await manager.close()
 })
+
+test('Workbench maps legacyModes on resume and configure without failing with invalid_params, and records probe latency', async () => {
+  const receivedCalls = []
+  let shouldFailProbe = false
+
+  const subprocess = createFakeSubprocess((msg, send) => {
+    receivedCalls.push(msg)
+    if (msg.method === 'initialize') {
+      if (shouldFailProbe) {
+        send({ jsonrpc: '2.0', id: msg.id, error: { code: -32000, message: 'CLI unavailable' } })
+        return
+      }
+      send({
+        jsonrpc: '2.0',
+        id: msg.id,
+        result: {
+          protocolVersion: 1,
+          agentInfo: { name: 'Hermes ACP', version: '0.9.1' },
+          agentCapabilities: {
+            loadSession: true,
+            sessionCapabilities: { close: {}, options: {}, resume: {} },
+          },
+        },
+      })
+      return
+    }
+    if (msg.method === 'session/resume') {
+      const modeOpt = msg.params.configOptions?.find(item => item.configId === 'edit_approval_policy' || item.configId === 'mode')
+      if (modeOpt && !['ask', 'workspace_session', 'session'].includes(modeOpt.value)) {
+        send({ jsonrpc: '2.0', id: msg.id, error: { code: -32602, message: 'invalid_params: unknown mode' } })
+        return
+      }
+      send({
+        jsonrpc: '2.0',
+        id: msg.id,
+        result: {
+          sessionId: msg.params.sessionId,
+          configOptions: [{
+            id: 'edit_approval_policy',
+            category: 'mode',
+            type: 'select',
+            currentValue: modeOpt?.value ?? 'ask',
+            options: [
+              { value: 'ask', name: 'Ask' },
+              { value: 'workspace_session', name: 'Workspace session' },
+              { value: 'session', name: 'Session' },
+            ],
+          }],
+        },
+      })
+      return
+    }
+    if (msg.method === 'session/set_config_option') {
+      if (msg.params.configId !== 'edit_approval_policy' || !['ask', 'workspace_session', 'session'].includes(msg.params.value)) {
+        send({ jsonrpc: '2.0', id: msg.id, error: { code: -32602, message: 'invalid_params' } })
+        return
+      }
+      send({
+        jsonrpc: '2.0',
+        id: msg.id,
+        result: {
+          configOptions: [{
+            id: 'edit_approval_policy',
+            category: 'mode',
+            type: 'select',
+            currentValue: msg.params.value,
+            options: [
+              { value: 'ask', name: 'Ask' },
+              { value: 'workspace_session', name: 'Workspace session' },
+              { value: 'session', name: 'Session' },
+            ],
+          }],
+        },
+      })
+    }
+  })
+
+  const manager = new Workbench({
+    domain: createMemoryDomain(),
+    subprocess,
+    changed: () => {},
+    modelsChanged: () => {},
+    log: () => {},
+  })
+  await manager.initialize()
+  await manager.saveProvider({
+    id: 'hermes',
+    label: 'Hermes',
+    command: 'hermes',
+    args: ['acp'],
+    models: [],
+  })
+
+  const diag = await manager.probe('hermes', process.cwd(), 'diagnose')
+  assert.equal(typeof diag.latencyMs, 'number')
+  assert.ok(diag.latencyMs >= 0)
+  const snapReady = manager.snapshot()
+  assert.equal(snapReady.probeByProvider.hermes?.status, 'ready')
+  assert.equal(snapReady.probeByProvider.hermes?.agentLabel, 'Hermes ACP 0.9.1')
+  assert.equal(typeof snapReady.probeByProvider.hermes?.latencyMs, 'number')
+
+  const created = await manager.create(
+    { providerId: 'hermes', cwd: process.cwd(), connect: false, remoteId: 'hermes-persisted-1' },
+    { sessionId: 'dsh-1', route: 'acp-hermes', runs: [{ id: 'r1', state: 'completed' }], preferences: { mode: 'accept_edits', options: {} } },
+  )
+  const session = manager.session(created.id)
+  await manager.connect(session, {
+    initialConfigOptions: [{ configId: 'mode', value: 'accept_edits' }],
+  })
+
+  const resumeCall = receivedCalls.find(item => item.method === 'session/resume')
+  assert.deepEqual(resumeCall?.params.configOptions, [{ configId: 'mode', value: 'workspace_session' }])
+  assert.equal(session.native.preferences.mode, 'workspace_session')
+
+  await manager.configure(session, { modeId: 'dont_ask' })
+  const setConfigCall = receivedCalls.find(item => item.method === 'session/set_config_option')
+  assert.deepEqual(setConfigCall?.params, {
+    sessionId: 'hermes-persisted-1',
+    configId: 'edit_approval_policy',
+    value: 'session',
+  })
+
+  await manager.disconnect(session)
+
+  shouldFailProbe = true
+  await assert.rejects(() => manager.probe('hermes', process.cwd(), 'diagnose'), /CLI unavailable/u)
+  const snapErr = manager.snapshot()
+  assert.equal(snapErr.probeByProvider.hermes?.status, 'error')
+  assert.match(snapErr.probeByProvider.hermes?.error ?? '', /CLI unavailable/u)
+
+  await manager.close()
+})

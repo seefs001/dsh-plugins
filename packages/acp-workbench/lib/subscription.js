@@ -425,40 +425,112 @@ export function computeLocalUsageByProvider(sessions, nowMs = Date.now()) {
   return byProvider
 }
 
+function safeEnd(stream) {
+  if (!stream || stream.destroyed || stream.writableEnded) return
+  try {
+    stream.end()
+  } catch {}
+}
+
+function safeTerminate(child) {
+  if (typeof child?.terminate !== 'function') return
+  try {
+    child.terminate()
+  } catch {}
+}
+
+async function withAbortTimeout(timeoutMs, fn) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fn(controller.signal)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function waitWithTimeout(waitFn, timeoutMs) {
+  const controller = new AbortController()
+  let timer
+  const timeout = new Promise(resolve => {
+    timer = setTimeout(() => {
+      controller.abort()
+      resolve(false)
+    }, timeoutMs)
+  })
+  const attempt = Promise.resolve().then(() => waitFn(controller.signal)).then(Boolean, () => false)
+  try {
+    return await Promise.race([attempt, timeout])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function awaitChildCleanup(child, waitMs = 2_500) {
+  if (typeof child?.waitForExit === 'function') {
+    const exited = await waitWithTimeout(signal => child.waitForExit(signal), waitMs)
+    if (!exited) safeTerminate(child)
+  }
+  if (!child?.done || typeof child.done.then !== 'function') return
+  let timer
+  const timeout = new Promise(resolve => {
+    timer = setTimeout(resolve, waitMs)
+  })
+  try {
+    await Promise.race([child.done.catch(() => {}), timeout])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function runJsonCli(subprocess, command, args, cwd, timeoutMs = 10_000) {
-  const executable = await subprocess.resolveExecutable(command, undefined, AbortSignal.timeout(5_000))
+  const executable = await withAbortTimeout(5_000, signal => subprocess.resolveExecutable(command, undefined, signal))
   const child = subprocess.spawn({
     argv: [executable, ...args],
     cwd,
     stdio: { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' },
     graceMs: 1_500,
   })
+  child.done?.catch?.(() => {})
+  child.on?.('error', () => {})
+  child.stdin?.on('error', () => {})
+  child.stdout?.on('error', () => {})
+  child.stderr?.on('error', () => {})
+  child.stderr?.resume?.()
+  safeEnd(child.stdin)
+
   const stdoutChunks = []
   let bytes = 0
   let overflow = false
+  let finished = false
   child.stdout?.on('data', chunk => {
+    if (finished) return
     const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
     bytes += buf.length
     if (bytes > MAX_CLI_BYTES) {
       overflow = true
-      child.terminate()
+      safeTerminate(child)
       return
     }
     stdoutChunks.push(buf)
   })
-  child.stderr?.resume?.()
-  try { child.stdin?.end() } catch {}
 
   let timer
+  let didTimeout = false
   try {
     const timedOut = new Promise((_, reject) => {
       timer = setTimeout(() => {
-        child.terminate()
+        didTimeout = true
         reject(new Error(`Command timed out after ${timeoutMs} ms`))
+        safeTerminate(child)
       }, timeoutMs)
     })
     const outcome = await Promise.race([child.done, timedOut])
+    if (didTimeout) throw new Error(`Command timed out after ${timeoutMs} ms`)
     if (overflow) throw new Error('Command output exceeded 1 MiB')
+    if (outcome?.signal) {
+      throw new Error(`Command exited with signal ${outcome.signal}`)
+    }
     if (outcome?.exitCode !== 0 && outcome?.exitCode !== undefined && outcome?.exitCode !== null) {
       throw new Error(`Command exited with code ${outcome.exitCode}`)
     }
@@ -466,9 +538,11 @@ export async function runJsonCli(subprocess, command, args, cwd, timeoutMs = 10_
     if (!text) return null
     return JSON.parse(text)
   } finally {
+    finished = true
     clearTimeout(timer)
-    try { child.terminate() } catch {}
-    await child.done.catch(() => {})
+    safeEnd(child.stdin)
+    safeTerminate(child)
+    await awaitChildCleanup(child, 2_500)
   }
 }
 
@@ -477,9 +551,9 @@ export async function probeCodexAppServer(subprocess, command, cwd, clientInfo, 
   const candidate = bin === 'codex' ? command : resolveCliCommand('codex')
   let executable
   try {
-    executable = await subprocess.resolveExecutable(candidate, undefined, AbortSignal.timeout(5_000))
+    executable = await withAbortTimeout(5_000, signal => subprocess.resolveExecutable(candidate, undefined, signal))
   } catch {
-    executable = await subprocess.resolveExecutable('codex', undefined, AbortSignal.timeout(5_000))
+    executable = await withAbortTimeout(5_000, signal => subprocess.resolveExecutable('codex', undefined, signal))
   }
 
   // external: codex app-server speaks NDJSON JSON-RPC without a jsonrpc: "2.0" field on responses
@@ -489,17 +563,20 @@ export async function probeCodexAppServer(subprocess, command, cwd, clientInfo, 
     stdio: { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' },
     graceMs: 1_500,
   })
-  child.stderr?.resume?.()
+  child.done?.catch?.(() => {})
 
   const decoder = new StringDecoder('utf8')
   const pending = new Map()
   let buffer = ''
   let nextId = 0
   let settled = false
+  let settledError = null
 
   const failAll = error => {
     if (settled) return
     settled = true
+    settledError = error
+    buffer = ''
     for (const item of pending.values()) {
       clearTimeout(item.timer)
       item.reject(error)
@@ -507,7 +584,33 @@ export async function probeCodexAppServer(subprocess, command, cwd, clientInfo, 
     pending.clear()
   }
 
+  child.on?.('error', error => failAll(error))
+  child.stdin?.on('error', error => failAll(error))
+  child.stdout?.on('error', error => failAll(error))
+  child.stderr?.on('error', () => {})
+  child.stderr?.resume?.()
+
+  const writeMessage = payload => {
+    if (settled) throw settledError ?? new Error('Codex app-server is closed')
+    const stdin = child.stdin
+    if (!stdin || stdin.destroyed || stdin.writableEnded) {
+      const error = new Error('Codex app-server stdin is closed')
+      failAll(error)
+      throw error
+    }
+    const line = `${JSON.stringify(payload)}\n`
+    try {
+      stdin.write(line, error => {
+        if (error) failAll(error)
+      })
+    } catch (error) {
+      failAll(error)
+      throw error
+    }
+  }
+
   const request = (method, params) => {
+    if (settled) return Promise.reject(settledError ?? new Error('Codex app-server is closed'))
     const id = ++nextId
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -516,7 +619,7 @@ export async function probeCodexAppServer(subprocess, command, cwd, clientInfo, 
       }, timeoutMs)
       pending.set(id, { resolve, reject, timer })
       try {
-        child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`)
+        writeMessage({ jsonrpc: '2.0', id, method, params })
       } catch (error) {
         clearTimeout(timer)
         pending.delete(id)
@@ -526,10 +629,11 @@ export async function probeCodexAppServer(subprocess, command, cwd, clientInfo, 
   }
 
   const consume = chunk => {
+    if (settled) return
     buffer += chunk
     if (buffer.length > MAX_CLI_BYTES) {
       failAll(new Error('Codex app-server output exceeded 1 MiB'))
-      child.terminate()
+      safeTerminate(child)
       return
     }
     let start = 0
@@ -553,15 +657,16 @@ export async function probeCodexAppServer(subprocess, command, cwd, clientInfo, 
 
   child.stdout?.on('data', data => consume(decoder.write(data)))
   child.stdout?.on('end', () => {
+    if (settled) return
     const tail = decoder.end()
     if (tail) consume(tail)
     failAll(new Error('Codex app-server closed unexpectedly'))
   })
-  child.done.then(() => failAll(new Error('Codex app-server exited')), failAll)
+  Promise.resolve(child.done).then(() => failAll(new Error('Codex app-server exited')), failAll)
 
   try {
     await request('initialize', { clientInfo, capabilities: {} })
-    child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'initialized', params: {} })}\n`)
+    writeMessage({ jsonrpc: '2.0', method: 'initialized', params: {} })
     const [accountResult, rateLimitsResult] = await Promise.all([
       request('account/read', {}).catch(() => null),
       request('account/rateLimits/read', {}),
@@ -569,8 +674,8 @@ export async function probeCodexAppServer(subprocess, command, cwd, clientInfo, 
     return { accountResult, rateLimitsResult }
   } finally {
     failAll(new Error('Codex probe finished'))
-    try { child.stdin?.end() } catch {}
-    try { child.terminate() } catch {}
-    await child.done.catch(() => {})
+    safeEnd(child.stdin)
+    safeTerminate(child)
+    await awaitChildCleanup(child, 2_500)
   }
 }

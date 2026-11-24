@@ -3,9 +3,11 @@ import { test } from 'node:test'
 import {
   booleanSelectValues,
   extractAgentMeta,
+  extractToolStartInput,
   inferContextWindow,
   isAutoDefaultModel,
   isInteractivePermission,
+  legacyModesOf,
   resolveAdapter,
 } from '../lib/adapters.js'
 
@@ -120,4 +122,92 @@ test('isInteractivePermission protects multi-choice approvals and interactive to
     toolCall: { kind: 'switch_mode' },
     options: [{ optionId: 'allow', kind: 'allow_once' }],
   }), true)
+})
+
+test('resolveAdapter detects hermes with declarative legacyModes and legacyModesOf merges provider overrides', () => {
+  const hermes = resolveAdapter({ command: '/usr/local/bin/hermes' })
+  assert.equal(hermes.id, 'hermes')
+  assert.deepEqual(hermes.legacyModes, {
+    default: 'ask',
+    accept_edits: 'workspace_session',
+    dont_ask: 'session',
+  })
+  assert.equal(resolveAdapter({ agentInfo: { name: 'Hermes ACP' } }).id, 'hermes')
+  assert.deepEqual(
+    legacyModesOf(hermes, { legacyModes: { dont_ask: 'full', legacy_plan: 'plan' } }),
+    {
+      default: 'ask',
+      accept_edits: 'workspace_session',
+      dont_ask: 'full',
+      legacy_plan: 'plan',
+    },
+  )
+})
+
+test('extractToolStartInput extracts shell commands, cwd, URLs, search keys, and diff paths from start content', () => {
+  assert.deepEqual(
+    extractToolStartInput({
+      kind: 'execute',
+      title: 'terminal: git status + 2 commands',
+      content: [{ type: 'content', content: { type: 'text', text: '$ git status --short && git diff --stat' } }],
+    }),
+    { command: 'git status --short && git diff --stat' },
+  )
+
+  assert.deepEqual(
+    extractToolStartInput({
+      kind: 'execute',
+      content: [{ type: 'text', text: '```sh\ncwd: /repo/app\n$ pnpm test\n```' }],
+    }),
+    { workdir: '/repo/app', command: 'pnpm test' },
+  )
+
+  assert.deepEqual(
+    extractToolStartInput({
+      kind: 'execute',
+      title: '`npm run build`',
+    }),
+    { command: 'npm run build' },
+  )
+
+  assert.deepEqual(
+    extractToolStartInput({
+      kind: 'fetch',
+      content: [{ type: 'content', content: { type: 'text', text: 'GET https://example.com/docs' } }],
+    }),
+    { url: 'https://example.com/docs' },
+  )
+
+  assert.deepEqual(
+    extractToolStartInput({
+      kind: 'search',
+      content: [{ type: 'content', content: { type: 'text', text: 'pattern: legacyModes' } }],
+    }),
+    { pattern: 'legacyModes' },
+  )
+
+  assert.deepEqual(
+    extractToolStartInput({
+      kind: 'edit',
+      content: [{ type: 'diff', path: '/repo/a.js', oldText: 'a', newText: 'b' }],
+    }),
+    { file_path: '/repo/a.js' },
+  )
+
+  assert.equal(
+    extractToolStartInput({
+      kind: 'execute',
+      rawInput: { command: 'already present' },
+      content: [{ type: 'content', content: { type: 'text', text: '$ ignored' } }],
+    }),
+    null,
+  )
+
+  assert.equal(
+    extractToolStartInput(
+      { kind: 'execute', content: [{ type: 'text', text: '$ echo hi' }] },
+      { toolStartInputCarryOver: false },
+    ),
+    null,
+  )
 })

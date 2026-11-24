@@ -185,6 +185,7 @@ window.__ModuleLoader__.load({
       bgTaskKindSchedule: 'Schedule', bgTaskKindWorkflow: 'Workflow', bgTaskKindTask: 'Task',
       bgTaskRunningHint: 'Running in external CLI. Output will appear here when it completes.',
       bgTaskTruncated: 'Earlier output was truncated (showing last 16 KiB).',
+      engineConnected: '{n} connected', engineReady: 'Ready', engineConfigured: 'Standby', engineUnchecked: 'Unchecked', engineError: 'Unavailable', probeLatency: 'Probe latency',
     }
     const zh = {
       panel: 'ACP 工作台', panelHint: '管理本机 ACP CLI 提供方、检测协议能力，并配置出现在 DSH 模型选择器中的模型。',
@@ -358,6 +359,7 @@ window.__ModuleLoader__.load({
       bgTaskKindSchedule: '定时任务', bgTaskKindWorkflow: '工作流', bgTaskKindTask: '后台任务',
       bgTaskRunningHint: '正在外部 CLI 后台运行，完成后将在此展示输出。',
       bgTaskTruncated: '较早输出已截断（仅保留末尾 16 KiB）。',
+      engineConnected: '已连接 {n}', engineReady: '就绪', engineConfigured: '待命', engineUnchecked: '未检测', engineError: '不可用', probeLatency: '探测延迟',
     }
 
     const CSS = `
@@ -666,11 +668,29 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
 @container (max-width:740px){.aw-hub{grid-template-columns:minmax(0,1fr)}}
 .aw-rail{display:flex;flex-direction:column;gap:4px;min-width:0;position:sticky;top:16px}
 @container (max-width:740px){.aw-rail{position:static}}
-.aw-prov{display:flex;flex-direction:column;gap:4px;width:100%;padding:10px 12px;border:.5px solid transparent;border-radius:var(--dsw-radius-md,10px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0;transition:background-color 120ms ease}
+.aw-prov{display:flex;flex-direction:column;gap:4px;width:100%;padding:9px 10px;border:.5px solid transparent;border-radius:var(--dsw-radius-md,10px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0;transition:background-color 120ms ease}
 @media (hover:hover){.aw-prov:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .aw-prov[aria-current=true]{background:var(--dsw-specific-sidebar-nav-item-active)}
 .aw-prov-top{display:flex;align-items:center;gap:6px;min-width:0}
 .aw-prov-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.aw-engine-row{display:flex;align-items:center;gap:8px;min-width:0;width:100%;flex-wrap:nowrap}
+.aw-engine-rail{display:inline-flex;align-items:center;justify-content:center;width:12px;height:14px;flex:none}
+.aw-engine-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-module-platform);border:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);flex:none}
+.aw-engine-badge[data-engine=cursor]{color:var(--dsw-alias-label-primary)}
+.aw-engine-badge[data-engine=antigravity]{color:var(--dsw-alias-state-business-primary)}
+.aw-engine-badge[data-engine=claude-code]{color:var(--dsw-alias-state-warn-primary)}
+.aw-engine-badge[data-engine=codex]{color:var(--dsw-alias-state-success-primary)}
+.aw-engine-badge[data-engine=hermes]{color:var(--dsw-alias-state-business-primary)}
+.aw-engine-main{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 auto}
+.aw-engine-sep{color:var(--dsw-alias-label-tertiary);flex:none;opacity:.6}
+.aw-engine-state{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;flex:none}
+.aw-engine-state[data-tone=ok]{color:var(--dsw-alias-state-success-primary)}
+.aw-engine-state[data-tone=active]{color:var(--dsw-alias-state-business-primary)}
+.aw-engine-state[data-tone=warn]{color:var(--dsw-alias-state-warn-primary)}
+.aw-engine-state[data-tone=error]{color:var(--dsw-alias-state-error-primary)}
+.aw-engine-latency{margin-left:auto;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
+.aw-prov-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-left:20px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.aw-hero-status{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-module-platform);border:.5px solid var(--dsw-alias-border-l1);min-width:0}
 .aw-item-sub{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
 .aw-hero{display:flex;flex-direction:column;gap:12px;padding:16px 18px;border-radius:var(--dsw-radius-xl,16px);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-card-fill);min-width:0}
 .aw-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -863,11 +883,82 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
     const updateOf = event => event?.data?.method === 'session/update' ? event.data.params?.update ?? null : null
     const defined = value => Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null))
     const isPlainObj = value => typeof value === 'object' && value !== null && !Array.isArray(value)
+    const TERMINAL_TOOL_STATUS = new Set(['completed', 'failed', 'cancelled', 'canceled'])
+    const SHELL_TOOL_NAMES = new Set(['Bash', 'PowerShell', 'Shell', 'run_command', 'exec_command'])
+    const SHELL_FENCE_LANGS = new Set(['sh', 'bash', 'zsh', 'shell', 'powershell', 'ps1', 'cmd', 'console'])
+    function mergeInputFields(prevInput, nextInput) {
+      const hasPrev = isPlainObj(prevInput) && Object.keys(prevInput).length > 0
+      const hasNext = isPlainObj(nextInput) && Object.keys(nextInput).length > 0
+      if (hasPrev && !hasNext) return prevInput
+      if (!hasPrev) return nextInput
+      const result = { ...prevInput }
+      for (const [key, value] of Object.entries(nextInput)) {
+        if (value === undefined || value === null) continue
+        if (typeof value === 'string' && !value.trim() && typeof prevInput[key] === 'string' && prevInput[key].trim()) continue
+        result[key] = value
+      }
+      return result
+    }
+    function extractToolStartInput(tool) {
+      if (!isPlainObj(tool)) return null
+      const rawInput = isPlainObj(tool.rawInput) ? tool.rawInput : {}
+      const kind = tool.kind
+      const name = typeof tool.name === 'string' && tool.name.trim() ? tool.name.trim() : typeof tool._meta?.claudeCode?.toolName === 'string' ? tool._meta.claudeCode.toolName.trim() : ''
+      const isExecute = kind === 'execute' || SHELL_TOOL_NAMES.has(name)
+      const hasCommand = Boolean((typeof rawInput.command === 'string' && rawInput.command.trim()) || (Array.isArray(rawInput.command) && rawInput.command.length > 0) || (typeof rawInput.CommandLine === 'string' && rawInput.CommandLine.trim()) || (typeof rawInput.cmd === 'string' && rawInput.cmd.trim()))
+      const extracted = {}
+      const blocks = Array.isArray(tool.content) ? tool.content : []
+      for (const rawBlock of blocks) {
+        if (!rawBlock || typeof rawBlock !== 'object') continue
+        if (!extracted.file_path && rawBlock.type === 'diff' && typeof rawBlock.path === 'string' && rawBlock.path.trim()) {
+          extracted.file_path = rawBlock.path.trim()
+          continue
+        }
+        const block = rawBlock.type === 'content' ? rawBlock.content : rawBlock
+        if (block?.type !== 'text' || typeof block.text !== 'string') continue
+        const trimmed = block.text.trim()
+        if (!trimmed) continue
+        const fence = /^(`{3,})([^\n`]*)\r?\n([\s\S]*)\r?\n\1\s*$/u.exec(trimmed)
+        const lang = fence ? fence[2].trim().toLowerCase() : ''
+        const inner = (fence ? fence[3] : trimmed).trim()
+        if (!inner) continue
+        if (!hasCommand && !extracted.command) {
+          const cwdAndCmd = /^(?:cwd|workdir):\s*([^\r\n]+)\r?\n\$\s+([\s\S]+)$/iu.exec(inner)
+          if (cwdAndCmd) {
+            if (cwdAndCmd[1].trim()) extracted.workdir = cwdAndCmd[1].trim()
+            if (cwdAndCmd[2].trim()) extracted.command = cwdAndCmd[2].trim()
+          } else if (inner.startsWith('$ ') || inner.startsWith('$\t')) {
+            const cmd = inner.slice(1).trim()
+            if (cmd) extracted.command = cmd
+          } else if (isExecute && lang && SHELL_FENCE_LANGS.has(lang)) {
+            extracted.command = inner
+          }
+        }
+      }
+      if (isExecute && !hasCommand && !extracted.command && typeof tool.title === 'string') {
+        const title = tool.title.trim()
+        if (title.startsWith('$ ') && title.slice(2).trim()) extracted.command = title.slice(2).trim()
+        else {
+          const tick = /^`([^`]+)`$/u.exec(title)
+          if (tick && tick[1].trim()) extracted.command = tick[1].trim()
+        }
+      }
+      return Object.keys(extracted).length > 0 ? extracted : null
+    }
     function mergeToolUpdate(previous, update) {
       const prev = previous ?? {}, next = defined(update ?? {}), merged = { ...prev, ...next }
-      if (isPlainObj(prev.rawInput) && Object.keys(prev.rawInput).length > 0 && isPlainObj(next.rawInput) && Object.keys(next.rawInput).length === 0) merged.rawInput = prev.rawInput
+      if (typeof prev.title === 'string' && prev.title.trim() && typeof next.title === 'string' && !next.title.trim()) merged.title = prev.title
+      if (isPlainObj(prev.rawInput) || isPlainObj(next.rawInput)) {
+        const mergedRaw = mergeInputFields(prev.rawInput, next.rawInput)
+        if (mergedRaw !== undefined) merged.rawInput = mergedRaw
+      }
       if (Array.isArray(prev.locations) && prev.locations.length > 0 && Array.isArray(next.locations) && next.locations.length === 0) merged.locations = prev.locations
       if (isPlainObj(prev._meta) && isPlainObj(next._meta)) merged._meta = { ...prev._meta, ...defined(next._meta) }
+      const prevCarried = isPlainObj(prev.carriedInput) && Object.keys(prev.carriedInput).length > 0 ? prev.carriedInput : (!TERMINAL_TOOL_STATUS.has(prev.status) ? extractToolStartInput(prev) : null)
+      const nextIsStart = next.sessionUpdate === 'tool_call' || !TERMINAL_TOOL_STATUS.has(next.status)
+      const nextCarried = nextIsStart ? extractToolStartInput(merged) : null
+      const carried = mergeInputFields(prevCarried, nextCarried)
+      if (isPlainObj(carried) && Object.keys(carried).length > 0) merged.carriedInput = carried
       return merged
     }
     function mergePermissionToolCall(previous, call) {
@@ -1212,7 +1303,10 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
       return { path, content: typeof content === 'string' ? content : undefined }
     }
     function toolFace(tool, terminal, approval = false) {
-      const input = tool.rawInput ?? {}, out = tool.rawOutput ?? {}
+      const rawInput = isPlainObj(tool.rawInput) ? tool.rawInput : {}
+      const carried = isPlainObj(tool.carriedInput) && Object.keys(tool.carriedInput).length > 0 ? tool.carriedInput : (!TERMINAL_TOOL_STATUS.has(tool.status) ? extractToolStartInput(tool) : null)
+      const input = carried ? mergeInputFields(carried, rawInput) : rawInput
+      const out = tool.rawOutput ?? {}
       const blocks = Array.isArray(tool.content) ? tool.content.filter(Boolean) : []
       const mcp = mcpIdentity(tool, approval)
       const path = !mcp && tool.kind !== 'fetch' && firstText(input.file_path, input.path, input.Path, input.filePath, input.target_file, input.notebook_path, input.AbsolutePath, input.TargetFile)
@@ -5119,7 +5213,7 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
         }
 
         function useWorkbench() {
-          const [data, setData] = React.useState({ providers: EMPTY, providerTemplates: EMPTY, activeByProvider: {}, authByProvider: {}, localUsageByProvider: {}, defaultCwd: '', storageError: null })
+          const [data, setData] = React.useState({ providers: EMPTY, providerTemplates: EMPTY, activeByProvider: {}, authByProvider: {}, probeByProvider: {}, localUsageByProvider: {}, defaultCwd: '', storageError: null })
           const [ready, setReady] = React.useState(false)
           const [error, setError] = React.useState('')
           const kick = React.useRef(null)
@@ -5355,10 +5449,67 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
           ].map(([key, value]) => ({ key, status: value == null ? 'unreported' : value === false ? 'unsupported' : 'supported' }))
         }
 
+        const formatLatencyMs = ms => {
+          if (!Number.isFinite(ms) || ms < 0) return ''
+          if (ms < 1) return '<1 ms'
+          if (ms < 1000) return `${Math.round(ms)} ms`
+          return `${(ms / 1000).toFixed(ms >= 10_000 ? 0 : 1)} s`
+        }
+        const engineFamilyOf = provider => {
+          const id = (provider?.id ?? '').toLowerCase()
+          const cmd = (provider?.command ?? '').split(/[\\/]/u).at(-1)?.toLowerCase() ?? ''
+          const label = (provider?.label ?? '').toLowerCase()
+          if (id.includes('antigravity') || cmd === 'agy' || label.includes('antigravity')) return 'antigravity'
+          if (id.includes('claude') || cmd.includes('claude') || label.includes('claude')) return 'claude-code'
+          if (id.includes('cursor') || cmd === 'cursor-agent' || cmd === 'agent' || label.includes('cursor')) return 'cursor'
+          if (id.includes('codex') || cmd.includes('codex') || label.includes('codex')) return 'codex'
+          if (id.includes('hermes') || cmd === 'hermes' || label.includes('hermes')) return 'hermes'
+          if (id.includes('gemini') || cmd === 'gemini' || label.includes('gemini')) return 'gemini'
+          if (id.includes('opencode') || cmd === 'opencode' || label.includes('opencode')) return 'opencode'
+          if (id.includes('copilot') || cmd === 'copilot' || label.includes('copilot')) return 'copilot'
+          return 'generic'
+        }
+        function EngineGlyph({ family, size = 13 }) {
+          const svgProps = { width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }
+          if (family === 'cursor') return h('svg', svgProps, h('path', { d: 'M3.5 2.5 12.5 8l-4 1.2L7.3 13.5 3.5 2.5Z' }))
+          if (family === 'antigravity') return h('svg', svgProps, h('path', { d: 'M8 2.2 13 13H9.8L8 9.2 6.2 13H3L8 2.2Z' }))
+          if (family === 'claude-code') return h('svg', svgProps, h('path', { d: 'M8 2v12M2 8h12M3.8 3.8l8.4 8.4M12.2 3.8l-8.4 8.4' }))
+          if (family === 'codex') return h('svg', svgProps, h('circle', { cx: 8, cy: 8, r: 5.5 }), h('path', { d: 'M6 6.2 8.2 8 6 9.8M9 9.8h1.8' }))
+          if (family === 'hermes') return h('svg', svgProps, h('path', { d: 'M2.5 10.5c2.2-4.8 6.4-6.5 11-7-1.6 3.8-4.2 6.2-8.2 7.2M4 12.5h8' }))
+          if (family === 'gemini') return h('svg', svgProps, h('path', { d: 'M8 2c.7 3.2 2.8 5.3 6 6-3.2.7-5.3 2.8-6 6-.7-3.2-2.8-5.3-6-6 3.2-.7 5.3-2.8 6-6Z' }))
+          if (family === 'copilot') return h('svg', svgProps, h('rect', { x: 2.5, y: 4.5, width: 11, height: 7.5, rx: 3 }), h('path', { d: 'M6 8.2h.01M10 8.2h.01' }))
+          return h('svg', svgProps, h('rect', { x: 2, y: 3, width: 12, height: 10, rx: 2 }), h('path', { d: 'm5 6.5 2 1.5-2 1.5M8.5 9.5H11' }))
+        }
+        const engineReadiness = (provider, active, probe, tt) => {
+          if (active?.waiting > 0) return { dotState: 'warning', label: tt('activeWaiting', { n: active.waiting }), tone: 'warn' }
+          if (active?.working > 0) return { dotState: 'ongoing', label: tt('activeWorking', { n: active.working }), tone: 'active' }
+          if (active?.connected > 0) return { dotState: 'done', label: tt('engineConnected', { n: active.connected }), tone: 'ok' }
+          if (probe?.status === 'error') return { dotState: 'error', label: tt('engineError'), tone: 'error' }
+          if (probe?.status === 'ready') return { dotState: 'done', label: tt('engineReady'), tone: 'ok' }
+          if (provider?.advertised?.models?.length > 0) return { dotState: 'idle', label: tt('engineConfigured'), tone: 'muted' }
+          return { dotState: 'idle', label: tt('engineUnchecked'), tone: 'muted' }
+        }
+        function EngineStatusRow({ provider, active, probe, showId = false }) {
+          const tt = useT()
+          const family = engineFamilyOf(provider)
+          const readiness = engineReadiness(provider, active, probe, tt)
+          const latencyText = probe?.status === 'ready' && Number.isFinite(probe.latencyMs) ? formatLatencyMs(probe.latencyMs) : ''
+          return h('span', { className: 'aw-engine-row', 'data-engine': family, 'data-engine-status': readiness.tone },
+            h('span', { className: 'aw-engine-rail' }, h(StateDot, { state: readiness.dotState, size: 7 })),
+            h('span', { className: 'aw-engine-badge', 'data-engine': family, title: provider.id }, h(EngineGlyph, { family, size: 13 })),
+            h('span', { className: 'aw-engine-main' },
+              h('span', { className: 'aw-strong aw-ellipsis' }, provider.label),
+              showId ? h(Tag, { tone: 'quiet' }, provider.id) : null,
+              h('span', { className: 'aw-engine-sep', 'aria-hidden': true }, '·'),
+              h('span', { className: 'aw-engine-state', 'data-tone': readiness.tone, title: probe?.error || undefined }, readiness.label)),
+            latencyText ? h('span', { className: 'aw-engine-latency', title: tt('probeLatency') }, latencyText) : null)
+        }
+
         function CapabilityReport({ info, onClose }) {
           const tt = useT()
           const agentInfo = info.agentInfo ?? info.serverInfo
           const authText = authSummary(info.authStatus, tt)
+          const latencyText = Number.isFinite(info.latencyMs) ? formatLatencyMs(info.latencyMs) : ''
           return h('section', { className: 'aw-box', 'aria-label': tt('capabilities') },
             h('div', { className: 'aw-box-head' },
               h('h3', { className: 'aw-grow' }, tt('capabilities')),
@@ -5366,6 +5517,7 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
             h('dl', { className: 'aw-facts' },
               agentInfo ? h(React.Fragment, null, h('dt', null, tt('agent')), h('dd', null, [agentInfo.title ?? agentInfo.name, agentInfo.version].filter(Boolean).join(' '))) : null,
               h('dt', null, tt('protocol')), h('dd', null, `ACP v${info.protocolVersion ?? '?'}`),
+              latencyText ? h(React.Fragment, null, h('dt', null, tt('probeLatency')), h('dd', null, latencyText)) : null,
               info.agentMeta?.tier?.name ? h(React.Fragment, null, h('dt', null, tt('tierLabel')), h('dd', null, info.agentMeta.tier.name)) : null,
               authText ? h(React.Fragment, null, h('dt', null, tt('authLabel')), h('dd', null, authText)) : null,
               h('dt', null, tt('authMethods')), h('dd', null, info.authMethods?.length ? info.authMethods.map(method => method.name ?? method.id).join(', ') : tt('none'))),
@@ -5447,7 +5599,7 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
             h(Switch, { checked: !hidden, disabled: busy, label: model.name ?? model.id, onChange: checked => onToggle(model.id, checked) }))
         }
 
-        function ProviderWorkbench({ providers, providerTemplates, activeByProvider, authByProvider, localUsageByProvider, defaultCwd, run, busy, creating, setCreating }) {
+        function ProviderWorkbench({ providers, providerTemplates, activeByProvider, authByProvider, probeByProvider, localUsageByProvider, defaultCwd, run, busy, creating, setCreating }) {
           const tt = useT()
           const templates = providerTemplates?.length ? providerTemplates : FALLBACK_PROVIDER_TEMPLATES
           const existingIds = React.useMemo(() => new Set(providers.map(provider => provider.id)), [providers])
@@ -5605,14 +5757,7 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
                 const total = providerVisibleModels({ ...provider, hiddenModels: [] }).length
                 const shown = providerVisibleModels(provider).length
                 const active = activeByProvider?.[provider.id]
-                const activeTone = active?.waiting ? 'warning' : active?.working ? 'ongoing' : active?.connected ? 'done' : null
-                const activeLabel = active?.waiting
-                  ? tt('activeWaiting', { n: active.waiting })
-                  : active?.working
-                    ? tt('activeWorking', { n: active.working })
-                    : active?.connected
-                      ? tt('activeConnected', { n: active.connected })
-                      : null
+                const probe = probeByProvider?.[provider.id]
                 const railPlan = provider.subscription?.account?.plan || provider.advertised?.meta?.tier?.name || ''
                 const railWindows = provider.subscription?.windows ?? EMPTY
                 const peakPct = railWindows.reduce((max, item) => typeof item.usedPercent === 'number' ? Math.max(max, item.usedPercent) : max, -1)
@@ -5622,16 +5767,12 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
                   disabled: busy,
                   onClick: () => selectProvider(provider),
                 },
-                h('span', { className: 'aw-prov-top' },
-                  activeTone ? h(StateDot, { state: activeTone, size: 7 }) : null,
-                  h('span', { className: 'aw-strong aw-ellipsis aw-grow' }, provider.label),
-                  h(Tag, { tone: 'quiet' }, provider.id)),
-                h('span', { className: 'aw-prov-meta' },
+                h(EngineStatusRow, { provider, active, probe }),
+                h('span', { className: 'aw-prov-sub' },
                   h('span', null, total ? tt('modelsBadgeCount', { shown, total }) : tt('modelsNotFetched')),
                   railPlan ? h('span', null, `· ${railPlan}`) : null,
-                  peakPct >= 0 ? h('span', null, `· ${peakPct}%`) : null,
-                  activeLabel ? h('span', null, `· ${activeLabel}`) : null),
-                h('span', { className: 'aw-item-sub aw-mono aw-ellipsis' }, [provider.command, ...provider.args].join(' ')))
+                  peakPct >= 0 ? h('span', null, `· ${peakPct}%`) : null),
+                h('span', { className: 'aw-prov-sub aw-mono aw-ellipsis' }, [provider.command, ...provider.args].join(' ')))
               })),
             h('div', { className: 'aw-stack' },
               creating || !saved
@@ -5651,6 +5792,8 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
                         h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: refreshModels }, tt('refreshModels')),
                         h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: checkCapabilities }, tt('diagnose')),
                         h(Button, { size: 'sm', variant: showConfig ? 'outline' : 'ghost', 'aria-expanded': showConfig, disabled: busy, onClick: () => setShowConfig(v => !v) }, tt(showConfig ? 'hideConfig' : 'providerConfig')))),
+                    h('div', { className: 'aw-hero-status' },
+                      h(EngineStatusRow, { provider: saved, active: activeByProvider?.[saved.id], probe: probeByProvider?.[saved.id], showId: true })),
                     (tierName || authText || saved.advertised?.meta?.steering) ? h('div', { className: 'aw-pills' },
                       tierName ? h('span', { className: 'aw-pill', 'data-tone': 'accent' }, tierName) : null,
                       authText ? h('span', { className: 'aw-pill' }, `${tt('authLabel')}: ${authText}`) : null,
@@ -5740,6 +5883,7 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
                 providerTemplates: view.data.providerTemplates,
                 activeByProvider: view.data.activeByProvider,
                 authByProvider: view.data.authByProvider,
+                probeByProvider: view.data.probeByProvider,
                 localUsageByProvider: view.data.localUsageByProvider,
                 defaultCwd: view.data.defaultCwd,
                 run, busy, creating, setCreating,

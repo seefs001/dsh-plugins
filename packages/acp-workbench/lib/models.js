@@ -1,4 +1,4 @@
-import { inferContextWindow, isAutoDefaultModel } from './adapters.js'
+import { inferContextWindow, isAutoDefaultModel, legacyModesOf } from './adapters.js'
 
 const ZERO_WIDTH = /[\u200B-\u200D\uFEFF]/gu
 const PARAMETERIZED_MODEL = /^([^[\]]+)\[([^[\]]*)\]$/u
@@ -199,7 +199,51 @@ export function modelConfigOptions(options) {
   return result
 }
 
-export function advertisedModes(result) {
+function modeIdsOf(source) {
+  const ids = new Set()
+  if (!source) return ids
+  const list = Array.isArray(source)
+    ? source
+    : Array.isArray(source.options)
+      ? source.options
+      : Array.isArray(source.availableModes)
+        ? source.availableModes
+        : []
+  for (const item of list) {
+    const id = typeof item === 'string' ? item : item?.value ?? item?.id
+    if (typeof id === 'string' && id.trim()) ids.add(id.trim())
+  }
+  return ids
+}
+
+export function resolveModeId(modeId, availableModes, adapter, provider) {
+  if (typeof modeId !== 'string' || !modeId.trim()) return modeId
+  const trimmed = modeId.trim()
+  const ids = modeIdsOf(availableModes)
+  if (ids.has(trimmed)) return trimmed
+  const legacy = legacyModesOf(adapter, provider)
+  const mapped = legacy[trimmed]
+  if (typeof mapped !== 'string' || !mapped.trim()) return trimmed
+  const target = mapped.trim()
+  if (ids.size > 0 && !ids.has(target)) return trimmed
+  return target
+}
+
+export function resolveInitialConfigOptions(entries, { modes, adapter, provider } = {}) {
+  if (!Array.isArray(entries) || !entries.length) return entries
+  const modeConfigId = modes?.configId
+  return entries.map(entry => {
+    if (!entry || typeof entry !== 'object' || typeof entry.configId !== 'string') return entry
+    const isModeEntry = entry.configId === 'mode' || (modeConfigId && entry.configId === modeConfigId)
+    if (!isModeEntry || typeof entry.value !== 'string') return entry
+    const resolved = resolveModeId(entry.value, modes, adapter, provider)
+    const nextConfigId = modeConfigId ?? entry.configId
+    if (resolved === entry.value && nextConfigId === entry.configId) return entry
+    return { ...entry, configId: nextConfigId, value: resolved }
+  })
+}
+
+export function advertisedModes(result, adapter = null, provider = null) {
   const modeOption = (result?.configOptions ?? []).find(item => item?.category === 'mode' && item.type === 'select')
   if (modeOption) {
     const options = choices(modeOption)
@@ -210,9 +254,10 @@ export function advertisedModes(result) {
         ...(typeof item.description === 'string' && cleanLabel(item.description) ? { description: cleanLabel(item.description) } : {}),
       }))
     if (options.length) {
+      const rawCurrent = typeof modeOption.currentValue === 'string' ? modeOption.currentValue : options[0].value
       return {
         configId: modeOption.id,
-        currentModeId: typeof modeOption.currentValue === 'string' ? modeOption.currentValue : options[0].value,
+        currentModeId: resolveModeId(rawCurrent, options, adapter, provider),
         options,
       }
     }
@@ -227,8 +272,9 @@ export function advertisedModes(result) {
         ...(typeof item.description === 'string' && cleanLabel(item.description) ? { description: cleanLabel(item.description) } : {}),
       }))
     if (options.length) {
+      const rawCurrent = typeof result.modes.currentModeId === 'string' ? result.modes.currentModeId : options[0].value
       return {
-        currentModeId: typeof result.modes.currentModeId === 'string' ? result.modes.currentModeId : options[0].value,
+        currentModeId: resolveModeId(rawCurrent, options, adapter, provider),
         options,
       }
     }

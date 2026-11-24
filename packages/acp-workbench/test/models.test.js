@@ -11,10 +11,13 @@ import {
   parseParameterizedModelId,
   reasoningOption,
   reasoningSelection,
+  resolveInitialConfigOptions,
   resolveLiveThinkingUpdates,
+  resolveModeId,
   visibleModels,
   wireModelId,
 } from '../lib/models.js'
+import { resolveAdapter } from '../lib/adapters.js'
 
 const CURSOR_CATALOG = {
   models: [
@@ -443,4 +446,58 @@ test('advertisedModels drops non-Auto default for Claude Code and preserves bool
   ])
   assert.equal(opus.options.find(item => item.id === 'fast')?.description, 'Faster responses')
   assert.equal(models.find(item => item.id === 'haiku')?.contextWindow, 200_000)
+})
+
+test('resolveModeId and resolveInitialConfigOptions map legacyModes only when deprecated and target is available', () => {
+  const hermes = resolveAdapter({ providerId: 'hermes' })
+  const policyModes = {
+    configId: 'edit_approval_policy',
+    currentModeId: 'ask',
+    options: [
+      { value: 'ask', name: 'Ask' },
+      { value: 'workspace_session', name: 'Workspace session' },
+      { value: 'session', name: 'Session' },
+    ],
+  }
+
+  assert.equal(resolveModeId('default', policyModes, hermes), 'ask')
+  assert.equal(resolveModeId('accept_edits', policyModes, hermes), 'workspace_session')
+  assert.equal(resolveModeId('dont_ask', policyModes, hermes), 'session')
+  assert.equal(resolveModeId('ask', policyModes, hermes), 'ask')
+
+  const stillLegacyModes = {
+    options: [{ value: 'default', name: 'Default' }, { value: 'ask', name: 'Ask' }],
+  }
+  assert.equal(resolveModeId('default', stillLegacyModes, hermes), 'default')
+
+  const unrelatedModes = {
+    options: [{ value: 'strict', name: 'Strict' }],
+  }
+  assert.equal(resolveModeId('default', unrelatedModes, hermes), 'default')
+
+  const normalized = resolveInitialConfigOptions(
+    [
+      { configId: 'model', value: 'hermes-3' },
+      { configId: 'mode', value: 'accept_edits' },
+    ],
+    { modes: policyModes, adapter: hermes },
+  )
+  assert.deepEqual(normalized, [
+    { configId: 'model', value: 'hermes-3' },
+    { configId: 'edit_approval_policy', value: 'workspace_session' },
+  ])
+
+  const advertised = advertisedModes(
+    {
+      configOptions: [{
+        id: 'edit_approval_policy',
+        category: 'mode',
+        type: 'select',
+        currentValue: 'dont_ask',
+        options: [{ value: 'ask', name: 'Ask' }, { value: 'session', name: 'Session' }],
+      }],
+    },
+    hermes,
+  )
+  assert.equal(advertised.currentModeId, 'session')
 })

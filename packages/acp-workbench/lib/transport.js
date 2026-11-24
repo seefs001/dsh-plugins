@@ -1,6 +1,52 @@
 import { StringDecoder } from 'node:string_decoder'
 
 const MAX_FRAME_BYTES = 16 * 1024 * 1024
+const DEFAULT_GRACE_EXIT_MS = 1_000
+const DEFAULT_TERMINATE_WAIT_MS = 5_000
+
+function safeEnd(stream) {
+  if (!stream || stream.destroyed || stream.writableEnded) return
+  try {
+    stream.end()
+  } catch {}
+}
+
+function safeTerminate(child) {
+  if (typeof child?.terminate !== 'function') return
+  try {
+    child.terminate()
+  } catch {}
+}
+
+async function waitWithTimeout(waitFn, timeoutMs) {
+  const controller = new AbortController()
+  let timer
+  const timeout = new Promise(resolve => {
+    timer = setTimeout(() => {
+      controller.abort()
+      resolve(false)
+    }, timeoutMs)
+  })
+  const attempt = Promise.resolve().then(() => waitFn(controller.signal)).then(Boolean, () => false)
+  try {
+    return await Promise.race([attempt, timeout])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function awaitBounded(promise, timeoutMs) {
+  if (!promise || typeof promise.then !== 'function') return
+  let timer
+  const timeout = new Promise(resolve => {
+    timer = setTimeout(resolve, timeoutMs)
+  })
+  try {
+    await Promise.race([promise.catch(() => {}), timeout])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 export class RpcError extends Error {
   constructor(message, code = -32603) {
@@ -11,9 +57,18 @@ export class RpcError extends Error {
 }
 
 export class AcpConnection {
-  constructor(child, { onNotification, onRequest, onExit, onStderr }) {
+  constructor(child, {
+    onNotification,
+    onRequest,
+    onExit,
+    onStderr,
+    graceExitMs = DEFAULT_GRACE_EXIT_MS,
+    terminateWaitMs = DEFAULT_TERMINATE_WAIT_MS,
+  } = {}) {
     this.child = child
     this.handlers = { onNotification, onRequest, onExit, onStderr }
+    this.graceExitMs = Number.isFinite(graceExitMs) && graceExitMs > 0 ? graceExitMs : DEFAULT_GRACE_EXIT_MS
+    this.terminateWaitMs = Number.isFinite(terminateWaitMs) && terminateWaitMs > 0 ? terminateWaitMs : DEFAULT_TERMINATE_WAIT_MS
     this.pending = new Map()
     this.nextId = 0
     this.closed = false
@@ -22,21 +77,24 @@ export class AcpConnection {
     this.stderrDecoder = new StringDecoder('utf8')
     this.buffer = ''
     this.notificationTail = Promise.resolve()
-    if (!child.stdin || !child.stdout || !child.stderr) throw new Error('ACP requires piped stdin, stdout and stderr')
+    if (!child?.stdin || !child?.stdout || !child?.stderr) throw new Error('ACP requires piped stdin, stdout and stderr')
+    child.on?.('error', error => this.fail(error))
     child.stdin.on('error', error => this.fail(error))
     child.stdout.on('error', error => this.fail(error))
     child.stdout.on('data', data => this.consume(this.decoder.write(data)))
     child.stdout.on('end', () => {
+      if (this.closed) return
       const tail = this.decoder.end()
       if (tail) this.consume(tail)
       if (!this.stopping) this.fail(new Error('ACP stdout closed'))
     })
     child.stderr.on('data', data => {
+      if (this.closed) return
       try { onStderr?.(this.stderrDecoder.write(data)) } catch (error) { this.fail(error) }
     })
     child.stderr.on('error', error => this.fail(error))
-    this.done = child.done.then(outcome => {
-      const how = outcome.signal ? `signal ${outcome.signal}` : `code ${outcome.exitCode ?? 'unknown'}`
+    this.done = Promise.resolve(child.done).then(outcome => {
+      const how = outcome?.signal ? `signal ${outcome.signal}` : `code ${outcome?.exitCode ?? 'unknown'}`
       this.fail(new Error(`Agent process exited (${how})`))
       return outcome
     }, error => { this.fail(error); throw error })
@@ -76,7 +134,7 @@ export class AcpConnection {
       if (message.id !== undefined && message.id !== null) {
         void Promise.resolve().then(() => this.handlers.onRequest(message.method, message.params ?? {}, message.id)).then(
           result => this.reply(message.id, { result: result ?? {} }),
-          error => this.reply(message.id, { error: { code: error.code ?? -32603, message: error.message ?? 'Request failed' } }),
+          error => this.reply(message.id, { error: { code: error?.code ?? -32603, message: error?.message ?? 'Request failed' } }),
         ).catch(error => this.fail(error))
       } else {
         this.notificationTail = this.notificationTail.then(() => this.handlers.onNotification(message.method, message.params ?? {}))
@@ -96,18 +154,33 @@ export class AcpConnection {
 
   write(message) {
     if (this.closed) throw new Error('ACP connection is closed')
-    this.child.stdin.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\n')
+    const stdin = this.child.stdin
+    if (!stdin || stdin.destroyed || stdin.writableEnded) {
+      const error = new Error('ACP stdin is closed')
+      this.fail(error)
+      throw error
+    }
+    const line = `${JSON.stringify({ jsonrpc: '2.0', ...message })}\n`
+    try {
+      stdin.write(line, error => {
+        if (error) this.fail(error)
+      })
+    } catch (error) {
+      this.fail(error)
+      throw error
+    }
   }
 
   reply(id, payload) {
-    if (!this.closed) this.write({ id, ...payload })
+    if (this.closed) return
+    try { this.write({ id, ...payload }) } catch (error) { this.fail(error) }
   }
 
   request(method, params, timeoutMs = 30_000) {
     if (this.closed) return Promise.reject(new Error('ACP connection is closed'))
     const id = ++this.nextId
     return new Promise((resolve, reject) => {
-      const timer = timeoutMs > 0 ? setTimeout(() => {
+      const timer = Number.isFinite(timeoutMs) && timeoutMs > 0 ? setTimeout(() => {
         this.pending.delete(id)
         reject(new Error(`ACP ${method} timed out after ${timeoutMs} ms`))
       }, timeoutMs) : undefined
@@ -132,8 +205,9 @@ export class AcpConnection {
     }
     this.pending.clear()
     if (!this.stopping) {
-      this.child.terminate()
-      this.handlers.onExit?.(error)
+      safeEnd(this.child.stdin)
+      safeTerminate(this.child)
+      try { this.handlers.onExit?.(error) } catch {}
     }
   }
 
@@ -141,12 +215,17 @@ export class AcpConnection {
     if (this.stopPromise) return this.stopPromise
     this.stopping = true
     this.stopPromise = (async () => {
-      try { this.child.stdin.end() } catch {}
+      safeEnd(this.child.stdin)
       this.fail(new Error('ACP connection disconnected'))
-      const exited = await this.child.waitForExit(AbortSignal.timeout(1_000)).catch(() => false)
-      if (!exited) this.child.terminate()
-      await this.child.waitForExit()
-      await this.done.catch(() => {})
+      if (typeof this.child.waitForExit === 'function') {
+        const exited = await waitWithTimeout(signal => this.child.waitForExit(signal), this.graceExitMs)
+        if (!exited) safeTerminate(this.child)
+        const terminated = exited || await waitWithTimeout(signal => this.child.waitForExit(signal), this.terminateWaitMs)
+        if (!terminated) safeTerminate(this.child)
+      } else {
+        safeTerminate(this.child)
+      }
+      await awaitBounded(this.done, this.terminateWaitMs)
       await this.notificationTail.catch(() => {})
     })()
     return this.stopPromise

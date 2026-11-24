@@ -1,8 +1,10 @@
+import { extractToolStartInput } from './adapters.js'
 import { noticeReceipt } from './notices.js'
 import { contextWindow, sessionTotals, recordWindow } from './usage.js'
 
 const MAX_LOG_CHARS = 64 * 1024
 const MAX_PROGRESS = 16 * 1024
+const TERMINAL_TOOL_STATUS = new Set(['completed', 'failed', 'cancelled', 'canceled'])
 const AGY_SUBAGENT_CALL_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):.+$/iu
 
 export function cliParentOf(update) {
@@ -65,18 +67,45 @@ function taskProgress(trace, update, seq, parent) {
 export const defined = value => Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null))
 const isPlainObj = value => typeof value === 'object' && value !== null && !Array.isArray(value)
 
+function mergeInputFields(prevInput, nextInput) {
+  const hasPrev = isPlainObj(prevInput) && Object.keys(prevInput).length > 0
+  const hasNext = isPlainObj(nextInput) && Object.keys(nextInput).length > 0
+  if (hasPrev && !hasNext) return prevInput
+  if (!hasPrev) return nextInput
+  const result = { ...prevInput }
+  for (const [key, value] of Object.entries(nextInput)) {
+    if (value === undefined || value === null) continue
+    if (typeof value === 'string' && !value.trim() && typeof prevInput[key] === 'string' && prevInput[key].trim()) continue
+    result[key] = value
+  }
+  return result
+}
+
 export function mergeToolUpdate(previous, update) {
   const prev = previous ?? {}
   const next = defined(update ?? {})
   const merged = { ...prev, ...next }
-  if (isPlainObj(prev.rawInput) && Object.keys(prev.rawInput).length > 0 && isPlainObj(next.rawInput) && Object.keys(next.rawInput).length === 0) {
-    merged.rawInput = prev.rawInput
+  if (typeof prev.title === 'string' && prev.title.trim() && typeof next.title === 'string' && !next.title.trim()) {
+    merged.title = prev.title
+  }
+  if (isPlainObj(prev.rawInput) || isPlainObj(next.rawInput)) {
+    const mergedRaw = mergeInputFields(prev.rawInput, next.rawInput)
+    if (mergedRaw !== undefined) merged.rawInput = mergedRaw
   }
   if (Array.isArray(prev.locations) && prev.locations.length > 0 && Array.isArray(next.locations) && next.locations.length === 0) {
     merged.locations = prev.locations
   }
   if (isPlainObj(prev._meta) && isPlainObj(next._meta)) {
     merged._meta = { ...prev._meta, ...defined(next._meta) }
+  }
+  const prevCarried = isPlainObj(prev.carriedInput) && Object.keys(prev.carriedInput).length > 0
+    ? prev.carriedInput
+    : (!TERMINAL_TOOL_STATUS.has(prev.status) ? extractToolStartInput(prev) : null)
+  const nextIsStart = next.sessionUpdate === 'tool_call' || !TERMINAL_TOOL_STATUS.has(next.status)
+  const nextCarried = nextIsStart ? extractToolStartInput(merged) : null
+  const carried = mergeInputFields(prevCarried, nextCarried)
+  if (isPlainObj(carried) && Object.keys(carried).length > 0) {
+    merged.carriedInput = carried
   }
   return merged
 }

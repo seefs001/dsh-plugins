@@ -6,13 +6,23 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { visibleModels } from './models.js'
 import { resolveAdapter } from './adapters.js'
-import { MCP_PROXY_SERVER_NAME, callForwardedMcpTool, callProxyMcpTool, discoverDshMcpServers, listForwardedMcpTools, proxyMcpToolList } from './mcp-bridge.js'
+import {
+  MCP_META_KEYS,
+  MCP_MODERN_PROTOCOL_VERSION,
+  MCP_PROXY_SERVER_NAME,
+  buildMcpDiscoverResult,
+  buildMcpInitializeResult,
+  discoverDshMcpServers,
+  handleMcpBridgeRequest,
+  isModernMcpProtocolVersion,
+  negotiateMcpProtocolVersion,
+  parseMcpRequestContext,
+} from './mcp-bridge.js'
 
 const execFileAsync = promisify(execFile)
 const STDIO_BRIDGE_PATH = fileURLToPath(new URL('./mcp-stdio.js', import.meta.url))
 const MCP_SERVER_NAME = 'dsh_agents'
 const EXCLUDED_FORWARD_SERVERS = new Set([MCP_SERVER_NAME, MCP_PROXY_SERVER_NAME])
-const MCP_PROTOCOL_VERSION = '2025-03-26'
 const MAX_BODY_BYTES = 1024 * 1024
 const MAX_RESULT_CHARS = 12_000
 const AGENT_NAME_RE = /^[a-z][a-z0-9-]{0,31}$/u
@@ -475,7 +485,7 @@ export class DelegationHub {
       childId,
       label,
       ...(requestedName ? { name: requestedName } : {}),
-      prompt,
+      prompt: [{ type: 'text', text: prompt }],
       ...(childCwd ? { cwd: childCwd } : {}),
       agentOptions: target.agentOptions,
       maxDepth: this.ctx.subagents.resolveMaxDepth(),
@@ -525,14 +535,16 @@ export class DelegationHub {
     const nameById = new Map([[root.id, 'lead']])
     for (const item of descendants) {
       if (item.kind !== 'child') continue
-      const parentPath = nameById.get(item.parentSessionId) ?? item.parentSessionId
-      const fullName = item.entry.name
-        ? (parentPath === 'lead' ? item.entry.name : `${parentPath}/${item.entry.name}`)
-        : item.entry.id
-      nameById.set(item.entry.id, fullName)
+      const parentId = item.parentId ?? root.id
+      const parentPath = nameById.get(parentId) ?? parentId
+      const fullName = item.path
+        ?? (item.name
+          ? (parentPath === 'lead' ? item.name : `${parentPath}/${item.name}`)
+          : item.id)
+      nameById.set(item.id, fullName)
       rows.push({
-        ...describeLive(item.entry.id, fullName, parentPath, item.entry.mode),
-        label: item.entry.label ?? null,
+        ...describeLive(item.id, fullName, parentPath, item.mode),
+        label: item.label ?? null,
       })
     }
     return {
@@ -691,7 +703,6 @@ export class DelegationHub {
     }
     const targetServer = resolved.server
     const isDelegation = targetServer === MCP_SERVER_NAME
-    const isProxy = targetServer === MCP_PROXY_SERVER_NAME
     if (req.method === 'DELETE') {
       res.writeHead(204, { 'cache-control': 'no-store' })
       res.end()
@@ -716,97 +727,127 @@ export class DelegationHub {
       return
     }
 
-    const hasId = Object.hasOwn(message, 'id')
-    const id = message.id ?? null
-    const method = message.method
     const sessionHeader = { 'mcp-session-id': binding.sessionId }
-
-    if (!hasId) {
-      res.writeHead(202, { 'cache-control': 'no-store', ...sessionHeader })
-      res.end()
-      return
+    const caller = this.ctx.agents?.get?.(binding.sessionId)
+    const controller = new AbortController()
+    const onClose = () => {
+      if (!res.writableEnded) controller.abort(new Error('MCP HTTP request closed'))
     }
+    res.on('close', onClose)
 
-    if (method === 'initialize') {
-      writeJson(res, 200, {
-        jsonrpc: '2.0',
-        id,
-        result: {
-          protocolVersion: typeof message.params?.protocolVersion === 'string' ? message.params.protocolVersion : MCP_PROTOCOL_VERSION,
-          capabilities: { tools: {} },
-          serverInfo: { name: isDelegation ? 'dsh-acp-agents' : isProxy ? 'dsh-acp-mcp' : targetServer, version: '0.2.0' },
-        },
-      }, sessionHeader)
-      return
-    }
-
-    if (method === 'ping') {
-      writeJson(res, 200, { jsonrpc: '2.0', id, result: {} }, sessionHeader)
-      return
-    }
-
-    if (method === 'tools/list') {
-      const caller = this.ctx.agents?.get?.(binding.sessionId)
-      const tools = isDelegation
-        ? MCP_TOOL_LIST
-        : isProxy
-          ? proxyMcpToolList(this.ctx, caller, EXCLUDED_FORWARD_SERVERS)
-          : listForwardedMcpTools(this.ctx, targetServer, caller)
-      writeJson(res, 200, { jsonrpc: '2.0', id, result: { tools } }, sessionHeader)
-      return
-    }
-
-    if (method === 'tools/call') {
-      const caller = this.ctx.agents?.get?.(binding.sessionId)
-      if (isDelegation && !caller) {
-        writeJson(res, 200, {
-          jsonrpc: '2.0',
-          id,
-          result: { isError: true, content: [{ type: 'text', text: 'Parent DSH session is no longer active.' }] },
-        }, sessionHeader)
+    try {
+      if (!isDelegation) {
+        const outcome = await handleMcpBridgeRequest(this.ctx, message, {
+          targetServer,
+          caller,
+          signal: controller.signal,
+          headers: req.headers,
+          excludedNames: EXCLUDED_FORWARD_SERVERS,
+        })
+        const headers = { ...sessionHeader, ...outcome.headers }
+        if (outcome.body === null) {
+          res.writeHead(outcome.status, { 'cache-control': 'no-store', ...headers })
+          res.end()
+        } else {
+          writeJson(res, outcome.status, outcome.body, headers)
+        }
         return
       }
-      const controller = new AbortController()
-      const onClose = () => {
-        if (!res.writableEnded) controller.abort(new Error('MCP HTTP request closed'))
+
+      const hasId = Object.hasOwn(message, 'id')
+      const id = message.id ?? null
+      const context = parseMcpRequestContext(message, req.headers)
+      if (!context.ok) {
+        writeJson(res, context.status, { jsonrpc: '2.0', id, error: { code: context.code, message: context.message } }, sessionHeader)
+        return
       }
-      res.on('close', onClose)
-      try {
+
+      const negotiatedVersion = context.protocolVersion ? negotiateMcpProtocolVersion(context.protocolVersion) : undefined
+      const responseHeaders = {
+        ...sessionHeader,
+        ...(negotiatedVersion ? { 'mcp-protocol-version': negotiatedVersion } : {}),
+      }
+
+      if (!hasId) {
+        res.writeHead(202, { 'cache-control': 'no-store', ...responseHeaders })
+        res.end()
+        return
+      }
+
+      const serverInfo = { name: 'dsh-acp-agents', version: '0.2.0' }
+      const attachMeta = result => (isModernMcpProtocolVersion(negotiatedVersion)
+        ? { ...result, _meta: { ...result._meta, [MCP_META_KEYS.serverInfo]: serverInfo } }
+        : result)
+      const method = context.method
+
+      if (method === 'initialize') {
+        const result = buildMcpInitializeResult(message.params, serverInfo)
+        writeJson(res, 200, { jsonrpc: '2.0', id, result }, { ...responseHeaders, 'mcp-protocol-version': result.protocolVersion })
+        return
+      }
+
+      if (method === 'server/discover') {
+        const result = buildMcpDiscoverResult(serverInfo)
+        writeJson(res, 200, { jsonrpc: '2.0', id, result }, { ...responseHeaders, 'mcp-protocol-version': MCP_MODERN_PROTOCOL_VERSION })
+        return
+      }
+
+      if (method === 'ping') {
+        writeJson(res, 200, { jsonrpc: '2.0', id, result: attachMeta({}) }, responseHeaders)
+        return
+      }
+
+      if (method === 'tools/list') {
+        writeJson(res, 200, { jsonrpc: '2.0', id, result: attachMeta({ tools: MCP_TOOL_LIST }) }, responseHeaders)
+        return
+      }
+
+      if (method === 'tools/call') {
+        if (!caller) {
+          writeJson(res, 200, {
+            jsonrpc: '2.0',
+            id,
+            result: attachMeta({ isError: true, content: [{ type: 'text', text: 'Parent DSH session is no longer active.' }] }),
+          }, responseHeaders)
+          return
+        }
         const toolName = message.params?.name
+        if (typeof toolName !== 'string' || !toolName.trim() || !Object.hasOwn(TOOL_SPECS, toolName)) {
+          writeJson(res, 200, {
+            jsonrpc: '2.0',
+            id,
+            error: { code: -32602, message: `Unknown delegation tool: ${String(toolName)}` },
+          }, responseHeaders)
+          return
+        }
         const toolArgs = message.params?.arguments ?? {}
-        if (isDelegation) {
+        try {
           const value = await this.executeTool(toolName, toolArgs, caller, controller.signal)
           writeJson(res, 200, {
             jsonrpc: '2.0',
             id,
-            result: {
+            result: attachMeta({
               content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
               structuredContent: value,
-            },
-          }, sessionHeader)
-        } else if (isProxy) {
-          const result = await callProxyMcpTool(this.ctx, toolName, toolArgs, caller, controller.signal, EXCLUDED_FORWARD_SERVERS)
-          writeJson(res, 200, { jsonrpc: '2.0', id, result }, sessionHeader)
-        } else {
-          const result = await callForwardedMcpTool(this.ctx, targetServer, toolName, toolArgs, caller, controller.signal)
-          writeJson(res, 200, { jsonrpc: '2.0', id, result }, sessionHeader)
+            }),
+          }, responseHeaders)
+        } catch (error) {
+          writeJson(res, 200, {
+            jsonrpc: '2.0',
+            id,
+            result: attachMeta({
+              isError: true,
+              content: [{ type: 'text', text: error?.message ?? String(error) }],
+            }),
+          }, responseHeaders)
         }
-      } catch (error) {
-        writeJson(res, 200, {
-          jsonrpc: '2.0',
-          id,
-          result: {
-            isError: true,
-            content: [{ type: 'text', text: error?.message ?? String(error) }],
-          },
-        }, sessionHeader)
-      } finally {
-        res.off('close', onClose)
+        return
       }
-      return
-    }
 
-    writeJson(res, 200, { jsonrpc: '2.0', id, error: { code: -32601, message: `Method not found: ${method}` } }, sessionHeader)
+      writeJson(res, 200, { jsonrpc: '2.0', id, error: { code: -32601, message: `Method not found: ${method}` } }, responseHeaders)
+    } finally {
+      res.off('close', onClose)
+    }
   }
 
   installHostTools() {

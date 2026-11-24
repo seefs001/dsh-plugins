@@ -4,8 +4,8 @@ import { homedir } from 'node:os'
 import { isAbsolute } from 'node:path'
 import { AcpConnection, RpcError } from './transport.js'
 import { WorkbenchStore } from './store.js'
-import { advertisedModels, advertisedModes, inputModalities } from './models.js'
-import { extractAgentMeta, resolveAdapter } from './adapters.js'
+import { advertisedModels, advertisedModes, inputModalities, resolveInitialConfigOptions, resolveModeId } from './models.js'
+import { extractAgentMeta, extractToolStartInput, resolveAdapter } from './adapters.js'
 import { contextWindow, rateLimitInfo } from './usage.js'
 import {
   accountFromAuthStatus,
@@ -168,7 +168,8 @@ function taskCommandOf(update, input, name, label) {
   } else if (name === 'run_workflow') {
     raw = firstNonEmptyString(input?.Description, input?.ScriptPath, update?.title, label)
   } else {
-    raw = firstNonEmptyString(input?.CommandLine, input?.command, update?.title, label)
+    const startCmd = extractToolStartInput(update)?.command
+    raw = firstNonEmptyString(input?.CommandLine, input?.command, startCmd, update?.title, label)
   }
   return clipTaskText(raw || label, MAX_TASK_COMMAND_CHARS)
 }
@@ -241,6 +242,7 @@ export class Workbench {
     this.listeners = new Map()
     this.probes = new Set()
     this.authByProvider = new Map()
+    this.probeByProvider = new Map()
     this.closed = false
     this.store = new WorkbenchStore(domain, error => {
       this.log?.(`ACP storage: ${error.message}`)
@@ -311,6 +313,7 @@ export class Workbench {
       providerTemplates: resolveProviderTemplates(),
       activeByProvider,
       authByProvider: Object.fromEntries(this.authByProvider),
+      probeByProvider: Object.fromEntries(this.probeByProvider),
       localUsageByProvider: computeLocalUsageByProvider(this.store.sessions.values()),
       defaultCwd: recentCwd || homedir(),
       storageError: this.store.failure?.message ?? null,
@@ -446,6 +449,7 @@ export class Workbench {
         const provider = this.provider(op.providerId)
         if ([...this.store.sessions.values()].some(s => s.providerId === provider.id && this.runtimes.has(s.id))) throw new Error('Disconnect this provider’s sessions first')
         await this.store.removeProvider(provider.id)
+        this.probeByProvider.delete(provider.id)
         this.changed()
         return { removed: provider.id }
       }
@@ -506,14 +510,43 @@ export class Workbench {
       throw new Error(`hiddenModels must be an array of at most ${MAX_HIDDEN_MODELS} model ids`)
     }
     const hiddenModels = [...new Set(rawHidden.map(item => item.trim()))]
+    const rawLegacyModes = raw.legacyModes === undefined ? previous?.legacyModes : raw.legacyModes
+    let legacyModes
+    if (rawLegacyModes !== undefined && rawLegacyModes !== null) {
+      if (typeof rawLegacyModes !== 'object' || Array.isArray(rawLegacyModes)) {
+        throw new Error('legacyModes must be an object mapping old mode ids to target mode ids')
+      }
+      const cleanLegacy = {}
+      for (const [oldId, targetId] of Object.entries(rawLegacyModes)) {
+        cleanLegacy[str(oldId, 'legacy mode id', 100)] = str(targetId, 'target mode id', 100)
+      }
+      if (Object.keys(cleanLegacy).length) legacyModes = cleanLegacy
+    }
     const provider = { id, label: str(raw.label, 'label', 100), command, args: raw.args, models: cleanModels,
       ...(hiddenModels.length ? { hiddenModels } : {}),
+      ...(legacyModes ? { legacyModes } : {}),
       ...(previous?.advertised ? { advertised: previous.advertised } : {}),
       ...(previous?.defaults ? { defaults: previous.defaults } : {}),
       ...(previous?.subscription ? { subscription: previous.subscription } : {}) }
+    if (previous && (previous.command !== provider.command || JSON.stringify(previous.args) !== JSON.stringify(provider.args))) {
+      this.probeByProvider.delete(id)
+    }
     await this.store.saveProvider(provider)
     this.changed()
     return provider
+  }
+
+  recordProbeStatus(providerId, info) {
+    if (!providerId || !info || typeof info !== 'object') return
+    const next = {
+      status: info.status === 'error' ? 'error' : 'ready',
+      ...(Number.isFinite(info.latencyMs) && info.latencyMs >= 0 ? { latencyMs: Math.round(info.latencyMs) } : {}),
+      checkedAt: now(),
+      ...(typeof info.agentLabel === 'string' && info.agentLabel.trim() ? { agentLabel: info.agentLabel.trim() } : {}),
+      ...(typeof info.error === 'string' && info.error.trim() ? { error: info.error.trim().slice(0, 240) } : {}),
+    }
+    this.probeByProvider.set(providerId, next)
+    this.changed()
   }
 
   recordAuthStatus(providerId, params) {
@@ -588,8 +621,20 @@ export class Workbench {
       ...(previous?.modes ? { modes: previous.modes } : {}),
       ...(previous?.meta ? { meta: previous.meta } : {}),
     }
-    if (JSON.stringify(prevFacts) === JSON.stringify(facts)) return
-    await this.store.saveProvider({ ...provider, advertised: { at: now(), ...facts } })
+    let nextDefaults = provider.defaults
+    if (nextModes && typeof provider.defaults?.mode === 'string' && provider.defaults.mode) {
+      const adapter = resolveAdapter({ providerId: provider.id, command: provider.command })
+      const resolvedDefaultMode = resolveModeId(provider.defaults.mode, nextModes, adapter, provider)
+      if (resolvedDefaultMode && resolvedDefaultMode !== provider.defaults.mode) {
+        nextDefaults = { ...provider.defaults, mode: resolvedDefaultMode }
+      }
+    }
+    if (JSON.stringify(prevFacts) === JSON.stringify(facts) && nextDefaults === provider.defaults) return
+    await this.store.saveProvider({
+      ...provider,
+      ...(nextDefaults ? { defaults: nextDefaults } : {}),
+      advertised: { at: now(), ...facts },
+    })
     this.changed()
     this.modelsChanged?.(providerId)
   }
@@ -693,26 +738,46 @@ export class Workbench {
   async withProbe(providerId, rawCwd, use, options = {}) {
     const provider = this.provider(providerId)
     const cwd = await this.directory(typeof rawCwd === 'string' && rawCwd.trim() ? rawCwd : homedir())
-    const connection = await this.spawn(provider, cwd, {
-      onNotification: (method, params) => {
-        if (method === 'auth/status_update' || method === '_auth/status_update') this.recordAuthStatus(provider.id, params)
-        options.onNotification?.(method, params)
-      },
-      onRequest: () => { throw new RpcError('Client operations are unavailable during CLI setup', -32601) },
-    })
+    const startedAt = performance.now()
+    let connection
+    try {
+      connection = await this.spawn(provider, cwd, {
+        onNotification: (method, params) => {
+          if (method === 'auth/status_update' || method === '_auth/status_update') this.recordAuthStatus(provider.id, params)
+          options.onNotification?.(method, params)
+        },
+        onRequest: () => { throw new RpcError('Client operations are unavailable during CLI setup', -32601) },
+      })
+    } catch (error) {
+      this.recordProbeStatus(provider.id, { status: 'error', latencyMs: performance.now() - startedAt, error: error.message ?? String(error) })
+      throw error
+    }
     this.probes.add(connection)
     try {
       if (this.closed) throw new Error('ACP Workbench is unloading')
-      const info = await connection.request('initialize', {
-        protocolVersion: 1,
-        clientCapabilities: {
-          session: { configOptions: { boolean: {} } },
-          _meta: CLIENT_CAPABILITY_META,
-        },
-        clientInfo: CLIENT_INFO,
-      })
-      if (info.protocolVersion !== 1) throw new Error(`Unsupported ACP version ${info.protocolVersion}`)
-      return await use({ connection, info, provider, cwd })
+      let info
+      try {
+        info = await connection.request('initialize', {
+          protocolVersion: 1,
+          clientCapabilities: {
+            session: { configOptions: { boolean: {} } },
+            _meta: CLIENT_CAPABILITY_META,
+          },
+          clientInfo: CLIENT_INFO,
+        })
+      } catch (error) {
+        this.recordProbeStatus(provider.id, { status: 'error', latencyMs: performance.now() - startedAt, error: error.message ?? String(error) })
+        throw error
+      }
+      const latencyMs = Math.max(0, Math.round(performance.now() - startedAt))
+      if (info.protocolVersion !== 1) {
+        const versionError = new Error(`Unsupported ACP version ${info.protocolVersion}`)
+        this.recordProbeStatus(provider.id, { status: 'error', latencyMs, error: versionError.message })
+        throw versionError
+      }
+      const meta = extractAgentMeta(info, null)
+      this.recordProbeStatus(provider.id, { status: 'ready', latencyMs, agentLabel: meta?.agentLabel })
+      return await use({ connection, info, provider, cwd, latencyMs })
     } finally { try { await connection.stop() } finally { this.probes.delete(connection) } }
   }
 
@@ -740,11 +805,11 @@ export class Workbench {
   }
 
   async probe(providerId, rawCwd, mode, cursor) {
-    return this.withProbe(providerId, rawCwd, async ({ connection, info, provider, cwd }) => {
+    return this.withProbe(providerId, rawCwd, async ({ connection, info, provider, cwd, latencyMs }) => {
       const adapter = resolveAdapter({ providerId: provider.id, command: provider.command, agentInfo: info.agentInfo, capabilities: info.agentCapabilities })
       if (mode === 'diagnose') {
         const meta = extractAgentMeta(info, null)
-        return { command: [provider.command, ...provider.args], ...info, ...(meta ? { agentMeta: meta } : {}), authStatus: this.authByProvider.get(provider.id) ?? null }
+        return { command: [provider.command, ...provider.args], ...info, latencyMs, ...(meta ? { agentMeta: meta } : {}), authStatus: this.authByProvider.get(provider.id) ?? null }
       }
       if (mode === 'models') {
         // external: ACP only advertises models inside a session/new response
@@ -755,14 +820,14 @@ export class Workbench {
             catalog = await this.probePerModelCatalog(connection, result, adapter)
           }
           const models = advertisedModels(result, info.agentCapabilities, catalog, adapter)
-          const modes = advertisedModes(result)
+          const modes = advertisedModes(result, adapter, provider)
           const meta = extractAgentMeta(info, result)
           await this.noteAdvertised(provider.id, models, info.agentCapabilities, {
             modes,
             meta,
             authoritative: !!catalog || adapter.catalogMode === 'config-variants',
           })
-          return { models, modes, meta, sessionId: result.sessionId ?? null }
+          return { models, modes, meta, latencyMs, sessionId: result.sessionId ?? null }
         } finally {
           await this.closeRemoteSession(connection, info.agentCapabilities, result?.sessionId)
         }
@@ -902,6 +967,8 @@ export class Workbench {
     runtime.spawnReady = new Promise(resolve => { runtime.releaseSpawn = resolve })
     this.runtimes.set(session.id, runtime)
     session.lastError = null
+    const probeStartedAt = performance.now()
+    let initialized = false
     try {
       await this.transition(session, 'starting')
       if (!this.isCurrent(session, runtime)) throw new Error('Connection was canceled before startup')
@@ -934,6 +1001,13 @@ export class Workbench {
         clientInfo: CLIENT_INFO,
       })
       if (info.protocolVersion !== 1) throw new Error(`Unsupported ACP version ${info.protocolVersion}`)
+      initialized = true
+      const initMeta = extractAgentMeta(info, null)
+      this.recordProbeStatus(provider.id, {
+        status: 'ready',
+        latencyMs: Math.max(0, Math.round(performance.now() - probeStartedAt)),
+        agentLabel: initMeta?.agentLabel,
+      })
       session.capabilities = info.agentCapabilities ?? {}
       session.authMethods = info.authMethods ?? []
       runtime.adapter = resolveAdapter({ providerId: provider.id, command: provider.command, agentInfo: info.agentInfo, capabilities: session.capabilities })
@@ -944,11 +1018,16 @@ export class Workbench {
       const captureImport = session.native?.imported && !session.native.replayRange
       const localHistory = session.native && !captureImport && (session.historyLoaded || session.native.runs.some(run => run.state === 'completed'))
       const method = !session.remoteId ? 'session/new' : canResume && (localHistory || !canLoad) ? 'session/resume' : 'session/load'
-      const useInitialConfig = Array.isArray(initialConfigOptions) && initialConfigOptions.length > 0 && !!session.capabilities.sessionCapabilities?.options
+      const normalizedInitialConfig = resolveInitialConfigOptions(initialConfigOptions, {
+        modes: provider.advertised?.modes,
+        adapter: runtime.adapter,
+        provider,
+      })
+      const useInitialConfig = Array.isArray(normalizedInitialConfig) && normalizedInitialConfig.length > 0 && !!session.capabilities.sessionCapabilities?.options
       const injectedMcp = typeof this.mcpServersFor === 'function' ? (this.mcpServersFor(session, runtime.adapter) ?? []) : []
       const baseParams = { cwd: session.cwd, mcpServers: injectedMcp, ...(session.remoteId ? { sessionId: session.remoteId } : {}) }
       const plainBaseParams = injectedMcp.length ? { ...baseParams, mcpServers: [] } : baseParams
-      const params = useInitialConfig ? { ...baseParams, configOptions: initialConfigOptions } : baseParams
+      const params = useInitialConfig ? { ...baseParams, configOptions: normalizedInitialConfig } : baseParams
       const from = session.eventSeq + 1
       const openSession = async (targetParams, fallbackBase) => {
         try {
@@ -970,7 +1049,7 @@ export class Workbench {
       } catch (error) {
         if (!injectedMcp.length || !(error instanceof RpcError) || error.code !== -32602 || !this.isCurrent(session, runtime)) throw error
         this.log?.(`ACP ${session.providerId} rejected injected mcpServers (${error.message}); retrying without MCP bridge`)
-        const plainParams = useInitialConfig ? { ...plainBaseParams, configOptions: initialConfigOptions } : plainBaseParams
+        const plainParams = useInitialConfig ? { ...plainBaseParams, configOptions: normalizedInitialConfig } : plainBaseParams
         result = await openSession(plainParams, plainBaseParams)
       }
       if (!this.isCurrent(session, runtime)) throw new Error('Connection was canceled during startup')
@@ -985,17 +1064,31 @@ export class Workbench {
       session.models = result.models ?? session.models ?? null
       session.configOptions = result.configOptions ?? session.configOptions ?? []
       session.agentMeta = extractAgentMeta(info, result) ?? null
+      const liveModes = advertisedModes({ modes: session.modes, configOptions: session.configOptions }, runtime.adapter, provider)
+      if (liveModes && typeof session.native?.preferences?.mode === 'string' && session.native.preferences.mode) {
+        const resolvedMode = resolveModeId(session.native.preferences.mode, liveModes, runtime.adapter, provider)
+        if (resolvedMode && resolvedMode !== session.native.preferences.mode) {
+          session.native.preferences.mode = resolvedMode
+        }
+      }
       runtime.replaying = false
       this.record(session, 'session', result)
       const catalog = runtime.adapter.catalogMode === 'cursor-extension' ? await this.fetchCursorCatalog(connection) : null
       if (!this.isCurrent(session, runtime)) throw new Error('Connection was canceled during startup')
       await this.noteAdvertised(session.providerId, advertisedModels(result, session.capabilities, catalog, runtime.adapter), session.capabilities, {
-        modes: advertisedModes(result),
+        modes: liveModes,
         meta: session.agentMeta ?? undefined,
         authoritative: !!catalog || runtime.adapter.catalogMode === 'config-variants',
       })
       await this.transition(session, 'idle')
     } catch (error) {
+      if (!initialized) {
+        this.recordProbeStatus(provider.id, {
+          status: 'error',
+          latencyMs: Math.max(0, Math.round(performance.now() - probeStartedAt)),
+          error: error.message ?? String(error),
+        })
+      }
       runtime.releaseSpawn()
       await this.failed(session, runtime, error)
       throw error
@@ -1052,12 +1145,14 @@ export class Workbench {
     }
     switch (update.sessionUpdate) {
       case 'notice': if (!runtime.turnId) rememberNotice(runtime, event); break
-      case 'config_option_update':
+      case 'config_option_update': {
         session.configOptions = update.configOptions ?? []
+        const prov = this.store.providers.get(session.providerId)
         await this.noteAdvertised(session.providerId, advertisedModels({ models: session.models, configOptions: session.configOptions }, session.capabilities, null, runtime.adapter), undefined, {
-          modes: advertisedModes({ modes: session.modes, configOptions: session.configOptions }),
+          modes: advertisedModes({ modes: session.modes, configOptions: session.configOptions }, runtime.adapter, prov),
         })
         break
+      }
       case 'current_mode_update': session.modes = { ...session.modes, currentModeId: update.currentModeId }; break
       case 'available_commands_update': {
         if (typeof params.sessionId !== 'string' || !params.sessionId || cliParentOf(update) || !Array.isArray(update.availableCommands)) break
@@ -1617,19 +1712,47 @@ export class Workbench {
 
   async configure(session, op, { chosen = false } = {}) {
     const runtime = this.requireIdle(session)
-    let method, params
+    const provider = this.store.providers.get(session.providerId)
+    const adapter = runtime.adapter ?? resolveAdapter({ providerId: session.providerId, command: provider?.command })
+    const modeOption = session.configOptions?.find(o => o?.category === 'mode' && o.type === 'select')
+    const modeOptionChoices = modeOption?.options?.flatMap(o => o.options ?? [o]) ?? []
+    let method, params, fallbackConfigParams = null
     if (op.modeId !== undefined) {
-      if (!session.modes?.availableModes?.some(m => m.id === op.modeId)) throw new Error('Unknown mode')
-      method = 'session/set_mode'
-      params = { modeId: op.modeId }
+      const directMode = session.modes?.availableModes?.some(m => m.id === op.modeId)
+      if (directMode) {
+        method = 'session/set_mode'
+        params = { modeId: op.modeId }
+        if (modeOption) {
+          const mappedConfigValue = resolveModeId(op.modeId, modeOptionChoices, adapter, provider)
+          if (modeOptionChoices.some(o => o.value === mappedConfigValue)) {
+            fallbackConfigParams = { configId: modeOption.id, value: mappedConfigValue }
+          }
+        }
+      } else {
+        const resolvedInModes = resolveModeId(op.modeId, session.modes, adapter, provider)
+        if (session.modes?.availableModes?.some(m => m.id === resolvedInModes)) {
+          method = 'session/set_mode'
+          params = { modeId: resolvedInModes }
+        } else if (modeOption) {
+          const resolvedInConfig = resolveModeId(op.modeId, modeOptionChoices, adapter, provider)
+          if (!modeOptionChoices.some(o => o.value === resolvedInConfig)) throw new Error('Unknown mode')
+          method = 'session/set_config_option'
+          params = { configId: modeOption.id, value: resolvedInConfig }
+        } else {
+          throw new Error('Unknown mode')
+        }
+      }
     } else if (op.configId !== undefined) {
-      const option = session.configOptions?.find(o => o.id === op.configId)
+      const option = session.configOptions?.find(o => o.id === op.configId) ?? (op.configId === 'mode' ? modeOption : undefined)
       const choices = option?.options?.flatMap(o => o.options ?? [o]) ?? []
-      const valid = option && (option.type === 'boolean' ? typeof op.value === 'boolean'
-        : chosen && option.category === 'model' ? typeof op.value === 'string' && op.value.length > 0 : choices.some(o => o.value === op.value))
+      const targetValue = option?.category === 'mode' && option.type === 'select' && typeof op.value === 'string'
+        ? resolveModeId(op.value, choices, adapter, provider)
+        : op.value
+      const valid = option && (option.type === 'boolean' ? typeof targetValue === 'boolean'
+        : chosen && option.category === 'model' ? typeof targetValue === 'string' && targetValue.length > 0 : choices.some(o => o.value === targetValue))
       if (!valid) throw new Error('Unknown configuration option or value')
       method = 'session/set_config_option'
-      params = { configId: op.configId, value: op.value }
+      params = { configId: option.id, value: targetValue }
     } else {
       if (typeof op.modelId !== 'string' || !op.modelId || (!chosen && !session.models?.availableModels?.some(m => m.modelId === op.modelId))) throw new Error('Unknown model')
       method = 'session/set_model'
@@ -1638,19 +1761,30 @@ export class Workbench {
     session.state = 'starting'
     this.changed(session.id)
     try {
-      const result = await runtime.connection.request(method, { sessionId: session.remoteId, ...params })
+      let result
+      try {
+        result = await runtime.connection.request(method, { sessionId: session.remoteId, ...params })
+      } catch (error) {
+        if (method === 'session/set_mode' && fallbackConfigParams && error instanceof RpcError && error.code === -32602 && this.isCurrent(session, runtime)) {
+          method = 'session/set_config_option'
+          params = fallbackConfigParams
+          result = await runtime.connection.request(method, { sessionId: session.remoteId, ...params })
+        } else {
+          throw error
+        }
+      }
       if (!this.isCurrent(session, runtime)) throw new Error('Session disconnected during configuration')
       if (op.modelId !== undefined) session.models = { ...session.models, currentModelId: op.modelId }
       if (result.configOptions) {
         session.configOptions = result.configOptions
         await this.noteAdvertised(session.providerId, advertisedModels({ ...result, models: result.models ?? session.models }, session.capabilities, null, runtime.adapter), undefined, {
-          modes: advertisedModes({ modes: result.modes ?? session.modes, configOptions: result.configOptions }),
+          modes: advertisedModes({ modes: result.modes ?? session.modes, configOptions: result.configOptions }, adapter, provider),
         })
-      } else if (op.configId !== undefined) {
-        const option = session.configOptions.find(o => o.id === op.configId)
-        if (option) option.currentValue = op.value
+      } else if (method === 'session/set_config_option') {
+        const option = session.configOptions.find(o => o.id === params.configId)
+        if (option) option.currentValue = params.value
       }
-      if (op.modeId !== undefined) session.modes.currentModeId = op.modeId
+      if (method === 'session/set_mode' && session.modes) session.modes.currentModeId = params.modeId
       this.record(session, 'configuration', { method, params, result })
       await this.transition(session, 'idle')
       return this.detail(session)

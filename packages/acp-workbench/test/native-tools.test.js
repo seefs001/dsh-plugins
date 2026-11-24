@@ -404,3 +404,58 @@ test('maps Antigravity view_file, write_to_file, replace_file_content, multi_rep
   assert.equal(agyFetch.name, 'web_fetch')
   assert.deepEqual(agyFetch.argumentsObj, { url: 'https://example.com/spec' })
 })
+
+test('tool update carry-over preserves full shell command and key inputs across completion summaries', () => {
+  const startUpdate = {
+    sessionUpdate: 'tool_call',
+    toolCallId: 'hermes-shell-1',
+    kind: 'execute',
+    title: 'terminal: echo ... + 2 commands',
+    status: 'in_progress',
+    content: [{ type: 'content', content: { type: 'text', text: '$ echo hello && git status --short && pwd' } }],
+  }
+  const completeUpdate = {
+    sessionUpdate: 'tool_call_update',
+    toolCallId: 'hermes-shell-1',
+    status: 'completed',
+    title: '',
+    content: [{ type: 'content', content: { type: 'text', text: 'hello\n M lib/trace.js\n/repo' } }],
+  }
+
+  const trace = createTrace()
+  foldEvents(trace, [
+    { seq: 1, type: 'notification', data: { turnId: 'turn-1', method: 'session/update', params: { update: startUpdate } } },
+    { seq: 2, type: 'notification', data: { turnId: 'turn-1', method: 'session/update', params: { update: completeUpdate } } },
+  ], 'remote-1', 'turn-1')
+
+  const foldedTool = trace.tools.get('hermes-shell-1').tool
+  assert.equal(foldedTool.title, 'terminal: echo ... + 2 commands')
+  assert.deepEqual(foldedTool.carriedInput, { command: 'echo hello && git status --short && pwd' })
+
+  const mapped = mapToolCall(foldedTool)
+  assert.equal(mapped.name, 'bash')
+  assert.equal(mapped.argumentsObj.command, 'echo hello && git status --short && pwd')
+  assert.equal(mapped.argumentsObj.description, 'terminal: echo ... + 2 commands')
+
+  const result = mapToolResult(mapped, foldedTool)
+  assert.equal(result.isError, false)
+  assert.equal(result.content[0].text, 'hello\n M lib/trace.js\n/repo')
+
+  const directMerged = mergeToolUpdate(
+    {
+      toolCallId: 'fetch-1',
+      kind: 'fetch',
+      title: 'Fetch docs',
+      status: 'in_progress',
+      content: [{ type: 'content', content: { type: 'text', text: 'https://example.com/guide' } }],
+    },
+    {
+      status: 'completed',
+      content: [{ type: 'content', content: { type: 'text', text: 'Fetched 4 KB summary' } }],
+    },
+  )
+  const fetchCall = mapToolCall(directMerged)
+  assert.equal(fetchCall.name, 'web_fetch')
+  assert.deepEqual(fetchCall.argumentsObj, { url: 'https://example.com/guide' })
+  assert.equal(mapToolResult(fetchCall, directMerged).content[0].text, 'Fetched 4 KB summary')
+})

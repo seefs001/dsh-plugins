@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { extractToolStartInput } from './adapters.js'
 
 const MAX_TOOL_NAME = 64
 const MAX_READ_LINES = 5000
@@ -87,9 +88,25 @@ export function hasToolInput(tool) {
   if (!tool) return false
   if (tool.status && tool.status !== 'pending') return true
   if (isPlainObject(tool.rawInput) && Object.keys(tool.rawInput).length > 0) return true
+  if (isPlainObject(tool.carriedInput) && Object.keys(tool.carriedInput).length > 0) return true
   if (Array.isArray(tool.locations) && tool.locations.some(item => typeof item?.path === 'string' && item.path)) return true
   if (Array.isArray(tool.content) && tool.content.some(block => block && block.type !== 'terminal')) return true
   return false
+}
+
+function effectiveToolInput(tool) {
+  const raw = isPlainObject(tool?.rawInput) ? tool.rawInput : {}
+  const carried = isPlainObject(tool?.carriedInput) && Object.keys(tool.carriedInput).length > 0
+    ? tool.carriedInput
+    : (!isToolTerminal(tool) ? extractToolStartInput(tool) : null)
+  if (!carried) return raw
+  const merged = { ...carried }
+  for (const [key, value] of Object.entries(raw)) {
+    if (value === undefined || value === null) continue
+    if (typeof value === 'string' && !value.trim() && typeof merged[key] === 'string' && merged[key].trim()) continue
+    merged[key] = value
+  }
+  return merged
 }
 
 const DSH_DELEGATION_TOOLS = new Set(['list_providers', 'spawn_agent', 'list_agents', 'send_message', 'read_agent_result', 'interrupt_agent'])
@@ -387,7 +404,7 @@ function stripTitlePrefix(title) {
 }
 
 export function mapToolCall(tool, terminal, options) {
-  const input = isPlainObject(tool?.rawInput) ? tool.rawInput : {}
+  const input = effectiveToolInput(tool)
   const mcp = mcpIdentity(tool ?? {}, options)
   if (mcp) {
     const argsObj = safeObject(mcp.args)
