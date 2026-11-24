@@ -296,3 +296,201 @@ test('Workbench supports initialConfigOptions, URL elicitation + complete_elicit
 
   await manager.close()
 })
+
+test('Workbench tracks Antigravity background tasks across deferred end_turn, timer promotion, and daemon kill', async () => {
+  let sendToClient = null
+  let promptId = null
+
+  const subprocess = createFakeSubprocess((msg, send) => {
+    sendToClient = send
+    if (msg.method === 'initialize') {
+      send({
+        jsonrpc: '2.0',
+        id: msg.id,
+        result: {
+          protocolVersion: 1,
+          agentInfo: { name: 'antigravity', title: 'Antigravity', version: '1.0.0' },
+          agentCapabilities: { loadSession: true },
+        },
+      })
+      return
+    }
+    if (msg.method === 'session/new') {
+      send({
+        jsonrpc: '2.0',
+        id: msg.id,
+        result: { sessionId: 'agy-1' },
+      })
+      return
+    }
+    if (msg.method === 'session/prompt') {
+      promptId = msg.id
+    }
+  })
+
+  const manager = new Workbench({
+    domain: createMemoryDomain(),
+    subprocess,
+    changed: () => {},
+    modelsChanged: () => {},
+    log: () => {},
+    asyncWakeup: { settleMs: 40, silentSettleMs: 120, idleTimeoutMs: 200 },
+    backgroundTaskPromoteMs: 40,
+  })
+  await manager.initialize()
+
+  const detail = await manager.create({ providerId: 'antigravity', cwd: process.cwd(), connect: false })
+  const session = manager.session(detail.id)
+  await manager.connect(session)
+  await manager.prompt(session, 'Install dependencies')
+  await new Promise(resolve => setTimeout(resolve, 15))
+
+  sendToClient({
+    jsonrpc: '2.0',
+    method: 'session/update',
+    params: {
+      sessionId: 'agy-1',
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'call_fast',
+        name: 'run_command',
+        kind: 'execute',
+        status: 'in_progress',
+        rawInput: { CommandLine: 'ls', WaitMsBeforeAsync: 5000, toolSummary: 'List files' },
+      },
+    },
+  })
+  sendToClient({
+    jsonrpc: '2.0',
+    method: 'session/update',
+    params: {
+      sessionId: 'agy-1',
+      update: {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'call_fast',
+        name: 'run_command',
+        kind: 'execute',
+        status: 'completed',
+        rawInput: { CommandLine: 'ls', WaitMsBeforeAsync: 5000, toolSummary: 'List files' },
+        rawOutput: { output: 'Command exited with code 0.\nREADME.md', exit_code: 0 },
+      },
+    },
+  })
+  await new Promise(resolve => setTimeout(resolve, 15))
+  assert.equal(manager.overview(session).backgroundTasks.length, 0)
+
+  sendToClient({
+    jsonrpc: '2.0',
+    method: 'session/update',
+    params: {
+      sessionId: 'agy-1',
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'call_bg',
+        name: 'run_command',
+        kind: 'execute',
+        status: 'in_progress',
+        rawInput: { CommandLine: 'npm install', WaitMsBeforeAsync: 10000, toolSummary: 'Install npm deps' },
+      },
+    },
+  })
+  sendToClient({ jsonrpc: '2.0', id: promptId, result: { stopReason: 'end_turn' } })
+  await new Promise(resolve => setTimeout(resolve, 20))
+
+  const duringBg = manager.overview(session).backgroundTasks
+  assert.equal(duringBg.length, 1)
+  assert.equal(duringBg[0].id, 'call_bg')
+  assert.equal(duringBg[0].label, 'Install npm deps')
+  assert.equal(duringBg[0].command, 'npm install')
+  assert.equal(duringBg[0].status, 'running')
+  assert.equal(duringBg[0].kind, 'command')
+
+  sendToClient({
+    jsonrpc: '2.0',
+    method: 'session/update',
+    params: {
+      sessionId: 'agy-1',
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'call_daemon',
+        name: 'run_command',
+        kind: 'execute',
+        status: 'in_progress',
+        rawInput: { CommandLine: 'pnpm dev', IsDaemon: true, toolSummary: 'Dev server' },
+      },
+    },
+  })
+  sendToClient({
+    jsonrpc: '2.0',
+    method: 'session/update',
+    params: {
+      sessionId: 'agy-1',
+      update: {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'call_daemon',
+        name: 'run_command',
+        kind: 'execute',
+        status: 'completed',
+        rawInput: { CommandLine: 'pnpm dev', IsDaemon: true, toolSummary: 'Dev server' },
+        rawOutput: { output: 'Tool is running as a background task with task id: agy-1/task-9' },
+      },
+    },
+  })
+  await new Promise(resolve => setTimeout(resolve, 15))
+  const daemonTask = manager.overview(session).backgroundTasks.find(item => item.id === 'call_daemon')
+  assert.equal(daemonTask?.status, 'running')
+  assert.equal(daemonTask?.isDaemon, true)
+  assert.equal(daemonTask?.taskId, 'agy-1/task-9')
+
+  sendToClient({
+    jsonrpc: '2.0',
+    method: 'session/update',
+    params: {
+      sessionId: 'agy-1',
+      update: {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'call_bg',
+        name: 'run_command',
+        kind: 'execute',
+        status: 'completed',
+        rawInput: { CommandLine: 'npm install', WaitMsBeforeAsync: 10000, toolSummary: 'Install npm deps' },
+        rawOutput: { output: 'Command exited with code 0.\nadded 10 packages', exit_code: 0 },
+      },
+    },
+  })
+  sendToClient({
+    jsonrpc: '2.0',
+    method: 'session/update',
+    params: {
+      sessionId: 'agy-1',
+      update: {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'call_kill',
+        name: 'manage_task',
+        status: 'completed',
+        rawInput: { Action: 'kill', TaskId: 'agy-1/task-9' },
+      },
+    },
+  })
+  sendToClient({
+    jsonrpc: '2.0',
+    method: 'session/update',
+    params: { sessionId: 'agy-1', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Done' } } },
+  })
+  sendToClient({
+    jsonrpc: '2.0',
+    method: 'session/update',
+    params: { sessionId: 'agy-1', update: { sessionUpdate: 'usage_update', used: 100, size: 10000 } },
+  })
+  await manager.runtimes.get(session.id)?.completion
+
+  const afterTasks = manager.overview(session).backgroundTasks
+  const finishedBg = afterTasks.find(item => item.id === 'call_bg')
+  assert.equal(finishedBg?.status, 'completed')
+  assert.equal(finishedBg?.exitCode, 0)
+  assert.match(finishedBg?.output ?? '', /added 10 packages/u)
+  const killedDaemon = afterTasks.find(item => item.id === 'call_daemon')
+  assert.equal(killedDaemon?.status, 'cancelled')
+
+  await manager.close()
+})

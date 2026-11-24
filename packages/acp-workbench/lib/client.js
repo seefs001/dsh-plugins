@@ -6,7 +6,7 @@ window.__ModuleLoader__.load({
     try { createPortal = require('react-dom')?.createPortal ?? null } catch {}
     const h = React.createElement
     const {
-      Button, CodeBlock, DiffBlock, DisclosureRow, HoverCard, HoverCardGroup, Input, JsonBlock, MarkdownText, Menu, MenuSurface, Modal, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, TextShimmer, Tooltip, WebBlock, diffTotals, extractMarkdownPlainText,
+      Button, CodeBlock, DiffBlock, DisclosureRow, HoverCard, HoverCardGroup, Input, JsonBlock, MarkdownText, MarqueeText, Menu, MenuSurface, Modal, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, TextShimmer, Tooltip, WebBlock, diffTotals, extractMarkdownPlainText, useHoverMarquee,
       IconBranchOutlineRegular, IconBrowseOutlineRegular, IconCheckOutlineRegular, IconChecklistOutlineRegular, IconClockOutlineRegular, IconCloseOutlineRegular, IconCodeOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconInspectOutlineRegular, IconPlayOutlineRegular, IconRightUpOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular, IconStopFillRegular, IconUsersOutlineRegular,
       IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular,
       IconWarningTriangleOutlineRegular,
@@ -173,7 +173,18 @@ window.__ModuleLoader__.load({
       onLabel: 'On', offLabel: 'Off',
       waitNext: 'Waiting for {name} next step', waitNextElapsed: 'Waiting for {name} next step · {duration}',
       waitNextGeneric: 'Waiting for external agent', waitNextGenericElapsed: 'Waiting for external agent · {duration}',
-      waitSec: '{s}s', waitMinSec: '{m}m {s}s',
+      waitBgSingle: 'Waiting for background task: {label}', waitBgSingleElapsed: 'Waiting for background task: {label} · {duration}',
+      waitBgMany: 'Waiting for {n} background tasks · {label}', waitBgManyElapsed: 'Waiting for {n} background tasks · {label} · {duration}',
+      waitSec: '{s}s', waitMinSec: '{m}m {s}s', waitHourMin: '{h}h {m}m',
+      bgTasks: 'ACP background tasks', bgTasksRunning: '{n} running', bgTasksIndicator: '{n} ACP background tasks running',
+      bgTasksSettled: 'Finished {n}', bgTasksClear: 'Clear',
+      bgTasksMoreRunning: 'Show {n} more running', bgTasksMoreSettled: 'Show {n} more finished',
+      bgTasksFoldRunningAria: '{label} (running ACP background tasks)', bgTasksFoldSettledAria: '{label} (finished ACP background tasks)',
+      bgTasksExpandAria: 'Expand {label}', bgTasksCollapseAria: 'Collapse {label}',
+      bgTaskKindCommand: 'Command', bgTaskKindDaemon: 'Daemon', bgTaskKindSubagent: 'Subagent',
+      bgTaskKindSchedule: 'Schedule', bgTaskKindWorkflow: 'Workflow', bgTaskKindTask: 'Task',
+      bgTaskRunningHint: 'Running in external CLI. Output will appear here when it completes.',
+      bgTaskTruncated: 'Earlier output was truncated (showing last 16 KiB).',
     }
     const zh = {
       panel: 'ACP 工作台', panelHint: '管理本机 ACP CLI 提供方、检测协议能力，并配置出现在 DSH 模型选择器中的模型。',
@@ -335,7 +346,18 @@ window.__ModuleLoader__.load({
       onLabel: '开启', offLabel: '关闭',
       waitNext: '正在等待 {name} 下一步', waitNextElapsed: '正在等待 {name} 下一步 · {duration}',
       waitNextGeneric: '正在等待外部代理下一步', waitNextGenericElapsed: '正在等待外部代理下一步 · {duration}',
-      waitSec: '{s}秒', waitMinSec: '{m}分{s}秒',
+      waitBgSingle: '正在等待后台任务：{label}', waitBgSingleElapsed: '正在等待后台任务：{label} · {duration}',
+      waitBgMany: '正在等待 {n} 个后台任务 · {label}', waitBgManyElapsed: '正在等待 {n} 个后台任务 · {label} · {duration}',
+      waitSec: '{s}秒', waitMinSec: '{m}分{s}秒', waitHourMin: '{h}小时{m}分',
+      bgTasks: 'ACP 后台任务', bgTasksRunning: '{n} 运行中', bgTasksIndicator: '{n} 个 ACP 后台任务运行中',
+      bgTasksSettled: '已结束 {n}', bgTasksClear: '清空',
+      bgTasksMoreRunning: '显示其余 {n} 个运行中', bgTasksMoreSettled: '显示其余 {n} 个已结束',
+      bgTasksFoldRunningAria: '{label}（运行中的 ACP 后台任务）', bgTasksFoldSettledAria: '{label}（已结束的 ACP 后台任务）',
+      bgTasksExpandAria: '展开 {label} 的详情', bgTasksCollapseAria: '收起 {label} 的详情',
+      bgTaskKindCommand: '命令', bgTaskKindDaemon: '守护进程', bgTaskKindSubagent: '子智能体',
+      bgTaskKindSchedule: '定时任务', bgTaskKindWorkflow: '工作流', bgTaskKindTask: '后台任务',
+      bgTaskRunningHint: '正在外部 CLI 后台运行，完成后将在此展示输出。',
+      bgTaskTruncated: '较早输出已截断（仅保留末尾 16 KiB）。',
     }
 
     const CSS = `
@@ -521,7 +543,29 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-child-body{margin:2px 6px 6px;padding:6px 0 2px 26px;border-top:.5px solid var(--dsw-alias-border-l1)}
 .aw-child-error{margin:2px 6px 4px 32px}
 .aw-panel-attention{background:var(--dsw-alias-state-warn-primary)}
+.aw-panel-running{background:var(--dsw-alias-state-business-primary)}
 .aw-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.aw-bg-head{display:flex;align-items:center;justify-content:space-between;min-height:24px;margin-top:4px;padding:0 6px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.aw-bg-head:first-child{margin-top:0;border-top:0}
+.aw-bg-toggle,.aw-bg-clear{display:inline-flex;align-items:center;gap:2px;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;cursor:pointer}
+.aw-bg-toggle:focus-visible,.aw-bg-clear:focus-visible{color:var(--dsw-alias-label-secondary)}
+@media (hover:hover){.aw-bg-toggle:hover,.aw-bg-clear:hover{color:var(--dsw-alias-label-secondary)}}
+.aw-bg-toggle-chev{transform:rotate(-90deg);transition:transform 120ms ease}
+.aw-bg-toggle-chev[data-open=true]{transform:none}
+.aw-bg-item{display:flex;flex-direction:column}
+.aw-bg-row-line{position:relative;display:flex;align-items:center;gap:8px;min-height:28px;box-sizing:border-box;padding:4px 6px;border-radius:var(--dsw-radius-sm,8px)}
+@media (hover:hover){.aw-bg-row-line:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.aw-bg-row-line:has(>.aw-bg-row:focus-visible){outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+.aw-bg-row{display:flex;flex:1;align-items:center;gap:8px;min-width:0;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;cursor:pointer}
+.aw-bg-row::after{position:absolute;inset:0;border-radius:inherit;content:''}
+.aw-bg-row:focus-visible{outline:none}
+.aw-bg-glyph{display:grid;flex:none;place-items:center;width:16px;height:20px}
+.aw-bg-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:20px}
+.aw-bg-chev{display:grid;pointer-events:none;flex:none;align-self:center;place-items:center;width:16px;height:20px;color:var(--dsw-alias-label-tertiary);transition:transform 120ms ease}
+.aw-bg-chev[data-open=true]{transform:rotate(180deg)}
+.aw-bg-panel{margin:2px 6px 6px;--dsl-terminal-command-whitespace:pre-wrap;--dsl-terminal-line-whitespace:pre-wrap;--dsl-terminal-output-max-height:288px}
+.aw-bg-panel [data-terminal]{--dsl-terminal-gutter:12px;--dsl-terminal-font:var(--dsw-font-markdown-code-block-small,12px/18px ui-monospace,SFMono-Regular,Menlo,monospace);--dsl-terminal-line-height:18px;margin:0;border:.5px solid var(--dsw-alias-border-l1)}
+.aw-bg-note{margin:0 2px 6px;color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:16px}
 .aw-sp-progress{min-width:0;overflow:hidden;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;text-overflow:ellipsis;white-space:nowrap}
 .aw-sp-progress-warn{color:var(--dsw-alias-state-warn-primary)}
 .aw-sp-list{display:flex;flex-direction:column;min-width:0;margin:0;padding:0;list-style:none}
@@ -3481,7 +3525,9 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
         function formatCompactDuration(ms, tt) {
           const total = Math.max(0, Math.floor(ms / 1000))
           const sec = total % 60
-          const min = Math.floor(total / 60)
+          const min = Math.floor(total / 60) % 60
+          const hours = Math.floor(total / 3600)
+          if (hours > 0) return tt('waitHourMin', { h: hours, m: min })
           if (min > 0) return tt('waitMinSec', { m: min, s: sec })
           return tt('waitSec', { s: sec })
         }
@@ -3700,6 +3746,224 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
                   onToggle: () => setUnfolded(v => !v),
                 }))
                 : null))
+        }
+
+        function sessionBackgroundTasks(viewData, sessionId) {
+          const sessions = viewData?.sessions
+          if (!Array.isArray(sessions) || !sessions.length) return EMPTY
+          const route = viewData?.selected?.provider
+          const own = sessions.filter(s => s.native?.sessionId === sessionId && !s.native.retired && !s.archived)
+          const target = (typeof route === 'string' && route.startsWith('acp-')
+            ? own.findLast(s => s.native?.route === route)
+            : null) ?? own.at(-1)
+          const tasks = target?.backgroundTasks
+          return Array.isArray(tasks) && tasks.length ? tasks : EMPTY
+        }
+
+        function orderBackgroundTasks(tasks) {
+          return tasks.toSorted((left, right) => {
+            const liveLeft = left.status === 'running'
+            const liveRight = right.status === 'running'
+            if (liveLeft !== liveRight) return liveLeft ? -1 : 1
+            if (liveLeft) return (right.startedAt ?? 0) - (left.startedAt ?? 0)
+            const finished = (right.finishedAt ?? right.startedAt ?? 0) - (left.finishedAt ?? left.startedAt ?? 0)
+            return finished !== 0 ? finished : (left.startedAt ?? 0) - (right.startedAt ?? 0)
+          })
+        }
+
+        function bgTaskDotState(task) {
+          if (task.status === 'running') return 'ongoing'
+          if (task.status === 'failed') return 'error'
+          if (task.status === 'cancelled') return 'warning'
+          if (Number.isInteger(task.exitCode) && task.exitCode !== 0) return 'warning'
+          return 'done'
+        }
+
+        function bgTaskKindLabel(kind, tt) {
+          switch (kind) {
+            case 'command': return tt('bgTaskKindCommand')
+            case 'daemon': return tt('bgTaskKindDaemon')
+            case 'subagent': return tt('bgTaskKindSubagent')
+            case 'schedule': return tt('bgTaskKindSchedule')
+            case 'workflow': return tt('bgTaskKindWorkflow')
+            default: return tt('bgTaskKindTask')
+          }
+        }
+
+        function bgTaskStatusLabel(task, tt) {
+          if (task.status === 'running') return tt('call.in_progress')
+          if (task.status === 'failed') return tt('call.failed')
+          if (task.status === 'cancelled') return tt('call.cancelled')
+          if (Number.isInteger(task.exitCode) && task.exitCode !== 0) return tt('exitCode', { n: task.exitCode })
+          return tt('call.completed')
+        }
+
+        function AcpBackgroundTasksIndicator({ sessionId, panelShown }) {
+          const tt = useT()
+          const view = useNative(sessionId)
+          const running = sessionBackgroundTasks(view.data, sessionId).filter(item => item.status === 'running').length
+          if (panelShown || running === 0) return null
+          return h('span', { className: 'aw-panel-running', 'data-acp-bg-running': '' },
+            h('span', { className: 'aw-sr-only' }, tt('bgTasksIndicator', { n: running })))
+        }
+
+        function AcpBackgroundTasksPanelProgress({ sessionId }) {
+          const tt = useT()
+          const view = useNative(sessionId)
+          const running = sessionBackgroundTasks(view.data, sessionId).filter(item => item.status === 'running').length
+          if (!running) return null
+          return h('span', { className: 'aw-sp-progress' }, tt('bgTasksRunning', { n: running }))
+        }
+
+        function AcpBackgroundTaskRow({ task, expanded, now, onToggle, renderFactorySlot, tt, termLabels }) {
+          const live = task.status === 'running'
+          const dot = bgTaskDotState(task)
+          const kindLabel = bgTaskKindLabel(task.kind, tt)
+          const statusText = bgTaskStatusLabel(task, tt)
+          const startMs = Number.isFinite(task.startedAt) ? task.startedAt : now
+          const endMs = live ? now : (Number.isFinite(task.finishedAt) ? task.finishedAt : startMs)
+          const duration = formatCompactDuration(Math.max(0, endMs - startMs), tt)
+          const labelRef = React.useRef(null)
+          const marquee = typeof useHoverMarquee === 'function' ? useHoverMarquee(labelRef) : {}
+          const summaryId = React.useId()
+          const command = task.command || task.label
+          const labelEl = MarqueeText
+            ? h(MarqueeText, { ref: labelRef, className: 'aw-bg-label', 'data-acp-bg-label': '' }, task.label)
+            : h('span', { ref: labelRef, className: 'aw-bg-label', 'data-acp-bg-label': '' }, task.label)
+          const rowLine = h('div', { className: 'aw-bg-row-line', 'data-acp-bg-row': task.id, ...marquee },
+            h('button', {
+              type: 'button',
+              className: 'aw-bg-row',
+              'aria-expanded': expanded,
+              'aria-label': tt(expanded ? 'bgTasksCollapseAria' : 'bgTasksExpandAria', { label: task.label }),
+              'aria-describedby': summaryId,
+              onClick: onToggle,
+            },
+            h('span', { className: 'aw-bg-glyph', 'aria-hidden': true }, h(StateDot, { state: dot })),
+            labelEl,
+            h('span', { id: summaryId, className: 'aw-sr-only' }, `${kindLabel} · ${statusText}`),
+            h('span', { className: 'aw-sp-duration' }, duration)),
+            h('span', { className: 'aw-bg-chev', 'data-open': expanded || undefined, 'aria-hidden': true },
+              h(IconChevronDownOutlineRegular, { size: 14 })))
+          const hoverLines = [
+            kindLabel,
+            task.taskId ? task.taskId : '',
+            command !== task.label ? command : '',
+          ].filter(Boolean)
+          const hoverContent = typeof renderFactorySlot === 'function'
+            ? renderFactorySlot('conversation.session.panel.details', {
+              title: task.label,
+              lines: hoverLines,
+              status: { state: dot, label: statusText },
+              facts: [{ kind: 'duration', label: duration }],
+            })
+            : null
+          return h('li', { className: 'aw-bg-item' },
+            hoverContent ? h(HoverCard, { grouped: true, anchor: rowLine, content: hoverContent }) : rowLine,
+            expanded
+              ? h('div', { className: 'aw-bg-panel' },
+                live && !task.output ? h('div', { className: 'aw-bg-note' }, tt('bgTaskRunningHint')) : null,
+                task.outputTruncated ? h('div', { className: 'aw-bg-note' }, tt('bgTaskTruncated')) : null,
+                h(TerminalBlock, {
+                  command,
+                  output: task.output || undefined,
+                  running: live,
+                  copyText: command,
+                  runStateDot: false,
+                  exitCode: Number.isInteger(task.exitCode) ? task.exitCode : undefined,
+                  maxLines: Number.POSITIVE_INFINITY,
+                  labels: termLabels,
+                }))
+              : null)
+        }
+
+        function AcpBackgroundTasksPanelSection({ sessionId, renderFactorySlot }) {
+          const tt = useT()
+          const termLabels = useToolLabels()
+          const view = useNative(sessionId)
+          const tasks = sessionBackgroundTasks(view.data, sessionId)
+          const [expandedId, setExpandedId] = React.useState(null)
+          const [settledOpen, setSettledOpen] = React.useState(null)
+          const [clearedIds, setClearedIds] = React.useState(() => new Set())
+          const [unfolded, setUnfolded] = React.useState({ live: false, settled: false })
+          const [now, setNow] = React.useState(() => Date.now())
+
+          const rows = React.useMemo(() => orderBackgroundTasks(tasks), [tasks])
+          const liveRows = React.useMemo(() => rows.filter(item => item.status === 'running'), [rows])
+          const settledRows = React.useMemo(
+            () => rows.filter(item => item.status !== 'running' && !clearedIds.has(item.id)),
+            [rows, clearedIds],
+          )
+          const settledExpanded = settledOpen ?? liveRows.length === 0
+          const liveFoldable = liveRows.length > PANEL_FOLD_LIMIT + 1
+          const shownLive = liveFoldable && !unfolded.live ? liveRows.slice(0, PANEL_FOLD_LIMIT) : liveRows
+          const settledFoldable = settledRows.length > PANEL_FOLD_LIMIT + 1
+          const openSettled = settledExpanded ? settledRows : EMPTY
+          const shownSettled = settledFoldable && !unfolded.settled ? openSettled.slice(0, PANEL_FOLD_LIMIT) : openSettled
+
+          React.useEffect(() => {
+            if (!liveRows.length) return
+            setNow(Date.now())
+            const timer = setInterval(() => {
+              if (!document.hidden) setNow(Date.now())
+            }, 1000)
+            return () => clearInterval(timer)
+          }, [liveRows.length])
+
+          if (liveRows.length + settledRows.length === 0) return null
+
+          const clearSettled = () => {
+            setClearedIds(prev => {
+              const next = new Set(prev)
+              for (const item of settledRows) next.add(item.id)
+              return next
+            })
+            if (expandedId && settledRows.some(item => item.id === expandedId)) setExpandedId(null)
+          }
+
+          const renderItem = task => h(AcpBackgroundTaskRow, {
+            key: task.id,
+            task,
+            expanded: expandedId === task.id,
+            now,
+            onToggle: () => setExpandedId(current => current === task.id ? null : task.id),
+            renderFactorySlot,
+            tt,
+            termLabels,
+          })
+
+          const renderFold = (group, hidden) => {
+            if (typeof renderFactorySlot !== 'function') return null
+            const label = unfolded[group]
+              ? tt('panelLess')
+              : tt(group === 'live' ? 'bgTasksMoreRunning' : 'bgTasksMoreSettled', { n: hidden })
+            return h('li', { key: `fold-${group}`, className: 'aw-bg-item' },
+              renderFactorySlot('conversation.session.panel.fold', {
+                expanded: unfolded[group],
+                label,
+                name: tt(group === 'live' ? 'bgTasksFoldRunningAria' : 'bgTasksFoldSettledAria', { label }),
+                onToggle: () => setUnfolded(prev => ({ ...prev, [group]: !prev[group] })),
+              }))
+          }
+
+          return h(HoverCardGroup, null,
+            h('ul', { className: 'aw-sp-list', 'data-acp-bg-tasks-section': '' },
+              shownLive.map(renderItem),
+              liveFoldable ? renderFold('live', liveRows.length - PANEL_FOLD_LIMIT) : null,
+              settledRows.length > 0
+                ? h('li', { key: 'settled-head', className: 'aw-bg-head' },
+                  h('button', {
+                    type: 'button',
+                    className: 'aw-bg-toggle',
+                    'aria-expanded': settledExpanded,
+                    onClick: () => setSettledOpen(!settledExpanded),
+                  },
+                  tt('bgTasksSettled', { n: settledRows.length }),
+                  h(IconChevronDownOutlineRegular, { size: 14, className: 'aw-bg-toggle-chev', 'data-open': settledExpanded || undefined })),
+                  h('button', { type: 'button', className: 'aw-bg-clear', onClick: clearSettled }, tt('bgTasksClear')))
+                : null,
+              shownSettled.map(renderItem),
+              settledExpanded && settledFoldable ? renderFold('settled', settledRows.length - PANEL_FOLD_LIMIT) : null))
         }
 
         function RootSubagentHeaderSwitcher({ sessionId, useSessions, useSession, useSessionStatus }) {
@@ -4080,7 +4344,7 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
           publication: match => match.event.type === 'assistant/live-chunk' ? 'animation-frame' : 'immediate',
           buildViewNode: context => {
             const state = context.state
-            if (!state || state.closed || state.phase !== 'text') return null
+            if (!state || state.closed || state.phase === 'idle') return null
             const location = context.start?.location ?? context.matches[0]?.location
             if ((location?.kind === 'turn' || location?.kind === 'step') && location.turn.status === 'closed') return null
             return {
@@ -4127,16 +4391,23 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
             : null
           const activeRun = binding?.native?.runs?.at(-1)
           const waitingForInput = Boolean(binding?.interactions?.length)
-          const active = Boolean(running && isAcp && !waitingForInput && (!activeRun || ACTIVE_RUN.has(activeRun.state)))
+          const liveBgTasks = React.useMemo(
+            () => orderBackgroundTasks(sessionBackgroundTasks(view.data, props.sessionId).filter(item => item.status === 'running')),
+            [view.data, props.sessionId],
+          )
+          const hasBgTasks = liveBgTasks.length > 0
+          const active = Boolean(running && isAcp && !waitingForInput && (!activeRun || ACTIVE_RUN.has(activeRun.state)) && (hasBgTasks || data.phase === 'text'))
           React.useEffect(() => {
             if (!active) return undefined
             const elapsed = Date.now() - since
             let interval = null
             const startTick = () => {
               setNow(Date.now())
-              interval = setInterval(() => setNow(Date.now()), 1000)
+              interval = setInterval(() => {
+                if (!document.hidden) setNow(Date.now())
+              }, 1000)
             }
-            if (elapsed >= WAIT_DELAY_MS) {
+            if (hasBgTasks || elapsed >= WAIT_DELAY_MS) {
               startTick()
               return () => { if (interval) clearInterval(interval) }
             }
@@ -4145,16 +4416,28 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
               clearTimeout(timer)
               if (interval) clearInterval(interval)
             }
-          }, [active, since])
+          }, [active, since, hasBgTasks])
           if (!active) return null
           const elapsedMs = Math.max(0, now - since)
-          if (elapsedMs < WAIT_DELAY_MS) return null
-          const elapsedSec = Math.floor(elapsedMs / 1000)
-          const providerLabel = view.data?.providers.find(p => p.route === route)?.label ?? ''
-          const duration = elapsedSec >= WAIT_CLOCK_MIN_S ? formatWaitDuration(elapsedSec, tt) : ''
-          const label = providerLabel
-            ? (duration ? tt('waitNextElapsed', { name: providerLabel, duration }) : tt('waitNext', { name: providerLabel }))
-            : (duration ? tt('waitNextGenericElapsed', { duration }) : tt('waitNextGeneric'))
+          if (!hasBgTasks && elapsedMs < WAIT_DELAY_MS) return null
+          let label = ''
+          if (hasBgTasks) {
+            const lead = liveBgTasks[0]
+            const leadLabel = lead.label.length > 48 ? `${lead.label.slice(0, 47)}…` : lead.label
+            const bgStart = Math.min(...liveBgTasks.map(item => Number.isFinite(item.startedAt) ? item.startedAt : since))
+            const bgElapsedSec = Math.floor(Math.max(0, now - bgStart) / 1000)
+            const bgDuration = bgElapsedSec >= 1 ? formatCompactDuration(bgElapsedSec * 1000, tt) : ''
+            label = liveBgTasks.length === 1
+              ? (bgDuration ? tt('waitBgSingleElapsed', { label: leadLabel, duration: bgDuration }) : tt('waitBgSingle', { label: leadLabel }))
+              : (bgDuration ? tt('waitBgManyElapsed', { n: liveBgTasks.length, label: leadLabel, duration: bgDuration }) : tt('waitBgMany', { n: liveBgTasks.length, label: leadLabel }))
+          } else {
+            const elapsedSec = Math.floor(elapsedMs / 1000)
+            const providerLabel = view.data?.providers.find(p => p.route === route)?.label ?? ''
+            const duration = elapsedSec >= WAIT_CLOCK_MIN_S ? formatWaitDuration(elapsedSec, tt) : ''
+            label = providerLabel
+              ? (duration ? tt('waitNextElapsed', { name: providerLabel, duration }) : tt('waitNext', { name: providerLabel }))
+              : (duration ? tt('waitNextGenericElapsed', { duration }) : tt('waitNextGeneric'))
+          }
           return h('div', { className: 'acpw aw-wait', role: 'status', 'aria-live': 'polite' },
             h('span', { className: 'aw-wait-icon', 'aria-hidden': true }, h(IconSparkleRegular, { size: 14 })),
             h(TextShimmer, { active: true, className: 'aw-wait-text' }, label))
@@ -4820,8 +5103,13 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
         ctx.slots.inject('conversation.session.panel.section', function* () {
           yield ctx.slots.register({ name: 'conversation.session.panel.section', id: 'acp-subagents', order: 205, label: () => t('children'), locale: NS }, AcpSubagentsPanelSection)
           yield ctx.slots.register({ name: 'conversation.session.panel.section.actions', key: 'acp-subagents', locale: NS }, AcpSubagentsPanelProgress)
+          yield ctx.slots.register({ name: 'conversation.session.panel.section', id: 'acp-background-tasks', order: 305, label: () => t('bgTasks'), locale: NS }, AcpBackgroundTasksPanelSection)
+          yield ctx.slots.register({ name: 'conversation.session.panel.section.actions', key: 'acp-background-tasks', locale: NS }, AcpBackgroundTasksPanelProgress)
         })
-        ctx.slots.inject('conversation.session.panel.indicator', () => ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'acp-subagents.attention', order: 90, locale: NS }, AcpAttentionIndicator))
+        ctx.slots.inject('conversation.session.panel.indicator', function* () {
+          yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'acp-subagents.attention', order: 90, locale: NS }, AcpAttentionIndicator)
+          yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'acp-background-tasks.running', order: 25, locale: NS }, AcpBackgroundTasksIndicator)
+        })
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, NativeNode))
         ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-wait' }, AcpWaitNode))
         ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))

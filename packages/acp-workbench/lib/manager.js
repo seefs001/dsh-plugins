@@ -21,7 +21,7 @@ import {
 import { rememberNotice } from './notices.js'
 import { formFields, formResponse, urlElicitation, urlResponse } from './forms.js'
 import { activityOf } from './activity.js'
-import { anchorCompaction, cliParentOf } from './trace.js'
+import { agySubagentIdOf, anchorCompaction, cliParentOf } from './trace.js'
 import { defaultProviders, resolveProviderTemplates } from './templates.js'
 
 export { advertisedModels }
@@ -39,12 +39,158 @@ const CLIENT_CAPABILITY_META = { parameterizedModelPicker: true }
 const ASYNC_WAKEUP_SETTLE_MS = 1_500
 const ASYNC_WAKEUP_SILENT_SETTLE_MS = 15_000
 const ASYNC_WAKEUP_IDLE_TIMEOUT_MS = 120_000
+const BACKGROUND_TASK_PROMOTE_MS = 5_000
+const MAX_BACKGROUND_TASKS = 40
+const MAX_TASK_LABEL_CHARS = 200
+const MAX_TASK_COMMAND_CHARS = 2_000
+const MAX_TASK_OUTPUT_CHARS = 16_384
+const COMMAND_TOOL_NAMES = new Set(['run_command', 'Bash', 'PowerShell', 'Shell', 'exec_command'])
+const SUBAGENT_TOOL_NAMES = new Set(['invoke_subagent', 'Agent', 'Task'])
+const IMMEDIATE_BACKGROUND_NAMES = new Set(['schedule', 'run_workflow', 'invoke_subagent'])
+const BG_TASK_ID_RE = /task id:\s*([^\s\r\n]+)/iu
+const EXIT_CODE_RE = /^Command exited with code (\d+)\./mu
 
 function isDaemonToolCall(update) {
   const input = update?.args ?? update?.rawInput
   if (input && typeof input === 'object' && input.IsDaemon === true) return true
   if (update?.name === 'schedule' && !(input && typeof input === 'object' && typeof input.DurationSeconds === 'number')) return true
   return false
+}
+
+function clipTaskText(value, limit, fromEnd = false) {
+  if (typeof value !== 'string') return ''
+  if (value.length <= limit) return value
+  return fromEnd ? value.slice(-limit) : `${value.slice(0, limit - 1)}…`
+}
+
+function firstTaskLine(value, limit = MAX_TASK_LABEL_CHARS) {
+  if (typeof value !== 'string') return ''
+  for (const line of value.split(/\r?\n/u)) {
+    const clean = line.trim().replace(/\s+/gu, ' ')
+    if (clean) return clipTaskText(clean, limit)
+  }
+  return ''
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+function taskInputOf(update) {
+  const input = update?.args ?? update?.rawInput
+  return input && typeof input === 'object' && !Array.isArray(input) ? input : null
+}
+
+function taskToolNameOf(update) {
+  return firstNonEmptyString(update?.name, update?._meta?.claudeCode?.toolName)
+}
+
+function taskOutputTextOf(update) {
+  const raw = update?.rawOutput
+  if (typeof raw === 'string' && raw) return raw
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    if (typeof raw.output === 'string' && raw.output) return raw.output
+    const parts = [raw.stdout, raw.stderr, raw.text, raw.result, raw.error].filter(v => typeof v === 'string' && v)
+    if (parts.length) return parts.join('\n')
+  }
+  if (Array.isArray(update?.content)) {
+    const parts = []
+    for (const block of update.content) {
+      if (block?.type === 'content' && block.content?.type === 'text' && typeof block.content.text === 'string') {
+        parts.push(block.content.text)
+      } else if (block?.type === 'text' && typeof block.text === 'string') {
+        parts.push(block.text)
+      }
+    }
+    if (parts.length) return parts.join('\n')
+  }
+  return ''
+}
+
+function taskExitCodeOf(update, outputText) {
+  const raw = update?.rawOutput
+  if (raw && typeof raw === 'object') {
+    if (Number.isInteger(raw.exit_code)) return raw.exit_code
+    if (Number.isInteger(raw.exitCode)) return raw.exitCode
+  }
+  if (typeof outputText === 'string' && outputText) {
+    const match = EXIT_CODE_RE.exec(outputText)
+    if (match) return Number(match[1])
+  }
+  return null
+}
+
+function taskKindOf(update, input, name) {
+  if (isDaemonToolCall(update)) return 'daemon'
+  if (name === 'schedule') return 'schedule'
+  if (name === 'run_workflow') return 'workflow'
+  if (SUBAGENT_TOOL_NAMES.has(name)) return 'subagent'
+  if (COMMAND_TOOL_NAMES.has(name) || update?.kind === 'execute') return 'command'
+  return 'task'
+}
+
+function isTrackableBackgroundCandidate(update, input, name) {
+  if (name === 'manage_task') return false
+  if (isDaemonToolCall(update) || input?.run_in_background === true) return true
+  if (IMMEDIATE_BACKGROUND_NAMES.has(name)) return true
+  if (COMMAND_TOOL_NAMES.has(name) || update?.kind === 'execute') return true
+  return false
+}
+
+function isImmediateBackgroundTask(update, input, name) {
+  return isDaemonToolCall(update) || input?.run_in_background === true || IMMEDIATE_BACKGROUND_NAMES.has(name)
+}
+
+function taskLabelOf(update, input, name) {
+  let raw = ''
+  if (SUBAGENT_TOOL_NAMES.has(name)) {
+    raw = firstNonEmptyString(input?.Role, input?.description, input?.TypeName, update?.title, name)
+  } else if (name === 'schedule') {
+    const timer = typeof input?.DurationSeconds === 'number' && Number.isFinite(input.DurationSeconds) ? `Timer (${input.DurationSeconds}s)` : ''
+    raw = firstNonEmptyString(input?.Prompt, input?.CronExpression, timer, update?.title, name)
+  } else if (name === 'run_workflow') {
+    raw = firstNonEmptyString(input?.Description, input?.ScriptPath, update?.title, name)
+  } else {
+    raw = firstNonEmptyString(input?.toolSummary, input?.description, input?.CommandLine, input?.command, update?.title, name)
+  }
+  return firstTaskLine(raw) || name || 'Background task'
+}
+
+function taskCommandOf(update, input, name, label) {
+  let raw = ''
+  if (SUBAGENT_TOOL_NAMES.has(name)) {
+    raw = firstNonEmptyString(input?.Prompt, input?.prompt, input?.Role, update?.title, label)
+  } else if (name === 'schedule') {
+    raw = firstNonEmptyString(input?.Prompt, input?.CronExpression, update?.title, label)
+  } else if (name === 'run_workflow') {
+    raw = firstNonEmptyString(input?.Description, input?.ScriptPath, update?.title, label)
+  } else {
+    raw = firstNonEmptyString(input?.CommandLine, input?.command, update?.title, label)
+  }
+  return clipTaskText(raw || label, MAX_TASK_COMMAND_CHARS)
+}
+
+function serializeBackgroundTask(entry) {
+  return {
+    id: entry.id,
+    toolCallId: entry.toolCallId,
+    name: entry.name,
+    kind: entry.kind,
+    label: entry.label,
+    command: entry.command,
+    status: entry.status,
+    isDaemon: entry.isDaemon,
+    taskId: entry.taskId,
+    startedAt: entry.startedAt,
+    finishedAt: entry.finishedAt,
+    exitCode: entry.exitCode,
+    output: entry.output,
+    outputTruncated: entry.outputTruncated,
+    turnId: entry.turnId,
+  }
 }
 
 export function summary(session, runtime) {
@@ -69,6 +215,7 @@ export class Workbench {
     autoApprove,
     mcpServersFor,
     asyncWakeup,
+    backgroundTaskPromoteMs,
     idleDisconnectMs,
     maxIdleRuntimes,
     chunkRetentionDays,
@@ -84,6 +231,7 @@ export class Workbench {
     this.asyncWakeupSettleMs = asyncWakeup?.settleMs ?? ASYNC_WAKEUP_SETTLE_MS
     this.asyncWakeupSilentSettleMs = asyncWakeup?.silentSettleMs ?? ASYNC_WAKEUP_SILENT_SETTLE_MS
     this.asyncWakeupIdleTimeoutMs = asyncWakeup?.idleTimeoutMs ?? ASYNC_WAKEUP_IDLE_TIMEOUT_MS
+    this.backgroundTaskPromoteMs = Number.isFinite(backgroundTaskPromoteMs) && backgroundTaskPromoteMs >= 0 ? backgroundTaskPromoteMs : BACKGROUND_TASK_PROMOTE_MS
     this.idleDisconnectMs = idleDisconnectMs ?? DEFAULT_IDLE_DISCONNECT_MS
     this.maxIdleRuntimes = maxIdleRuntimes ?? DEFAULT_MAX_IDLE_RUNTIMES
     this.chunkRetentionDays = Number.isFinite(chunkRetentionDays) && chunkRetentionDays >= 0 ? chunkRetentionDays : undefined
@@ -169,6 +317,16 @@ export class Workbench {
     }
   }
 
+  backgroundTasksOf(session) {
+    const runtime = this.runtimes.get(session.id)
+    if (!runtime || runtime.closing || !runtime.backgroundTasks?.size) return []
+    const items = []
+    for (const entry of runtime.backgroundTasks.values()) {
+      if (entry.visible) items.push(serializeBackgroundTask(entry))
+    }
+    return items
+  }
+
   overview(session) {
     const runtime = this.runtimes.get(session.id)
     const interactions = runtime && !runtime.closing && !runtime.canceling
@@ -180,7 +338,7 @@ export class Workbench {
             ? { ...item.public, urlInfo: item.urlInfo }
             : item.public)
       : []
-    return { ...summary(session, runtime), interactions }
+    return { ...summary(session, runtime), interactions, backgroundTasks: this.backgroundTasksOf(session) }
   }
 
   // external: ACP session/new may emit available_commands_update before returning its sessionId
@@ -886,6 +1044,9 @@ export class Workbench {
       if (update.sessionUpdate === 'tool_call') starts.set(callId, starts.has(callId) ? null : { seq: event.seq, parent })
       else if (update.sessionUpdate === 'tool_call_update' && parent && starts.has(callId) && starts.get(callId)?.parent !== parent) starts.set(callId, null)
     }
+    if (!runtime.replaying && topLevel && !agySubagentIdOf(update) && (update.sessionUpdate === 'tool_call' || update.sessionUpdate === 'tool_call_update')) {
+      this.trackBackgroundTask(session, runtime, update, event.at)
+    }
     if (!runtime.replaying && runtime.turnId && runtime.adapter?.asyncToolWakeup && topLevel) {
       this.trackAsyncWakeup(session, runtime, update)
     }
@@ -1049,6 +1210,219 @@ export class Workbench {
     }, delayMs)
   }
 
+  clearBackgroundTaskTimers(runtime) {
+    if (!runtime?.backgroundTasks) return
+    for (const entry of runtime.backgroundTasks.values()) {
+      clearTimeout(entry.promoteTimer)
+      entry.promoteTimer = null
+    }
+  }
+
+  trimBackgroundTasks(runtime) {
+    const map = runtime?.backgroundTasks
+    if (!map || map.size <= MAX_BACKGROUND_TASKS) return
+    for (const [key, entry] of map) {
+      if (map.size <= MAX_BACKGROUND_TASKS) break
+      if (entry.status !== 'running') map.delete(key)
+    }
+  }
+
+  promoteBackgroundTask(session, runtime, entry) {
+    if (!entry || entry.visible) return
+    clearTimeout(entry.promoteTimer)
+    entry.promoteTimer = null
+    entry.visible = true
+    this.changed(session.id)
+  }
+
+  promoteOpenBackgroundTasks(session, runtime) {
+    const open = runtime?.openBackgroundCalls
+    if (!open?.size) return
+    const map = (runtime.backgroundTasks ??= new Map())
+    let dirty = false
+    for (const callId of open) {
+      let entry = map.get(callId)
+      if (!entry) {
+        const meta = runtime.openCallMeta?.get(callId)
+        if (!meta) continue
+        const input = taskInputOf(meta.update)
+        const name = taskToolNameOf(meta.update) || meta.update?.kind || 'task'
+        const label = taskLabelOf(meta.update, input, name)
+        entry = {
+          id: callId,
+          toolCallId: callId,
+          name,
+          kind: taskKindOf(meta.update, input, name),
+          label,
+          command: taskCommandOf(meta.update, input, name, label),
+          status: 'running',
+          isDaemon: isDaemonToolCall(meta.update),
+          taskId: null,
+          startedAt: meta.startedAt,
+          finishedAt: null,
+          exitCode: null,
+          output: '',
+          outputTruncated: false,
+          turnId: runtime.turnId ?? null,
+          visible: true,
+          promoteTimer: null,
+        }
+        map.set(callId, entry)
+        dirty = true
+        continue
+      }
+      if (!entry.visible) {
+        clearTimeout(entry.promoteTimer)
+        entry.promoteTimer = null
+        entry.visible = true
+        dirty = true
+      }
+    }
+    if (dirty) this.changed(session.id)
+  }
+
+  settleTurnBackgroundTasks(runtime, turnId, status) {
+    if (!runtime?.backgroundTasks || !turnId) return
+    const finishedAt = Date.now()
+    for (const [callId, entry] of runtime.backgroundTasks) {
+      if (entry.turnId !== turnId || entry.status !== 'running' || entry.isDaemon) continue
+      clearTimeout(entry.promoteTimer)
+      entry.promoteTimer = null
+      if (!entry.visible) {
+        runtime.backgroundTasks.delete(callId)
+      } else {
+        entry.status = status
+        entry.finishedAt = finishedAt
+      }
+    }
+    this.trimBackgroundTasks(runtime)
+  }
+
+  trackBackgroundTask(session, runtime, update, eventAt) {
+    const callId = typeof update?.toolCallId === 'string' && update.toolCallId ? update.toolCallId : null
+    if (!callId) return
+    const ts = Date.parse(eventAt) || Date.now()
+    const input = taskInputOf(update)
+    const name = taskToolNameOf(update)
+    const terminal = update.status === 'completed' || update.status === 'failed' || update.status === 'cancelled'
+    const outputText = taskOutputTextOf(update)
+    const map = (runtime.backgroundTasks ??= new Map())
+
+    if (name === 'manage_task' && terminal) {
+      const action = firstNonEmptyString(input?.Action, input?.action).toLowerCase()
+      const taskId = firstNonEmptyString(input?.TaskId, input?.taskId, input?.job_id)
+      if (action === 'kill' && taskId) {
+        for (const entry of map.values()) {
+          if (entry.taskId === taskId && entry.status === 'running') {
+            clearTimeout(entry.promoteTimer)
+            entry.promoteTimer = null
+            entry.status = 'cancelled'
+            entry.finishedAt = ts
+            entry.visible = true
+            this.trimBackgroundTasks(runtime)
+          }
+        }
+      }
+      return
+    }
+
+    if (runtime.openCallMeta) {
+      if (terminal) runtime.openCallMeta.delete(callId)
+      else {
+        const prevMeta = runtime.openCallMeta.get(callId)
+        runtime.openCallMeta.set(callId, {
+          startedAt: prevMeta?.startedAt ?? ts,
+          update: prevMeta ? { ...prevMeta.update, ...update, rawInput: input ?? prevMeta.update.rawInput } : update,
+        })
+      }
+    }
+
+    let entry = map.get(callId)
+    if (!entry) {
+      if (!isTrackableBackgroundCandidate(update, input, name)) return
+      const immediate = isImmediateBackgroundTask(update, input, name) || Boolean(runtime.deferredEnd)
+      if (terminal && !immediate) return
+      const resolvedName = name || update.kind || 'task'
+      const label = taskLabelOf(update, input, resolvedName)
+      entry = {
+        id: callId,
+        toolCallId: callId,
+        name: resolvedName,
+        kind: taskKindOf(update, input, resolvedName),
+        label,
+        command: taskCommandOf(update, input, resolvedName, label),
+        status: 'running',
+        isDaemon: isDaemonToolCall(update),
+        taskId: null,
+        startedAt: ts,
+        finishedAt: null,
+        exitCode: null,
+        output: '',
+        outputTruncated: false,
+        turnId: runtime.turnId ?? null,
+        visible: immediate,
+        promoteTimer: null,
+      }
+      if (!immediate && !terminal) {
+        const rawWait = typeof input?.WaitMsBeforeAsync === 'number' && Number.isFinite(input.WaitMsBeforeAsync)
+          ? input.WaitMsBeforeAsync
+          : this.backgroundTaskPromoteMs
+        const delay = Math.min(Math.max(rawWait, 0), this.backgroundTaskPromoteMs)
+        entry.promoteTimer = setTimeout(() => {
+          entry.promoteTimer = null
+          if (!this.isCurrent(session, runtime) || entry.status !== 'running') return
+          this.promoteBackgroundTask(session, runtime, entry)
+        }, delay)
+        entry.promoteTimer.unref?.()
+      }
+      map.set(callId, entry)
+    } else {
+      const resolvedName = name || entry.name
+      if (name && entry.name !== name) entry.name = name
+      if (input || update.title) {
+        entry.kind = taskKindOf(update, input, resolvedName)
+        entry.label = taskLabelOf(update, input, resolvedName)
+        entry.command = taskCommandOf(update, input, resolvedName, entry.label)
+      }
+      if (isDaemonToolCall(update)) {
+        entry.isDaemon = true
+        entry.kind = 'daemon'
+      }
+      if (!entry.visible && (isImmediateBackgroundTask(update, input, resolvedName) || runtime.deferredEnd)) {
+        this.promoteBackgroundTask(session, runtime, entry)
+      }
+    }
+
+    const bgMatch = outputText ? BG_TASK_ID_RE.exec(outputText) : null
+    if (bgMatch) entry.taskId = bgMatch[1]
+
+    if (terminal) {
+      clearTimeout(entry.promoteTimer)
+      entry.promoteTimer = null
+      if (entry.isDaemon && update.status === 'completed' && entry.taskId) {
+        entry.visible = true
+        if (outputText) {
+          entry.outputTruncated = outputText.length > MAX_TASK_OUTPUT_CHARS
+          entry.output = clipTaskText(outputText, MAX_TASK_OUTPUT_CHARS, true)
+        }
+        return
+      }
+      if (!entry.visible) {
+        map.delete(callId)
+        return
+      }
+      entry.status = update.status === 'failed' ? 'failed' : update.status === 'cancelled' ? 'cancelled' : 'completed'
+      entry.finishedAt = ts
+      if (outputText) {
+        entry.outputTruncated = outputText.length > MAX_TASK_OUTPUT_CHARS
+        entry.output = clipTaskText(outputText, MAX_TASK_OUTPUT_CHARS, true)
+      }
+      const exitCode = taskExitCodeOf(update, outputText)
+      if (exitCode !== null) entry.exitCode = exitCode
+      this.trimBackgroundTasks(runtime)
+    }
+  }
+
   trackAsyncWakeup(session, runtime, update) {
     const open = runtime.openBackgroundCalls
     const callId = typeof update.toolCallId === 'string' && update.toolCallId ? update.toolCallId : null
@@ -1127,6 +1501,7 @@ export class Workbench {
     if (runtime.turnId) throw new Error('A prompt is already in progress')
     runtime.turnId = options.turnId ?? randomUUID()
     runtime.callStarts = new Map()
+    runtime.openCallMeta = new Map()
     runtime.openBackgroundCalls = runtime.adapter?.asyncToolWakeup ? new Set() : null
     runtime.deferredEnd = null
     runtime.canceling = false
@@ -1149,9 +1524,11 @@ export class Workbench {
       clearTimeout(runtime.cancelTimer)
       this.clearDeferredEnd(runtime)
       this.expire(session, runtime, 'turn-finished')
+      this.settleTurnBackgroundTasks(runtime, turnId, result?.stopReason === 'cancelled' ? 'cancelled' : 'completed')
       session.stopReason = result.stopReason ?? null
       runtime.turnId = null
       runtime.canceling = false
+      runtime.openCallMeta = null
       runtime.openBackgroundCalls = null
       this.record(session, 'turn-result', { turnId, ...result })
       await this.transition(session, 'idle')
@@ -1187,6 +1564,7 @@ export class Workbench {
             }
           },
         }
+        this.promoteOpenBackgroundTasks(session, runtime)
         this.log?.(`ACP deferred end_turn for ${turnId}: awaiting ${runtime.openBackgroundCalls.size} background tool(s)`)
         return
       }
@@ -1198,8 +1576,10 @@ export class Workbench {
         clearTimeout(runtime.cancelTimer)
         this.clearDeferredEnd(runtime)
         this.expire(session, runtime, 'turn-error')
+        this.settleTurnBackgroundTasks(runtime, turnId, 'failed')
         runtime.turnId = null
         runtime.canceling = false
+        runtime.openCallMeta = null
         runtime.openBackgroundCalls = null
         session.turnError = error.message
         this.record(session, 'turn-error', { turnId, message: error.message, code: error.code })
@@ -1316,6 +1696,8 @@ export class Workbench {
     clearTimeout(runtime.cancelTimer)
     this.clearDeferredEnd(runtime)
     this.expire(session, runtime, 'connection-failed')
+    this.clearBackgroundTaskTimers(runtime)
+    runtime.openCallMeta = null
     runtime.openBackgroundCalls = null
     deferred?.abort(error instanceof Error ? error : new Error(String(error)))
     session.lastError = error.message ?? String(error)
@@ -1342,6 +1724,8 @@ export class Workbench {
     clearTimeout(runtime.cancelTimer)
     this.clearDeferredEnd(runtime)
     this.expire(session, runtime, reason)
+    this.clearBackgroundTaskTimers(runtime)
+    runtime.openCallMeta = null
     runtime.openBackgroundCalls = null
     deferred?.abort(new Error(`Session disconnected: ${reason}`))
     runtime.shutdown = (async () => {
