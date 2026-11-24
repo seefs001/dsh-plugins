@@ -1,7 +1,7 @@
 {
   "name": "dsh-session-lifecycle",
   "version": "0.1.0",
-  "description": "Fold working sessions, surface decisions and turn results, and share snoozed and settled shelves across clients.",
+  "description": "Fold working sessions, put decisions and turn results first, and share snoozed and settled shelves across clients.",
   "keywords": [
     "dsh-plugin",
     "dsh",

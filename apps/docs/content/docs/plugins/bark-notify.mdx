@@ -20,10 +20,10 @@ description: 智能体提问、提交计划审阅或请求权限审批时发送 
 
 ## 配置
 
-打开 **Plugins → dsh-bark-notify**：
+在 **Plugins** 页面打开 **dsh-bark-notify**：
 
 1. 在 **从 Bark URL 快速填入** 粘贴完整链接（如 `https://your-bark-host/YOUR_KEY/{{title}}/{{content}}?sound=alarm`）点击 **解析填入**，或手动填写服务器地址与 Device Key（无 Web 界面时可通过 `DSH_BARK_KEY` 凭据或环境变量提供）。
 2. 保存后点击 **发送测试通知** 确认送达。
-3. 按需调整请求方式（`GET` / `POST` JSON）、触发场景开关、延迟推送（`0`–`600000` 毫秒，超时前已在界面处理则自动取消）、铃声与分组、正文摘要开关及点击跳转链接。
+3. 按需调整请求方式（`GET` / `POST` JSON）、触发场景开关、延迟推送（`0` 到 `600000` 毫秒，超时前已在界面处理则自动取消）、铃声与分组、正文摘要开关及点击跳转链接。
 
 普通配置写入 profile 的 `cordis.patch.yml`；Device Key 仅存于本机 Host 凭据 `bark-notify/device`。

@@ -1,7 +1,7 @@
 {
   "name": "dsh-pi-mcp",
   "version": "0.1.0",
-  "description": "Register MCP servers from Pi’s ~/.pi/agent/mcp.json in DSH and follow file edits live.",
+  "description": "Register MCP servers from Pi's ~/.pi/agent/mcp.json in DSH and follow file edits live.",
   "keywords": [
     "dsh-plugin",
     "dsh",

@@ -25,7 +25,7 @@ pnpm run docs:build      # 输出到 apps/docs/out
 
 ## GitHub Pages
 
-1. 在仓库 **Settings → Pages → Build and deployment → Source** 中选择 **GitHub Actions**。
+1. 在仓库的 **Settings** 中进入 **Pages**，将 **Build and deployment** 下的 **Source** 设为 **GitHub Actions**。
 2. 推送改动到 `main`，或手动运行 **Documentation** 工作流。
 3. 部署后访问 <https://seefs001.github.io/dsh-plugins/>。
 

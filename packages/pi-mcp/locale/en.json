@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Pi MCP servers",
-    "description": "Shares Pi’s ~/.pi/agent/mcp.json with DSH so one config works for both, updating live on file edits. Supports ${VAR} expansion; skips servers using OAuth or !command."
+    "description": "Shares Pi's ~/.pi/agent/mcp.json with DSH so one config works for both, and reloads when the file changes. Supports ${VAR} expansion; skips servers using OAuth or !command."
   }
 }

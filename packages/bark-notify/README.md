@@ -17,11 +17,11 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/ba
 
 ## 配置
 
-打开 **Plugins → dsh-bark-notify**：
+在 **Plugins** 页面打开 **dsh-bark-notify**：
 
 1. 在 **从 Bark URL 快速填入** 粘贴完整 Bark 链接点击 **解析填入**，或手动填写 **服务器地址**（默认 `https://api.day.app`）与 **Device Key**（也可通过 `DSH_BARK_KEY` 凭据或环境变量提供）。
 2. 保存后点击 **发送测试通知** 验证送达。
-3. 可配置请求方式（`GET` / `POST` JSON）、触发场景开关、延迟推送（`0`–`600000` 毫秒，延迟内已处理则自动取消）、铃声与分组、是否在正文附带摘要，以及点击跳转链接。
+3. 可配置请求方式（`GET` / `POST` JSON）、触发场景开关、延迟推送（`0` 到 `600000` 毫秒，延迟内已处理则自动取消）、铃声与分组、是否在正文附带摘要，以及点击跳转链接。
 
 普通配置保存在 `cordis.patch.yml`；Device Key 仅保存在本机 Host 凭据 `bark-notify/device` 中。
 

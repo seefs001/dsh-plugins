@@ -18,7 +18,7 @@ dsh plugin --profile web add "link:$PWD/packages/auto-review-model"
 
 ### 模型与提示词
 
-打开 **Plugins → dsh-auto-review-model**：
+在 **Plugins** 页面打开 **dsh-auto-review-model**：
 
 - **审查模型与推理强度**：选择专用模型，或保持 **跟随会话**。若所选 provider 不可用，自动回退到会话模型并记录警告。
 - **审查提示词**：
@@ -28,7 +28,7 @@ dsh plugin --profile web add "link:$PWD/packages/auto-review-model"
 
 ### 会话审查日志
 
-处于 Auto 模式时，输入框左侧会显示审查标签与本会话计数。点击打开实时日志面板（SSE 推送），可展开参数与判定理由、一键跳到对话中对应的工具调用（支持 `run_code` PTC 父调用）、跳转设置页或清空当前会话日志。
+处于 Auto 模式时，输入框左侧会显示审查标签与本会话计数。点击打开实时日志面板（SSE 推送），可展开参数与判定理由、点击跳到对话中对应的工具调用（支持 `run_code` PTC 父调用）、跳转设置页或清空当前会话日志。
 
 ## 存储
 

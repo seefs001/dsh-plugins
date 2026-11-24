@@ -19,18 +19,18 @@ description: 沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.
 
 - **工作区与全局目录**：会话画布默认保存在 `<cwd>/.dsh/canvases/*.canvas.{tsx,html,svg}`（同时自动发现工作区内已有画布）；全局应用位于 `~/.dsh/canvases/*.canvas.{tsx,html,svg}`。
 - **增量热重载**：Host 通过文件监听检测磁盘改动并增量重编译，无论智能体写文件、调用 `canvas_write`，还是你在本地编辑器或面板源码页保存，预览都会热更新且保留交互状态。
-- **0 Token 活数据订阅**：通过 `useCanvasFile` / `useCanvasGlob`（支持 `workspace://` 与 `bots://`，自动解析 JSON 与 Markdown YAML frontmatter，经 `fs.watch` + SSE 实时推送）和 `useHostData('sessions' | 'schedules' | 'git')`，后台脚本或定时任务更新磁盘即可实时刷新画布。
+- **零 token 本地数据订阅**：通过 `useCanvasFile` / `useCanvasGlob`（支持 `workspace://` 与 `bots://`，自动解析 JSON 与 Markdown YAML frontmatter，经 `fs.watch` + SSE 实时推送）和 `useHostData('sessions' | 'schedules' | 'git')`，后台脚本或定时任务更新磁盘即可实时刷新画布。
 
-## 面板视图与交互闭环
+## 面板视图与交互
 
-- **预览**：在 `sandbox="allow-scripts"` + 随机 nonce CSP（`default-src 'none'`、`connect-src 'none'`、禁用 `unsafe-eval`）的隔离 iframe 中运行，实时同步 DSH 明暗主题；支持全屏弹窗展开、一键导出离线单文件 HTML / SVG，以及预览底栏快捷微调输入条。
+- **预览**：在 `sandbox="allow-scripts"` + 随机 nonce CSP（`default-src 'none'`、`connect-src 'none'`、禁用 `unsafe-eval`）的隔离 iframe 中运行，实时同步 DSH 明暗主题；支持全屏弹窗展开、导出离线单文件 HTML / SVG，以及预览底栏快捷微调输入条。
 - **源码**：直接编辑画布文件，`Cmd/Ctrl+S` 即时保存并重新编译；新建与删除画布均使用 DSH 原生 Modal 交互。
-- **历史**：查看最近 25 次修订记录与逐行 Diff，一键恢复到任意历史版本。
-- **诊断与状态**：展示 TypeScript 类型错误、策略检查结果与运行时报错，支持一键 **让智能体修复**（将路径与精确行号填入输入框），并可查看或重置持久化的 `useCanvasState`。
+- **历史**：查看最近 25 次修订记录与逐行 Diff，点击恢复到任意历史版本。
+- **诊断与状态**：展示 TypeScript 类型错误、策略检查结果与运行时报错，支持点击 **让智能体修复**（将路径与精确行号填入输入框），并可查看或重置持久化的 `useCanvasState`。
 - **对话内 Artifact 卡片**：对话流内将 `canvas_write` 渲染成专属 Artifact 卡片，点击即可定位到对应画布。
 
 ## `dsh/canvas` SDK 概览
 
 - **Hooks**：`useHostTheme`、`useCanvasState`、`useCanvasFile`、`useCanvasGlob`、`useHostData`、`useCanvasAction`（支持 `openFile`、`askInChat`、`copyText`、白名单 `patchData`、`sendToSession`、`triggerSchedule` 与 `openCanvas`）以及常用 React Hooks（允许从 `dsh/canvas`、`react`、`lucide-react` 导入）。
-- **布局与基础原语**：`Stack`、`Row`、`Grid`、`Card`、`CardHeader`、`CardBody`、`Callout`、`CollapsibleSection`、`H1`–`H3`、`Text`、`Code`、`Markdown`、`CodeBlock`、`Pill`、`Stat`、`Swatch`、`Tabs`、`Kanban`、`Modal`、`Drawer`、`SplitPane`、`EmptyState`、`ProgressBar`、`SearchInput`、`KeyValue`、`Timeline`、65+ 离线 Lucide 图标及基础表单控件。
+- **布局与基础组件**：`Stack`、`Row`、`Grid`、`Card`、`CardHeader`、`CardBody`、`Callout`、`CollapsibleSection`、`H1`、`H2`、`H3`、`Text`、`Code`、`Markdown`、`CodeBlock`、`Pill`、`Stat`、`Swatch`、`Tabs`、`Kanban`、`Modal`、`Drawer`、`SplitPane`、`EmptyState`、`ProgressBar`、`SearchInput`、`KeyValue`、`Timeline`、65+ 离线 Lucide 图标及基础表单控件。
 - **可视化与领域组件**：可排序 `Table`、`BarChart`、`LineChart`、`PieChart`、`UsageBar`、`DiffView`、`DiffStats`、`TodoList`、`TodoListCard`、`DAGView` 与 `computeDAGLayout`。

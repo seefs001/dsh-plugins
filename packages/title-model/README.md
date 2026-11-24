@@ -16,7 +16,7 @@ dsh plugin --profile web add "link:$PWD/packages/title-model"
 
 ## 用法
 
-- **界面设置**：打开 **Plugins → dsh-title-model**，为已启用的标题生成器选择模型（或 **跟随会话**）并保存。
+- **界面设置**：在 **Plugins** 页面打开 **dsh-title-model**，为已启用的标题生成器选择模型（或 **跟随会话**）并保存。
 - **Agent 工具**：提供 `title_model` 工具，支持 `action: "get"` 查看当前配置、`action: "set"` 传入 `provider` 与 `model`（同为空字符串时恢复跟随会话，多生成器时附带 `generator`）。
 
 ## 说明

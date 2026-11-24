@@ -3,7 +3,7 @@
 ## 流式桥接与工具映射（`lib/native.js`、`lib/native-tools.js`、`lib/client.js`）
 
 - 上游 `agy acp` 不流式上报工具参数，仅在整步结束（`usage_update` 之后）一次性发出带完整 `rawInput` 的 `tool_call`。空参数 `tool_call` 先通过 `preparingToolName` 立即进入 DSH `preparing` 态；正文后的长时间静默由前端 `acp-wait` 会话节点提示，不写持久日志、不改写原生 `AssistantNodeView`。
-- 工具映射分两层：可语义对齐 DSH 原生工具的放 `lib/native-tools.js`（如 `update_steps` -> `todo_write`、`manage_task` -> `job_*`、`manage_subagents` -> `list_agents` / `interrupt_agent`），其余放 `lib/client.js` 的 `ACP_TOOLVIEW_SPECS` 自定义披露行。
+- 工具映射分两层：可语义对齐 DSH 原生工具的放 `lib/native-tools.js`（如 `update_steps` 映射到 `todo_write`、`manage_task` 映射到 `job_*`、`manage_subagents` 映射到 `list_agents` / `interrupt_agent`），其余放 `lib/client.js` 的 `ACP_TOOLVIEW_SPECS` 自定义披露行。
 
 ## 交互卡片、模式记忆与订阅用量（`lib/client.js`、`lib/native.js`、`lib/manager.js`、`lib/subscription.js`）
 

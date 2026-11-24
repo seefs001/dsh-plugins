@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "GitHub panel",
-    "description": "Display linked GitHub repository overview, conversation mentions, open PRs, issues, Actions runs, and releases in the right session panel, opening items directly on GitHub."
+    "description": "Display linked GitHub repository overview, conversation mentions, open PRs, issues, Actions runs, and releases in the right session panel, and open items directly on GitHub."
   }
 }

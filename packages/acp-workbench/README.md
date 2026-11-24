@@ -35,7 +35,7 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 ### 2. 配置本机 CLI
 
 1. 在终端完成目标 CLI 的安装与登录。
-2. 打开侧栏 **ACP 工作台 → 提供方**，核对默认命令或点击 **新增提供方** 从内置预设模板（Cursor、Antigravity、Claude Code、Codex、Gemini CLI、OpenCode、GitHub Copilot）一键填入：
+2. 打开侧栏 **ACP 工作台** 的 **提供方** 视图，核对默认命令，或点击 **新增提供方** 从内置预设模板（Cursor、Antigravity、Claude Code、Codex、Gemini CLI、OpenCode、GitHub Copilot）填入：
 
 | ID | 名称 | 默认命令（优先 `~/.local/bin/` 或 `~/.bun/bin/`，否则取 `PATH`） | 默认参数 | 默认预置 |
 | --- | --- | --- | --- | --- |
@@ -47,7 +47,7 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 | `opencode` | OpenCode | `opencode` | `["acp"]` | 模板 |
 | `copilot` | GitHub Copilot | `copilot` | `["--acp"]` | 模板 |
 
-3. 在左侧选中提供方后，可直接在右侧顶部一键执行：
+3. 在左侧选中提供方后，可在右侧顶部执行：
    - **刷新模型**：拉取全部可用模型及各自属性（Cursor 支持通过 `cursor/list_available_models` 一次性获取完整参数化模型目录），默认全部出现在 DSH 模型选择器中，可按关键词与能力标签筛选并隐藏不需要的模型。
    - **检查能力**：执行 ACP `initialize`，查看协议版本、登录方式与能力清单。
    - **CLI 配置**：按需展开编辑可执行文件、参数数组与探测工作目录。
@@ -58,23 +58,23 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 
 - **模型与属性选择**：主模型选择器展示所有可见模型及 `CLI default`，并原生支持逐模型思考强度（含将双思考项的 `Off` 合并进强度选择）。输入框右侧工具栏根据当前模型动态提供 `Mode`（Agent / Plan / Ask）、`Context`（如 300K / 1M）与 `Fast` 闪电开关，首轮发消息前也可预先配置。顶层会话按提供方（及适用模型）自动持久化用户选择的 `Mode` 与模型选项，新建会话和 Host 重启后自动沿用（不影响子代理）。
 - **CLI 设置浮层**：在模型菜单点击 **CLI 设置**，可在输入框上方切换 CLI 模式与配置项、打开右侧工作区面板（文件 / Git 改动 / 终端）、手动执行 CLI 命令，或连接/接续外部会话。
-- **接续与复制 CLI 历史**：首条消息前打开 **CLI 设置 → 接续 CLI 会话**，可列出当前目录的历史会话；点 **在这里接续** 直接连接旧上下文，支持 `session/fork` 的 CLI 还可通过 **从副本继续** 复制最新历史到独立上下文。
+- **接续与复制 CLI 历史**：首条消息前在 **CLI 设置** 中打开 **接续 CLI 会话**，可列出当前目录的历史会话；点 **在这里接续** 直接连接旧上下文，支持 `session/fork` 的 CLI 还可通过 **从副本继续** 复制最新历史到独立上下文。
 - **`/cli:` 命令补全**：连接空闲时在行首输入 `/` 可从 CLI 分组插入 `/cli:<命令>`，发送后按普通文本交给外部 CLI。
-- **原生时间线与子智能体集成**：推理、正文、图片、工具调用与结果、任务计划及嵌套子调用按时间顺序原生渲染进 DSH 对话流（保留历史会话中的旧执行轨迹折叠兼容）；跨引擎子智能体自动出现在右侧会话面板的 **ACP 子智能体** 分栏（含当前工具、模型、回复预览、耗时与上下文占用，支持主视图/右侧分屏打开及一键停止）以及根会话顶栏的 **子智能体快速切换器**。
+- **原生时间线与子智能体集成**：推理、正文、图片、工具调用与结果、任务计划及嵌套子调用按时间顺序原生渲染进 DSH 对话流（保留历史会话中的旧执行轨迹折叠兼容）；跨引擎子智能体自动出现在右侧会话面板的 **ACP 子智能体** 分栏（含当前工具、模型、回复预览、耗时与上下文占用，支持主视图/右侧分屏打开及停止）以及根会话顶栏的 **子智能体快速切换器**。
 - **审批与表单**：权限审批、提问、Claude `AskUserQuestion` 表单（`elicitation/create`）与计划审批均在输入框上方处理。切换到 ACP 模型时自动隐藏无效的 DSH 原生权限预设控件，权限策略交由各外部 CLI 自身的模式与配置管理，CLI 发来的审批请求由人工确认。
 
 ### 提供方与模型目录（ACP 工作台）
 
 采用左侧提供方列表 + 右侧模型目录主区设计：
 
-- **提供方概览与预设模板**：左侧显示各 CLI 提供方的可见/总模型数、已缓存订阅档位或峰值用量百分比、命令行预览与活跃连接状态；顶部 **新增提供方** 与 **CLI 配置** 内置常见 ACP CLI 预设模板，可一键填入默认命令与参数（已有同名 ID 时自动避重）。
+- **提供方概览与预设模板**：左侧显示各 CLI 提供方的可见/总模型数、已缓存订阅档位或峰值用量百分比、命令行预览与活跃连接状态；顶部 **新增提供方** 与 **CLI 配置** 内置常见 ACP CLI 预设模板，可直接填入默认命令与参数（已有同名 ID 时自动避重）。
 - **订阅与用量卡片**：展示各提供方的登录状态、账号与订阅档位、按需刷新的配额窗口进度条与重置时间（Claude Code 通过 ACP `/usage` 与 `_claude/rateLimit`、Codex 通过 `codex app-server`、Cursor 通过 CLI `about`/`status`、Antigravity 通过 ACP 档位元信息），以及基于 DSH 本地记录的近 24 小时、近 7 天与累计会话/轮次统计。
-- **模型目录筛选与可见性管理**：按名称/ID 搜索，支持按 `全部 / 已显示 / 已隐藏 / 思考 / Fast / 多上下文` 标签快速过滤，直观展示思考强度、上下文窗口、Fast、图片输入与输出上限，支持全部显示/全部隐藏与顶部未保存更改提示。
+- **模型目录筛选与可见性管理**：按名称/ID 搜索，支持按 `全部 / 已显示 / 已隐藏 / 思考 / Fast / 多上下文` 标签过滤，展示思考强度、上下文窗口、Fast、图片输入与输出上限，支持全部显示/全部隐藏与顶部未保存更改提示。
 - **按需展开的配置与诊断**：命令行参数与工作目录覆盖收纳在可折叠的 **CLI 配置** 面板，协议能力与原始 JSON 诊断收纳在可关闭的 **检查能力** 面板，不干扰模型目录浏览。
 
 ## 上下文交接与恢复
 
-- **上下文交接与恢复**（补充说明）：转发给外部 CLI 时会自动跳过 DSH 宿主专属的 `skill` 目录提醒，并将重复包含 JSON 与 `rendered_markdown` 的 Nowledge Mem 上下文快照折叠为 Markdown 正文；当第三方功能（如 `@deepseek-ai/dsh-timeline` 周期摘要）向 `acp-*` 路由发起带 `purpose` 的辅助补全请求时，可通过 `config.utilityProvider` / `config.utilityModel` / `config.utilityReasoningEffort`（或环境变量 `DSH_ACP_UTILITY_PROVIDER` / `DSH_ACP_UTILITY_MODEL` / `DSH_ACP_UTILITY_EFFORT`）透明回退到普通文本模型。
+- **提示过滤与辅助补全回退**：转发给外部 CLI 时会自动跳过 DSH 宿主专属的 `skill` 目录提醒，并将重复包含 JSON 与 `rendered_markdown` 的 Nowledge Mem 上下文快照折叠为 Markdown 正文；当第三方功能（如 `@deepseek-ai/dsh-timeline` 周期摘要）向 `acp-*` 路由发起带 `purpose` 的辅助补全请求时，可通过 `config.utilityProvider` / `config.utilityModel` / `config.utilityReasoningEffort`（或环境变量 `DSH_ACP_UTILITY_PROVIDER` / `DSH_ACP_UTILITY_MODEL` / `DSH_ACP_UTILITY_EFFORT`）透明回退到普通文本模型。
 - 每个 DSH 会话与每个 ACP 提供方一一绑定；会话分叉会建立新的远端上下文。
 - 首次接入或从普通 DSH 模型切回时，自动交接未同步的历史文本（上限 **200,000 字符**，超限报错）。
 - 断线重连或冷子任务续聊优先调用 `session/resume`，不支持时回退 `session/load`；Host 重启后中断的轮次标记为 `interrupted`，不会自动重发。
@@ -92,7 +92,7 @@ dsh plugin --profile web add "link:$PWD/packages/acp-workbench"
 | 模块 | 职责 |
 | --- | --- |
 | `lib/index.js` | Cordis 插件入口与 owner 鉴权 HTTP/SSE 接口（`/acp-workbench/*`） |
-| `lib/transport.js` | 受管子进程 NDJSON JSON-RPC 传输、超时与优雅退出 |
+| `lib/transport.js` | 受管子进程 NDJSON JSON-RPC 传输、超时与清理退出 |
 | `lib/store.js` | `acp_workbench` 存储域管理、串行队列与分块分页 |
 | `lib/manager.js` | 外部会话生命周期、能力探测、模型发现与交互仲裁 |
 | `lib/native.js` | `acp-*` LLM 适配器、`SubagentProvider` 注册、上下文交接、逐模型属性下发与流式事件转换 |

@@ -1,6 +1,6 @@
 # dsh-cheat-sheet
 
-在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）输入框左侧工具栏添加一个**技能速查**弹窗：搜索当前会话可用技能、置顶常用项、按实际使用次数排序，并一键把 `/技能名 ` 写入输入框开头。
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）输入框左侧工具栏添加一个**技能速查**弹窗：搜索当前会话可用技能、置顶常用项、按实际使用次数排序，并直接把 `/技能名 ` 写入输入框开头。
 
 | 项目 | 说明 |
 | --- | --- |

@@ -19,7 +19,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 - **Web**: runs in `dsh web`.
 - **Host + Web**: spans both.
 
-## Plugin Catalog
+## Plugin catalog
 
 ### Models and review
 
@@ -52,7 +52,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 |---|---|---|
 | [`dsh-diagram-preview`](packages/diagram-preview) | Render Mermaid, Graphviz, ECharts, and SVG blocks in chat, with zoom, PNG/SVG export, and a toggle back to source. | Web |
 | [`dsh-canvas`](packages/canvas) | Interactive sandboxed Canvas artifacts (`.canvas.tsx`, `.canvas.html`, `.canvas.svg`) in sessions and global `~/.dsh/canvases/` apps, with live file subscriptions, TypeScript checking, persistent state, revision diffs, and allowlisted host actions. | Host + Web |
-| [`dsh-side-chat`](packages/side-chat) | Open a separate chat in the sidebar with the main session’s agent preset and bring its reference back to your draft. | Web |
+| [`dsh-side-chat`](packages/side-chat) | Open a separate chat in the sidebar with the main session's agent preset and bring its reference back to your draft. | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Turn quotes in user messages into clickable blocks that jump to and highlight the source. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Open skill files, full spill outputs, search hits, links, and subagent chats directly from tool-call rows. | Web |
 | [`dsh-message-actions`](packages/message-actions) | Add **Wait, what?** beside replies to explain them in an isolated model call. | Host + Web |
@@ -94,12 +94,12 @@ dsh plugin --profile web add "link:$PWD/packages/model-reference"
 
 If Plugin Manager reports `applied`, Host changes take effect immediately; if it reports `restart-required`, restart DSH for that profile. Browser halves load after a page refresh.
 
-## Configuration and Storage
+## Configuration and storage
 
 - **Profile config (`cordis.patch.yml`)**: `model-reference`, `service-tier`, `remember-model` (optional `onlyAfterTurn`), `auto-review-model`, `github-panel` (`hosts`), `message-actions`, `web-access`, `image-gen`, `pi-mcp` (`disabledServers`, `eagerServers`), and `bark-notify` settings.
 - **Host storage domains (`~/.dsh/storages`)**: `session_groups`, `roles`, `cheat_sheet`, `prompt_shortcut`, `auto_review_log`, `message_actions`, `session_lifecycle`, `session_lifecycle_summary`, `pi_tools_defaults`, `paseo_hub`, `acp_workbench`, and `canvas`.
 - **DSH credentials**: `bark-notify/device` and `paseo-hub/{daemon,api}`.
-- **Session log & `localStorage`**: `pi-tools` selection lives in the session log; browser `localStorage` holds UI preferences (`ai-mascot`, `session-lifecycle` and `session-groups` fold states, `github-panel` hidden mentions, `pi-tools` picker view, `paseo-hub` page size, `acp-workbench` trace/reply collapse) and acts as a fallback for `prompt-shortcut` when Host storage is unavailable.
+- **Session log and `localStorage`**: `pi-tools` selection lives in the session log; browser `localStorage` holds UI preferences (`ai-mascot`, `session-lifecycle` and `session-groups` fold states, `github-panel` hidden mentions, `pi-tools` picker view, `paseo-hub` page size, `acp-workbench` trace/reply collapse) and acts as a fallback for `prompt-shortcut` when Host storage is unavailable.
 
 ## Documentation
 

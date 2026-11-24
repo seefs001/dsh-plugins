@@ -17,7 +17,7 @@
 
 ## 前端 UI 与性能约定
 
-- 组件与主题：复用 `@deepseek-ai/dsh-client-ui-primitives` 原语，不用 `window.prompt()` / `window.confirm()`（Electron 不可用）或手写 `<dialog>`。DSH 的 `--dsw-alias-*` 声明在 `body` 与 `body[data-ds-dark-theme]`（不在 `document.documentElement`），读取宿主主题必须读 `document.body`；自定义样式统一使用 `--dsw-*` 语义令牌并兼顾浅色模式。
+- 组件与主题：复用 `@deepseek-ai/dsh-client-ui-primitives` 组件，不用 `window.prompt()` / `window.confirm()`（Electron 不可用）或手写 `<dialog>`。DSH 的 `--dsw-alias-*` 声明在 `body` 与 `body[data-ds-dark-theme]`（不在 `document.documentElement`），读取宿主主题必须读 `document.body`；自定义样式统一使用 `--dsw-*` 语义令牌并兼顾浅色模式。
 - 会话内工具视图（`tool.call.toolview`）：对齐原生 `ToolRow` / `DisclosureRow`（24px 单行披露、4px 展开缩进、双列 `IN`/`OUT` 卡片、分隔点加 `data-shimmer-decoration`、`Inspect` 默认隐藏且 hover/focus 显现并用 `--dsw-alias-border-l3` 边框），不做大块重边框卡片。
 - 连接与首屏：DSH 本地运行在 HTTP/1.1（6 连接槽），不常驻 `EventSource`；默认走按需 `GET` + 写后回写 + `BroadcastChannel` 跨标签同步 + 窗口唤醒节流刷新，仅在面板打开或活跃流式会话时按需建连。`package.json` 不加 `dsh.client.immediately: true`；重型前端依赖懒加载或池化复用单 iframe。
 - 主线程与跨插件协作：定位目标 DOM 后立即断开 `document.body` `MutationObserver`，改用局部观察并合并到 `requestAnimationFrame`，页面隐藏时跳过定时刷新。跨插件共享前端入口（如 `#` 菜单）通过 `window.__DSH_*__` 轻量总线协作，保持零硬依赖。
@@ -26,7 +26,7 @@
 
 - 持久存储边界：`storageDomain` 与 `session_projcache` 启动时全量载入内存且不淘汰，写入数据必须设体积上限并裁剪去重（不落盘整页原始 HTML 或未裁剪大 diff）；超大临时态放按 session 隔离的内存结构（如 `WeakMap` 或有上限 LRU），高频 flush 避免整树 `structuredClone`。
 - 0.2.3 服务端 API 现状：`Session` 无 `session.events`（轮次边界用 `ctx.agents.turnBoundaryOf(session)`，事件快照用 `session.snapshotEvents()`）；无 `ctx.connection.requestRejection`；不用 `browserPeer` 做身份相等判断；`uiSession.sessionStatus` 需显式注入；会话流客户端插件需核对 `facets` 声明。会话日志只追加，`surfaceOp: 'replace'` 不会自动隐藏旧界面节点，也不会自动触发续写。
-- 0.2.3 客户端 API 与启动期槽位契约：`ctx.locale` 无 `.t()` 方法，必须用 `ctx.locale.register(ns, { en, zh })` 后通过 `const t = ctx.locale.bind(ns)` 获取翻译函数（`t(key, params)` 原生支持 `{name}` 插值；响应式订阅用 `subscribe` / `getSnapshot()`）。`ctx.theme` 通过 `getTheme()` 读快照（`active.colorScheme`）并监听 `theme/change`；`ctx.layout` 切主面板用 `selectPanel(id)`。注册到 `sidebar.panellist` 等启动期槽位的 `label: () => ...` 会在必需入口 `@deepseek-ai/dsh-client-ui-sidebar` 激活执行 `syncPanels()` 时同步求值，抛错会直接导致整个 Web 启动失败——写 `client.js` 前务必查实对应 `@deepseek-ai/dsh-client-*` 源码，勿凭猜测调用接口。
+- 0.2.3 客户端 API 与启动期槽位契约：`ctx.locale` 无 `.t()` 方法，必须用 `ctx.locale.register(ns, { en, zh })` 后通过 `const t = ctx.locale.bind(ns)` 获取翻译函数（`t(key, params)` 原生支持 `{name}` 插值；响应式订阅用 `subscribe` / `getSnapshot()`）。`ctx.theme` 通过 `getTheme()` 读快照（`active.colorScheme`）并监听 `theme/change`；`ctx.layout` 切主面板用 `selectPanel(id)`。注册到 `sidebar.panellist` 等启动期槽位的 `label: () => ...` 会在必需入口 `@deepseek-ai/dsh-client-ui-sidebar` 激活执行 `syncPanels()` 时同步求值，抛错会直接导致整个 Web 启动失败。写 `client.js` 前务必查实对应 `@deepseek-ai/dsh-client-*` 源码，勿凭猜测调用接口。
 - 查源码与联调：查 DSH 服务、事件、配置 schema、工具与前端槽位时，优先使用 `cordis_inspect`，其次直读 `/Users/seefs/.bun/install/global/node_modules/@deepseek-ai/` 对应包（部分包如 `dsh-client-ui-primitives`、`dsh-client-ui-slots` 无 `src/`，先看包顶层目录再搜索）。
 - 本机 `web` profile 通过 `link:` 软链直连本仓（无需重跑 `dsh plugin add`），开启 `patchReload: live` 但 `hmr.config.root` 为空：
   - 修改 `~/.dsh/profiles/web/cordis.patch.yml` 或 `package.json` 会触发对应行热重载；

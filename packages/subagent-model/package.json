@@ -1,7 +1,7 @@
 {
   "name": "dsh-subagent-model",
   "version": "1.0.0",
-  "description": "Show an addressed subagent’s recorded model and reasoning effort beside its composer.",
+  "description": "Show an addressed subagent's recorded model and reasoning effort beside its composer.",
   "keywords": [
     "dsh-plugin",
     "dsh",

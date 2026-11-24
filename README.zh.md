@@ -65,7 +65,7 @@
 | 包 | 作用 | 运行位置 |
 |---|---|---|
 | [`dsh-prompt-shortcut`](packages/prompt-shortcut) | 在 DSH Host 跨浏览器收藏常用话术，支持导入导出与 `/snippets`，搜索后插入光标处。 | Host + Web |
-| [`dsh-cheat-sheet`](packages/cheat-sheet) | 搜索会话技能、置顶常用项、按实际使用次数排序，一键插入 `/命令`。 | Host + Web |
+| [`dsh-cheat-sheet`](packages/cheat-sheet) | 搜索会话技能、置顶常用项、按实际使用次数排序，直接插入 `/命令`。 | Host + Web |
 | [`dsh-web-access`](packages/web-access) | 提供 `grok_search`（网页与 X）和 `openai_search`，复用已有 Responses provider 的托管搜索。 | Host + Web |
 | [`dsh-image-gen`](packages/image-gen) | 提供 `openai_image` 和 `grok_image`，复用已有 Responses provider 生成并保存图片。 | Host + Web |
 | [`dsh-pi-tools`](packages/pi-tools) | 独立的 `pi` 预设：Pi 原版工具、MoeJS `codemode`、会话工具选择器与 MCP 刷新。 | Host + Web |

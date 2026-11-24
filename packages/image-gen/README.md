@@ -18,7 +18,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/im
 ## 配置
 
 1. 在 `llm-pi-ai` 中准备好至少一个 `api: openai-responses` 的 provider 及其密钥。
-2. 打开 **Plugins → dsh-image-gen**，启用 OpenAI / Grok 并选择 provider、模型和图片输出目录（`outputDir`，默认 `generated-images`，相对路径限制在会话工作目录内）。
+2. 在 **Plugins** 页面打开 **dsh-image-gen**，启用 OpenAI / Grok 并选择 provider、模型和图片输出目录（`outputDir`，默认 `generated-images`，相对路径限制在会话工作目录内）。
 
 仅接受 PNG、JPEG、WebP 或 GIF 输出。图片写入工作目录下的 `outputDir` 并存入 DSH 附件；当前对话模型声明支持 `image` 输入时，结果会一并附带图片块。配置保存在 profile 的 `cordis.patch.yml`。
 

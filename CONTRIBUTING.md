@@ -21,7 +21,7 @@ Most packages are plain ES modules with no build step. Four packages build artif
 - `pi-tools`: browser half lives at `client.js`; rebuild Go runners with `pnpm --filter dsh-pi-tools build:runner:all` after changing `runner/` or Pi dependencies.
 - `message-actions`: build `lib/client.js` from `src/client.js` with `pnpm --filter dsh-message-actions build` (`prepack` runs it automatically).
 
-## Lint and Validation
+## Lint and validation
 
 ```bash
 pnpm install
@@ -42,7 +42,7 @@ pnpm run check      # oxlint + validate.mjs + node:test
 - `locale/en.json` and `locale/zh.json` exist with identical `meta` keys (`title`, `description`).
 - Full parity across `packages/*`, `apps/docs/lib/plugins.ts`, `apps/docs/content/docs/plugins/*.mdx`, `apps/docs/content/docs/plugins/meta.json`, `README.md`, and `README.zh.md`.
 
-## Local Development
+## Local development
 
 ```bash
 dsh plugin --profile web add "link:$PWD/packages/model-reference"

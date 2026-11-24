@@ -1,6 +1,6 @@
 # dsh-canvas
 
-在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）中提供 **Artifacts 级沙箱交互画布与全局动态应用工作台**，支持 `.canvas.tsx`（React）、`.canvas.html`（独立离线 HTML）与 `.canvas.svg`（矢量图），并具备 **0 token 实时本地数据订阅、白名单双向动作与全局 `~/.dsh/canvases/` 应用模式**。
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）中提供沙箱隔离的交互画布与全局应用工作台，支持 `.canvas.tsx`（React）、`.canvas.html`（独立离线 HTML）与 `.canvas.svg`（矢量图），支持零 token 本地数据订阅、白名单宿主动作与全局 `~/.dsh/canvases/` 应用。
 
 | 项目 | 说明 |
 | --- | --- |
@@ -21,13 +21,13 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/ca
 dsh plugin --profile web add "link:$PWD/packages/canvas"
 ```
 
-## 核心能力
+## 功能
 
-- **按会话零侵入 + 全局独立应用页**：会话内默认零注入，开启后动态暴露 `canvas` skill 与 `canvas_write` / `canvas_check` / `canvas_state` 工具；同时在左侧栏提供独立「画布应用」全屏页面，管理 `~/.dsh/canvases/` 下的跨项目全局应用（内置 **Chief of Staff 全局总控台** 模板）。
-- **多格式 Artifact 与完整生态**：支持 `.canvas.tsx`（允许从 `dsh/canvas`、`react`、`lucide-react` 导入）、`.canvas.html` 与 `.canvas.svg`；内置 `Markdown`、`CodeBlock`、`Kanban`、`Modal`、`Drawer`、`SplitPane`、`EmptyState`、`ProgressBar`、`SearchInput`、`KeyValue`、`Timeline`、65+ 离线 Lucide 图标、图表与 DAG 组件，以及离线主题跟随 utility CSS 类。
-- **0 Token 响应式活数据订阅**：通过 `useCanvasFile` / `useCanvasGlob`（支持 `workspace://` 与 `bots://`，自动解析 JSON 与 Markdown YAML frontmatter，Host `fs.watch` 经 SSE 毫秒级推送）和 `useHostData('sessions' | 'schedules' | 'git')`，后台脚本/Schedule 更新磁盘文件即可实时刷新画布。
-- **白名单双向动作**：在保留严格 CSP（`default-src 'none'`、nonce-only script、`connect-src 'none'`）的前提下，`useCanvasAction()` 支持 `openFile`、`askInChat`、`copyText`、白名单 `patchData`（仅限 `bots://<bot>/ledger/*.{json,md}` 与 `workspace://.dsh/canvas-data/*.{json,md}`，0 token 落盘）、`sendToSession`（跨会话发消息）、`triggerSchedule`（手动触发定时任务）与 `openCanvas`。
-- **Artifacts 交互闭环**：对话流内将 `canvas_write` 渲染成专属 Artifact 卡片；支持运行时错误一键让智能体修复、预览底栏快捷微调输入条、25 次修订 Diff 恢复、全屏预览与一键导出离线单文件 HTML / SVG。
+- **按会话启用与全局应用页**：会话内默认零注入，开启后动态暴露 `canvas` skill 与 `canvas_write` / `canvas_check` / `canvas_state` 工具；同时在左侧栏提供独立「画布应用」全屏页面，管理 `~/.dsh/canvases/` 下的跨项目全局应用（内置 **Chief of Staff 全局总控台** 模板）。
+- **多格式画布与内置组件**：支持 `.canvas.tsx`（允许从 `dsh/canvas`、`react`、`lucide-react` 导入）、`.canvas.html` 与 `.canvas.svg`；内置 `Markdown`、`CodeBlock`、`Kanban`、`Modal`、`Drawer`、`SplitPane`、`EmptyState`、`ProgressBar`、`SearchInput`、`KeyValue`、`Timeline`、65+ 离线 Lucide 图标、图表与 DAG 组件，以及离线主题跟随 utility CSS 类。
+- **零 token 本地数据订阅**：通过 `useCanvasFile` / `useCanvasGlob`（支持 `workspace://` 与 `bots://`，自动解析 JSON 与 Markdown YAML frontmatter，Host 通过 `fs.watch` 与 SSE 实时推送）和 `useHostData('sessions' | 'schedules' | 'git')`，后台脚本或定时任务更新磁盘文件即可实时刷新画布。
+- **白名单宿主动作**：在保留严格 CSP（`default-src 'none'`、nonce-only script、`connect-src 'none'`）的前提下，`useCanvasAction()` 支持 `openFile`、`askInChat`、`copyText`、白名单 `patchData`（仅限 `bots://<bot>/ledger/*.{json,md}` 与 `workspace://.dsh/canvas-data/*.{json,md}`，0 token 落盘）、`sendToSession`（跨会话发消息）、`triggerSchedule`（手动触发定时任务）与 `openCanvas`。
+- **对话内卡片与交互**：对话流内将 `canvas_write` 渲染成专属 Artifact 卡片；支持运行时错误点击让智能体修复、预览底栏快捷微调输入条、25 次修订 Diff 恢复、全屏预览与导出离线单文件 HTML / SVG。
 
 ## 构建运行时
 

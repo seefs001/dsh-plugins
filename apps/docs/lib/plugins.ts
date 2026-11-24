@@ -45,7 +45,7 @@ const entries: Entry[] = [
   { slug: 'ai-mascot', category: 'conversation', surface: 'Web', summary: '右下角可拖拽的 GPT / Claude 小伙伴，跟随当前对话状态活动。', requires: ['可访问外部素材站点'] },
   { slug: 'acp-workbench', category: 'conversation', surface: 'Host + Web', summary: '在 DSH 会话中直接运行 Cursor、Antigravity、Claude Code 等本机 ACP CLI，或委派可续聊子代理。', requires: ['已安装并登录的本机 ACP CLI'] },
   { slug: 'prompt-shortcut', category: 'tools', surface: 'Host + Web', summary: '在 DSH Host 跨浏览器收藏常用话术，支持导入导出与 /snippets，搜索后插入输入框光标处。' },
-  { slug: 'cheat-sheet', category: 'tools', surface: 'Host + Web', summary: '搜索会话技能、置顶常用项、按实际使用次数排序，一键插入 /命令。', requires: ['@deepseek-ai/dsh-storage-domain'] },
+  { slug: 'cheat-sheet', category: 'tools', surface: 'Host + Web', summary: '搜索会话技能、置顶常用项、按实际使用次数排序，直接插入 /命令。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'web-access', category: 'tools', surface: 'Host + Web', summary: '提供 grok_search 和 openai_search，复用已有 Responses provider 的托管搜索。', requires: ['支持托管搜索的 Responses provider'] },
   { slug: 'image-gen', category: 'tools', surface: 'Host + Web', summary: '提供 openai_image 和 grok_image，复用已有 Responses provider 生成并保存图片。', requires: ['支持托管 image_generation 的 Responses provider'] },
   { slug: 'pi-tools', category: 'tools', surface: 'Host + Web', summary: '独立的 pi 预设：Pi 原版工具、MoeJS codemode、会话工具选择器与 MCP 刷新。', requires: ['rg 与 fd'] },

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Subagent model",
-    "description": "Shows a subagent’s recorded model and reasoning effort beside its composer (read-only)."
+    "description": "Shows a subagent's recorded model and reasoning effort beside its composer (read-only)."
   }
 }

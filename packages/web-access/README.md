@@ -18,7 +18,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/we
 ## 配置
 
 1. 在 `llm-pi-ai` 中准备好至少一个 `api: openai-responses` 的 provider 及其密钥。
-2. 打开 **Plugins → dsh-web-access**，为 Grok 和 OpenAI 分别启用并选择 provider、模型及 Grok 子工具，点击 **保存**。
+2. 在 **Plugins** 页面打开 **dsh-web-access**，为 Grok 和 OpenAI 分别启用并选择 provider、模型及 Grok 子工具，点击 **保存**。
 
 会话中任一托管 `web_search` 可用时，插件会自动在该会话隐藏内置 `web_search`（`web_fetch` 不受影响）。配置保存在 profile 的 `cordis.patch.yml`：
 

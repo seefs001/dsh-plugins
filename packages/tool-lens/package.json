@@ -1,7 +1,7 @@
 {
   "name": "dsh-tool-lens",
   "version": "0.1.0",
-  "description": "Richer tool-call rows for DSH chat to inspect skills, full outputs, result files, and subagents.",
+  "description": "Add quick actions to DSH chat tool-call rows to inspect skills, full outputs, result files, and subagents.",
   "keywords": [
     "dsh-plugin",
     "dsh",

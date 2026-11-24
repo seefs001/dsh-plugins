@@ -1,7 +1,7 @@
 {
   "name": "dsh-cheat-sheet",
   "version": "0.2.0",
-  "description": "Searchable skill cheat sheet with pins, usage sorting, and one-click /command insertion.",
+  "description": "Searchable skill cheat sheet with pins, usage sorting, and direct /command insertion.",
   "keywords": [
     "dsh-plugin",
     "dsh",

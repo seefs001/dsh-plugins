@@ -11,7 +11,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/me
 ## 用法与配置
 
 - **在对话中解释**：点击任意已完成文本回复底部的 **Wait, what?**，弹窗流式展示解释，并支持复制、查看原文与重新生成。
-- **独立模型设置**：在弹窗右上角或 **Plugins → dsh-message-actions** 中指定专用模型与推理强度，留空则沿用原回复的模型。
+- **独立模型设置**：在弹窗右上角或 **Plugins** 页面的 **dsh-message-actions** 中指定专用模型与推理强度，留空则沿用原回复的模型。
 - **Agent 工具**：同时注册 `message_actions` 工具（`get_settings`、`save_settings`、`inspect`、`generate`）。
 
 解释请求仅发送该条回复及前一条用户消息，不附带工具或文件访问权限。配置保存在 profile 的 `cordis.patch.yml`，解释结果缓存于 Host 的 `message_actions` storage domain（最多 200 条）。

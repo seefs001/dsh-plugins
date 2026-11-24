@@ -16,7 +16,7 @@ description: 在回复旁点 Wait, what?，用独立模型在弹窗里把话讲�
 ## 用法与配置
 
 - **弹窗解释**：在任意已完成文本回复的操作栏点击 **Wait, what?**，流式查看解释，支持复制、展开原回复或重新生成。
-- **专用模型**：在弹窗内或 **Plugins → dsh-message-actions** 指定独立解释模型与推理强度；留空则沿用原回复的模型。
+- **专用模型**：在弹窗内或 **Plugins** 页面的 **dsh-message-actions** 中指定独立解释模型与推理强度；留空则沿用原回复的模型。
 - **Agent 工具**：注册 `message_actions` 工具（`get_settings`、`save_settings`、`inspect`、`generate`）。
 
 解释调用使用内置提示词并按原回复语种输出，不附带工具或项目文件读取权限。结果缓存在 Host 的 `message_actions` storage domain 中，最多保留最近 **200** 条。
