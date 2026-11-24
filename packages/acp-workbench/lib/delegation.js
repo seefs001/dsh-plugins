@@ -510,6 +510,8 @@ export class DelegationHub {
     const selfNames = this.ctx.subagents.namesOf(caller)
     const descendants = await this.ctx.subagents.listDescendants(root.id, signal)
 
+    const archivedIds = new Set(this.ctx.get?.('workspaceRegistry')?.archivedSessionIds ?? [])
+
     const describeLive = (sessionId, fallbackName, parentName, mode) => {
       const live = this.ctx.agents.get(sessionId)
       const selection = live?.model.current() ?? null
@@ -517,12 +519,14 @@ export class DelegationHub {
       const latestAcp = acpBindings.at(-1)
       const runtime = latestAcp ? this.manager.runtimes.get(latestAcp.id) : null
       const pendingInteractions = runtime ? [...runtime.interactions.values()].filter(item => !item.responding).length : 0
+      const archived = archivedIds.has(sessionId)
       return {
         name: fallbackName,
         sessionId,
         parent: parentName,
         mode,
-        status: live?.status ?? (latestAcp ? latestAcp.state : 'idle'),
+        status: archived ? 'archived' : (live?.status ?? (latestAcp ? latestAcp.state : 'idle')),
+        archived,
         provider: selection?.provider ?? latestAcp?.native?.route ?? null,
         model: selection?.model ?? null,
         cwd: live ? this.native.cwd(live) : (latestAcp?.cwd ?? null),
@@ -560,6 +564,9 @@ export class DelegationHub {
     if (!targetName || !message.trim()) throw new Error('agent and non-empty message are required')
     const behavior = args.behavior ?? 'followup'
     const targetId = await this.ctx.subagents.resolveName(caller, targetName, signal)
+    if (this.ctx.get?.('workspaceRegistry')?.archivedSessionIds?.includes(targetId)) {
+      throw new Error('Target subagent session is archived. Restore it before sending a message.')
+    }
     const senderName = this.ctx.subagents.namesOf(caller).self
 
     if (behavior === 'steer') {

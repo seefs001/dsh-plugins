@@ -1239,9 +1239,17 @@ export class NativeAcp {
       })
       return active ? [...rest, { kind: 'acp-session' }] : rest
     }))
+    this.disposers.push(this.ctx.on('workspace/session-stop', async ({ sessionId }) => {
+      const current = this.active.get(sessionId)
+      if (current) current.controller.abort(new Error('Native DSH session archived'))
+      await Promise.all(this.sessions(sessionId, false).map(s => this.manager.disconnect(s, 'native-session-archived').catch(error => this.manager.log?.(error.message))))
+    }))
     this.disposers.push(this.ctx.on('workspace/session-archived', async ({ sessionId }) => {
       this.delegation.revokeSession(sessionId)
-      await Promise.all(this.sessions(sessionId, false).map(s => this.manager.disconnect(s, 'native-session-archived')))
+      await Promise.all(this.sessions(sessionId, false).map(s => this.manager.disconnect(s, 'native-session-archived').catch(error => this.manager.log?.(error.message))))
+      this.manager.changed()
+    }))
+    this.disposers.push(this.ctx.on('workspace/session-unarchiving', () => {
       this.manager.changed()
     }))
     this.disposers.push(this.ctx.on('agent/disposed', ({ agent }) => {

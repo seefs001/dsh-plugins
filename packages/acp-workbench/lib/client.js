@@ -2,15 +2,23 @@ window.__ModuleLoader__.load({
   id: 'dsh-acp-workbench',
   factory(require) {
     const React = require('react')
-    let createPortal = null
-    try { createPortal = require('react-dom')?.createPortal ?? null } catch {}
     const h = React.createElement
     const {
-      Button, CodeBlock, DiffBlock, DisclosureRow, HoverCard, HoverCardGroup, Input, JsonBlock, MarkdownText, MarqueeText, Menu, MenuSurface, Modal, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, TextShimmer, Tooltip, WebBlock, diffTotals, extractMarkdownPlainText, useHoverMarquee,
-      IconBranchOutlineRegular, IconBrowseOutlineRegular, IconCheckOutlineRegular, IconChecklistOutlineRegular, IconClockOutlineRegular, IconCloseOutlineRegular, IconCodeOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconInspectOutlineRegular, IconPlayOutlineRegular, IconRightUpOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular, IconStopFillRegular, IconUsersOutlineRegular,
+      Button, CodeBlock, DiffBlock, DisclosureRow, HoverCard, HoverCardGroup, Input, JsonBlock, MarkdownText, MarqueeText, Menu, Modal, PathLabel, ReadBlock, SearchBlock, SegmentedTabs, StateDot, Switch, Tag, TerminalBlock, TextShimmer, Tooltip, WebBlock, diffTotals, extractMarkdownPlainText, useHoverMarquee,
+      IconArchiveOutlineRegular, IconBranchOutlineRegular, IconBrowseOutlineRegular, IconCheckOutlineRegular, IconChecklistOutlineRegular, IconClockOutlineRegular, IconCloseOutlineRegular, IconCodeOutlineRegular, IconEditOutlineRegular, IconGlobeOutlineRegular, IconInspectOutlineRegular, IconPlayOutlineRegular, IconRightUpOutlineRegular, IconSearchOutlineRegular, IconSparkleRegular, IconStopFillRegular, IconUnarchiveOutlineRegular, IconUsersOutlineRegular,
       IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconInfoOutlineRegular, IconPlusOutlineRegular,
       IconWarningTriangleOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const ArchiveGlyph = IconArchiveOutlineRegular ?? function ArchiveFallback({ size = 14 }) {
+      return h('svg', { width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, 'aria-hidden': true },
+        h('rect', { x: 2, y: 3, width: 12, height: 3, rx: 1 }),
+        h('path', { d: 'M3 6v6.5A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5V6M6.5 9h3' }))
+    }
+    const UnarchiveGlyph = IconUnarchiveOutlineRegular ?? function UnarchiveFallback({ size = 14 }) {
+      return h('svg', { width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, 'aria-hidden': true },
+        h('rect', { x: 2, y: 3, width: 12, height: 3, rx: 1 }),
+        h('path', { d: 'M3 6v6.5A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5V6M8 12V8.2M6.2 10 8 8.2 9.8 10' }))
+    }
     const NS = 'acp-workbench'
 
     const en = {
@@ -164,8 +172,17 @@ window.__ModuleLoader__.load({
       'tool.spawnAgent': 'Delegate agent', 'tool.listProviders': 'List engines', 'tool.readAgentResult': 'Read agent result',
       'tool.openPlanFile': 'Open plan file', 'tool.inspect': 'Inspect', 'tool.stopped': 'Stopped',
       openInSidebar: 'Open in sidebar', attentionIndicator: '{n} ACP subagents waiting for your response',
-      panelMore: 'Show {n} more', panelLess: 'Show less', panelFoldAria: '{label} (ACP subagents)', panelOpenAsideAria: 'Open {name} in sidebar', panelTokens: '{value} tok',
-      headerSubagents: 'Subagents', headerSubagentsAria: 'Subagents ({count})', headerModeContinuable: 'Continuable', headerModeOneShot: 'One-shot', headerModeExternal: 'External', headerStatusRunning: 'Running', headerStatusDone: 'Completed', headerStatusIdle: 'Idle',
+      panelMore: 'Show {n} more', panelLess: 'Show less', panelFoldAria: '{label} (subagents)', panelOpenAsideAria: 'Open {name} in sidebar', panelTokens: '{value} tok',
+      panelExpandBranch: 'Expand {name}', panelCollapseBranch: 'Collapse {name}', panelLoadError: 'Could not load subagents',
+      headerSubagents: 'Subagents', headerModeContinuable: 'Continuable', headerModeOneShot: 'One-shot', headerModeExternal: 'External', headerStatusRunning: 'Running', headerStatusDone: 'Completed', headerStatusIdle: 'Idle',
+      childrenExternal: '{n} external', subagentsRunningIndicator: '{n} subagents running',
+      archiveSubagent: 'Archive subagent', archiveSubagentAria: 'Archive {name}', restoreSubagent: 'Restore subagent', restoreSubagentAria: 'Restore {name}',
+      archivedSubagents: 'Archived {n}', childrenArchived: '{n} archived',
+      archiveSubagentActiveTitle: 'Stop and archive subagent',
+      archiveSubagentActiveConfirm: '“{name}” is still running. Stop its active work and archive this subagent session?',
+      archiveSubagentStopAction: 'Stop and archive',
+      archiveSubagentFailed: 'Could not archive subagent: {message}',
+      restoreSubagentFailed: 'Could not restore subagent: {message}',
       qRecommended: 'Recommended', qCustomPlaceholder: 'Type your answer', qNext: 'Next', qPrev: 'Previous question', qNextAria: 'Next question', qSubmit: 'Submit',
       qMinimize: 'Collapse the question card', qMaximize: 'Expand the question card', qCancel: 'Dismiss all questions',
       qIncomplete: 'Please complete this question first.', qUnanswered: 'Please select an option or enter a custom answer.', qRangeInvalid: 'Enter a value within the allowed range.',
@@ -338,8 +355,17 @@ window.__ModuleLoader__.load({
       'tool.spawnAgent': '委派子智能体', 'tool.listProviders': '查询可用引擎', 'tool.readAgentResult': '读取子任务结果',
       'tool.openPlanFile': '打开计划文件', 'tool.inspect': '查看', 'tool.stopped': '已中止',
       openInSidebar: '右侧分屏打开', attentionIndicator: '{n} 个 ACP 子任务等待回应',
-      panelMore: '显示其余 {n} 个', panelLess: '收起', panelFoldAria: '{label}（ACP 子任务）', panelOpenAsideAria: '在右侧分屏打开 {name}', panelTokens: '{value} tok',
-      headerSubagents: '子智能体', headerSubagentsAria: '子智能体（{count}）', headerModeContinuable: '可继续', headerModeOneShot: '一次性', headerModeExternal: '外部', headerStatusRunning: '运行中', headerStatusDone: '已完成', headerStatusIdle: '未运行',
+      panelMore: '显示其余 {n} 个', panelLess: '收起', panelFoldAria: '{label}（子智能体）', panelOpenAsideAria: '在右侧分屏打开 {name}', panelTokens: '{value} tok',
+      panelExpandBranch: '展开 {name}', panelCollapseBranch: '收起 {name}', panelLoadError: '无法读取子智能体列表',
+      headerSubagents: '子智能体', headerModeContinuable: '可继续', headerModeOneShot: '一次性', headerModeExternal: '外部', headerStatusRunning: '运行中', headerStatusDone: '已完成', headerStatusIdle: '未运行',
+      childrenExternal: '{n} 外部', subagentsRunningIndicator: '{n} 个子智能体运行中',
+      archiveSubagent: '归档子会话', archiveSubagentAria: '归档 {name}', restoreSubagent: '恢复子会话', restoreSubagentAria: '恢复 {name}',
+      archivedSubagents: '已归档 {n}', childrenArchived: '{n} 已归档',
+      archiveSubagentActiveTitle: '停止并归档子会话',
+      archiveSubagentActiveConfirm: '「{name}」仍在运行。停止其当前任务并归档此子会话？',
+      archiveSubagentStopAction: '停止并归档',
+      archiveSubagentFailed: '归档子会话失败：{message}',
+      restoreSubagentFailed: '恢复子会话失败：{message}',
       qRecommended: '推荐', qCustomPlaceholder: '输入你的答案', qNext: '下一题', qPrev: '上一题', qNextAria: '下一题', qSubmit: '提交',
       qMinimize: '收起问题卡片', qMaximize: '展开问题卡片', qCancel: '放弃整组问题',
       qIncomplete: '请先完成这道问题。', qUnanswered: '请选择一个选项或填写自定义答案。', qRangeInvalid: '请输入符合范围要求的数值。',
@@ -575,35 +601,25 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-sp-detail-error{color:var(--dsw-alias-state-error-primary)!important}
 .aw-sp-duration{flex:none;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:20px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .aw-sp-badge-warn{flex:none;color:var(--dsw-alias-state-warn-primary);font-size:11px;font-weight:500;line-height:18px;white-space:nowrap}
-.aw-sp-btn{display:inline-flex;flex:none;align-items:center;justify-content:center;width:24px;height:24px;margin:-2px -4px -2px 0;padding:0;border:0;border-radius:var(--dsw-radius-xs,4px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;transition:color 120ms ease,background-color 120ms ease}
+.aw-sp-btn{display:inline-flex;flex:none;align-items:center;justify-content:center;width:24px;height:24px;margin:-2px -4px -2px 0;padding:0;border:0;border-radius:var(--dsw-radius-xs,4px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;transition:color 120ms ease,background-color 120ms ease,opacity 120ms ease}
 @media (hover:hover){.aw-sp-btn:hover:not(:disabled){color:var(--dsw-alias-label-primary)}.aw-sp-stop:hover:not(:disabled){color:var(--dsw-alias-state-error-primary)}}
 .aw-sp-btn:disabled{opacity:.4;cursor:default}
+.aw-sp-archive-btn{opacity:0}
+@media (hover:none){.aw-sp-archive-btn{opacity:1}}
+[data-session-panel-row]:hover .aw-sp-archive-btn,[data-session-panel-row]:focus-within .aw-sp-archive-btn{opacity:1}
+.aw-sp-row-archived{opacity:.68}
+.aw-sp-row-archived [data-row-part=body]{cursor:default}
+.aw-sp-tree-toggle{position:relative;z-index:1;display:inline-flex;flex:none;align-items:center;justify-content:center;width:18px;height:20px;margin:0 -4px 0 -2px;padding:0;border:0;border-radius:var(--dsw-radius-xs,4px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;transition:color 120ms ease,transform 120ms ease}
+.aw-sp-tree-toggle[data-open=true]>svg{transform:rotate(90deg)}
+@media (hover:hover){.aw-sp-tree-toggle:hover{color:var(--dsw-alias-label-primary)}}
+.aw-sp-nested{display:flex;flex-direction:column;margin:0;padding:0 0 0 14px;list-style:none}
+.aw-sp-error{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px;color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}
 .aw-hdr-sub{position:relative;display:inline-flex;align-items:center;min-width:0}
-.aw-hdr-trigger{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 7px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer;transition:background-color 120ms ease,color 120ms ease}
-.aw-hdr-trigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
-@media (hover:hover){.aw-hdr-trigger:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
-.aw-hdr-trigger:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
-.aw-hdr-count{color:var(--dsw-alias-label-tertiary);font-weight:400}
-.aw-hdr-count-warn{color:var(--dsw-alias-state-warn-primary);font-weight:500}
-.aw-hdr-dot-warn{display:inline-block;width:6px;height:6px;border-radius:999px;background:var(--dsw-alias-state-warn-primary);flex:none}
-.aw-hdr-chev{display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-tertiary);transition:transform 120ms ease}
-.aw-hdr-chev[data-open=true]{transform:rotate(180deg)}
-.aw-hdr-menu{position:fixed;z-index:100;box-sizing:border-box;display:flex;flex-direction:column;width:min(360px,calc(100vw - 32px));max-height:min(520px,calc(100dvh - 120px));padding:6px;overflow:hidden;--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);margin:0}
-.aw-hdr-menu-body{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-height:0;overflow:auto}
-.aw-hdr-row{position:relative;display:flex;align-items:center;gap:8px;min-height:36px;padding:5px 6px;border-radius:var(--dsw-radius-sm,8px);color:var(--dsw-alias-label-primary);min-width:0}
-@media (hover:hover){.aw-hdr-row[data-interactive=true]:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-.aw-hdr-row:has(>.aw-hdr-row-btn:focus-visible){outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
-.aw-hdr-row-btn{display:flex;flex:1 1 auto;align-items:flex-start;gap:8px;min-width:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
-button.aw-hdr-row-btn{cursor:pointer}
-button.aw-hdr-row-btn::after{content:'';position:absolute;inset:0;border-radius:inherit}
-button.aw-hdr-row-btn:focus-visible{outline:none}
-.aw-hdr-row-dot{display:grid;flex:none;place-items:center;width:14px;height:20px}
-.aw-hdr-row-lines{display:flex;flex:1 1 auto;flex-direction:column;gap:1px;min-width:0}
-.aw-hdr-row-title{overflow:hidden;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;font-weight:400;text-overflow:ellipsis;white-space:nowrap}
-.aw-hdr-row-sub{overflow:hidden;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px;text-overflow:ellipsis;white-space:nowrap}
-.aw-hdr-row-sub[data-tone=warn]{color:var(--dsw-alias-state-warn-primary)}
-.aw-hdr-row-sub[data-tone=error]{color:var(--dsw-alias-state-error-primary)}
-.aw-hdr-row-trail{position:relative;z-index:1;display:inline-flex;flex:none;align-items:center;gap:4px}
+.aw-hdr-action-btn{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 7px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color 120ms ease,color 120ms ease}
+@media (hover:hover){.aw-hdr-action-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.aw-hdr-action-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+.aw-hdr-action-btn:disabled{opacity:.45;cursor:default}
+.aw-hdr-err{margin:4px 6px 2px;font-size:11px;line-height:16px}
 
 .aw-review-patch{overflow:auto;max-width:100%;font:12px/1.55 ui-monospace,monospace}.aw-patch-line{display:grid;grid-template-columns:4em 4em minmax(max-content,1fr);min-width:max-content}.aw-patch-line>span,.aw-patch-line>button{text-align:end;padding:0 6px;color:var(--dsw-alias-label-tertiary)}.aw-patch-line>button{font:inherit;background:none;border:0;cursor:pointer;text-decoration:underline}.aw-patch-line>code{font:inherit;white-space:pre;padding-inline-start:7px}.aw-patch-line[data-side=add]{background:var(--dsw-alias-code-diff-added)}.aw-patch-line[data-side=del]{background:var(--dsw-alias-code-diff-deleted)}.aw-patch-hunk{color:var(--dsw-alias-label-secondary);white-space:pre;padding:3px 0}.aw-review-preview{border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:10px;min-width:0}
 .aw-task-lane{min-width:0;border-inline-start:2px solid var(--dsw-alias-border-l1);padding-inline-start:8px;margin-inline-start:5px}.aw-task-origin{font-size:11px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}.aw-task-nav{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}.aw-task-nav>.aw-strong{overflow-wrap:anywhere}.aw-task-scope{display:grid;gap:4px;padding:7px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}.aw-task-progress{min-width:0;font-size:13px}.aw-task-progress .aw-text{max-height:12em;overflow:auto}
@@ -1636,6 +1652,77 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
               h(Button, { variant: 'outline', 'data-modal-autofocus': true, onClick: () => finishConfirm(false) }, tt('cancelAction')),
               h(Button, { variant: 'primary', className: item.danger ? 'aw-danger-fill' : undefined, onClick: () => finishConfirm(true) }, item.confirmLabel || tt('confirmAction'))),
           }, h('p', { className: 'aw-confirm-body' }, item.body))
+        }
+
+        const EMPTY_SET = new Set()
+        let lastArchivedList = null
+        let lastArchivedSet = EMPTY_SET
+        const subscribeWorkspaces = listener => ctx.workspaces?.list?.subscribe?.(listener) ?? (() => {})
+        const getArchivedSet = () => {
+          const list = ctx.workspaces?.list?.getSnapshot?.()?.archivedSessionIds
+          if (!Array.isArray(list) || list.length === 0) return EMPTY_SET
+          if (list !== lastArchivedList) {
+            lastArchivedList = list
+            lastArchivedSet = new Set(list)
+          }
+          return lastArchivedSet
+        }
+        function useArchivedSessionIds() {
+          return React.useSyncExternalStore(subscribeWorkspaces, getArchivedSet, () => EMPTY_SET)
+        }
+        function isActiveSessionRefusal(error) {
+          if (!error || typeof error !== 'object') return false
+          if (error.rpcError?.code === 'workspace/session-active' || error.code === 'workspace/session-active') return true
+          return typeof error.message === 'string' && error.message.includes('workspace/session-active')
+        }
+        function canToggleSubagentArchive(targetId, archived) {
+          if (!targetId) return false
+          const fn = archived ? ctx.uiWorkspace?.unarchiveSession : ctx.uiWorkspace?.archiveSession
+          if (typeof fn !== 'function') return false
+          const action = archived ? 'workspace/unarchiveSession' : 'workspace/archiveSession'
+          const source = ctx.get?.('remoteAccess')?.source?.('session', targetId, action)
+          if (source && typeof source.getSnapshot === 'function') return source.getSnapshot() !== false
+          return true
+        }
+        async function archiveSubagentSession(targetId, { label, returnToParentId } = {}) {
+          if (!targetId || typeof ctx.uiWorkspace?.archiveSession !== 'function') return { ok: false, error: '' }
+          const navigateBack = () => {
+            if (!returnToParentId || typeof ctx.uiWorkspace?.openSession !== 'function') return
+            if (getArchivedSet().has(returnToParentId)) return
+            const parentTarget = ctx.sessions?.subagentAddress?.(returnToParentId) ?? returnToParentId
+            try { ctx.uiWorkspace.openSession(parentTarget) } catch {}
+          }
+          try {
+            await ctx.uiWorkspace.archiveSession(targetId)
+            navigateBack()
+            return { ok: true, error: '' }
+          } catch (error) {
+            if (!isActiveSessionRefusal(error)) {
+              return { ok: false, error: t('archiveSubagentFailed', { message: error?.message ?? String(error) }) }
+            }
+            const confirmed = await askConfirm(t('archiveSubagentActiveConfirm', { name: label || targetId }), {
+              title: t('archiveSubagentActiveTitle'),
+              confirmLabel: t('archiveSubagentStopAction'),
+              danger: true,
+            })
+            if (!confirmed) return { ok: false, error: '' }
+            try {
+              await ctx.uiWorkspace.archiveSession(targetId, { stopActivity: true })
+              navigateBack()
+              return { ok: true, error: '' }
+            } catch (stopError) {
+              return { ok: false, error: t('archiveSubagentFailed', { message: stopError?.message ?? String(stopError) }) }
+            }
+          }
+        }
+        async function unarchiveSubagentSession(targetId) {
+          if (!targetId || typeof ctx.uiWorkspace?.unarchiveSession !== 'function') return { ok: false, error: '' }
+          try {
+            await ctx.uiWorkspace.unarchiveSession(targetId)
+            return { ok: true, error: '' }
+          } catch (error) {
+            return { ok: false, error: t('restoreSubagentFailed', { message: error?.message ?? String(error) }) }
+          }
         }
 
         const feed = { listeners: new Set(), watchers: new Set(), online: 'connectingFeed', stream: null }
@@ -3573,6 +3660,7 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
 
         function NativeDock(props) {
           const canWrite = props.useAccess('session/prompt')
+          const archivedIds = useArchivedSessionIds()
           const modelSelection = typeof props.useProjection === 'function' ? props.useProjection('modelSelection') : undefined
           const modelKey = modelSelection ? `${modelSelection.provider ?? ''}/${modelSelection.model ?? ''}` : undefined
           const view = useNative(props.sessionId, modelKey)
@@ -3582,7 +3670,7 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
           const provider = data?.providers.find(p => p.route === data.selected?.provider)
           const binding = provider ? sessions.findLast(s => s.native.sessionId === props.sessionId && s.native.route === provider.route && !s.native.retired) : null
           useCommandScope(props.sessionId, canWrite && data?.status === 'idle' && !view.error && binding?.state === 'idle' && !binding.archived ? binding.id : null, data?.commandStamp, provider?.label)
-          const attentionChildren = sessions.filter(s => s.native.sessionId !== props.sessionId && !s.native.retired && !s.archived && s.interactions.length > 0)
+          const attentionChildren = sessions.filter(s => s.native.sessionId !== props.sessionId && !s.native.retired && !s.archived && !archivedIds.has(s.native.sessionId) && s.interactions.length > 0)
           const notices = binding && !binding.archived && data.noticeFeed?.externalId === binding.id && data.noticeFeed.remoteId === binding.remoteId && data.noticeFeed.items.length ? data.noticeFeed : null
           const canSteer = !!(binding && !binding.archived && data?.controls?.canSteer && canWrite)
           if (!notices && !own.length && !attentionChildren.length && !canSteer && !view.error) return null
@@ -3596,16 +3684,16 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
 
         function AcpAttentionIndicator({ sessionId, panelShown }) {
           const tt = useT()
+          const archivedIds = useArchivedSessionIds()
           const view = useNative(sessionId)
           const sessions = view.data?.sessions ?? EMPTY
-          const waiting = sessions.filter(s => s.native.sessionId !== sessionId && !s.native.retired && !s.archived && s.interactions.length > 0).length
+          const waiting = sessions.filter(s => s.native.sessionId !== sessionId && !s.native.retired && !s.archived && !archivedIds.has(s.native.sessionId) && s.interactions.length > 0).length
           if (panelShown || waiting === 0) return null
           return h('span', { className: 'aw-panel-attention', 'data-acp-attention': '' },
             h('span', { className: 'aw-sr-only' }, tt('attentionIndicator', { n: waiting })))
         }
 
         const PANEL_FOLD_LIMIT = 5
-        const PANEL_GROUP_RANK = { attention: 0, working: 1, review: 2, recent: 3, history: 4 }
 
         function worktreeSlugOf(cwd) {
           if (typeof cwd !== 'string' || !cwd) return ''
@@ -3697,28 +3785,152 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
           }
         }
 
-        function sortPanelChildren(children) {
-          return children.toSorted((a, b) => {
-            const rankDiff = (PANEL_GROUP_RANK[a.activity.group] ?? 9) - (PANEL_GROUP_RANK[b.activity.group] ?? 9)
-            if (rankDiff !== 0) return rankDiff
-            const timeA = Date.parse(a.native?.runs?.at(-1)?.startedAt || a.updatedAt || a.createdAt) || 0
-            const timeB = Date.parse(b.native?.runs?.at(-1)?.startedAt || b.updatedAt || b.createdAt) || 0
-            return timeB - timeA
-          })
+        function nativeTokenTotal(usage) {
+          if (!usage || typeof usage !== 'object') return 0
+          return (usage.uncachedInputTokens ?? 0) + (usage.outputTokens ?? 0) + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0)
         }
 
-        function AcpSubagentsPanelProgress({ sessionId }) {
+        function nativeDurationMs(summary, running, nowMs) {
+          const timing = summary?.projectionValues?.subagentTiming
+          if (!timing) return null
+          if (!timing.active) return Number.isFinite(timing.settledMs) ? timing.settledMs : null
+          const end = running ? nowMs : timing.active.through
+          const total = (timing.settledMs ?? 0) + Math.max(0, end - timing.active.since)
+          return Number.isFinite(total) ? total : null
+        }
+
+        function collectSubagentRows(parentSessionId, { projections, summaries, statuses, acpSessions, archivedIds }) {
+          const acpBySessionId = new Map()
+          const directAcp = []
+          for (const child of acpSessions ?? EMPTY) {
+            if (!child?.native?.sessionId || child.native.retired || child.archived) continue
+            acpBySessionId.set(child.native.sessionId, child)
+            if (child.native.sessionId !== parentSessionId && (!child.native.parentSessionId || child.native.parentSessionId === parentSessionId)) {
+              directAcp.push(child)
+            }
+          }
+          const catalogEntries = projections?.[parentSessionId]?.values?.subagentCatalog ?? EMPTY
+          const seen = new Set()
+          const rows = []
+          for (const entry of catalogEntries) {
+            if (!entry?.id || seen.has(entry.id)) continue
+            seen.add(entry.id)
+            const acp = acpBySessionId.get(entry.id) ?? null
+            const summary = summaries?.[entry.id]
+            const external = entry.mode === 'external'
+            const archived = !external && archivedIds.has(entry.id)
+            const waiting = !archived && (acp?.interactions?.length ?? 0) > 0
+            const running = !external && !archived && (
+              (statuses?.get?.(entry.id)?.running ?? summary?.running) === true
+              || acp?.activity?.group === 'working'
+            )
+            const review = !external && !archived && !waiting && !running && acp?.activity?.group === 'review'
+            const completed = !external && !archived && !waiting && !running && !review && (
+              summary?.projectionValues?.subagentTiming?.lastTurnCompleted === true
+              || acp?.activity?.runState === 'completed'
+            )
+            const createdAt = typeof entry.createdAt === 'number' ? entry.createdAt : (acp ? Date.parse(acp.createdAt) || 0 : 0)
+            const timing = summary?.projectionValues?.subagentTiming
+            const sortAt = running
+              ? (timing?.active?.since ?? (acp?.native?.runs?.at(-1)?.startedAt ? Date.parse(acp.native.runs.at(-1).startedAt) : createdAt))
+              : Math.max(summary?.updatedAt ?? 0, acp ? Date.parse(acp.updatedAt) || 0 : 0, createdAt)
+            rows.push({
+              id: entry.id,
+              parentSessionId,
+              name: entry.name ?? acp?.native?.name ?? entry.id,
+              label: entry.label || summary?.title || acp?.title || '',
+              mode: entry.mode ?? 'continuable',
+              external,
+              archived,
+              waiting,
+              running,
+              review,
+              completed,
+              acp,
+              summary,
+              sortAt,
+            })
+          }
+          for (const acp of directAcp) {
+            const sid = acp.native.sessionId
+            if (seen.has(sid)) continue
+            seen.add(sid)
+            const summary = summaries?.[sid]
+            const archived = archivedIds.has(sid)
+            const waiting = !archived && acp.interactions.length > 0
+            const running = !archived && (acp.activity.group === 'working' || (statuses?.get?.(sid)?.running ?? summary?.running) === true)
+            const review = !archived && !waiting && !running && acp.activity.group === 'review'
+            const completed = !archived && !waiting && !running && !review && acp.activity.runState === 'completed'
+            const sortAt = Date.parse(acp.native?.runs?.at(-1)?.startedAt || acp.updatedAt || acp.createdAt) || 0
+            rows.push({
+              id: sid,
+              parentSessionId: acp.native.parentSessionId ?? parentSessionId,
+              name: acp.native.name ?? acp.title,
+              label: summary?.title || acp.title || '',
+              mode: 'continuable',
+              external: false,
+              archived,
+              waiting,
+              running,
+              review,
+              completed,
+              acp,
+              summary,
+              sortAt,
+            })
+          }
+          const compare = (a, b) => {
+            const rankA = a.waiting ? 0 : a.running ? 1 : a.review ? 2 : a.external ? 4 : 3
+            const rankB = b.waiting ? 0 : b.running ? 1 : b.review ? 2 : b.external ? 4 : 3
+            if (rankA !== rankB) return rankA - rankB
+            return b.sortAt - a.sortAt
+          }
+          return {
+            active: rows.filter(item => !item.archived).toSorted(compare),
+            archived: rows.filter(item => item.archived).toSorted(compare),
+            acpBySessionId,
+          }
+        }
+
+        function UnifiedSubagentsRunningIndicator({ sessionId, panelShown, useSessions, useSessionStatus }) {
           const tt = useT()
+          const archivedIds = useArchivedSessionIds()
+          const projections = typeof useSessions === 'function' ? useSessions(state => state.projectionsBySession) : null
+          const summaries = typeof useSessions === 'function' ? useSessions(state => state.byId) : null
+          const statuses = typeof useSessionStatus === 'function' ? useSessionStatus(value => value) : null
           const view = useNative(sessionId)
-          const children = (view.data?.sessions ?? EMPTY).filter(s => s.native.sessionId !== sessionId && !s.native.retired && !s.archived)
-          if (!children.length) return null
-          let waiting = 0, running = 0, review = 0, done = 0, idle = 0
-          for (const child of children) {
-            const { group, runState } = child.activity
-            if (group === 'attention') waiting++
-            else if (group === 'working') running++
-            else if (group === 'review') review++
-            else if (runState === 'completed') done++
+          const { active } = React.useMemo(
+            () => collectSubagentRows(sessionId, { projections, summaries, statuses, acpSessions: view.data?.sessions, archivedIds }),
+            [sessionId, projections, summaries, statuses, view.data?.sessions, archivedIds],
+          )
+          const running = active.filter(item => !item.external && item.running).length
+          if (panelShown || running === 0) return null
+          return h('span', { className: 'aw-panel-running', 'data-subagents-running': '' },
+            h('span', { className: 'aw-sr-only' }, tt('subagentsRunningIndicator', { n: running })))
+        }
+
+        function UnifiedSubagentsPanelProgress({ sessionId, useSessions, useSessionStatus }) {
+          const tt = useT()
+          const archivedIds = useArchivedSessionIds()
+          const projections = typeof useSessions === 'function' ? useSessions(state => state.projectionsBySession) : null
+          const summaries = typeof useSessions === 'function' ? useSessions(state => state.byId) : null
+          const statuses = typeof useSessionStatus === 'function' ? useSessionStatus(value => value) : null
+          const view = useNative(sessionId)
+          const { active, archived } = React.useMemo(
+            () => collectSubagentRows(sessionId, { projections, summaries, statuses, acpSessions: view.data?.sessions, archivedIds }),
+            [sessionId, projections, summaries, statuses, view.data?.sessions, archivedIds],
+          )
+          if (!active.length && !archived.length) return null
+          if (!active.length) {
+            return h('span', { className: 'aw-sp-progress' }, tt('childrenArchived', { n: archived.length }))
+          }
+          let waiting = 0, running = 0, review = 0, done = 0, idle = 0, external = 0
+          for (const item of active) {
+            if (item.external) external++
+            else if (item.waiting) waiting++
+            else if (item.running) running++
+            else if (item.review) review++
+            else if (item.completed) done++
             else idle++
           }
           const parts = [
@@ -3727,6 +3939,7 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
             review ? { text: tt('childrenReview', { n: review }), warn: false } : null,
             done ? { text: tt('childrenDone', { n: done }), warn: false } : null,
             idle ? { text: tt('childrenIdle', { n: idle }), warn: false } : null,
+            external ? { text: tt('childrenExternal', { n: external }), warn: false } : null,
           ].filter(Boolean)
           if (!parts.length) return null
           return h('span', { className: 'aw-sp-progress' },
@@ -3735,17 +3948,28 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
               part.warn ? h('span', { className: 'aw-sp-progress-warn' }, part.text) : part.text)))
         }
 
-        function AcpSubagentsPanelSection({ sessionId, dismissOverlay, useAccess, renderFactorySlot }) {
+        function UnifiedSubagentsPanelSection({ sessionId, dismissOverlay, useSessions, useSessionStatus, useAccess, renderFactorySlot }) {
           const tt = useT()
           const canWrite = typeof useAccess === 'function' ? useAccess('session/prompt') : false
+          const archivedIds = useArchivedSessionIds()
+          const projections = typeof useSessions === 'function' ? useSessions(state => state.projectionsBySession) : null
+          const summaries = typeof useSessions === 'function' ? useSessions(state => state.byId) : null
+          const statuses = typeof useSessionStatus === 'function' ? useSessionStatus(value => value) : null
           const view = useNative(sessionId)
           const [unfolded, setUnfolded] = React.useState(false)
+          const [archivedOpen, setArchivedOpen] = React.useState(false)
+          const [expanded, setExpanded] = React.useState(() => new Set())
+          const [archivingId, setArchivingId] = React.useState(null)
+          const [archiveError, setArchiveError] = React.useState('')
           const [now, setNow] = React.useState(() => Date.now())
-          const children = React.useMemo(
-            () => sortPanelChildren((view.data?.sessions ?? EMPTY).filter(s => s.native.sessionId !== sessionId && !s.native.retired && !s.archived)),
-            [view.data?.sessions, sessionId],
+
+          const { active, archived } = React.useMemo(
+            () => collectSubagentRows(sessionId, { projections, summaries, statuses, acpSessions: view.data?.sessions, archivedIds }),
+            [sessionId, projections, summaries, statuses, view.data?.sessions, archivedIds],
           )
-          const hasLive = children.some(s => s.activity.group === 'working' || s.activity.group === 'attention')
+          const rootProjection = projections?.[sessionId]
+          const hasError = rootProjection?.state === 'error'
+          const hasLive = active.some(item => item.running || item.waiting)
           React.useEffect(() => {
             if (!hasLive) return
             setNow(Date.now())
@@ -3754,84 +3978,208 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
             }, 1000)
             return () => clearInterval(timer)
           }, [hasLive])
-          if (!children.length) return null
-          const foldable = children.length > PANEL_FOLD_LIMIT + 1
-          const shown = foldable && !unfolded ? children.slice(0, PANEL_FOLD_LIMIT) : children
-          const foldLabel = unfolded ? tt('panelLess') : tt('panelMore', { n: children.length - PANEL_FOLD_LIMIT })
+
+          if (!hasError && !active.length && !archived.length) return null
+          const foldable = active.length > PANEL_FOLD_LIMIT + 1
+          const shown = foldable && !unfolded ? active.slice(0, PANEL_FOLD_LIMIT) : active
+          const foldLabel = unfolded ? tt('panelLess') : tt('panelMore', { n: active.length - PANEL_FOLD_LIMIT })
+          const archivedExpanded = archivedOpen || active.length === 0
           const panelDetails = typeof renderFactorySlot === 'function'
             ? details => renderFactorySlot('conversation.session.panel.details', details)
             : null
 
-          const renderRow = child => {
-            const name = child.native?.name ?? child.title
-            const dot = childDotState(child)
-            const status = childStatus(child, tt)
-            const rough = panelChildSummary(child, tt)
-            const durationMs = panelRunDurationMs(child, now)
+          const toggleBranch = (event, childId) => {
+            event.preventDefault()
+            event.stopPropagation()
+            setExpanded(prev => {
+              const next = new Set(prev)
+              if (next.has(childId)) {
+                next.delete(childId)
+              } else {
+                next.add(childId)
+                try { void ctx.sessions?.refreshProjections?.(childId) } catch {}
+              }
+              return next
+            })
+          }
+
+          const handleArchive = async (event, childId, name) => {
+            event.preventDefault()
+            event.stopPropagation()
+            if (!childId || archivingId) return
+            setArchivingId(childId)
+            setArchiveError('')
+            try {
+              const res = await archiveSubagentSession(childId, { label: name })
+              if (res.error) setArchiveError(res.error)
+            } finally {
+              setArchivingId(current => (current === childId ? null : current))
+            }
+          }
+
+          const handleRestore = async (event, childId) => {
+            event.preventDefault()
+            event.stopPropagation()
+            if (!childId || archivingId) return
+            setArchivingId(childId)
+            setArchiveError('')
+            try {
+              const res = await unarchiveSubagentSession(childId)
+              if (res.error) setArchiveError(res.error)
+            } finally {
+              setArchivingId(current => (current === childId ? null : current))
+            }
+          }
+
+          const renderRow = (item, isArchived, depth = 0) => {
+            const primary = item.label || item.name
+            const acp = item.acp
+            const rough = acp ? panelChildSummary(acp, tt) : null
+            const modeText = item.external ? tt('headerModeExternal') : item.mode === 'one-shot' ? tt('headerModeOneShot') : tt('headerModeContinuable')
+            const statusText = isArchived
+              ? tt('archivedTag')
+              : acp
+                ? childStatus(acp, tt).text
+                : item.external
+                  ? tt('headerModeExternal')
+                  : item.running
+                    ? tt('headerStatusRunning')
+                    : item.completed
+                      ? tt('headerStatusDone')
+                      : tt('headerStatusIdle')
+            const dot = isArchived
+              ? 'idle'
+              : acp
+                ? childDotState(acp)
+                : item.running
+                  ? 'ongoing'
+                  : item.completed
+                    ? 'done'
+                    : 'idle'
+            const durationMs = isArchived
+              ? null
+              : acp
+                ? panelRunDurationMs(acp, now)
+                : nativeDurationMs(item.summary, item.running, now)
             const durationText = durationMs !== null ? formatCompactDuration(durationMs, tt) : ''
-            const tokensText = child.usage?.used ? tt('panelTokens', { value: formatCompactTokens(child.usage.used) }) : ''
-            const s = child.native
-            const target = s ? conversationTarget(s) : null
+            const totalTokens = acp?.usage?.used || nativeTokenTotal(item.summary?.projectionValues?.tokenUsage)
+            const tokensText = totalTokens > 0 ? tt('panelTokens', { value: formatCompactTokens(totalTokens) }) : ''
+            const detailLine = isArchived
+              ? [acp ? (acp.providerLabel || acp.providerId) : modeText, tt('archivedTag')].filter(Boolean).join(' · ')
+              : rough
+                ? rough.line
+                : [item.name !== primary ? item.name : '', modeText, item.external ? '' : statusText].filter(Boolean).join(' · ')
+            const detailClass = !isArchived && rough?.tone === 'warn' ? 'aw-sp-detail-warn' : !isArchived && rough?.tone === 'error' ? 'aw-sp-detail-error' : undefined
+            const interactive = !item.external && !isArchived
+            const busyRow = archivingId === item.id
+            const nestedEntries = !item.external && !isArchived && depth < 3
+              ? (projections?.[item.id]?.values?.subagentCatalog ?? EMPTY)
+              : EMPTY
+            const canExpand = nestedEntries.length > 0 && item.summary?.formatStatus !== 'migration-required'
+            const isExpanded = canExpand && expanded.has(item.id)
+            const nestedRows = isExpanded
+              ? collectSubagentRows(item.id, { projections, summaries, statuses, acpSessions: view.data?.sessions, archivedIds }).active
+              : EMPTY
+
             const openMain = () => {
-              if (!target) return
+              if (!interactive) return
+              const target = acp?.native ? conversationTarget(acp.native) : { parentSessionId: item.parentSessionId, childSessionId: item.id, mode: item.mode }
               try { ctx.uiWorkspace.openSession(target) } catch {}
               dismissOverlay?.()
             }
             const openAside = event => {
               event.preventDefault()
               event.stopPropagation()
-              if (!s?.sessionId) return
-              openSubagentAside(s.parentSessionId ?? sessionId, s.sessionId)
+              if (!interactive) return
+              openSubagentAside(item.parentSessionId, item.id, item.mode)
               dismissOverlay?.()
             }
             const stopChild = event => {
               event.preventDefault()
               event.stopPropagation()
-              void view.run(stopOperation(child))
+              if (!acp) return
+              void view.run(stopOperation(acp))
             }
-            const detailClass = rough.tone === 'warn' ? 'aw-sp-detail-warn' : rough.tone === 'error' ? 'aw-sp-detail-error' : undefined
-            const rowEl = h('div', { 'data-session-panel-row': '', 'data-acp-panel-child': child.id },
-              h('button', { type: 'button', 'data-row-part': 'body', onClick: openMain },
-                h('span', { 'data-row-part': 'icon', 'aria-hidden': true }, h(StateDot, { state: dot })),
-                h('span', { 'data-row-part': 'lines' },
-                  h('span', { 'data-row-part': 'content' }, name),
-                  h('span', { 'data-row-part': 'detail', className: detailClass }, rough.line))),
-              h('span', { 'data-row-part': 'trailing' },
-                child.interactions.length > 0
-                  ? h('span', { className: 'aw-sp-badge-warn' }, tt('pending'))
-                  : (durationText ? h('span', { className: 'aw-sp-duration' }, durationText) : null),
-                child.activity.stopId && canWrite
-                  ? h(Tooltip, { label: tt('stop'), side: 'bottom', align: 'end', delayMs: 500, portal: true },
-                    h('button', { type: 'button', className: 'aw-sp-btn aw-sp-stop', 'aria-label': tt('stop'), disabled: view.busy || child.state === 'canceling', onClick: stopChild },
-                      h(IconStopFillRegular, { size: 12 })))
-                  : null,
-                s?.sessionId
-                  ? h(Tooltip, { label: tt('openInSidebar'), side: 'bottom', align: 'end', delayMs: 500, portal: true },
-                    h('button', { type: 'button', className: 'aw-sp-btn', 'aria-label': tt('panelOpenAsideAria', { name }), onClick: openAside },
-                      h(IconChevronRightOutlineRegular, { size: 14 })))
-                  : null))
-            const hoverLines = [
-              rough.engineHead,
-              rough.wt ? `worktree: ${rough.wt}` : (child.cwd || ''),
-              rough.extra && rough.extra !== rough.metrics ? rough.extra : '',
-              rough.metrics || '',
-            ].filter(Boolean)
+
+            const rowEl = h('div', {
+              'data-session-panel-row': '',
+              'data-subagent-row': item.id,
+              'data-archived': isArchived || undefined,
+              className: isArchived ? 'aw-sp-row-archived' : undefined,
+            },
+            canExpand
+              ? h('button', {
+                type: 'button',
+                className: 'aw-sp-tree-toggle',
+                'data-open': isExpanded || undefined,
+                'aria-expanded': isExpanded,
+                'aria-label': tt(isExpanded ? 'panelCollapseBranch' : 'panelExpandBranch', { name: primary }),
+                onClick: event => toggleBranch(event, item.id),
+              }, h(IconChevronRightOutlineRegular, { size: 12 }))
+              : null,
+            h(interactive ? 'button' : 'div', { ...(interactive ? { type: 'button', onClick: openMain } : {}), 'data-row-part': 'body' },
+              h('span', { 'data-row-part': 'icon', 'aria-hidden': true }, h(StateDot, { state: dot })),
+              h('span', { 'data-row-part': 'lines' },
+                h('span', { 'data-row-part': 'content' }, primary),
+                detailLine ? h('span', { 'data-row-part': 'detail', className: detailClass }, detailLine) : null)),
+            h('span', { 'data-row-part': 'trailing' },
+              item.waiting
+                ? h('span', { className: 'aw-sp-badge-warn' }, tt('pending'))
+                : (durationText ? h('span', { className: 'aw-sp-duration' }, durationText) : null),
+              interactive && acp?.activity?.stopId && canWrite
+                ? h(Tooltip, { label: tt('stop'), side: 'bottom', align: 'end', delayMs: 500, portal: true },
+                  h('button', { type: 'button', className: 'aw-sp-btn aw-sp-stop', 'aria-label': tt('stop'), disabled: view.busy || acp.state === 'canceling', onClick: stopChild },
+                    h(IconStopFillRegular, { size: 12 })))
+                : null,
+              interactive && canToggleSubagentArchive(item.id, false)
+                ? h(Tooltip, { label: tt('archiveSubagent'), side: 'bottom', align: 'end', delayMs: 500, portal: true },
+                  h('button', { type: 'button', className: 'aw-sp-btn aw-sp-archive-btn', 'aria-label': tt('archiveSubagentAria', { name: primary }), disabled: busyRow, onClick: event => { void handleArchive(event, item.id, primary) } },
+                    h(ArchiveGlyph, { size: 13 })))
+                : null,
+              interactive
+                ? h(Tooltip, { label: tt('openInSidebar'), side: 'bottom', align: 'end', delayMs: 500, portal: true },
+                  h('button', { type: 'button', className: 'aw-sp-btn', 'aria-label': tt('panelOpenAsideAria', { name: primary }), onClick: openAside },
+                    h(IconChevronRightOutlineRegular, { size: 14 })))
+                : null,
+              isArchived && canToggleSubagentArchive(item.id, true)
+                ? h(Tooltip, { label: tt('restoreSubagent'), side: 'bottom', align: 'end', delayMs: 500, portal: true },
+                  h('button', { type: 'button', className: 'aw-sp-btn', 'aria-label': tt('restoreSubagentAria', { name: primary }), disabled: busyRow, onClick: event => { void handleRestore(event, item.id) } },
+                    h(UnarchiveGlyph, { size: 13 })))
+                : null))
+
+            const hoverLines = rough
+              ? [
+                rough.engineHead,
+                rough.wt ? `worktree: ${rough.wt}` : (acp?.cwd || ''),
+                rough.extra && rough.extra !== rough.metrics ? rough.extra : '',
+                rough.metrics || '',
+              ].filter(Boolean)
+              : [item.name !== primary ? item.name : '', modeText].filter(Boolean)
             const facts = [
               ...(tokensText ? [{ kind: 'tokens', label: tokensText }] : []),
               ...(durationText ? [{ kind: 'duration', label: durationText }] : []),
             ]
             const content = panelDetails ? panelDetails({
-              title: name,
+              title: primary,
               lines: hoverLines,
-              status: { state: dot, label: status.text },
+              status: { state: dot, label: statusText },
               facts,
             }) : null
-            return h('li', { key: child.id }, content ? h(HoverCard, { grouped: true, anchor: rowEl, content }) : rowEl)
+            return h('li', { key: item.id },
+              content ? h(HoverCard, { grouped: true, anchor: rowEl, content }) : rowEl,
+              isExpanded && nestedRows.length > 0
+                ? h('ul', { className: 'aw-sp-nested' }, nestedRows.map(child => renderRow(child, false, depth + 1)))
+                : null)
           }
 
           return h(HoverCardGroup, null,
-            h('ul', { className: 'aw-sp-list', 'data-acp-subagents-section': '' },
-              shown.map(renderRow),
+            h('ul', { className: 'aw-sp-list', 'data-subagents-section': '' },
+              hasError
+                ? h('li', { key: 'load-error', className: 'aw-sp-error', role: 'alert' },
+                  h('span', null, rootProjection?.error?.message || tt('panelLoadError')),
+                  h(Button, { size: 'sm', variant: 'ghost', onClick: () => { try { void ctx.sessions?.refreshProjections?.(sessionId) } catch {} } }, tt('retry')))
+                : null,
+              shown.map(item => renderRow(item, false)),
               foldable && typeof renderFactorySlot === 'function'
                 ? h('li', { key: 'fold' }, renderFactorySlot('conversation.session.panel.fold', {
                   expanded: unfolded,
@@ -3839,7 +4187,20 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
                   name: tt('panelFoldAria', { label: foldLabel }),
                   onToggle: () => setUnfolded(v => !v),
                 }))
-                : null))
+                : null,
+              archived.length > 0
+                ? h('li', { key: 'archived-head', className: 'aw-bg-head' },
+                  h('button', {
+                    type: 'button',
+                    className: 'aw-bg-toggle',
+                    'aria-expanded': archivedExpanded,
+                    onClick: () => setArchivedOpen(v => !v),
+                  },
+                  tt('archivedSubagents', { n: archived.length }),
+                  h(IconChevronDownOutlineRegular, { size: 14, className: 'aw-bg-toggle-chev', 'data-open': archivedExpanded || undefined })))
+                : null,
+              archivedExpanded ? archived.map(item => renderRow(item, true)) : null,
+              archiveError ? h('li', { key: 'archive-error' }, h('p', { className: 'aw-error aw-hdr-err', role: 'alert' }, archiveError)) : null))
         }
 
         function sessionBackgroundTasks(viewData, sessionId) {
@@ -4060,300 +4421,75 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
               settledExpanded && settledFoldable ? renderFold('settled', settledRows.length - PANEL_FOLD_LIMIT) : null))
         }
 
-        function RootSubagentHeaderSwitcher({ sessionId, useSessions, useSession, useSessionStatus }) {
+        function ChildSubagentHeaderAction({ sessionId, useSessions, useSession, useAccess }) {
           const tt = useT()
-          const isChildFromSession = typeof useSession === 'function'
-            ? useSession(snapshot => snapshot?.subagent !== null && snapshot?.subagent !== undefined)
-            : false
-          const projections = typeof useSessions === 'function'
-            ? useSessions(state => state.projectionsBySession)
-            : null
-          const summaries = typeof useSessions === 'function'
-            ? useSessions(state => state.byId)
-            : null
-          const statuses = typeof useSessionStatus === 'function'
-            ? useSessionStatus(value => value)
-            : null
-          const view = useNative(sessionId)
-          const [open, setOpen] = React.useState('closed')
-          const [pos, setPos] = React.useState(null)
-          const [now, setNow] = React.useState(() => Date.now())
-          const rootRef = React.useRef(null)
-          const triggerRef = React.useRef(null)
-          const menuRef = React.useRef(null)
-          const hoverTimer = React.useRef(null)
+          const archivedIds = useArchivedSessionIds()
+          const address = typeof useSession === 'function' ? useSession(snapshot => snapshot?.subagent?.address) : undefined
+          const projections = typeof useSessions === 'function' ? useSessions(state => state.projectionsBySession) : null
+          const summaries = typeof useSessions === 'function' ? useSessions(state => state.byId) : null
+          const [busy, setBusy] = React.useState(false)
+          const [error, setError] = React.useState('')
 
-          const isChild = isChildFromSession || summaries?.[sessionId]?.origin === 'subagent'
-          const items = React.useMemo(() => {
-            if (isChild) return EMPTY
-            const acpChildren = (view.data?.sessions ?? EMPTY).filter(s => s.native.sessionId !== sessionId && !s.native.retired && !s.archived)
-            const acpBySessionId = new Map()
-            for (const child of acpChildren) {
-              if (child.native?.sessionId) acpBySessionId.set(child.native.sessionId, child)
+          const { parentId, displayName } = React.useMemo(() => {
+            const summary = summaries?.[sessionId]
+            let resolvedParent = address?.childSessionId === sessionId ? address.parentSessionId : undefined
+            if (!resolvedParent && summary?.origin === 'subagent') resolvedParent = summary.parentId
+            let catalogEntry = null
+            if (projections) {
+              if (resolvedParent) {
+                catalogEntry = projections[resolvedParent]?.values?.subagentCatalog?.find(entry => entry.id === sessionId) ?? null
+              }
+              if (!resolvedParent || !catalogEntry) {
+                for (const [pid, snapshot] of Object.entries(projections)) {
+                  const found = snapshot?.values?.subagentCatalog?.find(entry => entry.id === sessionId)
+                  if (found) {
+                    if (!resolvedParent) resolvedParent = pid
+                    if (!catalogEntry) catalogEntry = found
+                    break
+                  }
+                }
+              }
             }
-            const catalogEntries = projections?.[sessionId]?.values?.subagentCatalog ?? EMPTY
-            const seen = new Set()
-            const rows = []
-            for (const entry of catalogEntries) {
-              seen.add(entry.id)
-              const acp = acpBySessionId.get(entry.id) ?? null
-              const summary = summaries?.[entry.id]
-              const external = entry.mode === 'external'
-              const waiting = (acp?.interactions?.length ?? 0) > 0
-              const running = !external && (
-                (statuses?.get?.(entry.id)?.running ?? summary?.running) === true
-                || acp?.activity?.group === 'working'
-              )
-              const completed = !external && !running && (
-                summary?.projectionValues?.subagentTiming?.lastTurnCompleted === true
-                || acp?.activity?.runState === 'completed'
-              )
-              const createdAt = typeof entry.createdAt === 'number' ? entry.createdAt : (acp ? Date.parse(acp.createdAt) || 0 : 0)
-              const timing = summary?.projectionValues?.subagentTiming
-              const sortAt = running
-                ? (timing?.active?.since ?? (acp?.native?.runs?.at(-1)?.startedAt ? Date.parse(acp.native.runs.at(-1).startedAt) : createdAt))
-                : Math.max(summary?.updatedAt ?? 0, acp ? Date.parse(acp.updatedAt) || 0 : 0, createdAt)
-              rows.push({
-                id: entry.id,
-                name: entry.name ?? acp?.native?.name ?? entry.id,
-                label: entry.label || summary?.title || acp?.title || '',
-                mode: entry.mode,
-                external,
-                waiting,
-                running,
-                completed,
-                acp,
-                timing,
-                sortAt,
-              })
+            const name = catalogEntry?.label || summary?.title || catalogEntry?.name || sessionId
+            return { parentId: resolvedParent, displayName: name }
+          }, [address, projections, summaries, sessionId])
+
+          const isChild = Boolean(address || summaries?.[sessionId]?.origin === 'subagent' || parentId)
+          const isArchived = archivedIds.has(sessionId)
+          const accessAllowed = typeof useAccess === 'function'
+            ? useAccess(isArchived ? 'workspace/unarchiveSession' : 'workspace/archiveSession') !== false
+            : true
+          if (!isChild || !accessAllowed || !canToggleSubagentArchive(sessionId, isArchived)) return null
+
+          const onClick = async () => {
+            if (busy) return
+            setBusy(true)
+            setError('')
+            try {
+              const res = isArchived
+                ? await unarchiveSubagentSession(sessionId)
+                : await archiveSubagentSession(sessionId, { label: displayName, returnToParentId: parentId })
+              if (res.error) setError(res.error)
+            } finally {
+              setBusy(false)
             }
-            for (const acp of acpChildren) {
-              const sid = acp.native?.sessionId
-              if (!sid || seen.has(sid)) continue
-              seen.add(sid)
-              const summary = summaries?.[sid]
-              const waiting = acp.interactions.length > 0
-              const running = acp.activity.group === 'working' || (statuses?.get?.(sid)?.running ?? summary?.running) === true
-              const completed = !running && acp.activity.runState === 'completed'
-              const sortAt = Date.parse(acp.native?.runs?.at(-1)?.startedAt || acp.updatedAt || acp.createdAt) || 0
-              rows.push({
-                id: sid,
-                name: acp.native?.name ?? acp.title,
-                label: summary?.title || acp.title || '',
-                mode: 'continuable',
-                external: false,
-                waiting,
-                running,
-                completed,
-                acp,
-                timing: summary?.projectionValues?.subagentTiming,
-                sortAt,
-              })
-            }
-            return rows.toSorted((a, b) => {
-              const rankA = a.waiting ? 0 : a.running ? 1 : a.external ? 3 : 2
-              const rankB = b.waiting ? 0 : b.running ? 1 : b.external ? 3 : 2
-              if (rankA !== rankB) return rankA - rankB
-              return b.sortAt - a.sortAt
-            })
-          }, [isChild, projections, summaries, statuses, view.data?.sessions, sessionId])
-
-          const shown = open !== 'closed'
-          const hasLive = shown && items.some(item => item.running || item.waiting)
-
-          const cancelHover = React.useCallback(() => {
-            if (hoverTimer.current !== null) {
-              clearTimeout(hoverTimer.current)
-              hoverTimer.current = null
-            }
-          }, [])
-
-          const updatePosition = React.useCallback(() => {
-            const trigger = triggerRef.current
-            if (!trigger || typeof window === 'undefined') return
-            const rect = trigger.getBoundingClientRect()
-            const width = Math.min(360, window.innerWidth - 32)
-            const left = Math.max(16, Math.min(rect.left, window.innerWidth - width - 16))
-            const top = rect.bottom + 6
-            setPos({ left, top })
-          }, [])
-
-          const close = React.useCallback((restoreFocus = false) => {
-            cancelHover()
-            setOpen('closed')
-            if (restoreFocus) queueMicrotask(() => { triggerRef.current?.focus() })
-          }, [cancelHover])
-
-          React.useEffect(() => {
-            if (!hasLive) return
-            setNow(Date.now())
-            const timer = setInterval(() => {
-              if (!document.hidden) setNow(Date.now())
-            }, 1000)
-            return () => clearInterval(timer)
-          }, [hasLive])
-
-          React.useEffect(() => {
-            if (!shown) return
-            updatePosition()
-            const onPointerDown = event => {
-              const target = event.target
-              if (target instanceof Node && !rootRef.current?.contains(target) && !menuRef.current?.contains(target)) close()
-            }
-            const onKeyDown = event => {
-              if (event.key !== 'Escape') return
-              event.preventDefault()
-              close(menuRef.current?.contains(document.activeElement) === true)
-            }
-            const onReposition = () => updatePosition()
-            document.addEventListener('pointerdown', onPointerDown)
-            document.addEventListener('keydown', onKeyDown)
-            window.addEventListener('resize', onReposition)
-            window.addEventListener('scroll', onReposition, true)
-            return () => {
-              document.removeEventListener('pointerdown', onPointerDown)
-              document.removeEventListener('keydown', onKeyDown)
-              window.removeEventListener('resize', onReposition)
-              window.removeEventListener('scroll', onReposition, true)
-            }
-          }, [shown, close, updatePosition])
-
-          React.useEffect(() => cancelHover, [cancelHover])
-
-          if (isChild || !items.length) return null
-
-          const waitingCount = items.filter(item => item.waiting).length
-          const runningCount = items.filter(item => item.running).length
-          const allDone = !waitingCount && !runningCount && items.some(item => item.completed) && items.every(item => item.completed || item.external)
-          const badgeText = waitingCount > 0
-            ? `${waitingCount}/${items.length}`
-            : runningCount > 0
-              ? `${runningCount}/${items.length}`
-              : String(items.length)
-
-          const hoverIn = pointerType => {
-            if (pointerType === 'touch') return
-            cancelHover()
-            if (shown) return
-            hoverTimer.current = setTimeout(() => {
-              hoverTimer.current = null
-              updatePosition()
-              setOpen('hover')
-            }, 150)
           }
 
-          const hoverOut = () => {
-            cancelHover()
-            if (open !== 'hover') return
-            hoverTimer.current = setTimeout(() => {
-              hoverTimer.current = null
-              setOpen('closed')
-            }, 120)
-          }
+          const label = tt(isArchived ? 'restoreSubagent' : 'archiveSubagent')
+          const ariaLabel = tt(isArchived ? 'restoreSubagentAria' : 'archiveSubagentAria', { name: displayName })
+          const btn = h('button', {
+            type: 'button',
+            className: 'aw-hdr-action-btn',
+            'data-child-archive': isArchived ? 'restore' : 'archive',
+            disabled: busy,
+            'aria-label': ariaLabel,
+            onClick: () => { void onClick() },
+          },
+          h(isArchived ? UnarchiveGlyph : ArchiveGlyph, { size: 14 }),
+          h('span', null, label))
 
-          const durationForItem = item => {
-            if (item.acp) {
-              const ms = panelRunDurationMs(item.acp, now)
-              return ms !== null ? formatCompactDuration(ms, tt) : ''
-            }
-            const timing = item.timing
-            if (!timing) return ''
-            const ms = timing.active
-              ? timing.settledMs + Math.max(0, (item.running ? now : timing.active.through) - timing.active.since)
-              : timing.settledMs
-            return Number.isFinite(ms) ? formatCompactDuration(ms, tt) : ''
-          }
-
-          const menuSurface = shown
-            ? h(MenuSurface, {
-              ref: menuRef,
-              className: 'acpw aw-hdr-menu',
-              style: pos ? { left: `${pos.left}px`, top: `${pos.top}px` } : undefined,
-              role: 'dialog',
-              tabIndex: -1,
-              'aria-label': tt('headerSubagents'),
-              onPointerEnter: event => { if (event.pointerType !== 'touch') cancelHover() },
-              onPointerLeave: hoverOut,
-            },
-            h('div', { className: 'aw-hdr-menu-body' },
-              items.map(item => {
-                const primary = item.label || item.name
-                const rough = item.acp ? panelChildSummary(item.acp, tt) : null
-                const modeText = item.external ? tt('headerModeExternal') : item.mode === 'one-shot' ? tt('headerModeOneShot') : tt('headerModeContinuable')
-                const statusText = item.external ? '' : item.running ? tt('headerStatusRunning') : item.completed ? tt('headerStatusDone') : tt('headerStatusIdle')
-                const secondaryParts = rough
-                  ? [item.name !== primary ? item.name : '', rough.line]
-                  : [item.name !== primary ? item.name : '', modeText, statusText]
-                const secondary = secondaryParts.filter(Boolean).join(' · ')
-                const durationText = durationForItem(item)
-                const dotState = item.running ? 'ongoing' : item.completed ? 'done' : 'idle'
-                const openMain = () => {
-                  if (item.external) return
-                  try {
-                    ctx.uiWorkspace.openSession({ parentSessionId: sessionId, childSessionId: item.id, mode: item.mode })
-                  } catch {}
-                  close()
-                }
-                const openAside = event => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  if (item.external) return
-                  openSubagentAside(sessionId, item.id, item.mode)
-                  close()
-                }
-                return h('div', { key: item.id, className: 'aw-hdr-row', 'data-interactive': !item.external || undefined },
-                  h(item.external ? 'div' : 'button', {
-                    ...(item.external ? {} : { type: 'button', onClick: openMain }),
-                    className: 'aw-hdr-row-btn',
-                  },
-                  h('span', { className: 'aw-hdr-row-dot', 'aria-hidden': true },
-                    item.waiting ? h('span', { className: 'aw-hdr-dot-warn' }) : h(StateDot, { state: dotState })),
-                  h('span', { className: 'aw-hdr-row-lines' },
-                    h('span', { className: 'aw-hdr-row-title' }, primary),
-                    secondary ? h('span', { className: 'aw-hdr-row-sub', 'data-tone': rough?.tone || undefined }, secondary) : null)),
-                  h('span', { className: 'aw-hdr-row-trail' },
-                    item.waiting
-                      ? h('span', { className: 'aw-sp-badge-warn' }, tt('pending'))
-                      : (durationText ? h('span', { className: 'aw-sp-duration' }, durationText) : null),
-                    !item.external
-                      ? h(Tooltip, { label: tt('openInSidebar'), side: 'bottom', align: 'end', delayMs: 500, portal: true },
-                        h('button', { type: 'button', className: 'aw-sp-btn', 'aria-label': tt('panelOpenAsideAria', { name: primary }), onClick: openAside },
-                          h(IconChevronRightOutlineRegular, { size: 14 })))
-                      : null))
-              })))
-            : null
-          const menuNode = menuSurface
-            ? (createPortal && typeof document !== 'undefined' && document.body ? createPortal(menuSurface, document.body) : menuSurface)
-            : null
-
-          return h('div', { ref: rootRef, className: 'acpw aw-hdr-sub', onPointerLeave: hoverOut },
-            h('button', {
-              ref: triggerRef,
-              type: 'button',
-              className: 'aw-hdr-trigger',
-              'aria-haspopup': 'dialog',
-              'aria-expanded': shown,
-              'aria-label': tt('headerSubagentsAria', { count: items.length }),
-              onPointerEnter: event => hoverIn(event.pointerType),
-              onClick: () => {
-                cancelHover()
-                if (open === 'pinned') {
-                  close()
-                  return
-                }
-                updatePosition()
-                setOpen('pinned')
-                try { void ctx.sessions?.refreshProjections?.(sessionId) } catch {}
-              },
-            },
-            waitingCount > 0
-              ? h('span', { className: 'aw-hdr-dot-warn', 'aria-hidden': true })
-              : h(StateDot, { state: runningCount > 0 ? 'ongoing' : allDone ? 'done' : 'idle' }),
-            h('span', null, tt('headerSubagents')),
-            h('span', { className: waitingCount > 0 ? 'aw-hdr-count-warn' : 'aw-hdr-count' }, badgeText),
-            h('span', { className: 'aw-hdr-chev', 'data-open': shown || undefined, 'aria-hidden': true },
-              h(IconChevronDownOutlineRegular, { size: 12 }))),
-            menuNode)
+          return h('div', { className: 'acpw aw-hdr-sub' },
+            Tooltip ? h(Tooltip, { label: error || label, side: 'bottom', align: 'end', delayMs: 400, portal: true }, btn) : btn)
         }
 
         const traceMatch = event => ({ id: `${event.data.turn}:${event.data.step}`, role: 'start' })
@@ -5193,14 +5329,16 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-model-controls', order: 900 }, NativeModelControls))
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-context-ring', order: 2500 }, NativeContextRing))
         ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'acp-native', order: 40 }, NativeDock))
-        ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', id: 'acp-root-subagents', order: 5, locale: NS }, RootSubagentHeaderSwitcher))
+        ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', id: 'acp-child-archive', order: 6, locale: NS }, ChildSubagentHeaderAction))
+        ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'acp-workbench.confirm', locale: NS }, ConfirmModal))
         ctx.slots.inject('conversation.session.panel.section', function* () {
-          yield ctx.slots.register({ name: 'conversation.session.panel.section', id: 'acp-subagents', order: 205, label: () => t('children'), locale: NS }, AcpSubagentsPanelSection)
-          yield ctx.slots.register({ name: 'conversation.session.panel.section.actions', key: 'acp-subagents', locale: NS }, AcpSubagentsPanelProgress)
+          yield ctx.slots.register({ name: 'conversation.session.panel.section', id: 'subagents', priority: -10, order: 200, label: () => t('headerSubagents'), locale: NS }, UnifiedSubagentsPanelSection)
+          yield ctx.slots.register({ name: 'conversation.session.panel.section.actions', key: 'subagents', priority: -10, locale: NS }, UnifiedSubagentsPanelProgress)
           yield ctx.slots.register({ name: 'conversation.session.panel.section', id: 'acp-background-tasks', order: 305, label: () => t('bgTasks'), locale: NS }, AcpBackgroundTasksPanelSection)
           yield ctx.slots.register({ name: 'conversation.session.panel.section.actions', key: 'acp-background-tasks', locale: NS }, AcpBackgroundTasksPanelProgress)
         })
         ctx.slots.inject('conversation.session.panel.indicator', function* () {
+          yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'subagents.running', priority: -10, order: 10, locale: NS }, UnifiedSubagentsRunningIndicator)
           yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'acp-subagents.attention', order: 90, locale: NS }, AcpAttentionIndicator)
           yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'acp-background-tasks.running', order: 25, locale: NS }, AcpBackgroundTasksIndicator)
         })
@@ -5887,8 +6025,7 @@ button.aw-hdr-row-btn:focus-visible{outline:none}
                 localUsageByProvider: view.data.localUsageByProvider,
                 defaultCwd: view.data.defaultCwd,
                 run, busy, creating, setCreating,
-              })),
-            h(ConfirmModal))
+              })))
         }
 
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: NS, locale: NS }, Page))
