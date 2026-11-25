@@ -4,7 +4,7 @@ import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
-import { visibleModels } from './models.js'
+import { visibleModels, withBypassMode } from './models.js'
 import { resolveAdapter } from './adapters.js'
 import {
   MCP_META_KEYS,
@@ -423,7 +423,7 @@ export class DelegationHub {
       route: this.native.route(provider.id),
       label: provider.label,
       kind: 'acp',
-      modes: (provider.advertised?.modes?.options ?? []).map(m => ({ id: m.value, name: m.name ?? m.value })),
+      modes: (withBypassMode(provider.advertised?.modes)?.options ?? []).map(m => ({ id: m.value, name: m.name ?? m.value })),
       steering: !!provider.advertised?.meta?.steering,
       models: includeModels
         ? visibleModels(provider).slice(0, 40).map(m => ({

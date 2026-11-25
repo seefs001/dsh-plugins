@@ -1,21 +1,27 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  BYPASS_MODE_ID,
   advertisedModels,
   advertisedModes,
   cleanLabel,
   extractLegacyOverrides,
+  hasNativeBypassMode,
+  isBypassModeId,
   modelContextWindow,
   modelDetails,
   parseContextSize,
   parseParameterizedModelId,
+  preferredBypassModeId,
   reasoningOption,
   reasoningSelection,
   resolveInitialConfigOptions,
   resolveLiveThinkingUpdates,
   resolveModeId,
+  underlyingModeForBypass,
   visibleModels,
   wireModelId,
+  withBypassMode,
 } from '../lib/models.js'
 import { resolveAdapter } from '../lib/adapters.js'
 
@@ -500,4 +506,48 @@ test('resolveModeId and resolveInitialConfigOptions map legacyModes only when de
     hermes,
   )
   assert.equal(advertised.currentModeId, 'session')
+})
+
+test('withBypassMode appends synthetic bypass mode unless provider natively advertises one', () => {
+  const agyModes = {
+    configId: 'mode',
+    currentModeId: 'default',
+    options: [
+      { value: 'default', name: 'Default' },
+      { value: 'accept-edits', name: 'Accept edits' },
+      { value: 'auto', name: 'Auto' },
+      { value: 'plan', name: 'Plan' },
+    ],
+  }
+  assert.equal(hasNativeBypassMode(agyModes), false)
+  const enhancedAgy = withBypassMode(agyModes)
+  assert.deepEqual(enhancedAgy.options.map(item => item.value), ['default', 'accept-edits', 'auto', 'plan', BYPASS_MODE_ID])
+  assert.equal(underlyingModeForBypass(agyModes), 'auto')
+  assert.equal(preferredBypassModeId(agyModes), BYPASS_MODE_ID)
+
+  const cursorModes = {
+    configId: 'mode',
+    currentModeId: 'agent',
+    options: [
+      { value: 'agent', name: 'Agent' },
+      { value: 'plan', name: 'Plan' },
+      { value: 'ask', name: 'Ask' },
+    ],
+  }
+  assert.equal(underlyingModeForBypass(cursorModes), 'agent')
+
+  const claudeModes = {
+    configId: 'mode',
+    currentModeId: 'default',
+    options: [
+      { value: 'default', name: 'Manual' },
+      { value: 'bypassPermissions', name: 'Bypass permissions' },
+    ],
+  }
+  assert.equal(isBypassModeId('bypassPermissions'), true)
+  assert.equal(isBypassModeId(BYPASS_MODE_ID), true)
+  assert.equal(isBypassModeId('auto'), false)
+  assert.equal(hasNativeBypassMode(claudeModes), true)
+  assert.equal(withBypassMode(claudeModes), claudeModes)
+  assert.equal(preferredBypassModeId(claudeModes), 'bypassPermissions')
 })

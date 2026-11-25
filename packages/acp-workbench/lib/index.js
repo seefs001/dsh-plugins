@@ -68,6 +68,7 @@ export async function apply(ctx, config = {}) {
   const manager = new Workbench({ domain, subprocess: ctx.subprocess, changed,
     modelsChanged: providerId => bridge.native && ctx.emit('llm/models-updated', bridge.native.route(providerId)),
     log: message => ctx.logger.warn(message),
+    autoApprove: (session, params) => bridge.native?.autoApprove(session, params) ?? null,
     mcpServersFor: (session, adapter) => bridge.native?.mcpServersFor(session, adapter) ?? [],
     chunkRetentionDays: config.chunkRetentionDays,
     archivedChunkRetentionDays: config.archivedChunkRetentionDays,

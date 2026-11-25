@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { advertisedModels, advertisedModes } from '../lib/models.js'
+import { BYPASS_MODE_ID, advertisedModels, advertisedModes } from '../lib/models.js'
 import { NativeAcp } from '../lib/native.js'
 
 function createHarness() {
@@ -645,15 +645,184 @@ test('setOption stores draft preferences before connecting and applyModel sends 
   await h.native.close()
 })
 
-test('DSH full-access preset does not auto-approve ACP permission requests', async () => {
+test('DSH full-access preset does not auto-approve ACP permission requests, while bypass-permissions mode does and maps underlying CLI mode', async () => {
   const h = createHarness()
+  const agyModes = {
+    configId: 'mode',
+    currentModeId: 'default',
+    options: [
+      { value: 'default', name: 'Default' },
+      { value: 'accept-edits', name: 'Accept edits' },
+      { value: 'auto', name: 'Auto' },
+      { value: 'plan', name: 'Plan' },
+    ],
+  }
+  h.manager.store.providers.set('antigravity', {
+    id: 'antigravity',
+    label: 'Antigravity',
+    models: [],
+    advertised: { models: [{ id: 'gemini-4-neon', name: 'Gemini 4 Neon' }], modes: agyModes },
+  })
+  h.agent.status = 'idle'
+  h.agent.runMaintenance = async fn => fn(new AbortController().signal)
+  h.agent.model = { current: () => ({ provider: 'acp-antigravity', model: 'gemini-4-neon' }) }
+  h.manager.directory = async cwd => cwd
+  h.manager.commandReport = () => null
+  h.manager.overview = s => ({ id: s.id, providerId: s.providerId, state: s.state, cwd: s.cwd })
   h.ctx.get = key => key === 'permissionPresets'
     ? { current: () => 'danger-full-access', resolve: () => ({ sandbox: 'danger-full-access', approval: 'never' }) }
     : undefined
   await h.native.initialize()
 
-  assert.equal(h.native.autoApprove, undefined)
   assert.equal('fullAccess' in h.native.snapshot('dsh-1'), false)
+  const snapBefore = h.native.snapshot('dsh-1')
+  assert.equal(snapBefore.controls.modes.options.some(item => item.value === BYPASS_MODE_ID), true)
+
+  const acpSession = {
+    id: 'acp-ext-agy',
+    providerId: 'antigravity',
+    cwd: '/repo',
+    state: 'idle',
+    native: { sessionId: 'dsh-1', rootSessionId: 'dsh-1', route: 'acp-antigravity', runs: [] },
+    modes: { currentModeId: 'default', availableModes: agyModes.options.map(item => ({ id: item.value, name: item.name })) },
+    configOptions: [
+      { id: 'mode', category: 'mode', type: 'select', currentValue: 'default', options: agyModes.options },
+      { id: 'model', category: 'model', type: 'select', currentValue: 'gemini-4-neon', options: [{ value: 'gemini-4-neon', name: 'Gemini 4 Neon' }] },
+    ],
+  }
+  h.manager.store.sessions.set(acpSession.id, acpSession)
+  h.manager.runtimes.set(acpSession.id, { interactions: new Map() })
+  const configured = []
+  h.manager.configure = async (_target, op) => {
+    configured.push(op)
+    if (op.configId === 'mode') acpSession.configOptions[0].currentValue = op.value
+  }
+  h.manager.operate = async op => {
+    await h.manager.configure(acpSession, op)
+    return acpSession
+  }
+
+  const permRequest = {
+    toolCall: { name: 'run_command', kind: 'execute' },
+    options: [
+      { optionId: 'allow', kind: 'allow_once' },
+      { optionId: 'deny', kind: 'reject_once' },
+    ],
+  }
+  assert.equal(h.native.autoApprove(acpSession, permRequest), null)
+
+  const snapBypass = await h.native.setOption({ dshSessionId: 'dsh-1', route: 'acp-antigravity', modeId: BYPASS_MODE_ID })
+  assert.equal(snapBypass.controls.mode, BYPASS_MODE_ID)
+  assert.deepEqual(configured, [{ sessionId: 'acp-ext-agy', configId: 'mode', value: 'auto' }])
+  assert.equal(h.manager.store.providers.get('antigravity').defaults.mode, BYPASS_MODE_ID)
+  assert.deepEqual(h.native.initialConfigOptionsFor(acpSession, 'gemini-4-neon', undefined), [
+    { configId: 'model', value: 'gemini-4-neon' },
+    { configId: 'mode', value: 'auto' },
+  ])
+
+  configured.length = 0
+  acpSession.configOptions[0].currentValue = 'plan'
+  await h.native.applyModel(acpSession, 'gemini-4-neon', undefined)
+  assert.deepEqual(configured, [{ configId: 'mode', value: 'auto' }])
+
+  assert.equal(h.native.autoApprove(acpSession, permRequest), 'allow')
+  assert.equal(h.native.autoApprove(acpSession, {
+    toolCall: { name: 'run_command', kind: 'execute' },
+    options: [
+      { optionId: 'allow-always', kind: 'allow_always' },
+      { optionId: 'deny', kind: 'reject_once' },
+    ],
+  }), 'allow-always')
+  assert.equal(h.native.autoApprove(acpSession, {
+    toolCall: { _meta: { claudeCode: { toolName: 'ExitPlanMode' } }, kind: 'other' },
+    options: [{ optionId: 'allow', kind: 'allow_once' }],
+  }), null)
+  assert.equal(h.native.autoApprove(acpSession, {
+    toolCall: { name: 'run_command', kind: 'execute' },
+    options: [
+      { optionId: 'allow-a', kind: 'allow_once' },
+      { optionId: 'allow-b', kind: 'allow_once' },
+      { optionId: 'deny', kind: 'reject_once' },
+    ],
+  }), null)
+
+  await h.native.close()
+})
+
+test('subagents inherit mode and bypass approval from parent or provider defaults without polluting global defaults', async () => {
+  const h = createHarness()
+  const agyModes = {
+    configId: 'mode',
+    currentModeId: 'default',
+    options: [
+      { value: 'default', name: 'Default' },
+      { value: 'auto', name: 'Auto' },
+      { value: 'plan', name: 'Plan' },
+    ],
+  }
+  const claudeModes = {
+    configId: 'mode',
+    currentModeId: 'default',
+    options: [
+      { value: 'default', name: 'Manual' },
+      { value: 'bypassPermissions', name: 'Bypass permissions' },
+    ],
+  }
+  h.manager.store.providers.set('antigravity', {
+    id: 'antigravity',
+    label: 'Antigravity',
+    models: [],
+    advertised: { models: [{ id: 'gemini-4-neon', name: 'Gemini 4 Neon' }], modes: agyModes },
+  })
+  h.manager.store.providers.set('claude', {
+    id: 'claude',
+    label: 'Claude Code',
+    models: [],
+    advertised: { models: [{ id: 'opus', name: 'Opus' }], modes: claudeModes },
+  })
+
+  const agents = new Map([['dsh-1', h.agent]])
+  const childSameRoute = {
+    id: 'child-1',
+    status: 'idle',
+    session: { id: 'child-1', header: { cwd: '/repo', origin: 'subagent', parentSession: 'dsh-1' } },
+    model: { current: () => ({ provider: 'acp-antigravity', model: 'gemini-4-neon' }) },
+  }
+  const childCrossRoute = {
+    id: 'child-2',
+    status: 'idle',
+    session: { id: 'child-2', header: { cwd: '/repo', origin: 'subagent', parentSession: 'dsh-1' } },
+    model: { current: () => ({ provider: 'acp-claude', model: 'opus' }) },
+  }
+  agents.set(childSameRoute.id, childSameRoute)
+  agents.set(childCrossRoute.id, childCrossRoute)
+  h.agent.status = 'idle'
+  h.ctx.agents.get = id => agents.get(id)
+  h.agent.model = { current: () => ({ provider: 'acp-antigravity', model: 'gemini-4-neon' }) }
+  await h.native.initialize()
+
+  await h.native.setOption({ dshSessionId: 'dsh-1', route: 'acp-antigravity', modeId: BYPASS_MODE_ID })
+
+  assert.equal(h.native.preferencesOf('child-1', 'acp-antigravity', null, 'gemini-4-neon').mode, BYPASS_MODE_ID)
+  assert.equal(h.native.preferencesOf('child-2', 'acp-claude', null, 'opus').mode, 'bypassPermissions')
+
+  const childSession = {
+    id: 'acp-ext-child-1',
+    providerId: 'antigravity',
+    native: { sessionId: 'child-1', parentSessionId: 'dsh-1', rootSessionId: 'dsh-1', route: 'acp-antigravity', runs: [] },
+  }
+  assert.equal(h.native.autoApprove(childSession, {
+    toolCall: { name: 'run_command', kind: 'execute' },
+    options: [{ optionId: 'allow', kind: 'allow_once' }, { optionId: 'deny', kind: 'reject_once' }],
+  }), 'allow')
+
+  await h.native.setOption({ dshSessionId: 'child-1', route: 'acp-antigravity', modeId: 'plan' })
+  assert.equal(h.native.preferencesOf('child-1', 'acp-antigravity', childSession, 'gemini-4-neon').mode, 'plan')
+  assert.equal(h.native.autoApprove(childSession, {
+    toolCall: { name: 'run_command', kind: 'execute' },
+    options: [{ optionId: 'allow', kind: 'allow_once' }, { optionId: 'deny', kind: 'reject_once' }],
+  }), null)
+  assert.equal(h.manager.store.providers.get('antigravity').defaults.mode, BYPASS_MODE_ID)
 
   await h.native.close()
 })

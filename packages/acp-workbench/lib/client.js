@@ -28,7 +28,7 @@ window.__ModuleLoader__.load({
       beforeFile: 'View old side', beforeAt: 'View old {path} at line {n}', beforePatch: 'Old lines in this patch', beforeWhole: 'Deleted text from this patch', beforeHint: 'Captured patch lines with line numbers from the old file.', beforeFull: 'Read full old version', beforeNone: 'This patch has no old text lines.', beforeIndex: 'Old side · Git index', beforeCommit: 'Old side · commit {sha}', beforeSnapshot: 'Read-only Git snapshot.', beforeIndexHint: 'Read-only Git index snapshot.', beforeGap: 'Old lines {from}–{to} are not in the patch.', beforeLimited: 'Exact old commit unavailable; showing captured patch lines only.',
       reviewFile: 'View file', reviewIndex: 'Staged version (Git index)', reviewDisk: 'Current checkout file', reviewAt: 'View {path} at line {n}', reviewFull: 'Open in Files sidebar', reviewDeleted: 'Deleted in this comparison.', reviewStale: 'This file no longer matches the patch. Refresh the comparison.', reviewPath: 'Cannot locate this file in the reviewed checkout.', reviewEmpty: 'Empty file', reviewPatch: 'Copyable patch', reviewNext: 'Next lines', reviewPrev: 'Previous lines', reviewBack: 'Close file preview', reviewBinary: 'No text lines to navigate.',
       cliTasks: 'CLI tasks in this trace', cliTaskCount: '{n} launch calls', cliLaunchStatus: 'Launch call: {status}', cliTask: 'CLI task', cliOnly: 'View task', cliAll: 'Full trace', cliCalls: '{n} direct calls', cliProgress: 'Task update', cliInput: 'Task input', cliMedia: '{type} · see raw events', cliPreview: 'Preview {type}', cliNoMedia: 'The recorded content is unavailable.', cliLimit: 'Excerpt only · see raw events', cliScope: 'Direct CLI task activity (read-only).', cliOrigin: 'From {task}', cliMissing: 'Launch not in this trace: {task}', cliConflict: 'Conflicting task IDs',
-      permitRequested: 'Permission requested', permitLive: 'Needs approval', permitAllowed: 'Allowed', permitAutomatic: 'Allowed by preset', permitDenied: 'Denied', permitExpired: 'Request expired', permitAnswered: 'Decision recorded',
+      permitRequested: 'Permission requested', permitLive: 'Needs approval', permitAllowed: 'Allowed', permitAutomatic: 'Allowed by preset', permitAutoBypass: 'Bypassed automatically', permitDenied: 'Denied', permitExpired: 'Request expired', permitAnswered: 'Decision recorded',
       callView: 'Tool call display', compactCalls: 'Overview', detailedCalls: 'Individual calls', exploration: 'Exploration', readCount: 'Reads: {n}', searchCount: 'Searches: {n}', webCount: 'Web: {n}', distinctPaths: 'Distinct read paths: {n}', groupCalls: '{n} calls', 'call.cancelled': 'Cancelled',
       panel: 'ACP Workbench', panelHint: 'Configure local ACP CLI providers, inspect capabilities, and manage models shown in the DSH picker.',
       schedules: 'Scheduled agents', schDescription: 'Delivers instructions to a DSH conversation on schedule. Delivery does not wait for completion.', schNew: 'Create schedule', schName: 'Task name', schPrompt: 'Instructions at delivery', schTarget: 'Destination', schExisting: 'An existing conversation (heartbeat)', schOnce: 'Create a conversation on the first delivery', schFresh: 'A fresh conversation at every delivery', schChoose: 'Choose a conversation', schPreset: 'DSH agent preset', schDefault: 'Host default', schRouteHint: 'Existing conversations keep their engine and directory. New ones use the project directory and DSH preset.', schTiming: 'Repeat', schAfter: 'Once, after a delay', schEvery: 'At a fixed interval', schDaily: 'Daily at a local time', schCron: 'Cron in a time zone', schMinutes: 'Minutes', schZone: 'IANA time zone', schTime: 'Local time', schExpr: 'Cron (5 fields)', schConfirm: 'Arm this schedule? Each delivery triggers an agent turn.', schUnknown: 'No confirmation received. Refresh the list before trying again.', schEmpty: 'No tasks target this project.', schRefresh: 'Refresh schedules', schActive: 'Active', schPaused: 'Paused', schEnded: 'Ended', schNext: 'Next delivery', schDelivered: 'Last delivery', schQueued: 'Queued or running', schManage: 'Manage task', schPause: 'Pause', schResume: 'Resume', schRun: 'Deliver now', schRunConfirm: 'Deliver these instructions now?', schIncomplete: 'Enter a title, instructions, a valid time and an available destination.', schMissing: 'This task was removed or changed. Refresh before retrying.', schFloor: 'Can deliver again after', schBusy: 'Delivery is already queued, or the minimum delivery interval has not elapsed.', schCadence: 'Cadence', schHistory: 'Delivery history', schNoHistory: 'No saved deliveries yet.', schMore: 'Earlier deliveries', schPruned: 'Some older deliveries are unavailable.', schDelete: 'Delete task', schDeleteConfirm: 'Delete this task and its delivery history? Messages already delivered remain in their conversations.',
@@ -48,7 +48,7 @@ window.__ModuleLoader__.load({
       previousMessages: 'Previous CLI messages', hidePrevious: 'Hide previous messages', noReplay: 'No earlier messages returned in this page of CLI history.',
       resumePick: 'Connects to a CLI session in this directory; your next message continues that thread.',
       firstUse: 'Choose an ACP model in the DSH model picker and send a message. Its activity will appear here.',
-      setup: 'Manage providers', answeredByPreset: 'Full access · automatic', answeredByUser: 'Human response',
+      setup: 'Manage providers', answeredByPreset: 'Full access · automatic', answeredByBypass: 'Bypass permissions · automatic', answeredByUser: 'Human response', bypassModeName: 'Bypass permissions', bypassModeDesc: 'Auto-approve all tool permission requests without asking.',
       quietChildren: 'Other subagents ({n})', requestCount: '{n} waiting',
       scopeOnce: 'Full access auto-approves one-time requests; persistent choices still ask.',
       tabProviders: 'Providers', tabRecords: 'Activity', live: 'Live', offline: 'Reconnecting…',
@@ -97,7 +97,7 @@ window.__ModuleLoader__.load({
       resource: 'Resource', noExit: 'Exit code not reported', noShellOutput: 'No output reported', terminalSignal: 'Signal {signal}', pathMore: '+{n} more',
       clearField: 'Clear selection', form: 'Question from the CLI', formOptional: 'Optional', formRequired: 'Required', formSubmit: 'Submit answers', formDecline: 'Decline to answer', formPreview: 'Preview option', formHelp: 'Submitted fields are sent to the CLI. Do not enter passwords or tokens.', formMin: 'Minimum: {n}', formMax: 'Maximum: {n}', 'form.accept': 'Answers submitted', 'form.decline': 'Declined to answer', 'form.cancel': 'Dismissed', formWithdrawn: 'Withdrawn by the CLI',
       permission: 'Permission request', question: 'Question from the agent', 'kind.plan': 'Plan for approval',
-      permitLaunch: 'Inspect original tool call', permitEarlier: 'Snapshot from when the tool call started.', permitEmpty: 'The CLI did not include arguments, file locations or a preview in this request.', permitPast: 'Inspect permission request', permitReadOnly: 'Recorded request · read only', permitUnavailable: 'The matching permission record is unavailable.', permitCallId: 'Call ID', permitCwd: 'CLI directory', permitOptions: 'Choices offered by the CLI', permitScopeOnce: 'This request only', permitScopeRemember: 'May apply to later requests', permitGrant: 'Allow', permitRefuse: 'Deny', permitSelection: 'Recorded decision: {choice}', permitAutoSelection: 'Preset decision: {choice}',
+      permitLaunch: 'Inspect original tool call', permitEarlier: 'Snapshot from when the tool call started.', permitEmpty: 'The CLI did not include arguments, file locations or a preview in this request.', permitPast: 'Inspect permission request', permitReadOnly: 'Recorded request · read only', permitUnavailable: 'The matching permission record is unavailable.', permitCallId: 'Call ID', permitCwd: 'CLI directory', permitOptions: 'Choices offered by the CLI', permitScopeOnce: 'This request only', permitScopeRemember: 'May apply to later requests', permitGrant: 'Allow', permitRefuse: 'Deny', permitSelection: 'Recorded decision: {choice}', permitAutoSelection: 'Preset decision: {choice}', permitBypassSelection: 'Bypass decision: {choice}',
       permanent: 'An “always” choice may be remembered by the CLI for later requests.',
       approve: 'Approve plan', reject: 'Reject', rejectReason: 'Reason (optional)', answer: 'Submit answers', skip: 'Skip', dismiss: 'Cancel request',
       'event.interaction': 'Asked: {title}', 'event.expired': 'Request expired',
@@ -218,7 +218,7 @@ window.__ModuleLoader__.load({
       beforeFile: '查看旧版本', beforeAt: '查看旧版 {path} 第 {n} 行', beforePatch: '补丁中的旧行', beforeWhole: '补丁中的完整删除文本', beforeHint: '仅显示补丁捕获的旧行，行号对应旧文件。', beforeFull: '读取完整旧版本', beforeNone: '补丁没有记录旧文本行。', beforeIndex: '旧版本 · Git 索引', beforeCommit: '旧版本 · 提交 {sha}', beforeSnapshot: '只读 Git 快照。', beforeIndexHint: '只读 Git 索引快照。', beforeGap: '补丁未包含旧版第 {from} 至 {to} 行。', beforeLimited: '无法定位精确旧提交，仅显示补丁中的旧行。',
       reviewFile: '查看文件', reviewIndex: '已暂存版本（Git 索引）', reviewDisk: '当前工作树文件', reviewAt: '查看 {path} 第 {n} 行', reviewFull: '在文件侧栏打开', reviewDeleted: '文件在本次比较中被删除。', reviewStale: '文件与补丁不再一致，请刷新比较。', reviewPath: '无法在当前工作树中定位此文件。', reviewEmpty: '空文件', reviewPatch: '可复制的补丁', reviewNext: '后续行', reviewPrev: '前面的行', reviewBack: '关闭文件预览', reviewBinary: '没有可定位的文本行。',
       cliTasks: '本轮 CLI 子任务', cliTaskCount: '{n} 个启动调用', cliLaunchStatus: '启动调用：{status}', cliTask: 'CLI 子任务', cliOnly: '查看子任务', cliAll: '完整轨迹', cliCalls: '{n} 次直接调用', cliProgress: '任务进展', cliInput: '任务输入', cliMedia: '{type} · 见原始事件', cliPreview: '预览 {type}', cliNoMedia: '该条记录的内容不可用。', cliLimit: '仅显示摘录，全文见原始事件', cliScope: 'CLI 子任务的直接活动（只读）。', cliOrigin: '来自 {task}', cliMissing: '本段未见启动调用：{task}', cliConflict: '子任务归属冲突',
-      permitRequested: '已请求权限', permitLive: '等你审批', permitAllowed: '已允许', permitAutomatic: '预设自动允许', permitDenied: '已拒绝', permitExpired: '请求已失效', permitAnswered: '已记录决定',
+      permitRequested: '已请求权限', permitLive: '等你审批', permitAllowed: '已允许', permitAutomatic: '预设自动允许', permitAutoBypass: '全跳过自动允许', permitDenied: '已拒绝', permitExpired: '请求已失效', permitAnswered: '已记录决定',
       callView: '工具调用视图', compactCalls: '概览', detailedCalls: '逐条', exploration: '查阅记录', readCount: '读取 {n} 次', searchCount: '搜索 {n} 次', webCount: '网页查询 {n} 次', distinctPaths: '读取路径 {n} 个', groupCalls: '{n} 次调用', 'call.cancelled': '已取消',
       treeInspect: '工作目录', treeActual: '生效目录', treeSource: '来源仓库', treeRecorded: '记录的分支', treeBase: '起点提交', treeOwned: '本会话创建', treeInherited: '继承的工作树', treeOther: '不是当前目录', treeDirectory: '目录存在', treeMissing: '目录缺失', treeIncomplete: '目录存在，但缺少链接工作树标记', treeOccupied: '路径被其他文件或符号链接占用', treeEmpty: '该会话没有托管工作树的创建记录。', treeScheduled: '正在检查是否可以回收工作树…', treeRetained: 'DSH 保留了工作树。', treeRemoved: 'DSH 已回收工作树目录（分支保留）。', treeFailed: '回收失败，可能留有不完整目录，请检查后再继续。', treeNoReceipt: '本次 Host 运行期间没有回收回执。', treeRestoreFirst: '请先恢复会话，再重建工作树。', treeRestore: '重建缺失的工作树', treeRestoreAsk: '按记录的分支重建缺失目录？若原分支已删除，则从起点提交重建；未提交改动无法找回。', treeRebuilt: '已从现有分支恢复工作树目录。', treeRecreated: '原分支已不存在，已从起点提交重建。', treeBusy: '工作树重建中…', treePolicy: '需要会话空闲且允许写入才能重建工作树。', treeArchiveRisk: '未提交修改、未跟踪文件或其他活跃会话会阻止回收。Git 忽略文件不受保护，请先备份或开启归档保留。',
       projectResults: '项目审阅', unseen: '待审阅', reviewed: '已审阅', markSeen: '标为已审阅', resultHistory: '全部结果', resultTurn: '第 {n} 轮', previousPage: '上一页', nextPage: '下一页', noResults: '没有待审阅的结果。', noAllResults: '这个项目还没有结束的 ACP 运行。', reviewHint: '每轮结果单独列出；点开查看不会自动标为已审阅或放行审批。', runTrace: '本轮轨迹', checkoutDiff: '工作树改动', gitScope: '对比范围', uncommitted: '工作树与 HEAD', staged: '已暂存', unstaged: '未暂存', branchDiff: '当前分支与基线', baseBranch: '基线分支', autoBase: 'Forge 默认', findBase: '搜索基线分支', checkoutHint: '当前工作目录的实时 Git 状态（可能包含其他 Agent 的改动）。', diffClean: '当前对比范围没有改动。', diffOmitted: 'Forge 省略了 {n} 个未跟踪文件。', binaryDiff: '二进制文件', largeDiff: '文件超出差异大小限制', noHunks: '没有文本差异块', moreLines: '显示更多行', moreFiles: '显示更多文件', projectRequests: '等待你回应', checkoutUnavailable: '无法读取 Git 改动。',
@@ -232,7 +232,7 @@ window.__ModuleLoader__.load({
       previousMessages: '查看 CLI 前文', hidePrevious: '收起前文', noReplay: '这页 CLI 历史中没有更早的消息。',
       resumePick: '连接到此目录的 CLI 会话，下一条消息直接接在该上下文后继续。',
       firstUse: '在 DSH 模型选择器选一个 ACP 模型并发送消息，执行活动就会出现在这里。',
-      setup: '管理提供方', answeredByPreset: '完全访问 · 自动回应', answeredByUser: '人工回应',
+      setup: '管理提供方', answeredByPreset: '完全访问 · 自动回应', answeredByBypass: '跳过全部权限 · 自动允许', answeredByUser: '人工回应', bypassModeName: '跳过全部权限', bypassModeDesc: '自动放行所有工具权限请求，不再逐条询问。',
       quietChildren: '其他子任务（{n}）', requestCount: '{n} 项待回应',
       scopeOnce: '完全访问预设会自动放行单次权限请求，持久授权仍需手动确认。',
       tabProviders: '提供方', tabRecords: '活动', live: '实时', offline: '正在重连…',
@@ -281,7 +281,7 @@ window.__ModuleLoader__.load({
       resource: '资源', noExit: '未报告退出码', noShellOutput: '没有输出', terminalSignal: '信号 {signal}', pathMore: '另 {n} 处',
       clearField: '清除选择', form: 'CLI 提问', formOptional: '选填', formRequired: '必填', formSubmit: '提交回答', formDecline: '不回答', formPreview: '查看选项示例', formHelp: '仅把填写的字段发给 CLI，请勿填写密码或令牌。', formMin: '最少 {n}', formMax: '最多 {n}', 'form.accept': '已提交回答', 'form.decline': '已拒绝回答', 'form.cancel': '已取消', formWithdrawn: 'CLI 已撤回',
       permission: '权限请求', question: 'Agent 提问', 'kind.plan': '计划审批',
-      permitLaunch: '查看最初的工具调用', permitEarlier: '工具启动时的调用快照。', permitEmpty: 'CLI 未随本次请求附带参数、文件位置或预览。', permitPast: '查看审批请求', permitReadOnly: '请求记录 · 只读', permitUnavailable: '无法读取对应的审批记录。', permitCallId: '调用 ID', permitCwd: 'CLI 目录', permitOptions: 'CLI 提供的选项', permitScopeOnce: '仅本次请求', permitScopeRemember: '后续请求可能沿用', permitGrant: '允许', permitRefuse: '拒绝', permitSelection: '当时的决定：{choice}', permitAutoSelection: '预设自动决定：{choice}',
+      permitLaunch: '查看最初的工具调用', permitEarlier: '工具启动时的调用快照。', permitEmpty: 'CLI 未随本次请求附带参数、文件位置或预览。', permitPast: '查看审批请求', permitReadOnly: '请求记录 · 只读', permitUnavailable: '无法读取对应的审批记录。', permitCallId: '调用 ID', permitCwd: 'CLI 目录', permitOptions: 'CLI 提供的选项', permitScopeOnce: '仅本次请求', permitScopeRemember: '后续请求可能沿用', permitGrant: '允许', permitRefuse: '拒绝', permitSelection: '当时的决定：{choice}', permitAutoSelection: '预设自动决定：{choice}', permitBypassSelection: '全跳过自动决定：{choice}',
       permanent: '选择“总是”类选项后，CLI 可能在后续请求中沿用。',
       approve: '批准计划', reject: '拒绝', rejectReason: '理由（可选）', answer: '提交答案', skip: '跳过', dismiss: '取消请求',
       'event.interaction': '请求：{title}', 'event.expired': '请求已过期',
@@ -809,10 +809,11 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-tb-btn[data-active=true]{background:var(--dsw-alias-state-business-tertiary);color:var(--dsw-alias-state-business-primary);font-weight:500}
 .aw-tb-btn[data-active=true][data-tone=fast]{background:var(--dsw-alias-state-warn-tertiary);color:var(--dsw-alias-state-warn-primary)}
 .aw-tb-btn[data-tone=plan]{background:var(--dsw-alias-state-business-tertiary);color:var(--dsw-alias-state-business-primary);font-weight:500}
-@media (hover:hover){.aw-tb-btn[data-tone=plan]:hover:not(:disabled),.aw-tb-btn[data-active=true]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-business-tertiary),var(--dsw-alias-state-business-primary) 6%)}.aw-tb-btn[data-active=true][data-tone=fast]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-warn-tertiary),var(--dsw-alias-state-warn-primary) 8%)}}
+.aw-tb-btn[data-tone=bypass]{background:var(--dsw-alias-state-warn-tertiary);color:var(--dsw-alias-state-warn-primary);font-weight:500}
+@media (hover:hover){.aw-tb-btn[data-tone=plan]:hover:not(:disabled),.aw-tb-btn[data-active=true]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-business-tertiary),var(--dsw-alias-state-business-primary) 6%)}.aw-tb-btn[data-active=true][data-tone=fast]:hover:not(:disabled),.aw-tb-btn[data-tone=bypass]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-warn-tertiary),var(--dsw-alias-state-warn-primary) 8%)}}
 .aw-tb-icon{width:28px;padding:0}
 .aw-tb-chev{display:inline-flex;flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms ease}
-.aw-tb-btn[data-tone=plan] .aw-tb-chev{color:currentColor}
+.aw-tb-btn[data-tone=plan] .aw-tb-chev,.aw-tb-btn[data-tone=bypass] .aw-tb-chev{color:currentColor}
 .aw-tb-chev[data-open=true]{transform:rotate(180deg)}
 .aw-ctx-root{display:inline-flex;align-items:center;flex:none}
 .aw-ctx-btn{--aw-ctx-tint:var(--dsw-alias-label-secondary)}
@@ -1415,7 +1416,7 @@ button.aw-child-trigger:focus-visible{outline:none}
           if (!item) continue
           const kind = data.optionKind
           item.label = row.kind === 'expired' || row.type === 'interaction-expired' ? 'permitExpired' :
-            data.automatic === 'full-access' ? 'permitAutomatic' : ['allow_once', 'allow_always'].includes(kind) ? 'permitAllowed' : ['reject_once', 'reject_always'].includes(kind) ? 'permitDenied' : 'permitAnswered'
+            data.automatic === 'bypass-mode' ? 'permitAutoBypass' : data.automatic === 'full-access' ? 'permitAutomatic' : ['allow_once', 'allow_always'].includes(kind) ? 'permitAllowed' : ['reject_once', 'reject_always'].includes(kind) ? 'permitDenied' : 'permitAnswered'
           item.choice = data.optionName ?? data.optionId ?? data.result?.outcome?.optionId
         }
       }
@@ -1581,6 +1582,12 @@ button.aw-child-trigger:focus-visible{outline:none}
       })
       return [...advertised, ...extras].filter(model => model.id !== 'default' && !hidden.has(model.id))
     }
+
+    const BYPASS_MODE_RE = /^(?:bypass(?:[-_]?permissions)?|skip[-_]?permissions|yolo)$/iu
+    const isBypassMode = value => typeof value === 'string' && BYPASS_MODE_RE.test(value.trim())
+    const localizeModeOption = (item, t) => item?.value === 'bypass-permissions'
+      ? { ...item, name: t('bypassModeName'), description: t('bypassModeDesc') }
+      : item
 
     function configEntries(session, t) {
       const entries = []
@@ -2433,7 +2440,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               const result = data.result?.outcome ?? {}
               const action = data.result?.action
               const decision = ['accept', 'decline', 'cancel'].includes(action) ? t('form.' + action) : data.optionName ?? result.optionId ?? (['answered', 'accepted', 'rejected', 'cancelled', 'skipped'].includes(result.outcome) ? t('decision.' + result.outcome) : result.outcome)
-              return h('div', { className: 'aw-section' }, h('div', { className: 'aw-event' }, t(data.automatic === 'full-access' ? 'answeredByPreset' : 'answeredByUser'),
+              return h('div', { className: 'aw-section' }, h('div', { className: 'aw-event' }, t(data.automatic === 'bypass-mode' ? 'answeredByBypass' : data.automatic === 'full-access' ? 'answeredByPreset' : 'answeredByUser'),
                 decision ? h(Tag, { tone: 'quiet' }, decision) : null, result.reason ? h('span', null, result.reason) : null),
                 data.answers?.map((answer, index) => h('div', { key: index, className: 'aw-note' }, answer.prompt, ': ', answer.choices.join(', '))))
             }
@@ -2619,7 +2626,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               h('div', { className: 'aw-permit-context-head' }, h(Tag, { tone: 'quiet' }, t('permitReadOnly'))),
               h(PermissionBody, { item: { ...item, requestSeq: event.seq }, sessionId, cwd, showCallId: true }),
               h('div', { className: 'aw-row', role: 'group', 'aria-label': t('permitOptions') }, options.map(o => h(Tag, { key: o.optionId, tone: 'quiet' }, [o.name ?? o.optionId, permissionScope(o)].filter(Boolean).join(' · ')))),
-              choice ? h('span', { className: 'aw-note' }, t(data.automatic === 'full-access' ? 'permitAutoSelection' : 'permitSelection', { choice })) : receipt?.kind === 'expired' || receipt?.type === 'interaction-expired' ? h('span', { className: 'aw-note' }, t('event.expired')) : null)
+              choice ? h('span', { className: 'aw-note' }, t(data.automatic === 'bypass-mode' ? 'permitBypassSelection' : data.automatic === 'full-access' ? 'permitAutoSelection' : 'permitSelection', { choice })) : receipt?.kind === 'expired' || receipt?.type === 'interaction-expired' ? h('span', { className: 'aw-note' }, t('event.expired')) : null)
           }
           return h('div', { className: 'aw-permit-history' },
             h('div', { className: 'aw-permit-row' },
@@ -3733,11 +3740,12 @@ button.aw-child-trigger:focus-visible{outline:none}
           const blocked = !canWrite || view.busy || view.data.status !== 'idle'
           const enabled = !blocked && binding?.state === 'idle' && !binding.archived
           const controls = view.data?.controls
+          const modeOptions = (controls?.modes?.options ?? EMPTY).map(item => localizeModeOption(item, tt))
           const draftEntries = !enabled && controls ? [
-            ...(controls.modes?.options?.length > 1 ? [{
+            ...(modeOptions.length > 1 ? [{
               id: '__draft_mode', label: tt('mode'), category: 'mode', kind: 'select',
-              value: controls.mode ?? controls.modes.options[0].value,
-              options: controls.modes.options.map(item => ({ value: item.value, label: item.name ?? item.value, description: item.description ?? '' })),
+              value: controls.mode ?? modeOptions[0].value,
+              options: modeOptions.map(item => ({ value: item.value, label: item.name ?? item.value, description: item.description ?? '' })),
               op: value => ({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, modeId: value }),
             }] : []),
             ...(controls.options ?? []).map(option => option.type === 'boolean'
@@ -3747,7 +3755,17 @@ button.aw-child-trigger:focus-visible{outline:none}
                   options: (option.choices ?? []).map(item => ({ value: item.value, label: item.name ?? item.value, description: item.description ?? '' })),
                   op: value => ({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, configId: option.id, value }) }),
           ] : []
-          const entries = info ? configEntries(info, tt).filter(e => e.category !== 'model' && (e.category !== 'thought_level' || view.data.selected?.model === 'default')) : []
+          const rawEntries = info ? configEntries(info, tt).filter(e => e.category !== 'model' && (e.category !== 'thought_level' || view.data.selected?.model === 'default')) : []
+          const entries = controls && modeOptions.length > 1
+            ? rawEntries.map(entry => entry.category === 'mode'
+              ? {
+                ...entry,
+                value: controls.mode ?? entry.value,
+                options: modeOptions.map(item => ({ value: item.value, label: item.name ?? item.value, description: item.description ?? '' })),
+                op: value => ({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, modeId: value }),
+              }
+              : entry)
+            : rawEntries
           const title = `${provider.label} · ${tt('cliOptions')}`
           return h(React.Fragment, null, h('div', { style: { anchorName }, 'aria-hidden': true }),
             h('section', { ref: popup, className: 'acpw aw-options aw-section', style: { positionAnchor: anchorName },
@@ -3767,7 +3785,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               h('div', { className: 'aw-row' }, h(Button, { size: 'sm', variant: 'outline', disabled: blocked || binding?.archived, onClick: () => view.run({ action: 'native-connect', dshSessionId: sessionId, externalId: binding?.id, route: provider.route }) }, tt('connectOnly'))),
               !binding ? h(CliHistory, { key: sessionId + ':' + provider.route, sessionId, provider, view, disabled: blocked }) : null) : null,
             binding && !info && !error ? h('p', { className: 'aw-note', role: 'status' }, tt('loading')) : null,
-            entries.length ? h('div', { className: 'aw-config' }, entries.map(entry => h(ConfigControl, { key: entry.id, entry, disabled: !enabled, onChange: values => view.run({ action: 'configure', sessionId: binding.id, ...values }) }))) : null,
+            entries.length ? h('div', { className: 'aw-config' }, entries.map(entry => h(ConfigControl, { key: entry.id, entry, disabled: !enabled, onChange: values => view.run(values.action ? values : { action: 'configure', sessionId: binding.id, ...values }) }))) : null,
             info?.commands?.length ? h(CommandForm, { session: info, disabled: !enabled, onRun: async (command, args) => {
               const result = await view.run({ action: 'native-command', dshSessionId: sessionId, externalId: binding.id, commandStamp: info.commandStamp, command, arguments: args })
               if (result) close()
@@ -5114,7 +5132,9 @@ button.aw-child-trigger:focus-visible{outline:none}
           const controls = view.data?.controls
           if (!controls) return null
           const disabled = !canWrite || view.busy || view.data.status !== 'idle'
-          const modes = controls.modes?.options?.length > 1 ? controls.modes : null
+          const modes = controls.modes?.options?.length > 1
+            ? { ...controls.modes, options: controls.modes.options.map(item => localizeModeOption(item, tt)) }
+            : null
           const options = controls.options ?? EMPTY
           const contextOpt = options.find(item => item.id === 'context' && item.type === 'select' && item.choices?.length > 1)
           const fastOpt = options.find(item => item.id === 'fast')
@@ -5123,6 +5143,7 @@ button.aw-child-trigger:focus-visible{outline:none}
 
           const currentMode = modes ? (controls.mode ?? modes.options[0].value) : null
           const isPlanMode = typeof currentMode === 'string' && currentMode.toLowerCase() === 'plan'
+          const modeTone = isPlanMode ? 'plan' : isBypassMode(currentMode) ? 'bypass' : undefined
 
           const renderToggle = (opt, iconOnly) => {
             const pair = opt.type === 'select' ? booleanSelectPair(opt.choices) : null
@@ -5151,7 +5172,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               value: currentMode,
               options: modes.options,
               disabled,
-              tone: isPlanMode ? 'plan' : undefined,
+              tone: modeTone,
               onSelect: modeId => view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, modeId }),
             }) : null,
             contextOpt ? h(ToolbarSelect, {

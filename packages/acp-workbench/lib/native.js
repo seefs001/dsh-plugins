@@ -6,19 +6,24 @@ import { connectionNotices } from './notices.js'
 import { installContinuations } from './continuations.js'
 import { DelegationHub } from './delegation.js'
 import {
+  BYPASS_MODE_ID,
   advertisedModes,
   extractLegacyOverrides,
+  isBypassModeId,
   modelConfigOptions,
   modelContextWindow,
   modelDetails,
+  preferredBypassModeId,
   reasoningInfo,
   reasoningSelection,
   resolveLiveThinkingUpdates,
+  underlyingModeForBypass,
   visibleModels,
   wireModelId,
+  withBypassMode,
 } from './models.js'
 import { allocateSubagentName, extractToolImages, hasToolInput, isToolTerminal, makeCallId, mapPlanTodos, mapToolCall, mapToolResult } from './native-tools.js'
-import { booleanSelectValues } from './adapters.js'
+import { booleanSelectValues, isInteractivePermission } from './adapters.js'
 
 function compactPreview(raw, max = 140) {
   if (typeof raw !== 'string') return ''
@@ -1133,6 +1138,16 @@ export class NativeAcp {
     return agent?.session?.header?.origin !== 'subagent'
   }
 
+  parentSessionIdOf(sessionId, binding) {
+    if (typeof binding?.native?.parentSessionId === 'string' && binding.native.parentSessionId) {
+      return binding.native.parentSessionId
+    }
+    const header = sessionId ? this.ctx.agents.get(sessionId)?.session?.header : null
+    return header?.origin === 'subagent' && typeof header.parentSession === 'string' && header.parentSession
+      ? header.parentSession
+      : null
+  }
+
   providerDefaultsOf(route, modelId) {
     if (!isRoute(route)) return { mode: undefined, options: {} }
     const providerRecord = this.manager.store.providers.get(route.slice(ACP_ROUTE_PREFIX.length))
@@ -1145,18 +1160,82 @@ export class NativeAcp {
     }
   }
 
+  inheritedPreferencesOf(sessionId, route, binding, modelId) {
+    const providerDefaults = this.providerDefaultsOf(route, modelId)
+    if (this.isTopLevelSession(sessionId, binding)) return providerDefaults
+    let inheritedMode
+    const inheritedOptions = {}
+    let crossRouteBypass = false
+    const seen = new Set([sessionId])
+    let cursor = this.parentSessionIdOf(sessionId, binding)
+    const rootId = typeof binding?.native?.rootSessionId === 'string' && binding.native.rootSessionId
+      ? binding.native.rootSessionId
+      : null
+    while (cursor && !seen.has(cursor) && seen.size <= 16) {
+      seen.add(cursor)
+      const ancestorSessions = this.sessions(cursor, false)
+      const ancestorBinding = ancestorSessions.findLast(s => s.native.route === route && !s.native.retired)
+      const ancestorOwn = this.sessionOptions.get(this.preferenceKey(cursor, route)) ?? ancestorBinding?.native?.preferences
+      if (inheritedMode === undefined && typeof ancestorOwn?.mode === 'string' && ancestorOwn.mode) {
+        inheritedMode = ancestorOwn.mode
+      }
+      if (ancestorOwn?.options && typeof ancestorOwn.options === 'object') {
+        for (const [key, value] of Object.entries(ancestorOwn.options)) {
+          if (!(key in inheritedOptions)) inheritedOptions[key] = value
+        }
+      }
+      if (!crossRouteBypass) {
+        const ancestorAgent = this.ctx.agents.get(cursor)
+        const ancestorRoute = ancestorAgent?.model.current()?.provider
+          ?? ancestorSessions.findLast(s => !s.native.retired)?.native?.route
+        if (isRoute(ancestorRoute) && ancestorRoute !== route) {
+          const altBinding = ancestorSessions.findLast(s => s.native.route === ancestorRoute && !s.native.retired)
+          const altOwn = this.sessionOptions.get(this.preferenceKey(cursor, ancestorRoute)) ?? altBinding?.native?.preferences
+          const altMode = altOwn?.mode ?? this.providerDefaultsOf(ancestorRoute, ancestorAgent?.model.current()?.model).mode
+          if (isBypassModeId(altMode)) crossRouteBypass = true
+        }
+      }
+      const nextParent = this.parentSessionIdOf(cursor, ancestorBinding)
+      cursor = nextParent ?? (rootId && !seen.has(rootId) ? rootId : null)
+    }
+    const providerRecord = isRoute(route) ? this.manager.store.providers.get(route.slice(ACP_ROUTE_PREFIX.length)) : null
+    return {
+      mode: inheritedMode ?? providerDefaults.mode ?? (crossRouteBypass ? preferredBypassModeId(providerRecord?.advertised?.modes) : undefined),
+      options: { ...providerDefaults.options, ...inheritedOptions },
+    }
+  }
+
   preferencesOf(sessionId, route, binding, modelId) {
     if (!sessionId || !route) return { mode: undefined, options: {} }
-    const defaults = this.isTopLevelSession(sessionId, binding)
-      ? this.providerDefaultsOf(route, modelId)
-      : { mode: undefined, options: {} }
+    const inherited = this.inheritedPreferencesOf(sessionId, route, binding, modelId)
     const stored = this.sessionOptions.get(this.preferenceKey(sessionId, route))
     const fallback = binding?.native?.preferences
     const own = stored ?? fallback
     return {
-      mode: own?.mode ?? defaults.mode,
-      options: { ...defaults.options, ...own?.options },
+      mode: own?.mode ?? inherited.mode,
+      options: { ...inherited.options, ...own?.options },
     }
+  }
+
+  wireModeFor(session, modeId) {
+    if (!modeId) return undefined
+    if (modeId !== BYPASS_MODE_ID) return modeId
+    return underlyingModeForBypass(advertisedModes({ modes: session.modes, configOptions: session.configOptions }))
+  }
+
+  autoApprove(session, params) {
+    const owner = session?.native?.sessionId
+    const route = session?.native?.route
+    if (!owner || !route) return null
+    const agent = this.ctx.agents.get(owner)
+    const prefs = this.preferencesOf(owner, route, session, agent?.model.current()?.model)
+    if (prefs.mode !== BYPASS_MODE_ID) return null
+    if (isInteractivePermission(params)) return null
+    const options = Array.isArray(params?.options) ? params.options : []
+    const allowOnce = options.find(option => option?.kind === 'allow_once')
+    if (allowOnce?.optionId) return allowOnce.optionId
+    const allowAlways = options.filter(option => option?.kind === 'allow_always')
+    return allowAlways.length === 1 && allowAlways[0]?.optionId ? allowAlways[0].optionId : null
   }
 
   async saveProviderDefaults(route, patch, modelId) {
@@ -1453,9 +1532,10 @@ export class NativeAcp {
         if (liveOpt?.currentValue !== undefined) values[option.id] = liveOpt.currentValue
         else if (option.defaultValue !== undefined) values[option.id] = option.defaultValue
       }
-      const modes = (connected && (binding.configOptions?.length || binding.modes))
+      const rawModes = (connected && (binding.configOptions?.length || binding.modes))
         ? advertisedModes({ modes: binding.modes, configOptions: binding.configOptions })
         : providerRecord?.advertised?.modes ?? null
+      const modes = withBypassMode(rawModes)
       const validMode = prefs.mode && modes?.options?.some(item => item.value === prefs.mode)
       controls = {
         route: selected.provider,
@@ -1640,7 +1720,24 @@ export class NativeAcp {
   async configure(op) {
     const session = this.manager.session(op.sessionId)
     if (!session.native) return this.manager.operate(op)
-    const result = await this.maintainConnection(session.native.sessionId, { configuration: op })
+    const isModeConfig = op.configId !== undefined && session.configOptions?.find(item => item?.id === op.configId)?.category === 'mode'
+    const requestedMode = op.modeId !== undefined ? op.modeId : isModeConfig ? op.value : undefined
+    let forwarded = op
+    if (requestedMode === BYPASS_MODE_ID) {
+      const targetMode = this.wireModeFor(session, BYPASS_MODE_ID)
+      const modeConfig = session.configOptions?.find(item => item?.category === 'mode' && item.type === 'select')
+      const choices = (modeConfig?.options ?? []).flatMap(group => group.options ?? [group])
+      if (targetMode && modeConfig && choices.some(item => item.value === targetMode) && modeConfig.currentValue !== targetMode) {
+        forwarded = { sessionId: op.sessionId, configId: modeConfig.id, value: targetMode }
+      } else if (targetMode && session.modes?.availableModes?.some(item => item.id === targetMode) && session.modes.currentModeId !== targetMode) {
+        forwarded = { sessionId: op.sessionId, modeId: targetMode }
+      } else {
+        forwarded = null
+      }
+    }
+    const result = forwarded
+      ? await this.maintainConnection(session.native.sessionId, { configuration: forwarded })
+      : this.manager.detail(session)
     const route = session.native?.route
     const owner = session.native?.sessionId
     if (route && owner) {
@@ -1648,15 +1745,12 @@ export class NativeAcp {
       const selectedModel = agent?.model.current()?.model
       const prefs = this.preferencesOf(owner, route, session, selectedModel)
       let defaultPatch = null
-      if (op.modeId !== undefined) {
-        prefs.mode = op.modeId
-        defaultPatch = { mode: op.modeId }
+      if (requestedMode !== undefined) {
+        prefs.mode = requestedMode
+        defaultPatch = { mode: requestedMode }
       } else if (op.configId !== undefined) {
         const option = session.configOptions?.find(item => item?.id === op.configId)
-        if (option?.category === 'mode') {
-          prefs.mode = op.value
-          defaultPatch = { mode: op.value }
-        } else if (option?.category !== 'model' && option?.category !== 'thought_level') {
+        if (option?.category !== 'model' && option?.category !== 'thought_level') {
           prefs.options = { ...prefs.options, [op.configId]: op.value }
           defaultPatch = { configId: op.configId, value: op.value }
         }
@@ -1665,6 +1759,7 @@ export class NativeAcp {
       if (defaultPatch && this.isTopLevelSession(owner, session)) {
         await this.saveProviderDefaults(route, defaultPatch, selectedModel)
       }
+      if (!forwarded) this.manager.changed(session.id, owner)
     }
     return result
   }
@@ -1697,12 +1792,13 @@ export class NativeAcp {
 
     if (binding && !binding.archived && binding.state === 'idle' && this.manager.runtimes.has(binding.id)) {
       if (modeId !== undefined) {
+        const targetMode = this.wireModeFor(binding, prefs.mode)
         const modeConfig = binding.configOptions?.find(item => item?.category === 'mode' && item.type === 'select')
         const choices = (modeConfig?.options ?? []).flatMap(group => group.options ?? [group])
-        if (modeConfig && choices.some(item => item.value === prefs.mode) && modeConfig.currentValue !== prefs.mode) {
-          await this.maintainConnection(dshSessionId, { configuration: { sessionId: binding.id, configId: modeConfig.id, value: prefs.mode } })
-        } else if (binding.modes?.availableModes?.some(item => item.id === prefs.mode) && binding.modes.currentModeId !== prefs.mode) {
-          await this.maintainConnection(dshSessionId, { configuration: { sessionId: binding.id, modeId: prefs.mode } })
+        if (targetMode && modeConfig && choices.some(item => item.value === targetMode) && modeConfig.currentValue !== targetMode) {
+          await this.maintainConnection(dshSessionId, { configuration: { sessionId: binding.id, configId: modeConfig.id, value: targetMode } })
+        } else if (targetMode && binding.modes?.availableModes?.some(item => item.id === targetMode) && binding.modes.currentModeId !== targetMode) {
+          await this.maintainConnection(dshSessionId, { configuration: { sessionId: binding.id, modeId: targetMode } })
         }
       } else if (configId !== undefined) {
         const selected = agent?.model.current()
@@ -1839,7 +1935,10 @@ export class NativeAcp {
     }
     if (prefs.mode) {
       const modeConfigId = provider.advertised?.modes?.configId ?? 'mode'
-      entries.push({ configId: modeConfigId, value: prefs.mode })
+      const wireMode = prefs.mode === BYPASS_MODE_ID
+        ? underlyingModeForBypass(provider.advertised?.modes)
+        : prefs.mode
+      if (wireMode) entries.push({ configId: modeConfigId, value: wireMode })
     }
     for (const [configId, rawValue] of Object.entries(mergedOptions)) {
       const advertisedOpt = facts?.options?.find(item => item.id === configId)
@@ -1857,12 +1956,13 @@ export class NativeAcp {
     const mergedOptions = { ...legacy.options, ...prefs.options }
 
     if (prefs.mode) {
+      const targetMode = this.wireModeFor(session, prefs.mode)
       const modeConfig = session.configOptions?.find(item => item?.category === 'mode' && item.type === 'select')
       const modeChoices = (modeConfig?.options ?? []).flatMap(group => group.options ?? [group])
-      if (modeConfig && modeChoices.some(item => item.value === prefs.mode) && modeConfig.currentValue !== prefs.mode) {
-        await this.manager.configure(session, { configId: modeConfig.id, value: prefs.mode })
-      } else if (session.modes?.availableModes?.some(item => item.id === prefs.mode) && session.modes.currentModeId !== prefs.mode) {
-        await this.manager.configure(session, { modeId: prefs.mode })
+      if (targetMode && modeConfig && modeChoices.some(item => item.value === targetMode) && modeConfig.currentValue !== targetMode) {
+        await this.manager.configure(session, { configId: modeConfig.id, value: targetMode })
+      } else if (targetMode && session.modes?.availableModes?.some(item => item.id === targetMode) && session.modes.currentModeId !== targetMode) {
+        await this.manager.configure(session, { modeId: targetMode })
       }
     }
 

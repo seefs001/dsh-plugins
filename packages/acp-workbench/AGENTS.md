@@ -8,7 +8,7 @@
 ## 交互卡片、模式记忆与订阅用量（`lib/client.js`、`lib/native.js`、`lib/manager.js`、`lib/subscription.js`）
 
 - 提问与审批对齐原生组件：`elicitation/create` 中 Antigravity 会把自定义回答拆成配对字段 `qN` + `qN_other`，选项可能含 `(Recommended)` / `（推荐）` 前后缀，需合并展示并对齐 DSH `QuestionComposer`；权限审批、计划审批分别对齐 `ApprovalCard`、`PlanReviewPanel`。
-- 模式与模型选项持久化在 `provider.defaults`（含 `byModel`）：仅顶层用户会话读写，`origin === 'subagent'` 的子代理不继承也不污染；`manager.saveProvider` 保存配置时必须保留已有 `defaults`。
+- 模式与模型选项持久化在 `provider.defaults`（含 `byModel`）：仅顶层用户会话写入（`origin === 'subagent'` 的子代理不污染全局默认），子代理按「自身显式模式 → 同路由祖先会话 → `provider.defaults`（跨路由祖先为全跳过时回退目标全跳过模式）」继承；对未原生宣告全跳过模式的提供方，统一注入合成模式 `bypass-permissions`（底层切至 CLI 最宽松执行模式，并在宿主侧自动放行非交互式权限请求）。
 - 订阅用量无统一 ACP 标准，统一通过 `lib/subscription.js` 走各提供方的官方稳定接口并仅在用户交互触发时查询，不做后台轮询。
 
 ## 存储、连接与子进程生命周期（`lib/store.js`、`lib/manager.js`、`lib/client.js`）

@@ -1322,10 +1322,10 @@ export class Workbench {
     let automatic = null
     try { if (kind === 'permission') automatic = this.autoApprove?.(session, params) ?? null } catch (error) { this.log?.(`ACP auto-approval: ${error.message}`) }
     const option = automatic === null ? null : params.options?.find(item => item.optionId === automatic)
-    if (option?.kind === 'allow_once') {
+    if (option?.kind === 'allow_once' || option?.kind === 'allow_always') {
       const result = { outcome: { outcome: 'selected', optionId: option.optionId } }
       this.record(session, 'interaction', interaction)
-      this.record(session, 'interaction-result', { id, result, automatic: 'full-access', optionKind: option.kind ?? null, optionName: option.name ?? null })
+      this.record(session, 'interaction-result', { id, result, automatic: 'bypass-mode', optionKind: option.kind ?? null, optionName: option.name ?? null })
       await this.store.flush()
       if (!this.isCurrent(session, runtime) || runtime.canceling || runtime.turnId !== interaction.turnId) return { outcome: { outcome: 'cancelled' } }
       return result

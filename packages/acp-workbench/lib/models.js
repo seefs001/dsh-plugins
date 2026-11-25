@@ -6,6 +6,58 @@ const REASONING_KEYS = ['effort', 'reasoning_effort', 'reasoning', 'thinking']
 const BOOLEAN_VALUES = new Set(['true', 'false', 'on', 'off'])
 const EFFORT_ORDER = ['off', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'extra-high', 'max']
 const EFFORT_SET = new Set(EFFORT_ORDER)
+const BYPASS_MODE_PATTERN = /^(?:bypass(?:[-_]?permissions)?|skip[-_]?permissions|yolo)$/iu
+const BYPASS_UNDERLYING_ORDER = ['auto', 'agent', 'accept-edits', 'acceptedits', 'default']
+const NON_EXECUTION_MODES = new Set(['plan', 'ask'])
+
+export const BYPASS_MODE_ID = 'bypass-permissions'
+
+export function isBypassModeId(id) {
+  return typeof id === 'string' && BYPASS_MODE_PATTERN.test(id.trim())
+}
+
+export function hasNativeBypassMode(modes) {
+  const list = Array.isArray(modes) ? modes : modes?.options ?? modes?.availableModes ?? []
+  return list.some(item => isBypassModeId(typeof item === 'string' ? item : item?.value ?? item?.id))
+}
+
+export function withBypassMode(modes) {
+  if (!modes?.options?.length || hasNativeBypassMode(modes)) return modes
+  return {
+    ...modes,
+    options: [
+      ...modes.options,
+      {
+        value: BYPASS_MODE_ID,
+        name: 'Bypass permissions',
+        description: 'Auto-approve all tool permission requests without asking.',
+      },
+    ],
+  }
+}
+
+export function underlyingModeForBypass(modes) {
+  const list = Array.isArray(modes) ? modes : modes?.options ?? modes?.availableModes ?? []
+  const ids = list
+    .map(item => (typeof item === 'string' ? item : item?.value ?? item?.id))
+    .filter(id => typeof id === 'string' && id.trim() && id !== BYPASS_MODE_ID)
+  if (!ids.length) return undefined
+  const byLower = new Map(ids.map(id => [id.toLowerCase(), id]))
+  for (const preferred of BYPASS_UNDERLYING_ORDER) {
+    const match = byLower.get(preferred)
+    if (match) return match
+  }
+  return ids.find(id => !NON_EXECUTION_MODES.has(id.toLowerCase())) ?? ids[0]
+}
+
+export function preferredBypassModeId(modes) {
+  const list = Array.isArray(modes) ? modes : modes?.options ?? modes?.availableModes ?? []
+  for (const item of list) {
+    const id = typeof item === 'string' ? item : item?.value ?? item?.id
+    if (isBypassModeId(id)) return id
+  }
+  return BYPASS_MODE_ID
+}
 
 export const cleanLabel = value => typeof value === 'string' ? value.replace(ZERO_WIDTH, '').trim() : ''
 const choices = option => (option?.options ?? []).flatMap(group => group.options ?? [group])
