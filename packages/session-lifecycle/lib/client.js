@@ -4,7 +4,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const ReactDOM = require('react-dom')
     const {
-      DisclosureRow, TextShimmer,
+      Button, DisclosureRow, Modal, TextShimmer,
       IconClockOutlineRegular, IconInspectOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
@@ -44,6 +44,19 @@ window.__ModuleLoader__.load({
         directory: 'Working directory (exact match)', modelIssue: 'Last summary failed; showing session status.', catalogIssue: 'Model list unavailable. You can still disable automatic summaries.',
         missing: 'Older conversations without a summary yet: ', recover: 'Load next batch', recovering: 'Loading history…',
         tvStopped: 'Stopped', tvInspect: 'Inspect', tvInput: 'IN', tvOutput: 'OUT',
+        afterPutAway: 'After settling or snoozing current session',
+        afterPutAwayQuiet: 'Stay on a quiet page',
+        afterPutAwayNext: 'Open next session',
+        afterPutAwayHint: 'Applies only when putting away the session currently in view. Background changes never navigate.',
+        markUnread: 'Mark unread', unreadToast: 'Marked unread',
+        woke: 'Woke', failed: 'Failed', approvalShort: 'Approval', planShort: 'Plan', questionShort: 'Input',
+        searchPlaceholder: 'Filter sessions…', clearSearch: 'Clear search',
+        allWorkspaces: 'All workspaces', filterWorkspace: 'Filter by workspace',
+        noFilteredSessions: 'No sessions in this workspace filter.', showAllWorkspaces: 'Show all workspaces',
+        noSearchMatches: 'No matching sessions.',
+        batchSettled: 'Settled {n} sessions', batchUnsettled: 'Returned {n} sessions', batchWoken: 'Woken {n} sessions',
+        dropPin: 'Pin to top', dropSettle: 'Drop to settle', dropUnsettle: 'Drop to return', dropNoSnooze: 'Snooze requires choosing a time',
+        pinnedToast: 'Pinned',
       },
       zh: {
         later: '稍后回答的问题', laterAction: '稍后回答', custom: '选择日期和时间…', apply: '确定', cancel: '取消', returned: '最近返回', incomplete: '部分旧会话仍待核对。',
@@ -74,6 +87,19 @@ window.__ModuleLoader__.load({
         directory: '工作目录（仅此目录）', modelIssue: '上次摘要生成失败，当前仅显示会话状态。', catalogIssue: '模型目录暂不可用，仍可关闭自动摘要。',
         missing: '还没生成结果摘要的旧会话：', recover: '再读一批', recovering: '正在读取…',
         tvStopped: '已中止', tvInspect: '查看', tvInput: '输入', tvOutput: '输出',
+        afterPutAway: '归置或暂缓当前会话后',
+        afterPutAwayQuiet: '回到安静页',
+        afterPutAwayNext: '自动打开下一条',
+        afterPutAwayHint: '仅在收起当前正在查看的会话时生效；处理后台会话绝不跳转。',
+        markUnread: '标为未读', unreadToast: '已标为未读',
+        woke: '已唤醒', failed: '失败', approvalShort: '审批', planShort: '计划', questionShort: '提问',
+        searchPlaceholder: '搜索会话…', clearSearch: '清空搜索',
+        allWorkspaces: '全部工作区', filterWorkspace: '按工作区筛选',
+        noFilteredSessions: '当前工作区筛选下没有会话。', showAllWorkspaces: '显示全部工作区',
+        noSearchMatches: '没有匹配的会话。',
+        batchSettled: '已归置 {n} 个会话', batchUnsettled: '已放回 {n} 个会话', batchWoken: '已唤醒 {n} 个会话',
+        dropPin: '松手置顶', dropSettle: '松手归置', dropUnsettle: '松手放回列表', dropNoSnooze: '暂缓需选择提醒时间',
+        pinnedToast: '已置顶',
       },
     }
 
@@ -116,18 +142,28 @@ window.__ModuleLoader__.load({
       const archived = new Set(workspaces.archivedSessionIds ?? [])
       const pinned = new Set(workspaces.pinnedSessionIds ?? [])
       const records = life.sessions ?? {}
-      const groups = new Map(), memo = new Map(), locations = new Map()
-      const board = { attention: [], updates: [], working: [], snoozed: [], settled: [], later: [], returned: [], missing: [], verify: [], wake: [], deadline: Infinity }
-      for (const ws of workspaces.items ?? []) for (const id of ws.sessionIds) locations.set(id, ws.title || ws.path)
+      const groups = new Map(), memo = new Map(), locations = new Map(), workspaceIds = new Map()
+      const board = { attention: [], updates: [], working: [], snoozed: [], settled: [], later: [], returned: [], all: [], workspaces: [], missing: [], verify: [], wake: [], deadline: Infinity }
+      for (const ws of workspaces.items ?? []) {
+        const wsId = ws.workspaceId ?? ws.id ?? ws.path ?? ws.title
+        const wsLabel = ws.title || ws.path || wsId
+        for (const id of ws.sessionIds) {
+          locations.set(id, wsLabel)
+          workspaceIds.set(id, wsId)
+        }
+      }
       for (const row of Object.values(list.byId)) {
         const root = owningRoot(row, list.byId, archived, memo)
         if (!root || root.blank || row.formatStatus === 'migration-required' || root.formatStatus === 'migration-required') continue
         let group = groups.get(root.id)
         if (!group) {
+          const wsLabel = locations.get(root.id) || root.cwd || ''
+          const wsId = workspaceIds.get(root.id) || wsLabel
           group = {
-            id: root.id, title: root.displayTitle || root.id, workspace: locations.get(root.id) || root.cwd || '',
+            id: root.id, title: root.displayTitle || root.id, workspace: wsLabel, workspaceId: wsId,
             at: root.updatedAt, children: 0, running: false, queued: false, request: null, outcome: null, target: root.id,
             failures: [], calls: [], holds: [], pendingStartUntil: 0, lastChildEnd: 0, pinned: pinned.has(root.id), current: root.id === mainId, record: records[root.id] ?? null,
+            failed: false, woke: Boolean(records[root.id]?.wokeAt),
           }
           groups.set(root.id, group)
         }
@@ -174,6 +210,10 @@ window.__ModuleLoader__.load({
         else if (last?.busyAt && now - last.busyAt <= 60_000) lastWorking.set(group.id, { until: now + WORKING_GRACE_MS })
         const graceUntil = Math.max(lastWorking.get(group.id)?.until ?? 0, out?.reason === 'completed' ? out.time + WORKING_GRACE_MS : 0)
         const freshChildFailure = failure && failure.outcome.time >= group.at && failure.outcome.time > (out?.time ?? 0) && failure.outcome.seq > (records[failure.id]?.seen ?? -1)
+        const ownFailure = Boolean(out && FAILURES.has(out.reason) && out.seq > (records[group.id]?.seen ?? -1))
+        group.failed = Boolean(ownFailure || freshChildFailure)
+        group.woke = Boolean(record?.wokeAt && !(record?.snoozedUntil > now))
+        board.all.push(group)
         const working = !freshChildFailure && (busy || (failedAt < (out?.time ?? 1) && graceUntil > now))
         if (!busy && graceUntil > now) board.deadline = Math.min(board.deadline, graceUntil)
         else if (!busy) lastWorking.delete(group.id)
@@ -205,6 +245,12 @@ window.__ModuleLoader__.load({
       board.working.sort((a, b) => b.at - a.at || a.id.localeCompare(b.id))
       board.snoozed.sort((a, b) => a.record.snoozedUntil - b.record.snoozedUntil || a.id.localeCompare(b.id))
       board.settled.sort((a, b) => b.record.settledAt - a.record.settledAt || a.id.localeCompare(b.id))
+      board.all.sort((a, b) => b.at - a.at || a.id.localeCompare(b.id))
+      const wsSeen = new Map()
+      for (const g of board.all) {
+        if (g.workspaceId && g.workspace && !wsSeen.has(g.workspaceId)) wsSeen.set(g.workspaceId, g.workspace)
+      }
+      board.workspaces = [...wsSeen.entries()].map(([id, label]) => ({ id, label })).toSorted((a, b) => a.label.localeCompare(b.label))
       board.missing.sort((a, b) => list.byId[b].updatedAt - list.byId[a].updatedAt || a.localeCompare(b))
       return board
     }
@@ -244,7 +290,7 @@ window.__ModuleLoader__.load({
     }
 
     function createStore() {
-      let state = { status: 'loading', sessions: {}, settings: { autoSettleAfterDays: 7, foldWorking: true } }
+      let state = { status: 'loading', sessions: {}, settings: { autoSettleAfterDays: 7, foldWorking: true, afterPutAway: 'quiet' } }
       const listeners = new Set()
       return {
         getSnapshot: () => state,
@@ -256,18 +302,69 @@ window.__ModuleLoader__.load({
     const svg = (size, children, extra = {}) => h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, ...extra }, ...children)
     const IconShelves = ({ size = 16 }) => svg(size, [h('path', { key: 1, d: 'm3 7 9-4 9 4-9 4zM3 12l9 4 9-4M3 17l9 4 9-4' })])
     const IconSettle = ({ size = 16 }) => svg(size, [h('path', { key: 1, d: 'M4 7h16v12H4zM3 4h18v3H3zM10 11h4' })])
+    const IconCheck = ({ size = 14 }) => svg(size, [h('path', { key: 1, d: 'M5 13l4 4L19 7' })])
     const IconSnooze = ({ size = 16 }) => svg(size, [h('circle', { key: 1, cx: 12, cy: 13, r: 7 }), h('path', { key: 2, d: 'M12 10v3l2 2M5 4 3 6M19 4l2 2' })])
     const IconWake = ({ size = 16 }) => svg(size, [h('path', { key: 1, d: 'M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4' }), h('circle', { key: 2, cx: 12, cy: 12, r: 4 })])
+    const IconUnread = ({ size = 16 }) => svg(size, [h('circle', { key: 1, cx: 12, cy: 12, r: 5 }), h('circle', { key: 2, cx: 18, cy: 6, r: 2.5, fill: 'currentColor', stroke: 'none' })])
+    const IconSearch = ({ size = 13 }) => svg(size, [h('circle', { key: 1, cx: 11, cy: 11, r: 7 }), h('path', { key: 2, d: 'm20 20-3.5-3.5' })])
+    const IconClear = ({ size = 12 }) => svg(size, [h('path', { key: 1, d: 'M18 6 6 18M6 6l12 12' })])
     const IconChevron = ({ open, size = 14 }) => svg(size, [h('path', { key: 1, d: open ? 'm6 9 6 6 6-6' : 'm9 6 6 6-6 6' })])
+
+    function relativeAge(ms, now = Date.now()) {
+      const diff = Math.max(0, now - ms)
+      const min = Math.floor(diff / 60_000)
+      if (min < 1) return '<1m'
+      if (min < 60) return `${min}m`
+      const hr = Math.floor(min / 60)
+      if (hr < 24) return `${hr}h`
+      return `${Math.floor(hr / 24)}d`
+    }
+
+    function scoreSearch(group, needle) {
+      const q = needle.toLowerCase()
+      const title = (group.title || '').toLowerCase()
+      const ws = (group.workspace || '').toLowerCase()
+      if (title === q) return 4
+      if (title.startsWith(q)) return 3
+      if (title.includes(q)) return 2
+      if (ws.includes(q)) return 1
+      return 0
+    }
+
+    function wsMonogram(label) {
+      const clean = (label || '?').replace(/^.*[/\\]/, '').trim()
+      return (clean[0] || '?').toUpperCase()
+    }
 
     const SIDEBAR_CSS = `
 .sl-host:empty{display:none}
 .sl-top{margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--dsw-alias-border-l1,transparent)}
 .sl-bottom{margin-top:10px;padding-top:6px;border-top:.5px solid var(--dsw-alias-border-l1,transparent)}
+.sl-toolbar{display:flex;align-items:center;gap:4px;padding:2px 6px 6px}
+.sl-search-box{position:relative;flex:1 1 auto;min-width:0;display:flex;align-items:center}
+.sl-search-ico{position:absolute;left:7px;color:var(--dsw-alias-label-tertiary);pointer-events:none;display:inline-flex}
+.sl-search-input{width:100%;height:26px;padding:0 22px 0 24px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:24px;box-sizing:border-box}
+.sl-search-input::placeholder{color:var(--dsw-alias-label-tertiary)}
+.sl-search-input:focus-visible{outline:none;border-color:var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
+.sl-search-clear{position:absolute;right:4px;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:0;border-radius:4px;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;padding:0}
+@media (hover:hover){.sl-search-clear:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
+.sl-ws-select{flex:0 1 92px;min-width:0;height:26px;padding:0 6px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer;box-sizing:border-box}
+.sl-ws-select[data-active=true]{border-color:var(--dsw-alias-state-business-primary,var(--dsw-alias-border-l3));color:var(--dsw-alias-label-primary)}
+.sl-empty-filter{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:8px 10px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.sl-empty-reset{font:inherit;font-size:12px;padding:3px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);cursor:pointer}
+.sl-search-list{display:flex;flex-direction:column;gap:1px}
+.sl-mono{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:4px;background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-interactive-bg-hover));color:var(--dsw-alias-label-secondary);font-size:10px;font-weight:600}
 .sl-section+.sl-section{margin-top:4px}
+.sl-section[data-drop-active=true]{border-radius:var(--dsw-radius-md,8px);box-shadow:inset 0 0 0 1.5px var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));background:color-mix(in srgb,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)) 8%,transparent)}
+.sl-section[data-drop-denied=true]{border-radius:var(--dsw-radius-md,8px);box-shadow:inset 0 0 0 1px var(--dsw-alias-border-l2);opacity:.72}
+.sl-drop-bar{display:flex;align-items:center;gap:4px;padding:2px 6px 6px}
+.sl-drop-zone{flex:1 1 0;display:flex;align-items:center;justify-content:center;height:28px;border:1px dashed var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,6px);font-size:11px;font-weight:500;color:var(--dsw-alias-label-secondary);transition:background-color 120ms ease,border-color 120ms ease,color 120ms ease}
+.sl-drop-zone[data-over=true]{border-style:solid;border-color:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));background:color-mix(in srgb,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)) 12%,transparent);color:var(--dsw-alias-label-primary)}
+.sl-drop-hint{font-size:11px;padding:0 6px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-interactive-bg-hover));color:var(--dsw-alias-label-secondary);margin-left:auto;margin-right:4px}
 .sl-row{position:relative;display:flex;align-items:center;height:32px;border-radius:var(--dsw-radius-md,8px);border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;background-clip:padding-box;box-sizing:border-box;padding:0 8px 0 calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));cursor:pointer;user-select:none;color:var(--dsw-alias-label-secondary)}
 .sl-row:focus-visible{outline:none;box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 .sl-row.sl-selected{background-color:var(--dsw-alias-interactive-bg-hover)}
+.sl-row.sl-sweeping{background-color:color-mix(in srgb,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)) 16%,transparent)}
 @media (hover:hover){.sl-row:hover{background-color:var(--dsw-alias-interactive-bg-hover)}}
 .sl-head{font-size:12px;color:var(--dsw-alias-label-tertiary)}
 .sl-head .sl-title{font-size:12px;font-weight:500;color:var(--dsw-alias-label-secondary)}
@@ -275,20 +372,31 @@ window.__ModuleLoader__.load({
 .sl-slot{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:20px;color:var(--dsw-alias-label-tertiary)}
 .sl-title{flex:1;min-width:0;margin:0 6px 0 var(--dsh-sidebar-label-gap,6px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px}
 .sl-member .sl-title{color:var(--dsw-alias-label-primary)}
-.sl-note{flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.sl-tail{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:flex-end;min-height:22px;max-width:48%}
+.sl-note{display:inline-flex;align-items:center;gap:4px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);transition:opacity 120ms ease}
 .sl-attn .sl-note{color:var(--dsw-alias-state-warn-primary,var(--dsw-alias-label-tertiary))}
+.sl-note-err{color:var(--dsw-alias-state-error-primary)}
+.sl-woke-pill{font-size:10px;line-height:14px;padding:0 4px;border-radius:4px;background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 16%,transparent);color:var(--dsw-alias-state-warn-primary);font-weight:500}
 .sl-count{font-size:12px;color:var(--dsw-alias-label-tertiary)}
-.sl-actions{flex:none;display:none;align-items:center;gap:2px;margin-right:-4px}
-@media (hover:hover){.sl-member:hover .sl-actions,.sl-member:focus-within .sl-actions{display:inline-flex}.sl-member:hover .sl-note,.sl-member:focus-within .sl-note{display:none}}
-.sl-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
+.sl-actions{position:absolute;right:0;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;gap:2px;opacity:0;pointer-events:none;transition:opacity 120ms ease;background:var(--dsw-alias-interactive-bg-hover-solid,var(--dsw-alias-bg-layer-1));border-radius:var(--dsw-radius-sm,6px);padding-left:2px}
+@media (hover:hover){.sl-member:hover .sl-actions,.sl-member:focus-within .sl-actions,.sl-member[data-menu-open=true] .sl-actions{opacity:1;pointer-events:auto}.sl-member:hover .sl-note,.sl-member:focus-within .sl-note,.sl-member[data-menu-open=true] .sl-note{opacity:0}}
+@media (hover:none){.sl-actions{position:static;transform:none;opacity:1;pointer-events:auto;background:transparent}}
+.sl-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;touch-action:none}
 .sl-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (hover:hover){.sl-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
+.sl-snooze-pop{position:fixed;z-index:9999;min-width:176px;padding:4px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));box-shadow:var(--dsw-elevation-medium,0 8px 24px rgba(0,0,0,.18));display:flex;flex-direction:column;gap:2px}
+.sl-snooze-item{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:6px 8px;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;text-align:left;cursor:pointer}
+.sl-snooze-item small{color:var(--dsw-alias-label-tertiary);font-size:11px}
+@media (hover:hover){.sl-snooze-item:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .sl-running{width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));animation:sl-pulse 1.4s ease-in-out infinite}
 .sl-dot{width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-warn-primary)}
+.sl-dot-err{width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-error-primary)}
 .sl-badge{position:absolute;inset-inline-start:65%;top:-.55em;font-size:10px;font-weight:600;padding:0 4px;border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-brand-primary)}
 @keyframes sl-pulse{50%{opacity:.35}}
 .sl-more{font:inherit;font-size:12px;width:100%;border:0;background:none;text-align:start}
-@media (prefers-reduced-motion:reduce){.sl-running{animation:none}}
+.sl-modal-form{display:flex;flex-direction:column;gap:12px}
+.sl-modal-input{height:34px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}
+@media (prefers-reduced-motion:reduce){.sl-running{animation:none}.sl-note,.sl-actions{transition:none}}
 `
 
     const PAGE_CSS = `
@@ -424,18 +532,73 @@ window.__ModuleLoader__.load({
           applyState(res, true)
           return res
         }
-        async function change(sessionId, payload, toast) {
+        function landAfterPutAway(sessionId) {
+          const activePanel = ctx.layout.panelInfo.getSnapshot().activePanelId
+          const viewingMain = activePanel === null && mainIdOf(ctx.sessions.list.getSnapshot()) === sessionId
+          if (!viewingMain) return null
+          const mode = store.getSnapshot().settings?.afterPutAway ?? 'quiet'
+          if (mode === 'next') {
+            const board = currentBoard()
+            const next = [...board.attention, ...board.returned].find(g => g.id !== sessionId)
+            if (next) {
+              ctx.uiWorkspace.openSession(next.target ?? next.id)
+              return { kind: 'next' }
+            }
+          }
+          if (typeof ctx.uiWorkspace.startSession === 'function') {
+            ctx.uiWorkspace.startSession()
+            return { kind: 'quiet', sessionId, landedPanelId: null, landedMainId: mainIdOf(ctx.sessions.list.getSnapshot()) }
+          }
+          ctx.layout.selectPanel(NS)
+          return { kind: 'quiet', sessionId, landedPanelId: NS, landedMainId: null }
+        }
+
+        function maybeReturnFromQuiet(landing) {
+          if (!landing || landing.kind !== 'quiet') return
+          const activePanel = ctx.layout.panelInfo.getSnapshot().activePanelId
+          const curMain = mainIdOf(ctx.sessions.list.getSnapshot())
+          const curRow = curMain ? ctx.sessions.list.getSnapshot().byId[curMain] : null
+          const stillQuiet = landing.landedPanelId === NS
+            ? activePanel === NS
+            : activePanel === null && (curMain === landing.landedMainId || !curMain || curRow?.blank)
+          if (stillQuiet) ctx.uiWorkspace.openSession(landing.sessionId)
+        }
+
+        async function change(sessionId, payload, toast, { putAway = false, restoreSeen = false } = {}) {
           try {
             const { before, after } = await runOp({ ...payload, sessionId })
-            ctx.contextMenus.notify(toast, true, { label: t('undo'), failureLabel: t('opFailed'),
-              run: () => runOp({ action: 'restore', sessionId, record: before, expected: after }),
+            const landing = putAway ? landAfterPutAway(sessionId) : null
+            ctx.contextMenus.notify(toast, true, {
+              label: t('undo'), failureLabel: t('opFailed'),
+              run: async () => {
+                await runOp({ action: 'restore', sessionId, record: before, expected: after, restoreSeen })
+                maybeReturnFromQuiet(landing)
+              },
             })
           } catch (error) { notifyFailure(error) }
         }
-        const settle = id => change(id, { action: 'settle' }, t('settledToast'))
+        async function runBatch(op, sessionIds, toastKey) {
+          if (!sessionIds.length) return
+          const currentMain = mainIdOf(ctx.sessions.list.getSnapshot())
+          try {
+            const { entries = [] } = await runOp({ action: 'batch', op, sessionIds, by: op === 'wake' ? 'user' : undefined })
+            if (!entries.length) return
+            const putAway = op === 'settle' && entries.some(e => e.sessionId === currentMain)
+            const landing = putAway ? landAfterPutAway(currentMain) : null
+            ctx.contextMenus.notify(tf(toastKey, { n: entries.length }), true, {
+              label: t('undo'), failureLabel: t('opFailed'),
+              run: async () => {
+                await runOp({ action: 'restore_batch', entries: entries.map(e => ({ sessionId: e.sessionId, record: e.before, expected: e.after })) })
+                maybeReturnFromQuiet(landing)
+              },
+            })
+          } catch (error) { notifyFailure(error) }
+        }
+        const settle = id => change(id, { action: 'settle' }, t('settledToast'), { putAway: true })
         const unsettle = id => change(id, { action: 'unsettle' }, t('unsettledToast'))
         const wake = id => change(id, { action: 'wake', by: 'user' }, t('wokeToast'))
-        const snooze = (id, until, openCalls) => change(id, { action: 'snooze', until, openCalls }, tf('snoozedToast', { when: fmt(until) }))
+        const snooze = (id, until, openCalls) => change(id, { action: 'snooze', until, openCalls }, tf('snoozedToast', { when: fmt(until) }), { putAway: true })
+        const markUnread = id => change(id, { action: 'unread' }, t('unreadToast'), { restoreSeen: true })
         const exempt = (id, never) => change(id, { action: 'auto_settle', mode: never ? 'never' : 'follow' }, t(never ? 'exemptToast' : 'followToast'))
         const saveSettings = settings => runOp({ action: 'settings', settings }).catch(notifyFailure)
         const markSeen = async marks => {
@@ -473,9 +636,14 @@ window.__ModuleLoader__.load({
         }, `${NS}: wake on request`)
 
         ctx.effect(() => {
-          let source, unbind, sending, visibleId, outcome
+          let source, unbind, sending, ackingWoke, visibleId, outcome
           const acknowledge = () => {
-            if (!source || !outcome || (recordOf(visibleId)?.seen ?? -1) >= outcome.seq || !document.hasFocus() || document.hidden) return
+            if (!document.hasFocus() || document.hidden) return
+            if (visibleId && recordOf(visibleId)?.wokeAt && ackingWoke !== visibleId) {
+              ackingWoke = visibleId
+              void runOp({ action: 'ack_woke', sessionId: visibleId }).catch(() => {}).finally(() => { if (ackingWoke === visibleId) ackingWoke = null })
+            }
+            if (!source || !outcome || (recordOf(visibleId)?.seen ?? -1) >= outcome.seq) return
             if (!source.getSnapshot().entries.some(({ event }) => event.type === 'turn/end' && event.seq === outcome.seq && event.time === outcome.time)) return
             const key = JSON.stringify([visibleId, outcome.seq]); if (sending === key) return
             sending = key; void markSeen([{ sessionId: visibleId, seq: outcome.seq }]).finally(() => { if (sending === key) sending = null })
@@ -539,12 +707,17 @@ window.__ModuleLoader__.load({
             actions.push(isSettled
               ? { id: 'unsettle', label: t('unsettle'), icon: { key: `${NS}.settle` }, failureLabel: t('opFailed'), run: () => unsettle(sessionId) }
               : { id: 'settle', disabled: !!group?.request || board.working.some(g => g.id === sessionId), label: t('settle'), icon: { key: `${NS}.settle` }, failureLabel: t('opFailed'), run: () => settle(sessionId) })
+            const idleOutcome = valuesOf(list, row)[KEY]
+            const canMarkUnread = !board.working.some(g => g.id === sessionId) && !group?.request && (Boolean(idleOutcome) || isSettled || record?.snoozedUntil > now)
+            if (canMarkUnread) {
+              actions.push({ id: 'unread', label: t('markUnread'), icon: { key: `${NS}.unread` }, failureLabel: t('opFailed'), run: () => markUnread(sessionId) })
+            }
             const never = record?.autoSettle === 'never'
             actions.push({ id: 'auto', label: never ? t('followAuto') : t('keepActive'), failureLabel: t('opFailed'), run: () => exempt(sessionId, !never) })
             return actions
           },
         }), `${NS}: session menu`)
-        for (const [key, MenuIcon] of [[`${NS}.settle`, IconSettle], [`${NS}.snooze`, IconSnooze], [`${NS}.wake`, IconWake]]) {
+        for (const [key, MenuIcon] of [[`${NS}.settle`, IconSettle], [`${NS}.snooze`, IconSnooze], [`${NS}.wake`, IconWake], [`${NS}.unread`, IconUnread]]) {
           ctx.slots.inject('contextMenu.icon', () => ctx.slots.register({ name: 'contextMenu.icon', key }, () => h(MenuIcon, { size: 16 })))
         }
 
@@ -674,87 +847,377 @@ window.__ModuleLoader__.load({
           }
         })()
 
+        const shortKind = kind => kind === 'approval' ? t('approvalShort') : kind === 'plan-review' ? t('planShort') : t('questionShort')
         const noteFor = (section, g) => {
-          if (section === 'returned') return fmt(g.returnedAt)
-          if (section === 'attention') return [t(g.request.kind), g.childTitle].filter(Boolean).join(' · ')
+          if (section === 'returned') return g.failed ? t('failed') : relativeAge(g.returnedAt)
+          if (section === 'attention') return [shortKind(g.request.kind), g.childTitle].filter(Boolean).join(' · ')
           if (section === 'snoozed') return tf('until', { when: fmt(g.record.snoozedUntil) })
           if (section === 'settled') return tf(g.record.settledBy === 'auto' ? 'settledAuto' : 'settledUser', { when: fmt(g.record.settledAt) })
           if (section === 'working') return g.queued && !g.running ? t('queued') : g.children ? `${t('worker')} × ${g.children}` : ''
           return ''
         }
-        function SidebarMember({ g, section, selectedId }) {
+
+        const snoozeMenu = createStore()
+        const openSnoozeMenu = (sessionId, openCalls, rect) => snoozeMenu.set({ open: { sessionId, openCalls, rect } })
+        const closeSnoozeMenu = () => snoozeMenu.set({ open: null })
+
+        function SnoozePopover() {
+          useLocale()
+          const { open } = React.useSyncExternalStore(snoozeMenu.subscribe, snoozeMenu.getSnapshot)
+          const popRef = React.useRef(null)
+          React.useEffect(() => {
+            if (!open) return undefined
+            const onDown = e => { if (popRef.current && !popRef.current.contains(e.target)) closeSnoozeMenu() }
+            const onKey = e => { if (e.key === 'Escape') closeSnoozeMenu() }
+            window.addEventListener('pointerdown', onDown, true)
+            window.addEventListener('keydown', onKey)
+            return () => { window.removeEventListener('pointerdown', onDown, true); window.removeEventListener('keydown', onKey) }
+          }, [open])
+          if (!open) return null
+          const presets = snoozePresets()
+          const top = Math.min(window.innerHeight - 240, Math.max(8, open.rect.bottom + 4))
+          const left = Math.min(window.innerWidth - 196, Math.max(8, open.rect.right - 180))
+          return ReactDOM.createPortal(
+            h('div', { ref: popRef, className: 'sl-snooze-pop', role: 'menu', 'aria-label': t('snooze'), style: { top: `${top}px`, left: `${left}px` } },
+              presets.map(p => h('button', {
+                key: p.id, type: 'button', role: 'menuitem', className: 'sl-snooze-item',
+                onClick: () => { closeSnoozeMenu(); void snooze(open.sessionId, p.until, open.openCalls) },
+              }, h('span', null, t(p.id)), h('small', null, fmt(p.until)))),
+              h('button', {
+                type: 'button', role: 'menuitem', className: 'sl-snooze-item',
+                onClick: () => {
+                  const targetId = open.sessionId, calls = open.openCalls
+                  closeSnoozeMenu()
+                  chooseTime(until => snooze(targetId, until, calls))
+                },
+              }, h('span', null, t('custom')))),
+            document.body)
+        }
+
+        function SidebarMember({ g, section, selectedId, sweeping, onSweepStart, onSweepEnter, onDragBegin, onDragFinish, snoozeOpenId }) {
           const open = () => ctx.uiWorkspace.openSession(section === 'attention' ? g.target : g.id)
           const stop = fn => e => { e.preventDefault(); e.stopPropagation(); fn() }
-          const action = section === 'snoozed' ? ['wake', IconWake, () => wake(g.id)]
-            : section === 'settled' ? ['unsettle', IconWake, () => unsettle(g.id)]
-              : section === 'returned' ? ['settle', IconSettle, () => settle(g.id)] : null
+          const canSnooze = section === 'returned' || section === 'working'
+          const sweepOp = section === 'snoozed' ? { op: 'wake', label: 'wake', Icon: IconWake, run: () => wake(g.id) }
+            : section === 'settled' ? { op: 'unsettle', label: 'unsettle', Icon: IconWake, run: () => unsettle(g.id) }
+              : section === 'returned' ? { op: 'settle', label: 'settle', Icon: IconCheck, run: () => settle(g.id) } : null
+          const noteText = noteFor(section, g)
+          const isErrorNote = section === 'returned' && g.failed
+          const slotMark = section === 'working'
+            ? h('span', { className: 'sl-running', 'aria-hidden': true })
+            : section === 'attention'
+              ? h('span', { className: 'sl-dot', 'aria-hidden': true })
+              : g.failed
+                ? h('span', { className: 'sl-dot-err', 'aria-hidden': true })
+                : null
           return h('div', {
-            className: `sl-row sl-member${selectedId === g.id || selectedId === g.target ? ' sl-selected' : ''}`,
+            className: `sl-row sl-member${selectedId === g.id || selectedId === g.target ? ' sl-selected' : ''}${sweeping ? ' sl-sweeping' : ''}`,
             role: 'treeitem', tabIndex: 0, title: g.title, 'data-session-id': g.id,
-            draggable: true,
-            onDragStart: e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', g.id) },
+            'data-menu-open': snoozeOpenId === g.id || undefined,
+            draggable: section !== 'working',
+            onDragStart: e => {
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('text/plain', g.id)
+              onDragBegin?.({ id: g.id, section, pinned: g.pinned })
+            },
+            onDragEnd: () => onDragFinish?.(),
+            onPointerEnter: () => onSweepEnter?.(section, g.id),
             onClick: open,
             onKeyDown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); open() } },
             onContextMenu: e => { e.preventDefault(); e.stopPropagation(); ctx.contextMenus.open({ kind: 'session', value: { sessionId: g.id, displayTitle: g.title } }, { x: e.clientX, y: e.clientY }) },
           },
-          h('span', { className: 'sl-slot' }, section === 'working' ? h('span', { className: 'sl-running', 'aria-hidden': true }) : section === 'attention' ? h('span', { className: 'sl-dot', 'aria-hidden': true }) : null),
+          h('span', { className: 'sl-slot' }, slotMark),
           h('span', { className: 'sl-title' }, g.title),
-          h('span', { className: 'sl-note' }, noteFor(section, g)),
-          action && h('span', { className: 'sl-actions' }, h('button', { type: 'button', className: 'sl-btn', tabIndex: -1, title: t(action[0]), 'aria-label': `${t(action[0])}: ${g.title}`, onClick: stop(action[2]) }, h(action[1], { size: 14 }))))
+          h('span', { className: 'sl-tail' },
+            h('span', { className: `sl-note${isErrorNote ? ' sl-note-err' : ''}` },
+              g.woke && section !== 'snoozed' && h('span', { className: 'sl-woke-pill' }, t('woke')),
+              noteText),
+            (canSnooze || sweepOp) && h('span', { className: 'sl-actions' },
+              canSnooze && h('button', {
+                type: 'button', className: 'sl-btn', tabIndex: -1, title: t('snooze'), 'aria-label': `${t('snooze')}: ${g.title}`,
+                onClick: e => {
+                  e.preventDefault(); e.stopPropagation()
+                  if (snoozeOpenId === g.id) closeSnoozeMenu()
+                  else openSnoozeMenu(g.id, g.calls ?? [], e.currentTarget.getBoundingClientRect())
+                },
+              }, h(IconSnooze, { size: 13 })),
+              sweepOp && h('button', {
+                type: 'button', className: 'sl-btn', tabIndex: -1, title: t(sweepOp.label), 'aria-label': `${t(sweepOp.label)}: ${g.title}`,
+                onPointerDown: e => {
+                  if (e.button !== 0) return
+                  e.preventDefault(); e.stopPropagation()
+                  onSweepStart?.(section, sweepOp.op, g.id)
+                },
+                onClick: stop(() => {}),
+              }, h(sweepOp.Icon, { size: 14 })))))
         }
-        function SidebarSection({ section, items, selectedId }) {
+        function SidebarSection({ section, items, selectedId, sweepIds, onSweepStart, onSweepEnter, dragState, onDragBegin, onDragFinish, onSectionDrop, snoozeOpenId }) {
           useLocale()
           const open = React.useSyncExternalStore(folds.subscribe, folds.getSnapshot)[section]
           const [limit, setLimit] = React.useState(section === 'returned' ? 5 : SHELF_LIMIT)
-          if (!items.length) return null
-          return h('div', { className: `sl-section sl-${section === 'attention' ? 'attn' : section}`, role: 'group', 'aria-label': t(section) },
-            h('div', { className: 'sl-row sl-head', role: 'button', tabIndex: 0, 'aria-expanded': open, onClick: () => folds.toggle(section), onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); folds.toggle(section) } } },
-              h('span', { className: 'sl-slot' }, h(IconChevron, { open })),
-              h('span', { className: 'sl-title' }, t(section)),
-              h('span', { className: 'sl-count' }, items.length)),
-            open && items.slice(0, limit).map(g => h(SidebarMember, { key: g.id, g, section, selectedId })),
-            open && items.length > limit && h('button', { type: 'button', className: 'sl-row sl-more', onClick: () => setLimit(n => n + SHELF_LIMIT) }, h('span', { className: 'sl-slot' }), h('span', { className: 'sl-title' }, t('more'))))
+          const [dropOver, setDropOver] = React.useState(false)
+          if (!items.length && !(dragState && section === 'settled')) return null
+          const activeWhenFolded = !open ? items.find(g => selectedId === g.id || selectedId === g.target) : null
+          const hiddenCount = activeWhenFolded ? Math.max(0, items.length - 1) : items.length
+          const canDropSettle = Boolean(dragState && section === 'settled' && dragState.section !== 'settled' && dragState.section !== 'working')
+          const deniedSnooze = Boolean(dragState && section === 'snoozed')
+          const onDragOver = e => {
+            if (!dragState) return
+            if (canDropSettle) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropOver(true) }
+            else if (deniedSnooze) { e.preventDefault(); e.dataTransfer.dropEffect = 'none'; setDropOver(true) }
+          }
+          const onDragLeave = () => setDropOver(false)
+          const onDrop = e => {
+            setDropOver(false)
+            if (!canDropSettle) return
+            e.preventDefault()
+            onSectionDrop?.('settle', dragState.id)
+          }
+          return h('div', {
+            className: `sl-section sl-${section === 'attention' ? 'attn' : section}`,
+            role: 'group', 'aria-label': t(section),
+            'data-drop-active': (canDropSettle && dropOver) || undefined,
+            'data-drop-denied': (deniedSnooze && dropOver) || undefined,
+            onDragOver, onDragLeave, onDrop,
+          },
+          h('div', { className: 'sl-row sl-head', role: 'button', tabIndex: 0, 'aria-expanded': open, onClick: () => folds.toggle(section), onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); folds.toggle(section) } } },
+            h('span', { className: 'sl-slot' }, h(IconChevron, { open })),
+            h('span', { className: 'sl-title' }, t(section)),
+            canDropSettle && dropOver && h('span', { className: 'sl-drop-hint' }, t('dropSettle')),
+            deniedSnooze && dropOver && h('span', { className: 'sl-drop-hint' }, t('dropNoSnooze')),
+            h('span', { className: 'sl-count' }, hiddenCount)),
+          !open && activeWhenFolded && h(SidebarMember, {
+            key: activeWhenFolded.id, g: activeWhenFolded, section, selectedId,
+            sweeping: sweepIds.has(activeWhenFolded.id), onSweepStart, onSweepEnter, onDragBegin, onDragFinish, snoozeOpenId,
+          }),
+          open && items.slice(0, limit).map(g => h(SidebarMember, {
+            key: g.id, g, section, selectedId,
+            sweeping: sweepIds.has(g.id), onSweepStart, onSweepEnter, onDragBegin, onDragFinish, snoozeOpenId,
+          })),
+          open && items.length > limit && h('button', { type: 'button', className: 'sl-row sl-more', onClick: () => setLimit(n => n + SHELF_LIMIT) }, h('span', { className: 'sl-slot' }), h('span', { className: 'sl-title' }, t('more'))))
         }
         const picker = createStore()
         const chooseTime = choose => picker.set({ choose })
         function TimePicker() {
           useLocale()
           const { choose } = React.useSyncExternalStore(picker.subscribe, picker.getSnapshot)
-          const ref = React.useRef(null), input = React.useRef(null)
-          React.useEffect(() => { if (choose) ref.current?.showModal() }, [choose])
+          const [value, setValue] = React.useState('')
+          const [invalid, setInvalid] = React.useState(false)
+          React.useEffect(() => {
+            if (!choose) return
+            const next = new Date(Date.now() + 3_600_000)
+            const pad = n => String(n).padStart(2, '0')
+            setValue(`${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T${pad(next.getHours())}:${pad(next.getMinutes())}`)
+            setInvalid(false)
+          }, [choose])
           if (!choose) return null
           const close = () => picker.set({ choose: null })
-          return h('dialog', { ref, 'aria-label': t('custom'), onCancel: close, onClose: close },
-            h('form', { onSubmit: e => { e.preventDefault(); const until = new Date(input.current.value).getTime(); if (until > Date.now()) { close(); choose(until) } else { input.current.setCustomValidity(t('custom')); input.current.reportValidity() } } },
-              h('label', null, t('custom'), ' ', h('input', { type: 'datetime-local', required: true, ref: input, onInput: e => e.currentTarget.setCustomValidity('') })),
-              h('button', { type: 'submit' }, t('apply')), h('button', { type: 'button', onClick: close }, t('cancel'))))
+          const submit = () => {
+            const until = new Date(value).getTime()
+            if (Number.isFinite(until) && until > Date.now()) { close(); choose(until) }
+            else setInvalid(true)
+          }
+          return h(Modal, {
+            open: true,
+            onClose: close,
+            title: t('custom'),
+            closeLabel: t('cancel'),
+            footer: h(React.Fragment, null,
+              h(Button, { variant: 'outline', onClick: close }, t('cancel')),
+              h(Button, { variant: 'primary', onClick: submit }, t('apply'))),
+          }, h('div', { className: 'sl-modal-form' },
+            h('input', {
+              type: 'datetime-local', className: 'sl-modal-input', value, required: true,
+              'aria-label': t('custom'),
+              onChange: e => { setValue(e.target.value); setInvalid(false) },
+            }),
+            invalid && h('small', { className: 'sl-note-err' }, t('custom'))))
         }
+
         function SidebarShelves() {
           useLocale()
           const { area, suspended, manual } = useListArea()
           const { board, ready, life, list } = useBoard()
+          const { open: snoozeOpen } = React.useSyncExternalStore(snoozeMenu.subscribe, snoozeMenu.getSnapshot)
+          const [query, setQuery] = React.useState('')
+          const [wsFilter, setWsFilter] = React.useState('')
+          const [dragState, setDragState] = React.useState(null)
+          const [dropTarget, setDropTarget] = React.useState(null)
+          const [sweepState, setSweepState] = React.useState(null)
+          const sweepRef = React.useRef(null)
+          const sectionListsRef = React.useRef({})
           const top = React.useMemo(() => { const el = document.createElement('div'); el.className = 'sl-host sl-top'; return el }, [])
           const bottom = React.useMemo(() => { const el = document.createElement('div'); el.className = 'sl-host sl-bottom'; return el }, [])
           usePlacement(area, top, 'start')
           usePlacement(area, bottom, 'end')
+
+          const selectedId = mainIdOf(list)
+          const prevSelected = React.useRef(selectedId)
+          React.useEffect(() => {
+            if (prevSelected.current === selectedId) return
+            prevSelected.current = selectedId
+            if (!wsFilter || !selectedId) return
+            const match = board.all.find(g => g.id === selectedId || g.target === selectedId)
+            if (match && match.workspaceId !== wsFilter) setWsFilter('')
+          }, [selectedId, wsFilter, board.all])
+
+          React.useEffect(() => {
+            if (!sweepState) return undefined
+            const cancel = () => { sweepRef.current = null; setSweepState(null) }
+            const finish = () => {
+              const cur = sweepRef.current
+              sweepRef.current = null
+              setSweepState(null)
+              if (!cur || !cur.ids.length) return
+              if (cur.ids.length === 1) {
+                const id = cur.ids[0]
+                if (cur.op === 'settle') void settle(id)
+                else if (cur.op === 'unsettle') void unsettle(id)
+                else if (cur.op === 'wake') void wake(id)
+                return
+              }
+              const toastKey = cur.op === 'settle' ? 'batchSettled' : cur.op === 'unsettle' ? 'batchUnsettled' : 'batchWoken'
+              void runBatch(cur.op, cur.ids, toastKey)
+            }
+            window.addEventListener('pointerup', finish)
+            window.addEventListener('pointercancel', cancel)
+            window.addEventListener('blur', cancel)
+            return () => {
+              window.removeEventListener('pointerup', finish)
+              window.removeEventListener('pointercancel', cancel)
+              window.removeEventListener('blur', cancel)
+            }
+          }, [sweepState !== null])
+
           if (!area || !ready || life.status !== 'ready' || suspended) return null
           const foldWorking = life.settings?.foldWorking !== false
+          const byWs = g => !wsFilter || g.workspaceId === wsFilter
+          const attention = board.attention.filter(g => !g.pinned && byWs(g))
+          const working = foldWorking ? board.working.filter(g => !g.pinned && !g.current && byWs(g)) : []
+          const returned = !manual ? board.returned.filter(g => !g.pinned && !g.current && byWs(g)) : []
+          const snoozed = board.snoozed.filter(g => !g.pinned && byWs(g))
+          const settled = board.settled.filter(g => !g.pinned && byWs(g))
+          sectionListsRef.current = { attention, working, returned, snoozed, settled }
+
+          const onSweepStart = (section, op, id) => {
+            const next = { section, op, startId: id, ids: [id] }
+            sweepRef.current = next
+            setSweepState(next)
+          }
+          const onSweepEnter = (section, id) => {
+            const cur = sweepRef.current
+            if (!cur || cur.section !== section) return
+            const rows = sectionListsRef.current[section] ?? []
+            const a = rows.findIndex(r => r.id === cur.startId)
+            const b = rows.findIndex(r => r.id === id)
+            if (a < 0 || b < 0) return
+            const [lo, hi] = a <= b ? [a, b] : [b, a]
+            const ids = rows.slice(lo, hi + 1).map(r => r.id)
+            const next = { ...cur, ids }
+            sweepRef.current = next
+            setSweepState(next)
+          }
+          const sweepIds = new Set(sweepState?.ids ?? [])
+
+          const onDropAction = async (kind, id) => {
+            setDragState(null)
+            setDropTarget(null)
+            if (kind === 'pin') {
+              try {
+                await ctx.uiWorkspace.pinSession?.(id)
+                ctx.contextMenus.notify(t('pinnedToast'), true)
+              } catch (error) { notifyFailure(error) }
+            } else if (kind === 'settle') {
+              void settle(id)
+            } else if (kind === 'unsettle') {
+              void unsettle(id)
+            }
+          }
+
+          const needle = query.trim()
+          const searchResults = needle
+            ? board.all
+              .filter(byWs)
+              .map(g => ({ g, score: scoreSearch(g, needle) }))
+              .filter(item => item.score > 0)
+              .toSorted((a, b) => b.score - a.score || b.g.at - a.g.at)
+              .slice(0, 24)
+              .map(item => item.g)
+            : []
+
+          const hasAnySection = attention.length + working.length + returned.length + snoozed.length + settled.length > 0
+          const wsOptions = [...board.workspaces]
+          if (wsFilter && !wsOptions.some(w => w.id === wsFilter)) wsOptions.push({ id: wsFilter, label: wsFilter })
           const hidden = hiddenIds(board, foldWorking, !manual)
           const hideCss = hidden.length === 0 ? '' : `${hidden.map(id => `[data-sidebar-list-area] :is([data-row-key="session:${id}"],[data-group-session-id="${id}"])`).join(',')}{display:none!important}`
-          const selectedId = mainIdOf(list)
-          const attention = board.attention.filter(g => !g.pinned)
-          const working = foldWorking ? board.working.filter(g => !g.pinned && !g.current) : []
+          const commonSectionProps = {
+            selectedId, sweepIds, onSweepStart, onSweepEnter, dragState,
+            onDragBegin: setDragState,
+            onDragFinish: () => { setDragState(null); setDropTarget(null) },
+            onSectionDrop: onDropAction,
+            snoozeOpenId: snoozeOpen?.sessionId ?? null,
+          }
+
           return h(React.Fragment, null,
             hideCss && h('style', null, hideCss),
             ReactDOM.createPortal(h(React.Fragment, null,
-              h(SidebarSection, { section: 'attention', items: attention, selectedId }),
-              h(SidebarSection, { section: 'working', items: working, selectedId }),
-              !manual && h(SidebarSection, { section: 'returned', items: board.returned.filter(g => !g.pinned && !g.current), selectedId })), top),
-            ReactDOM.createPortal(h(React.Fragment, null,
-              h(SidebarSection, { section: 'snoozed', items: board.snoozed.filter(g => !g.pinned), selectedId }),
-              h(SidebarSection, { section: 'settled', items: board.settled.filter(g => !g.pinned), selectedId })), bottom))
+              h('div', { className: 'sl-toolbar' },
+                h('div', { className: 'sl-search-box' },
+                  h('span', { className: 'sl-search-ico' }, h(IconSearch, { size: 12 })),
+                  h('input', {
+                    type: 'text', className: 'sl-search-input', value: query,
+                    placeholder: t('searchPlaceholder'), 'aria-label': t('searchPlaceholder'),
+                    onChange: e => setQuery(e.target.value),
+                  }),
+                  query && h('button', {
+                    type: 'button', className: 'sl-search-clear', 'aria-label': t('clearSearch'),
+                    onClick: () => setQuery(''),
+                  }, h(IconClear, { size: 11 }))),
+                wsOptions.length > 0 && h('select', {
+                  className: 'sl-ws-select', value: wsFilter, 'data-active': Boolean(wsFilter) || undefined,
+                  'aria-label': t('filterWorkspace'), title: t('filterWorkspace'),
+                  onChange: e => setWsFilter(e.target.value),
+                },
+                h('option', { value: '' }, t('allWorkspaces')),
+                wsOptions.map(w => h('option', { key: w.id, value: w.id }, w.label)))),
+              dragState && h('div', { className: 'sl-drop-bar' },
+                typeof ctx.uiWorkspace.pinSession === 'function' && h('div', {
+                  className: 'sl-drop-zone', 'data-over': dropTarget === 'pin' || undefined,
+                  onDragOver: e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget('pin') },
+                  onDragLeave: () => setDropTarget(prev => prev === 'pin' ? null : prev),
+                  onDrop: e => { e.preventDefault(); void onDropAction('pin', dragState.id) },
+                }, t('dropPin')),
+                dragState.section === 'settled' && h('div', {
+                  className: 'sl-drop-zone', 'data-over': dropTarget === 'unsettle' || undefined,
+                  onDragOver: e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget('unsettle') },
+                  onDragLeave: () => setDropTarget(prev => prev === 'unsettle' ? null : prev),
+                  onDrop: e => { e.preventDefault(); void onDropAction('unsettle', dragState.id) },
+                }, t('dropUnsettle'))),
+              needle
+                ? (searchResults.length > 0
+                  ? h('div', { className: 'sl-search-list', role: 'list' }, searchResults.map(g => h('div', {
+                    key: g.id, className: `sl-row sl-member${selectedId === g.id ? ' sl-selected' : ''}`,
+                    role: 'listitem', tabIndex: 0, title: g.title,
+                    onClick: () => { setQuery(''); ctx.uiWorkspace.openSession(g.request ? g.target : g.id) },
+                  },
+                  h('span', { className: 'sl-mono', 'aria-hidden': true }, wsMonogram(g.workspace)),
+                  h('span', { className: 'sl-title' }, g.title),
+                  h('span', { className: 'sl-note' }, relativeAge(g.at)))))
+                  : h('div', { className: 'sl-empty-filter' }, h('span', null, t('noSearchMatches'))))
+                : h(React.Fragment, null,
+                  wsFilter && !hasAnySection
+                    ? h('div', { className: 'sl-empty-filter' },
+                      h('span', null, t('noFilteredSessions')),
+                      h('button', { type: 'button', className: 'sl-empty-reset', onClick: () => setWsFilter('') }, t('showAllWorkspaces')))
+                    : h(React.Fragment, null,
+                      h(SidebarSection, { section: 'attention', items: attention, ...commonSectionProps }),
+                      h(SidebarSection, { section: 'working', items: working, ...commonSectionProps }),
+                      !manual && h(SidebarSection, { section: 'returned', items: returned, ...commonSectionProps })))), top),
+            !needle && ReactDOM.createPortal(h(React.Fragment, null,
+              h(SidebarSection, { section: 'snoozed', items: snoozed, ...commonSectionProps }),
+              h(SidebarSection, { section: 'settled', items: settled, ...commonSectionProps })), bottom))
         }
-        ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: `${NS}-sidebar`, order: 1010 }, () => h(React.Fragment, null, h(SidebarShelves), h(TimePicker))))
+        ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: `${NS}-sidebar`, order: 1010 }, () => h(React.Fragment, null, h(SidebarShelves), h(SnoozePopover), h(TimePicker))))
 
         const button = (label, onClick, kind = '', extra = {}) => h('button', { type: 'button', onClick, className: kind, ...extra }, label)
         const option = (value, label) => h('option', { key: value, value }, label)
@@ -772,6 +1235,7 @@ window.__ModuleLoader__.load({
         function LifecycleSettings({ life }) {
           const settings = life.settings ?? {}
           const days = settings.autoSettleAfterDays
+          const afterPutAway = settings.afterPutAway === 'next' ? 'next' : 'quiet'
           return h('section', null, h('h2', null, t('lifecycle')),
             h('label', { htmlFor: 'sl-auto' }, t('autoSettle')),
             h('select', { id: 'sl-auto', value: days === null ? 'off' : String(days), onChange: e => saveSettings({ autoSettleAfterDays: e.target.value === 'off' ? null : Number(e.target.value) }) },
@@ -779,7 +1243,12 @@ window.__ModuleLoader__.load({
             h('p', { className: 'muted' }, t('autoHint')),
             h('label', { htmlFor: 'sl-fold' }, t('foldWorking')),
             h('select', { id: 'sl-fold', value: settings.foldWorking === false ? 'off' : 'on', onChange: e => saveSettings({ foldWorking: e.target.value === 'on' }) }, option('on', t('on')), option('off', t('off'))),
-            h('p', { className: 'muted' }, t('foldHint')))
+            h('p', { className: 'muted' }, t('foldHint')),
+            h('label', { htmlFor: 'sl-after' }, t('afterPutAway')),
+            h('select', { id: 'sl-after', value: afterPutAway, onChange: e => saveSettings({ afterPutAway: e.target.value }) },
+              option('quiet', t('afterPutAwayQuiet')),
+              option('next', t('afterPutAwayNext'))),
+            h('p', { className: 'muted' }, t('afterPutAwayHint')))
         }
 
         function SummarySettings({ rows, list }) {
@@ -855,6 +1324,7 @@ window.__ModuleLoader__.load({
                 editable && update && button(t('seen'), () => markSeen([{ sessionId: row.outcomeId ?? row.id, seq: row.outcome.seq }]), 'quiet', { 'aria-label': `${t('seen')}: ${row.title}` }),
                 section === 'snoozed' && button(t('wake'), () => wake(row.id), 'quiet'),
                 section === 'settled' && button(t('unsettle'), () => unsettle(row.id), 'quiet'),
+                editable && (section === 'settled' || section === 'snoozed') && button(t('markUnread'), () => markUnread(row.id), 'quiet'),
                 editable && section === 'updates' && button(t('settle'), () => settle(row.id), 'quiet'),
                 editable && section === 'later' && button(t('wake'), () => hold(row, 0), 'quiet'),
                 editable && section === 'attention' && r?.parkable && h('select', { value: '', 'aria-label': t('laterAction'), onChange: e => {
@@ -1022,7 +1492,7 @@ window.__ModuleLoader__.load({
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: NS, locale: NS }, Page))
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id: NS, order: 18, locale: NS, label: () => t('title') }, Icon))
       },
-      _internal: { collect, hiddenIds, snoozePresets, owningRoot, requestsFor },
+      _internal: { collect, hiddenIds, snoozePresets, owningRoot, requestsFor, scoreSearch, relativeAge, copy },
     }
   },
 })

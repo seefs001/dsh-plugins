@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-34 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
+36 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [在线文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -39,9 +39,10 @@
 | 包 | 作用 | 运行位置 |
 |---|---|---|
 | [`dsh-recent-sessions`](packages/recent-sessions) | 将 `@` 菜单中的会话按最近活动倒序排列。 | Web |
-| [`dsh-session-lifecycle`](packages/session-lifecycle) | 按需要你、进行中、暂缓和归置整理会话，集中处理待答请求与轮次结果。 | Host + Web |
+| [`dsh-session-lifecycle`](packages/session-lifecycle) | 按需要你、进行中、最近返回、暂缓和归置整理会话，支持内联搜索筛选、悬停原地操作、划选批量处理、归置安静着陆与标为未读。 | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | 自定义侧栏会话分组与组内置顶，通过 Host 跨浏览器同步。 | Host + Web |
-| [`dsh-workspace-manager`](packages/workspace-manager) | 查看已保存的工作区记录并清理失效条目。 | Host + Web |
+| [`dsh-workspace-manager`](packages/workspace-manager) | 检查已保存的工作区目录，并在侧栏底部提供一步式闲置清理框（失效工作区、遗留后台任务与干净旧 worktree）。 | Host + Web |
+| [`dsh-open-in-default`](packages/open-in-default) | 在会话顶栏放置记忆默认编辑器的双半区按钮：点击主按钮直接打开目录，下拉箭头仅切换默认编辑器不立即打开。 | Web |
 | [`dsh-branch-switcher`](packages/branch-switcher) | 新会话发第一条消息前直接切换已有本地分支。需要 Change requests & worktrees。 | Host + Web |
 | [`dsh-git-changes`](packages/git-changes) | 在输入框下方显示当前分支和未提交改动统计，点击打开右侧 diff。需要 Change requests & worktrees。 | Web |
 | [`dsh-github-panel`](packages/github-panel) | 会话关联 GitHub 仓库或提及链接时，在右侧会话面板展示概览、PR、Issue、Actions 与发布，点击直接在新标签页打开 GitHub。需要 `gh` CLI。 | Host + Web |
@@ -56,6 +57,7 @@
 | [`dsh-side-chat`](packages/side-chat) | 在右栏沿用主聊预设独立追问，按需将引用带回主聊草稿。 | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 把用户消息中的引用渲染为可点击块，点击跳回原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 在工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理对话。 | Web |
+| [`dsh-subagent-peek`](packages/subagent-peek) | 在主会话顶栏显示子代理计数与实时运行/待处理状态胶囊，点击弹出派生树速览并一键跳转或侧栏打开。 | Web |
 | [`dsh-message-actions`](packages/message-actions) | 回复旁的 **Wait, what?** 用独立模型调用解释回复内容。 | Host + Web |
 | [`dsh-message-edit`](packages/message-edit) | 悬停自己的消息即可就地改写或分叉重发。 | Host + Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | 右下角可拖拽的 GPT / Claude 小伙伴，跟随当前对话状态活动。角色素材另有非商业条款。 | Web |

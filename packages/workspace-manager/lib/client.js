@@ -61,6 +61,23 @@ window.__ModuleLoader__.load({
       listFailed: 'Could not load workspaces',
       invalidFound: '{n} workspace directories appear missing or invalid.',
       selectRow: 'Select {title}',
+      cleanupBtn: 'Clean up',
+      cleanupBtnTip: 'Clean up idle resources',
+      cleanupTitle: 'Clean up',
+      cleanupChecking: 'Scanning idle resources…',
+      cleanupNothing: 'Nothing idle to clean up right now.',
+      cleanupScopeNote: 'Skips the active session and workspace. Actions apply immediately.',
+      cleanupGroupInvalid: 'Invalid workspaces',
+      cleanupGroupJobs: 'Left-behind background jobs',
+      cleanupGroupWorktrees: 'Clean linked worktrees',
+      cleanupActionRemove: 'Remove',
+      cleanupActionStop: 'Stop',
+      cleanupAll: 'Clean up all ({n})',
+      cleanupDone: 'Cleaned up {n} items.',
+      cleanupFailed: 'Clean up failed',
+      cleanupJobOwner: 'Session: {title}',
+      cleanupWorktreeBranch: 'Branch: {branch}',
+      close: 'Close',
     }
     const ZH = {
       panel: '工作区管理',
@@ -114,6 +131,23 @@ window.__ModuleLoader__.load({
       listFailed: '加载工作区失败',
       invalidFound: '检测到 {n} 个工作区目录不存在或异常。',
       selectRow: '选择 {title}',
+      cleanupBtn: '清理闲置',
+      cleanupBtnTip: '一步清理失效工作区、孤立后台任务与干净旧 worktree',
+      cleanupTitle: '清理闲置',
+      cleanupChecking: '正在扫描闲置资源…',
+      cleanupNothing: '当前没有可清理的闲置项。',
+      cleanupScopeNote: '已自动跳过当前会话与工作区；每项点击后立即执行。',
+      cleanupGroupInvalid: '失效工作区',
+      cleanupGroupJobs: '遗留后台任务',
+      cleanupGroupWorktrees: '干净的旧 Worktree',
+      cleanupActionRemove: '移除',
+      cleanupActionStop: '停止',
+      cleanupAll: '全部清理 ({n})',
+      cleanupDone: '已清理 {n} 项闲置资源。',
+      cleanupFailed: '清理失败',
+      cleanupJobOwner: '所属会话：{title}',
+      cleanupWorktreeBranch: '分支：{branch}',
+      close: '关闭',
     }
 
     const isInvalid = status => status === 'missing' || status === 'not-directory'
@@ -185,6 +219,28 @@ window.__ModuleLoader__.load({
 .wm-confirm-paths li+li{margin-top:4px;padding-top:4px;border-top:.5px solid var(--dsw-alias-border-l1)}
 .wm-confirm-paths li{overflow-wrap:anywhere}
 .wm-toast{position:sticky;bottom:14px;align-self:center;padding:5px 12px;border-radius:999px;background:var(--dsw-alias-toast-bg,var(--dsw-alias-label-primary));color:var(--dsw-alias-toast-label,var(--dsw-alias-bg-base));font-size:12px;line-height:18px;box-shadow:var(--dsw-elevation-soft,0 2px 8px rgba(0,0,0,.16));pointer-events:none}
+.wm-foot-btn{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;text-align:left;transition:background-color 120ms ease,color 120ms ease}
+.wm-foot-btn[data-wide=false]{width:36px;height:36px;padding:0;justify-content:center;margin:0 auto}
+@media (hover:hover){.wm-foot-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.wm-cu{display:flex;flex-direction:column;gap:12px;min-width:0}
+.wm-cu-block{border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,10px);overflow:hidden;background:var(--dsw-alias-bg-base)}
+.wm-cu-head{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--dsw-alias-bg-layer-1);cursor:pointer;user-select:none}
+.wm-cu-head-btn{flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:500;text-align:left;padding:0;cursor:pointer}
+.wm-cu-count{font-size:12px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.wm-cu-list{list-style:none;margin:0;padding:0;border-top:.5px solid var(--dsw-alias-border-l1)}
+.wm-cu-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.wm-cu-item:first-child{border-top:0}
+.wm-cu-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.wm-cu-name{font-size:13px;font-weight:500;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wm-cu-sub{font-size:11.5px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wm-cu-act{flex:none;width:64px;height:26px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.wm-cu-act:disabled{opacity:.5;cursor:default}
+@media (hover:hover){.wm-cu-act:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
+.wm-cu-cards{display:flex;flex-direction:column;gap:8px}
+.wm-cu-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1)}
+.wm-cu-note{margin:0;font-size:11.5px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.wm-cu-err{margin:0;font-size:12px;color:var(--dsw-alias-state-error-primary)}
+.wm-cu-toast-float{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:10000;padding:6px 14px;border-radius:999px;background:var(--dsw-alias-toast-bg,var(--dsw-alias-label-primary));color:var(--dsw-alias-toast-label,var(--dsw-alias-bg-base));font-size:12px;line-height:18px;box-shadow:var(--dsw-elevation-soft,0 4px 14px rgba(0,0,0,.2));pointer-events:none}
 @container (max-width:560px){.wm-row{align-items:flex-start;flex-wrap:wrap}.wm-row-actions{width:100%;justify-content:flex-end;padding-top:4px}}
 @media (pointer:coarse){.wm-select{font-size:16px}}
 `
@@ -205,6 +261,149 @@ window.__ModuleLoader__.load({
         const controller = new AbortController()
         let closed = false
         let state = { checks: new Map(), busy: false, scanning: false, error: null, message: null, confirm: null }
+        let cleanupState = { open: false, loading: false, acting: false, error: null, notice: '', data: { invalidWorkspaces: [], idleJobs: [], cleanWorktrees: [] } }
+        const cleanupListeners = new Set()
+        const cleanupStore = {
+          getSnapshot: () => cleanupState,
+          subscribe(fn) { cleanupListeners.add(fn); return () => cleanupListeners.delete(fn) },
+        }
+        let noticeTimer = null
+        const setCleanup = patch => {
+          if (closed) return
+          cleanupState = { ...cleanupState, ...patch }
+          cleanupListeners.forEach(fn => fn())
+        }
+        const flashCleanupNotice = text => {
+          const menus = ctx.get?.('contextMenus')
+          if (typeof menus?.notify === 'function') { menus.notify(text, true); return }
+          clearTimeout(noticeTimer)
+          setCleanup({ notice: text })
+          noticeTimer = setTimeout(() => setCleanup({ notice: '' }), 2400)
+        }
+        const currentScope = () => {
+          const sessionsApi = ctx.get?.('sessions')
+          const listSnap = sessionsApi?.list?.getSnapshot?.()
+          const mainSession = listSnap?.byId ? Object.values(listSnap.byId).find(s => (s.retainedBy?.mainView ?? 0) > 0) : null
+          const currentSessionId = mainSession?.id || ''
+          const wsItems = ctx.workspaces.list.getSnapshot()?.items ?? []
+          const currentWs = currentSessionId
+            ? wsItems.find(item => Array.isArray(item.sessionIds) && item.sessionIds.includes(currentSessionId))
+            : null
+          return { currentSessionId, currentWorkspaceId: currentWs?.workspaceId || '' }
+        }
+        async function openCleanupDialog() {
+          if (closed || cleanupState.loading) return
+          setCleanup({ loading: true, error: null })
+          try {
+            const { currentSessionId, currentWorkspaceId } = currentScope()
+            const params = new URLSearchParams()
+            if (currentWorkspaceId) params.set('currentWorkspaceId', currentWorkspaceId)
+            if (currentSessionId) params.set('currentSessionId', currentSessionId)
+            const qs = params.toString()
+            const res = await fetch(`workspace-manager/cleanup-scan${qs ? `?${qs}` : ''}`, {
+              headers: { accept: 'application/json' }, cache: 'no-store', signal: controller.signal,
+            })
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            const body = await res.json()
+            const data = {
+              invalidWorkspaces: Array.isArray(body?.invalidWorkspaces) ? body.invalidWorkspaces : [],
+              idleJobs: Array.isArray(body?.idleJobs) ? body.idleJobs : [],
+              cleanWorktrees: Array.isArray(body?.cleanWorktrees) ? body.cleanWorktrees : [],
+            }
+            const total = data.invalidWorkspaces.length + data.idleJobs.length + data.cleanWorktrees.length
+            if (total === 0) {
+              setCleanup({ open: false, loading: false, data })
+              flashCleanupNotice(t('cleanupNothing'))
+              return
+            }
+            setCleanup({ open: true, loading: false, data, error: null })
+          } catch (error) {
+            setCleanup({ loading: false, error: `${t('cleanupFailed')}: ${error?.message ?? error}` })
+            flashCleanupNotice(`${t('cleanupFailed')}: ${error?.message ?? error}`)
+          }
+        }
+        async function postCleanupAction(payload) {
+          const res = await fetch('workspace-manager/cleanup-action', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          })
+          const body = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(body?.message || `HTTP ${res.status}`)
+          return body
+        }
+        async function executeCleanupItem(kind, item) {
+          if (closed || cleanupState.acting) return false
+          setCleanup({ acting: true, error: null })
+          try {
+            if (kind === 'invalid') {
+              await ctx.workspaces.delete(item.workspaceId)
+              setCleanup({
+                data: {
+                  ...cleanupState.data,
+                  invalidWorkspaces: cleanupState.data.invalidWorkspaces.filter(row => row.workspaceId !== item.workspaceId),
+                },
+              })
+            } else if (kind === 'job') {
+              await postCleanupAction({ action: 'stop-job', jobId: item.jobId, owner: item.owner })
+              setCleanup({
+                data: {
+                  ...cleanupState.data,
+                  idleJobs: cleanupState.data.idleJobs.filter(row => row.jobId !== item.jobId),
+                },
+              })
+            } else if (kind === 'worktree') {
+              await postCleanupAction({ action: 'remove-worktree', path: item.path })
+              await ctx.workspaces.delete(item.workspaceId)
+              setCleanup({
+                data: {
+                  ...cleanupState.data,
+                  cleanWorktrees: cleanupState.data.cleanWorktrees.filter(row => row.workspaceId !== item.workspaceId),
+                },
+              })
+            }
+            const left = cleanupState.data.invalidWorkspaces.length + cleanupState.data.idleJobs.length + cleanupState.data.cleanWorktrees.length
+            if (left === 0) setCleanup({ open: false })
+            return true
+          } catch (error) {
+            setCleanup({ error: `${t('cleanupFailed')}: ${error?.message ?? error}` })
+            return false
+          } finally {
+            setCleanup({ acting: false })
+          }
+        }
+        async function executeCleanupAll() {
+          if (closed || cleanupState.acting) return
+          setCleanup({ acting: true, error: null })
+          let done = 0
+          const snap = cleanupState.data
+          const remainingInvalid = []
+          const remainingJobs = []
+          const remainingWorktrees = []
+          let lastError = null
+          for (const item of snap.invalidWorkspaces) {
+            try { await ctx.workspaces.delete(item.workspaceId); done++ } catch (e) { remainingInvalid.push(item); lastError = e }
+          }
+          for (const item of snap.idleJobs) {
+            try { await postCleanupAction({ action: 'stop-job', jobId: item.jobId, owner: item.owner }); done++ } catch (e) { remainingJobs.push(item); lastError = e }
+          }
+          for (const item of snap.cleanWorktrees) {
+            try {
+              await postCleanupAction({ action: 'remove-worktree', path: item.path })
+              await ctx.workspaces.delete(item.workspaceId)
+              done++
+            } catch (e) { remainingWorktrees.push(item); lastError = e }
+          }
+          const left = remainingInvalid.length + remainingJobs.length + remainingWorktrees.length
+          setCleanup({
+            acting: false,
+            open: left > 0,
+            error: lastError ? `${t('cleanupFailed')}: ${lastError?.message ?? lastError}` : null,
+            data: { invalidWorkspaces: remainingInvalid, idleJobs: remainingJobs, cleanWorktrees: remainingWorktrees },
+          })
+          if (done > 0) flashCleanupNotice(tf('cleanupDone', { n: done }))
+        }
         const listeners = new Set()
         const store = {
           getSnapshot: () => state,
@@ -227,7 +426,7 @@ window.__ModuleLoader__.load({
           update({ confirm: null })
           resolve?.(ok)
         }
-        ctx.effect(() => () => { closed = true; finishConfirm(false); controller.abort(); listeners.clear() }, 'workspace-manager: close')
+        ctx.effect(() => () => { closed = true; clearTimeout(noticeTimer); finishConfirm(false); controller.abort(); listeners.clear(); cleanupListeners.clear() }, 'workspace-manager: close')
 
         async function scan() {
           update({ scanning: true })
@@ -424,6 +623,12 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'wm-head-actions' },
                   h(Button, {
                     size: 'sm', variant: 'outline',
+                    icon: h(IconTrashOutlineRegular, { size: 14 }),
+                    disabled: view.busy,
+                    onClick: () => void openCleanupDialog(),
+                  }, t('cleanupBtn')),
+                  h(Button, {
+                    size: 'sm', variant: 'outline',
                     icon: view.scanning ? h(StateDot, { state: 'ongoing', size: 12 }) : h(IconRefreshOutlineRegular, { size: 14 }),
                     disabled: view.busy,
                     onClick: () => void run('scan'),
@@ -576,13 +781,96 @@ window.__ModuleLoader__.load({
                 view.confirm.paths.map(path => h('li', { key: path }, path))))) : null)
         }
 
+        function CleanupFooterAction({ wide }) {
+          useSource(ctx.locale)
+          const cu = useSource(cleanupStore)
+          return h('button', {
+            type: 'button',
+            className: 'wm-foot-btn',
+            'data-wide': wide ? 'true' : 'false',
+            disabled: cu.loading,
+            title: t('cleanupBtnTip'),
+            'aria-label': t('cleanupBtn'),
+            onClick: () => void openCleanupDialog(),
+          },
+          h(IconTrashOutlineRegular, { size: 16 }),
+          wide ? h('span', null, cu.loading ? t('scanning') : t('cleanupBtn')) : null)
+        }
+
+        function CleanupOverlay() {
+          useSource(ctx.locale)
+          const cu = useSource(cleanupStore)
+          const [openInvalid, setOpenInvalid] = React.useState(false)
+          const [openWorktrees, setOpenWorktrees] = React.useState(false)
+          const { invalidWorkspaces, idleJobs, cleanWorktrees } = cu.data
+          const total = invalidWorkspaces.length + idleJobs.length + cleanWorktrees.length
+          return h(React.Fragment, null,
+            cu.notice ? h('div', { className: 'wm-cu-toast-float', role: 'status', 'aria-live': 'polite' }, cu.notice) : null,
+            cu.open ? h(Modal, {
+              open: true,
+              onClose: () => { if (!cu.acting) setCleanup({ open: false }) },
+              title: t('cleanupTitle'),
+              closeLabel: t('close'),
+              footer: h(React.Fragment, null,
+                h(Button, { variant: 'outline', disabled: cu.acting, onClick: () => setCleanup({ open: false }) }, t('close')),
+                total > 0 ? h(Button, { variant: 'primary', className: 'wm-danger-fill', disabled: cu.acting, onClick: () => void executeCleanupAll() }, tf('cleanupAll', { n: total })) : null),
+            }, h('div', { className: 'wm-cu' },
+              cu.error ? h('p', { className: 'wm-cu-err', role: 'alert' }, cu.error) : null,
+              invalidWorkspaces.length > 0 ? h('div', { className: 'wm-cu-block' },
+                h('div', { className: 'wm-cu-head' },
+                  h('button', { type: 'button', className: 'wm-cu-head-btn', 'aria-expanded': openInvalid, onClick: () => setOpenInvalid(v => !v) },
+                    h('span', null, openInvalid ? '▾' : '▸'),
+                    h('span', null, t('cleanupGroupInvalid')),
+                    h('span', { className: 'wm-cu-count' }, invalidWorkspaces.length))),
+                openInvalid ? h('ul', { className: 'wm-cu-list' }, invalidWorkspaces.map(item => h('li', { key: item.workspaceId, className: 'wm-cu-item' },
+                  h('div', { className: 'wm-cu-meta' },
+                    h('span', { className: 'wm-cu-name' }, item.title),
+                    h('span', { className: 'wm-cu-sub' }, `${t(item.status)} · ${item.path}`)),
+                  h('button', {
+                    type: 'button', className: 'wm-cu-act', disabled: cu.acting,
+                    onClick: () => void executeCleanupItem('invalid', item),
+                  }, t('cleanupActionRemove'))))) : null) : null,
+              cleanWorktrees.length > 0 ? h('div', { className: 'wm-cu-block' },
+                h('div', { className: 'wm-cu-head' },
+                  h('button', { type: 'button', className: 'wm-cu-head-btn', 'aria-expanded': openWorktrees, onClick: () => setOpenWorktrees(v => !v) },
+                    h('span', null, openWorktrees ? '▾' : '▸'),
+                    h('span', null, t('cleanupGroupWorktrees')),
+                    h('span', { className: 'wm-cu-count' }, cleanWorktrees.length))),
+                openWorktrees ? h('ul', { className: 'wm-cu-list' }, cleanWorktrees.map(item => h('li', { key: item.workspaceId, className: 'wm-cu-item' },
+                  h('div', { className: 'wm-cu-meta' },
+                    h('span', { className: 'wm-cu-name' }, item.title),
+                    h('span', { className: 'wm-cu-sub' }, [item.branch ? tf('cleanupWorktreeBranch', { branch: item.branch }) : '', item.path].filter(Boolean).join(' · '))),
+                  h('button', {
+                    type: 'button', className: 'wm-cu-act', disabled: cu.acting,
+                    onClick: () => void executeCleanupItem('worktree', item),
+                  }, t('cleanupActionRemove'))))) : null) : null,
+              idleJobs.length > 0 ? h('div', { className: 'wm-cu-cards' },
+                h('div', { className: 'wm-cu-sub' }, `${t('cleanupGroupJobs')} (${idleJobs.length})`),
+                idleJobs.map(item => h('div', { key: item.jobId, className: 'wm-cu-card' },
+                  h('div', { className: 'wm-cu-meta' },
+                    h('span', { className: 'wm-cu-name' }, item.label),
+                    h('span', { className: 'wm-cu-sub' }, item.sessionTitle ? tf('cleanupJobOwner', { title: item.sessionTitle }) : item.jobId)),
+                  h('button', {
+                    type: 'button', className: 'wm-cu-act', disabled: cu.acting,
+                    onClick: () => void executeCleanupItem('job', item),
+                  }, t('cleanupActionStop'))))) : null,
+              h('p', { className: 'wm-cu-note' }, t('cleanupScopeNote')))) : null)
+        }
+
         ctx.slots.inject('main', () => ctx.slots.register({
           name: 'main', key: NS, locale: NS,
         }, WorkspacesPage))
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
           name: 'sidebar.panellist', id: NS, order: 22, locale: NS, label: () => t('panel'),
         }, IconFolder))
+        ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
+          name: 'sidebar.footer.action', id: `${NS}-cleanup`, order: 20, locale: NS,
+        }, CleanupFooterAction))
+        ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+          name: 'shell.overlay', id: `${NS}-cleanup-dialog`, order: 1020, locale: NS,
+        }, CleanupOverlay))
       },
+      _internal: { EN, ZH },
     }
   },
 })

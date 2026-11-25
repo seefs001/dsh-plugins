@@ -1,0 +1,22 @@
+---
+title: 默认编辑器一键打开
+description: 在会话顶栏提供记忆默认编辑器的双半区按钮，左半直接打开当前目录，右半箭头仅切换默认编辑器。
+---
+
+<PluginFacts slug="open-in-default" />
+
+在会话顶栏放置一个记忆默认编辑器的双半区按钮（Split Button），省去每次点开更多菜单再进二级子菜单选应用的步骤。
+
+<Callout type="info" title="依赖原生应用探测">
+复用 DSH Host 原生 `@deepseek-ai/dsh-host-open-in-app` 接口；会话未关联目录或 Host 未提供可用应用时自动隐藏。
+</Callout>
+
+## 安装
+
+<InstallCommand slug="open-in-default" />
+
+## 工作方式
+
+- **左半主按钮**：直接用上次记住的默认编辑器（Cursor、VS Code、Zed、Finder 等）打开当前会话工作目录。
+- **右半下拉箭头**：列出 Host 探测到的全部已安装应用，点击某项仅切换并记住默认偏好，不立即触发打开。
+- 与 DSH 原生共享浏览器 `dsh.open-in-app.choice` 偏好记录；若已记住的应用被卸载，自动回退到可用列表首项。

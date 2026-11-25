@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Open in Default Editor",
+    "description": "Add a split button in the session header that opens the workspace in your remembered editor, while the dropdown arrow switches the default without launching."
+  }
+}

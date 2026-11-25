@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Subagent Header Peek",
+    "description": "Show a compact subagent count pill in the session header with live running/attention marks and a tree popover to jump directly to any descendant."
+  }
+}

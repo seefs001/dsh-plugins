@@ -8,9 +8,10 @@ export const STATE_PATH = '/session-lifecycle/state'
 export const OP_PATH = '/session-lifecycle/op'
 export const EVENTS_PATH = '/session-lifecycle/events'
 export const TOOL_NAME = 'session_lifecycle'
-export const ACTIONS = ['list', 'settle', 'unsettle', 'snooze', 'wake', 'auto_settle', 'seen', 'hold', 'settings', 'restore']
+export const ACTIONS = ['list', 'settle', 'unsettle', 'snooze', 'wake', 'auto_settle', 'seen', 'unread', 'ack_woke', 'hold', 'settings', 'restore', 'batch', 'restore_batch']
 export const AUTO_SETTLE_DAYS = [1, 3, 7, 14, 30, 90]
-export const DEFAULT_SETTINGS = { autoSettleAfterDays: 7, foldWorking: true }
+export const AFTER_PUT_AWAY = ['quiet', 'next']
+export const DEFAULT_SETTINGS = { autoSettleAfterDays: 7, foldWorking: true, afterPutAway: 'quiet' }
 
 const DAY_MS = 86_400_000
 const SWEEP_MS = 60_000
@@ -87,6 +88,7 @@ export function normalizeSettings(raw) {
     autoSettleAfterDays: s.autoSettleAfterDays === null ? null
       : AUTO_SETTLE_DAYS.includes(s.autoSettleAfterDays) ? s.autoSettleAfterDays : DEFAULT_SETTINGS.autoSettleAfterDays,
     foldWorking: typeof s.foldWorking === 'boolean' ? s.foldWorking : DEFAULT_SETTINGS.foldWorking,
+    afterPutAway: AFTER_PUT_AWAY.includes(s.afterPutAway) ? s.afterPutAway : DEFAULT_SETTINGS.afterPutAway,
   }
 }
 
@@ -128,6 +130,7 @@ function samePlacement(a, b) {
 }
 const clearSnooze = r => { delete r.snoozedUntil; delete r.snoozedAt; delete r.snoozedCalls; return r }
 const clearSettle = r => { delete r.settledAt; delete r.settledBy; return r }
+const clearWoke = r => { delete r.wokeAt; delete r.wokeBy; return r }
 
 function wakeTime(op, now) {
   let until
@@ -193,16 +196,68 @@ export function applyOp(state, op, now = Date.now()) {
       }
       return { state: sessions === state.sessions ? state : { ...state, sessions }, result: {} }
     }
+    case 'unread': {
+      const id = requireSession(op.sessionId)
+      return {
+        state: withRecord(state, id, r => {
+          const next = clearSettle(clearSnooze({ ...r, keptAt: now }))
+          delete next.seen
+          return next
+        }),
+        result: {},
+      }
+    }
+    case 'ack_woke': {
+      const id = requireSession(op.sessionId)
+      if (!state.sessions[id]?.wokeAt) return { state, result: {} }
+      return { state: withRecord(state, id, r => clearWoke({ ...r })), result: {} }
+    }
+    case 'batch': {
+      if (!['settle', 'unsettle', 'wake'].includes(op.op)) throw new OpError('batch op must be settle, unsettle, or wake')
+      const ids = Array.isArray(op.sessionIds) ? [...new Set(op.sessionIds.filter(isId))].slice(0, 200) : []
+      if (!ids.length) return { state, result: { entries: [] } }
+      let next = state
+      const entries = []
+      for (const sessionId of ids) {
+        const before = next.sessions[sessionId] ?? null
+        const step = applyOp(next, { action: op.op, sessionId, by: op.by }, now)
+        const after = step.state.sessions[sessionId] ?? null
+        if (JSON.stringify(before) !== JSON.stringify(after)) {
+          next = step.state
+          entries.push({ sessionId, before, after })
+        }
+      }
+      return { state: next, result: { entries } }
+    }
     case 'restore': {
       const id = requireSession(op.sessionId)
       const current = state.sessions[id] ?? null
       if (!Object.hasOwn(op, 'expected') || !samePlacement(current, op.expected)) throw new OpError('Session changed; Undo is no longer available')
-      const record = normalizeRecord({ ...op.record, seen: current?.seen, holds: current?.holds })
+      const seen = op.restoreSeen ? op.record?.seen : current?.seen
+      const record = normalizeRecord({ ...op.record, seen, holds: current?.holds })
       if (JSON.stringify(record) === JSON.stringify(state.sessions[id] ?? null)) return { state, result: {} }
       const sessions = { ...state.sessions }
       if (record) sessions[id] = record
       else delete sessions[id]
       return { state: { ...state, sessions }, result: {} }
+    }
+    case 'restore_batch': {
+      const items = Array.isArray(op.entries) ? op.entries.slice(0, 200) : []
+      let next = state
+      let restored = 0
+      for (const item of items) {
+        if (!isId(item?.sessionId) || !Object.hasOwn(item, 'expected')) continue
+        const current = next.sessions[item.sessionId] ?? null
+        if (!samePlacement(current, item.expected)) continue
+        const record = normalizeRecord({ ...item.record, seen: current?.seen, holds: current?.holds })
+        if (JSON.stringify(record) === JSON.stringify(current)) continue
+        const sessions = { ...next.sessions }
+        if (record) sessions[item.sessionId] = record
+        else delete sessions[item.sessionId]
+        next = { ...next, sessions }
+        restored++
+      }
+      return { state: next, result: { restored } }
     }
     case 'settings': {
       const settings = normalizeSettings({ ...state.settings, ...(isRecord(op.settings) ? op.settings : {}) })
@@ -366,8 +421,16 @@ export async function apply(ctx) {
       if (op.action === 'snooze' && (facts.decision || facts.queued)) throw new OpError('Resolve the pending decision or queued turn first')
       if (op.action === 'settle' && ((ownTurn ? facts.otherWork || facts.queued : facts.busy) || facts.decision || facts.questions.length)) throw new OpError('Session is working or waiting for you')
       if (op.action === 'snooze') op = { ...op, openCalls: [...new Set([...facts.questions, ...callIds(op.openCalls)])] }
+    } else if (op?.action === 'batch' && op.op === 'settle') {
+      const allFacts = lifecycleFacts(await catalog(), registry().archivedSessionIds, Date.now(), pending())
+      const eligible = (Array.isArray(op.sessionIds) ? op.sessionIds : []).filter(id => {
+        const facts = allFacts.get(id)
+        return facts && !facts.busy && !facts.decision && !facts.questions.length
+      })
+      op = { ...op, sessionIds: eligible }
     }
     const change = applyOp(state, op)
+    if (op?.action === 'batch' || op?.action === 'restore_batch') return change
     const before = state.sessions[op.sessionId] ?? null, after = change.state.sessions[op.sessionId] ?? null
     return { ...change, result: { ...change.result, before, after } }
   })

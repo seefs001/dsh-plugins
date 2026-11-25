@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-34 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
+36 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation (中文)](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -39,9 +39,10 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | Package | What it does | Runs in |
 |---|---|---|
 | [`dsh-recent-sessions`](packages/recent-sessions) | Sort sessions in the `@` reference menu by recent activity, newest first. | Web |
-| [`dsh-session-lifecycle`](packages/session-lifecycle) | Organize sessions into Needs you, Working, Snoozed, and Settled, with a Triage panel for pending requests and turn results. | Host + Web |
+| [`dsh-session-lifecycle`](packages/session-lifecycle) | Organize sessions into Needs you, Working, Recently returned, Snoozed, and Settled, with inline search/workspace filtering, hover actions, sweep batching, quiet landing, and Mark unread. | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | Custom sidebar session groups and per-group pins, synced via the Host. | Host + Web |
-| [`dsh-workspace-manager`](packages/workspace-manager) | Inspect saved workspaces and remove stale entries. | Host + Web |
+| [`dsh-workspace-manager`](packages/workspace-manager) | Inspect saved workspaces and open a one-step Clean up dialog for invalid workspaces, left-behind jobs, and clean linked worktrees. | Host + Web |
+| [`dsh-open-in-default`](packages/open-in-default) | Add a session-header split button that opens the workspace in your remembered editor, while its arrow switches defaults without launching. | Web |
 | [`dsh-branch-switcher`](packages/branch-switcher) | Switch local Git branches from the New Session page before the first message. Requires Forge worktrees. | Host + Web |
 | [`dsh-git-changes`](packages/git-changes) | Show current branch and uncommitted stats below the composer; click to open local diffs. Requires Forge worktrees. | Web |
 | [`dsh-github-panel`](packages/github-panel) | Show linked GitHub repo overview, chat mentions, open PRs, issues, Actions runs, and releases in the right session panel and open items directly on GitHub. Requires GitHub CLI (`gh`). | Host + Web |
@@ -56,6 +57,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | [`dsh-side-chat`](packages/side-chat) | Open a separate chat in the sidebar with the main session's agent preset and bring its reference back to your draft. | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Turn quotes in user messages into clickable blocks that jump to and highlight the source. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Open skill files, full spill outputs, search hits, links, and subagent chats directly from tool-call rows. | Web |
+| [`dsh-subagent-peek`](packages/subagent-peek) | Show a compact subagent count pill in the session header with live status marks and a tree popover to jump to any descendant. | Web |
 | [`dsh-message-actions`](packages/message-actions) | Add **Wait, what?** beside replies to explain them in an isolated model call. | Host + Web |
 | [`dsh-message-edit`](packages/message-edit) | Hover your own messages to edit in place or fork and resend. | Host + Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | Draggable GPT / Claude companions reacting to the active conversation. Artwork carries separate non-commercial terms. | Web |
