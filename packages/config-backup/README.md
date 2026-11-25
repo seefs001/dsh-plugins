@@ -7,8 +7,8 @@ Export conversation-independent Host and plugin configurations to a single porta
 - **Profile config overrides (`cordis.patch.yml`)**: reads explicit user overrides via `configEditor.configuration()`. Secret fields declared with `role('secret')` are stripped by default and preserved on the target Host when importing a redacted backup.
 - **Conversation-independent storage domains**: exports live open `storageDomain` entries with domain/table filtering:
   - Included by default: `roles` (library only), `cheat_sheet`, `pi_tools_defaults` (`presets`), `prompt_shortcut`, `acp_workbench` (`global` + `providers`), `paseo_hub` (`global`), `workspace`, and `schedule`.
-  - Optional (unchecked by default): `session_groups`, `session_lifecycle`, and unknown open domains.
-  - Always excluded: caches and per-session logs (`session_projcache`, `dsh-context`, `auto_review_log`, `message_actions`, `forge_panel_change_requests`, `canvas`, `session_lifecycle_summary`).
+  - Optional (unchecked by default): `session_groups` and unknown open domains.
+  - Always excluded: caches and per-session logs (`session_projcache`, `dsh-context`, `auto_review_log`, `message_actions`, `forge_panel_change_requests`, `canvas`).
 - **Home-level files**: `~/.dsh/AGENTS.md` and non-empty `~/.dsh/cordis.patch.yml`.
 - **Credentials (opt-in)**: `~/.dsh/.credentials.yaml` and `~/.dsh/.env` are excluded by default and unchecked by default on import.
 

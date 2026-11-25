@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-36 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
+35 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation (中文)](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -39,7 +39,6 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | Package | What it does | Runs in |
 |---|---|---|
 | [`dsh-recent-sessions`](packages/recent-sessions) | Sort sessions in the `@` reference menu by recent activity, newest first. | Web |
-| [`dsh-session-lifecycle`](packages/session-lifecycle) | Organize sessions into Needs you, Working, Recently returned, Snoozed, and Settled, with inline search/workspace filtering, hover actions, sweep batching, quiet landing, and Mark unread. | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | Custom sidebar session groups and per-group pins, synced via the Host. | Host + Web |
 | [`dsh-workspace-manager`](packages/workspace-manager) | Inspect saved workspaces and open a one-step Clean up dialog for invalid workspaces, left-behind jobs, and clean linked worktrees. | Host + Web |
 | [`dsh-open-in-default`](packages/open-in-default) | Add a session-header split button that opens the workspace in your remembered editor, while its arrow switches defaults without launching. | Web |
@@ -100,9 +99,9 @@ If Plugin Manager reports `applied`, Host changes take effect immediately; if it
 ## Configuration and storage
 
 - **Profile config (`cordis.patch.yml`)**: `model-reference`, `service-tier`, `remember-model` (optional `onlyAfterTurn`), `auto-review-model`, `github-panel` (`hosts`), `message-actions`, `web-access`, `image-gen`, `pi-mcp` (`disabledServers`, `eagerServers`), and `bark-notify` settings.
-- **Host storage domains (`~/.dsh/storages`)**: `model_favorites`, `session_groups`, `roles`, `cheat_sheet`, `prompt_shortcut`, `auto_review_log`, `message_actions`, `session_lifecycle`, `session_lifecycle_summary`, `pi_tools_defaults`, `paseo_hub`, `acp_workbench`, and `canvas`.
+- **Host storage domains (`~/.dsh/storages`)**: `model_favorites`, `session_groups`, `roles`, `cheat_sheet`, `prompt_shortcut`, `auto_review_log`, `message_actions`, `pi_tools_defaults`, `paseo_hub`, `acp_workbench`, and `canvas`.
 - **DSH credentials**: `bark-notify/device` and `paseo-hub/{daemon,api}`.
-- **Session log and `localStorage`**: `pi-tools` selection lives in the session log; browser `localStorage` holds UI preferences (`ai-mascot`, `session-lifecycle` and `session-groups` fold states, `github-panel` hidden mentions, `pi-tools` picker view, `paseo-hub` page size, `acp-workbench` trace/reply collapse) and acts as a fallback for `prompt-shortcut` when Host storage is unavailable.
+- **Session log and `localStorage`**: `pi-tools` selection lives in the session log; browser `localStorage` holds UI preferences (`ai-mascot`, `session-groups` fold states, `github-panel` hidden mentions, `pi-tools` picker view, `paseo-hub` page size, `acp-workbench` trace/reply collapse) and acts as a fallback for `prompt-shortcut` when Host storage is unavailable.
 
 ## Documentation
 

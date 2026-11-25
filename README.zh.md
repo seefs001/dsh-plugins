@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-36 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
+35 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [在线文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -39,7 +39,6 @@
 | 包 | 作用 | 运行位置 |
 |---|---|---|
 | [`dsh-recent-sessions`](packages/recent-sessions) | 将 `@` 菜单中的会话按最近活动倒序排列。 | Web |
-| [`dsh-session-lifecycle`](packages/session-lifecycle) | 按需要你、进行中、最近返回、暂缓和归置整理会话，支持内联搜索筛选、悬停原地操作、划选批量处理、归置安静着陆与标为未读。 | Host + Web |
 | [`dsh-session-groups`](packages/session-groups) | 自定义侧栏会话分组与组内置顶，通过 Host 跨浏览器同步。 | Host + Web |
 | [`dsh-workspace-manager`](packages/workspace-manager) | 检查已保存的工作区目录，并在侧栏底部提供一步式闲置清理框（失效工作区、遗留后台任务与干净旧 worktree）。 | Host + Web |
 | [`dsh-open-in-default`](packages/open-in-default) | 在会话顶栏放置记忆默认编辑器的双半区按钮：点击主按钮直接打开目录，下拉箭头仅切换默认编辑器不立即打开。 | Web |
@@ -100,9 +99,9 @@ dsh plugin --profile web add "link:$PWD/packages/model-reference"
 ## 配置与数据存储
 
 - **profile 配置（`cordis.patch.yml`）**：`model-reference`、`service-tier`、`remember-model`（可选 `onlyAfterTurn`）、`auto-review-model`、`github-panel`（`hosts`）、`message-actions`、`web-access`、`image-gen`、`pi-mcp`（`disabledServers` / `eagerServers`）、`bark-notify`。
-- **Host storage domain（`~/.dsh/storages`）**：`model_favorites`、`session_groups`、`roles`、`cheat_sheet`、`prompt_shortcut`、`auto_review_log`、`message_actions`、`session_lifecycle`、`session_lifecycle_summary`、`pi_tools_defaults`、`paseo_hub`、`acp_workbench`、`canvas`。
+- **Host storage domain（`~/.dsh/storages`）**：`model_favorites`、`session_groups`、`roles`、`cheat_sheet`、`prompt_shortcut`、`auto_review_log`、`message_actions`、`pi_tools_defaults`、`paseo_hub`、`acp_workbench`、`canvas`。
 - **DSH credentials**：`bark-notify/device`、`paseo-hub/{daemon,api}`。
-- **会话日志与浏览器存储**：`pi-tools` 工具选择保存在会话日志；浏览器 `localStorage` 保存前端 UI 偏好（`ai-mascot` 偏好、`session-lifecycle` 与 `session-groups` 折叠状态、`github-panel` 会话隐藏提及、`pi-tools` 视图模式、`paseo-hub` 分页大小、`acp-workbench` 轨迹/回复折叠状态），并在无 Host 存储域时作为 `prompt-shortcut` 的本地回退。
+- **会话日志与浏览器存储**：`pi-tools` 工具选择保存在会话日志；浏览器 `localStorage` 保存前端 UI 偏好（`ai-mascot` 偏好、`session-groups` 折叠状态、`github-panel` 会话隐藏提及、`pi-tools` 视图模式、`paseo-hub` 分页大小、`acp-workbench` 轨迹/回复折叠状态），并在无 Host 存储域时作为 `prompt-shortcut` 的本地回退。
 
 ## 在线文档
 

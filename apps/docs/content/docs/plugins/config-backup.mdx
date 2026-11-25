@@ -16,8 +16,8 @@ description: 将 Host 与插件中对话无关的配置和数据导出为单个�
 - **插件与宿主配置覆写（`cordis.patch.yml`）**：通过 `configEditor` 仅导出用户显式改动项。声明为 `role("secret")` 的密钥字段默认脱敏剥离，导入时保留目标机已有密钥。
 - **对话无关的 `storageDomain`**：
   - 默认勾选：`roles`（仅角色库）、`cheat_sheet`、`pi_tools_defaults`（`presets` 表）、`prompt_shortcut`、`acp_workbench`（`global` 与 `providers` 表）、`paseo_hub`（`global`）、`workspace`、`schedule`。
-  - 默认不勾选（可选）：`session_groups`、`session_lifecycle` 以及其他未收录的已打开数据域。
-  - 始终排除：缓存与会话产物（`session_projcache`、`dsh-context`、`auto_review_log`、`message_actions`、`forge_panel_change_requests`、`canvas`、`session_lifecycle_summary`）。
+  - 默认不勾选（可选）：`session_groups` 以及其他未收录的已打开数据域。
+  - 始终排除：缓存与会话产物（`session_projcache`、`dsh-context`、`auto_review_log`、`message_actions`、`forge_panel_change_requests`、`canvas`）。
 - **全局文件**：`~/.dsh/AGENTS.md` 与非空的 `~/.dsh/cordis.patch.yml`。
 - **凭据文件（手动开启）**：`~/.dsh/.credentials.yaml` 与 `~/.dsh/.env` 默认不导出；导入时默认也不勾选，需显式确认覆盖。
 

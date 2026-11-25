@@ -43,8 +43,8 @@ dsh plugin --profile web add "link:$PWD/packages/pi-tools"
 - **计划与时间线**：独立 `planMode`（`exit_plan_mode`）；同时启用官方 `@deepseek-ai/dsh-timeline` 时透传 `timeline_*` 工具（默认关闭，按需勾选）。
 - **子代理、技能与工作流**：`subagent`、`list_subagent_models`、`send_message`、`list_agents`、`wait_agent`、`ask_user_question`、`skill`，以及默认关闭、按需勾选的 `workflow`（DSH PTC）和 ACP 子代理工具。
 - **后台任务、定时与目标**：`job_*`、`/goal`，以及默认关闭、按需勾选的 `create_goal` / `get_goal` / `update_goal`、`schedule_*`。
-- **联网、展示与扩展**：`web_fetch`、`web_search`，以及默认关闭、按需勾选的 `present`、`office_*`、`plugin_manager`、`plugin_market`、`cordis_inspect`、`session_lifecycle`。
-- **全局工具透传**：默认开启 `grok_search`、`openai_search`，以及启用对应官方可选包后的 `session_*`、`enter_worktree` / `exit_worktree`；按需勾选 `openai_image`、`grok_image`、`subagent_antigravity`、`subagent_cursor`、`subagent_acp_claude_code`、`session_lifecycle`、`timeline_*`、`terminal_*`。
+- **联网、展示与扩展**：`web_fetch`、`web_search`，以及默认关闭、按需勾选的 `present`、`office_*`、`plugin_manager`、`plugin_market`、`cordis_inspect`。
+- **全局工具透传**：默认开启 `grok_search`、`openai_search`，以及启用对应官方可选包后的 `session_*`、`enter_worktree` / `exit_worktree`；按需勾选 `openai_image`、`grok_image`、`subagent_antigravity`、`subagent_cursor`、`subagent_acp_claude_code`、`timeline_*`、`terminal_*`。
 - **上下文裁剪与压缩**：内置 `tool-result-pruner` 与 `compaction-basic`（可通过 `DSH_PI_SUMMARY_PROVIDER` / `DSH_PI_SUMMARY_MODEL` 指定摘要模型）。
 
 ### 3. 会话工具选择器与 MCP

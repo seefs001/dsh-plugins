@@ -71,14 +71,6 @@ export const DOMAIN_RULES = {
     restartRecommended: false,
     noteKey: 'sessionIds',
   },
-  session_lifecycle: {
-    category: 'optional',
-    defaultSelected: false,
-    includeGlobal: true,
-    includeTables: [],
-    restartRecommended: false,
-    noteKey: 'sessionIds',
-  },
 }
 
 export const EXCLUDED_DOMAINS = new Set([
@@ -88,7 +80,6 @@ export const EXCLUDED_DOMAINS = new Set([
   'message_actions',
   'forge_panel_change_requests',
   'canvas',
-  'session_lifecycle_summary',
 ])
 
 const EXCLUDED_DOMAIN_RE = /(?:cache|projcache|_log$|^log_|summary)/i

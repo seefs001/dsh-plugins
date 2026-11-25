@@ -9,7 +9,6 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const NS = 'subagent-peek'
     const SUBAGENT_CHAT_PREFIX = 'dsh-resource://subagentchat/session/'
-    const FAIL_REASONS = new Set(['error', 'blocked', 'interrupted', 'max-tokens'])
     const ATTENTION_KINDS = new Set(['approval', 'plan-review', 'question'])
 
     const COPY = {
@@ -151,17 +150,9 @@ window.__ModuleLoader__.load({
           const running = !external && Boolean(status?.running ?? summary?.running)
           const attention = external ? null : pendingKindFor(status)
           const timing = summary?.projectionValues?.subagentTiming
-          const outcome = list?.projectionsBySession?.[entry.id]?.values?.['session-lifecycle-outcome']
-            ?? summary?.projectionValues?.['session-lifecycle-outcome']
-          const failed = !external && !running && (
-            timing?.lastTurnCompleted === false
-            || (outcome && FAIL_REASONS.has(outcome.reason))
-          )
-          const done = !external && !running && !failed && (
-            timing?.lastTurnCompleted === true
-            || outcome?.reason === 'completed'
-          )
-          const finishedAt = Math.max(outcome?.time ?? 0, timing?.active?.through ?? 0, summary?.updatedAt ?? 0)
+          const failed = !external && !running && timing?.lastTurnCompleted === false
+          const done = !external && !running && !failed && timing?.lastTurnCompleted === true
+          const finishedAt = Math.max(timing?.active?.through ?? 0, summary?.updatedAt ?? 0)
           const unseenDone = done && finishedAt > (seenDoneAt.get(entry.id) ?? 0)
           const since = timing?.active?.since ?? entry.createdAt ?? summary?.updatedAt ?? now
           const durationMs = running ? Math.max(0, now - since) : 0

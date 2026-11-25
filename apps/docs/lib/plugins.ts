@@ -6,7 +6,7 @@ export type Surface = 'Host' | 'Web' | 'Host + Web'
 
 export const categories: { id: CategoryId, title: string, description: string }[] = [
   { id: 'models', title: '模型与审查', description: '选模型、切换服务档位、带推理强度、管理角色和定制自动审查模型。' },
-  { id: 'sessions', title: '会话与工作区', description: '会话整理、自定义分组、工作区清理、切分支、看 Git 改动、GitHub 面板与防休眠。' },
+  { id: 'sessions', title: '会话与工作区', description: '自定义分组、工作区清理、切分支、看 Git 改动、GitHub 面板与防休眠。' },
   { id: 'conversation', title: '对话阅读', description: '图表预览、画布、侧聊、引用跳转、工具快捷操作、回复解释、消息编辑与 ACP 集成。' },
   { id: 'tools', title: '工具与集成', description: '搜索与画图工具、话术与技能速查、Pi 预设、配置备份及外部服务集成。' },
 ]
@@ -29,7 +29,6 @@ const entries: Entry[] = [
   { slug: 'auto-review-model', category: 'models', surface: 'Host + Web', summary: '为 Auto review 单独指定模型和提示词，并查看当前会话的审查日志。', requires: ['@deepseek-ai/dsh-experimental-auto-review', '@deepseek-ai/dsh-storage-domain'] },
   { slug: 'roles', category: 'models', surface: 'Host + Web', summary: '在侧栏管理带系统提示词与专属技能的角色，按会话切换或通过 # 快捷引用。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'recent-sessions', category: 'sessions', surface: 'Web', summary: '将 @ 菜单中的会话按最近活动时间倒序排列。' },
-  { slug: 'session-lifecycle', category: 'sessions', surface: 'Host + Web', summary: '按需要你、进行中、最近返回、暂缓和归置整理会话，支持内联搜索筛选、划选批量处理、归置安静着陆与标为未读。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'session-groups', category: 'sessions', surface: 'Host + Web', summary: '自定义侧栏会话分组与组内置顶，通过 Host 跨浏览器同步。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'workspace-manager', category: 'sessions', surface: 'Host + Web', summary: '检查已保存的工作区目录，并提供一步式闲置清理框（失效工作区、遗留后台任务与干净旧 worktree）。' },
   { slug: 'open-in-default', category: 'sessions', surface: 'Web', summary: '在会话顶栏提供记忆默认编辑器的双半区按钮，点击主按钮直接打开目录，下拉箭头仅切换默认项。', requires: ['@deepseek-ai/dsh-host-open-in-app'] },

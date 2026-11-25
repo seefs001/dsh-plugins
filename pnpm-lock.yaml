@@ -155,8 +155,6 @@ importers:
 
   packages/session-groups: {}
 
-  packages/session-lifecycle: {}
-
   packages/session-search: {}
 
   packages/side-chat: {}
