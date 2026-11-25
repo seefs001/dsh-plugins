@@ -809,11 +809,10 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-tb-btn[data-active=true]{background:var(--dsw-alias-state-business-tertiary);color:var(--dsw-alias-state-business-primary);font-weight:500}
 .aw-tb-btn[data-active=true][data-tone=fast]{background:var(--dsw-alias-state-warn-tertiary);color:var(--dsw-alias-state-warn-primary)}
 .aw-tb-btn[data-tone=plan]{background:var(--dsw-alias-state-business-tertiary);color:var(--dsw-alias-state-business-primary);font-weight:500}
-.aw-tb-btn[data-tone=bypass]{background:var(--dsw-alias-state-warn-tertiary);color:var(--dsw-alias-state-warn-primary);font-weight:500}
-@media (hover:hover){.aw-tb-btn[data-tone=plan]:hover:not(:disabled),.aw-tb-btn[data-active=true]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-business-tertiary),var(--dsw-alias-state-business-primary) 6%)}.aw-tb-btn[data-active=true][data-tone=fast]:hover:not(:disabled),.aw-tb-btn[data-tone=bypass]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-warn-tertiary),var(--dsw-alias-state-warn-primary) 8%)}}
+@media (hover:hover){.aw-tb-btn[data-tone=plan]:hover:not(:disabled),.aw-tb-btn[data-active=true]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-business-tertiary),var(--dsw-alias-state-business-primary) 6%)}.aw-tb-btn[data-active=true][data-tone=fast]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-warn-tertiary),var(--dsw-alias-state-warn-primary) 8%)}}
 .aw-tb-icon{width:28px;padding:0}
 .aw-tb-chev{display:inline-flex;flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms ease}
-.aw-tb-btn[data-tone=plan] .aw-tb-chev,.aw-tb-btn[data-tone=bypass] .aw-tb-chev{color:currentColor}
+.aw-tb-btn[data-tone=plan] .aw-tb-chev{color:currentColor}
 .aw-tb-chev[data-open=true]{transform:rotate(180deg)}
 .aw-ctx-root{display:inline-flex;align-items:center;flex:none}
 .aw-ctx-btn{--aw-ctx-tint:var(--dsw-alias-label-secondary)}
@@ -1583,8 +1582,6 @@ button.aw-child-trigger:focus-visible{outline:none}
       return [...advertised, ...extras].filter(model => model.id !== 'default' && !hidden.has(model.id))
     }
 
-    const BYPASS_MODE_RE = /^(?:bypass(?:[-_]?permissions)?|skip[-_]?permissions|yolo)$/iu
-    const isBypassMode = value => typeof value === 'string' && BYPASS_MODE_RE.test(value.trim())
     const localizeModeOption = (item, t) => item?.value === 'bypass-permissions'
       ? { ...item, name: t('bypassModeName'), description: t('bypassModeDesc') }
       : item
@@ -5143,7 +5140,6 @@ button.aw-child-trigger:focus-visible{outline:none}
 
           const currentMode = modes ? (controls.mode ?? modes.options[0].value) : null
           const isPlanMode = typeof currentMode === 'string' && currentMode.toLowerCase() === 'plan'
-          const modeTone = isPlanMode ? 'plan' : isBypassMode(currentMode) ? 'bypass' : undefined
 
           const renderToggle = (opt, iconOnly) => {
             const pair = opt.type === 'select' ? booleanSelectPair(opt.choices) : null
@@ -5172,7 +5168,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               value: currentMode,
               options: modes.options,
               disabled,
-              tone: modeTone,
+              tone: isPlanMode ? 'plan' : undefined,
               onSelect: modeId => view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, modeId }),
             }) : null,
             contextOpt ? h(ToolbarSelect, {
