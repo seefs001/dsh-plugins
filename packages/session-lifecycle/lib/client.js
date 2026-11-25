@@ -306,8 +306,6 @@ window.__ModuleLoader__.load({
     const IconSnooze = ({ size = 16 }) => svg(size, [h('circle', { key: 1, cx: 12, cy: 13, r: 7 }), h('path', { key: 2, d: 'M12 10v3l2 2M5 4 3 6M19 4l2 2' })])
     const IconWake = ({ size = 16 }) => svg(size, [h('path', { key: 1, d: 'M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4' }), h('circle', { key: 2, cx: 12, cy: 12, r: 4 })])
     const IconUnread = ({ size = 16 }) => svg(size, [h('circle', { key: 1, cx: 12, cy: 12, r: 5 }), h('circle', { key: 2, cx: 18, cy: 6, r: 2.5, fill: 'currentColor', stroke: 'none' })])
-    const IconSearch = ({ size = 13 }) => svg(size, [h('circle', { key: 1, cx: 11, cy: 11, r: 7 }), h('path', { key: 2, d: 'm20 20-3.5-3.5' })])
-    const IconClear = ({ size = 12 }) => svg(size, [h('path', { key: 1, d: 'M18 6 6 18M6 6l12 12' })])
     const IconChevron = ({ open, size = 14 }) => svg(size, [h('path', { key: 1, d: open ? 'm6 9 6 6 6-6' : 'm9 6 6 6-6 6' })])
 
     function relativeAge(ms, now = Date.now()) {
@@ -331,29 +329,10 @@ window.__ModuleLoader__.load({
       return 0
     }
 
-    function wsMonogram(label) {
-      const clean = (label || '?').replace(/^.*[/\\]/, '').trim()
-      return (clean[0] || '?').toUpperCase()
-    }
-
     const SIDEBAR_CSS = `
 .sl-host:empty{display:none}
-.sl-top{margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--dsw-alias-border-l1,transparent)}
-.sl-bottom{margin-top:10px;padding-top:6px;border-top:.5px solid var(--dsw-alias-border-l1,transparent)}
-.sl-toolbar{display:flex;align-items:center;gap:4px;padding:2px 6px 6px}
-.sl-search-box{position:relative;flex:1 1 auto;min-width:0;display:flex;align-items:center}
-.sl-search-ico{position:absolute;left:7px;color:var(--dsw-alias-label-tertiary);pointer-events:none;display:inline-flex}
-.sl-search-input{width:100%;height:26px;padding:0 22px 0 24px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:24px;box-sizing:border-box}
-.sl-search-input::placeholder{color:var(--dsw-alias-label-tertiary)}
-.sl-search-input:focus-visible{outline:none;border-color:var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
-.sl-search-clear{position:absolute;right:4px;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:0;border-radius:4px;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;padding:0}
-@media (hover:hover){.sl-search-clear:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
-.sl-ws-select{flex:0 1 92px;min-width:0;height:26px;padding:0 6px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer;box-sizing:border-box}
-.sl-ws-select[data-active=true]{border-color:var(--dsw-alias-state-business-primary,var(--dsw-alias-border-l3));color:var(--dsw-alias-label-primary)}
-.sl-empty-filter{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:8px 10px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
-.sl-empty-reset{font:inherit;font-size:12px;padding:3px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);cursor:pointer}
-.sl-search-list{display:flex;flex-direction:column;gap:1px}
-.sl-mono{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:4px;background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-interactive-bg-hover));color:var(--dsw-alias-label-secondary);font-size:10px;font-weight:600}
+.sl-top{margin-bottom:6px}
+.sl-bottom{margin-top:8px}
 .sl-section+.sl-section{margin-top:4px}
 .sl-section[data-drop-active=true]{border-radius:var(--dsw-radius-md,8px);box-shadow:inset 0 0 0 1.5px var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));background:color-mix(in srgb,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary)) 8%,transparent)}
 .sl-section[data-drop-denied=true]{border-radius:var(--dsw-radius-md,8px);box-shadow:inset 0 0 0 1px var(--dsw-alias-border-l2);opacity:.72}
@@ -378,9 +357,9 @@ window.__ModuleLoader__.load({
 .sl-note-err{color:var(--dsw-alias-state-error-primary)}
 .sl-woke-pill{font-size:10px;line-height:14px;padding:0 4px;border-radius:4px;background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 16%,transparent);color:var(--dsw-alias-state-warn-primary);font-weight:500}
 .sl-count{font-size:12px;color:var(--dsw-alias-label-tertiary)}
-.sl-actions{position:absolute;right:0;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;gap:2px;opacity:0;pointer-events:none;transition:opacity 120ms ease;background:var(--dsw-alias-interactive-bg-hover-solid,var(--dsw-alias-bg-layer-1));border-radius:var(--dsw-radius-sm,6px);padding-left:2px}
+.sl-actions{position:absolute;right:0;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;gap:2px;opacity:0;pointer-events:none;transition:opacity 120ms ease;background:transparent;border-radius:var(--dsw-radius-sm,6px);padding-left:2px}
 @media (hover:hover){.sl-member:hover .sl-actions,.sl-member:focus-within .sl-actions,.sl-member[data-menu-open=true] .sl-actions{opacity:1;pointer-events:auto}.sl-member:hover .sl-note,.sl-member:focus-within .sl-note,.sl-member[data-menu-open=true] .sl-note{opacity:0}}
-@media (hover:none){.sl-actions{position:static;transform:none;opacity:1;pointer-events:auto;background:transparent}}
+@media (hover:none){.sl-actions{position:static;transform:none;opacity:1;pointer-events:auto}}
 .sl-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;touch-action:none}
 .sl-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (hover:hover){.sl-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
@@ -396,6 +375,10 @@ window.__ModuleLoader__.load({
 .sl-more{font:inherit;font-size:12px;width:100%;border:0;background:none;text-align:start}
 .sl-modal-form{display:flex;flex-direction:column;gap:12px}
 .sl-modal-input{height:34px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}
+.sl-page-filter{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:14px}
+.sl-chip{font:inherit;font-size:12px;line-height:18px;padding:4px 10px;border-radius:999px;border:.5px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;transition:background-color 120ms ease,color 120ms ease,border-color 120ms ease}
+.sl-chip[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3);color:var(--dsw-alias-label-primary);font-weight:500}
+@media (hover:hover){.sl-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 @media (prefers-reduced-motion:reduce){.sl-running{animation:none}.sl-note,.sl-actions{transition:none}}
 `
 
@@ -1039,8 +1022,6 @@ window.__ModuleLoader__.load({
           const { area, suspended, manual } = useListArea()
           const { board, ready, life, list } = useBoard()
           const { open: snoozeOpen } = React.useSyncExternalStore(snoozeMenu.subscribe, snoozeMenu.getSnapshot)
-          const [query, setQuery] = React.useState('')
-          const [wsFilter, setWsFilter] = React.useState('')
           const [dragState, setDragState] = React.useState(null)
           const [dropTarget, setDropTarget] = React.useState(null)
           const [sweepState, setSweepState] = React.useState(null)
@@ -1052,14 +1033,6 @@ window.__ModuleLoader__.load({
           usePlacement(area, bottom, 'end')
 
           const selectedId = mainIdOf(list)
-          const prevSelected = React.useRef(selectedId)
-          React.useEffect(() => {
-            if (prevSelected.current === selectedId) return
-            prevSelected.current = selectedId
-            if (!wsFilter || !selectedId) return
-            const match = board.all.find(g => g.id === selectedId || g.target === selectedId)
-            if (match && match.workspaceId !== wsFilter) setWsFilter('')
-          }, [selectedId, wsFilter, board.all])
 
           React.useEffect(() => {
             if (!sweepState) return undefined
@@ -1091,12 +1064,11 @@ window.__ModuleLoader__.load({
 
           if (!area || !ready || life.status !== 'ready' || suspended) return null
           const foldWorking = life.settings?.foldWorking !== false
-          const byWs = g => !wsFilter || g.workspaceId === wsFilter
-          const attention = board.attention.filter(g => !g.pinned && byWs(g))
-          const working = foldWorking ? board.working.filter(g => !g.pinned && !g.current && byWs(g)) : []
-          const returned = !manual ? board.returned.filter(g => !g.pinned && !g.current && byWs(g)) : []
-          const snoozed = board.snoozed.filter(g => !g.pinned && byWs(g))
-          const settled = board.settled.filter(g => !g.pinned && byWs(g))
+          const attention = board.attention.filter(g => !g.pinned)
+          const working = foldWorking ? board.working.filter(g => !g.pinned && !g.current) : []
+          const returned = !manual ? board.returned.filter(g => !g.pinned && !g.current) : []
+          const snoozed = board.snoozed.filter(g => !g.pinned)
+          const settled = board.settled.filter(g => !g.pinned)
           sectionListsRef.current = { attention, working, returned, snoozed, settled }
 
           const onSweepStart = (section, op, id) => {
@@ -1134,20 +1106,6 @@ window.__ModuleLoader__.load({
             }
           }
 
-          const needle = query.trim()
-          const searchResults = needle
-            ? board.all
-              .filter(byWs)
-              .map(g => ({ g, score: scoreSearch(g, needle) }))
-              .filter(item => item.score > 0)
-              .toSorted((a, b) => b.score - a.score || b.g.at - a.g.at)
-              .slice(0, 24)
-              .map(item => item.g)
-            : []
-
-          const hasAnySection = attention.length + working.length + returned.length + snoozed.length + settled.length > 0
-          const wsOptions = [...board.workspaces]
-          if (wsFilter && !wsOptions.some(w => w.id === wsFilter)) wsOptions.push({ id: wsFilter, label: wsFilter })
           const hidden = hiddenIds(board, foldWorking, !manual)
           const hideCss = hidden.length === 0 ? '' : `${hidden.map(id => `[data-sidebar-list-area] :is([data-row-key="session:${id}"],[data-group-session-id="${id}"])`).join(',')}{display:none!important}`
           const commonSectionProps = {
@@ -1161,25 +1119,6 @@ window.__ModuleLoader__.load({
           return h(React.Fragment, null,
             hideCss && h('style', null, hideCss),
             ReactDOM.createPortal(h(React.Fragment, null,
-              h('div', { className: 'sl-toolbar' },
-                h('div', { className: 'sl-search-box' },
-                  h('span', { className: 'sl-search-ico' }, h(IconSearch, { size: 12 })),
-                  h('input', {
-                    type: 'text', className: 'sl-search-input', value: query,
-                    placeholder: t('searchPlaceholder'), 'aria-label': t('searchPlaceholder'),
-                    onChange: e => setQuery(e.target.value),
-                  }),
-                  query && h('button', {
-                    type: 'button', className: 'sl-search-clear', 'aria-label': t('clearSearch'),
-                    onClick: () => setQuery(''),
-                  }, h(IconClear, { size: 11 }))),
-                wsOptions.length > 0 && h('select', {
-                  className: 'sl-ws-select', value: wsFilter, 'data-active': Boolean(wsFilter) || undefined,
-                  'aria-label': t('filterWorkspace'), title: t('filterWorkspace'),
-                  onChange: e => setWsFilter(e.target.value),
-                },
-                h('option', { value: '' }, t('allWorkspaces')),
-                wsOptions.map(w => h('option', { key: w.id, value: w.id }, w.label)))),
               dragState && h('div', { className: 'sl-drop-bar' },
                 typeof ctx.uiWorkspace.pinSession === 'function' && h('div', {
                   className: 'sl-drop-zone', 'data-over': dropTarget === 'pin' || undefined,
@@ -1193,27 +1132,10 @@ window.__ModuleLoader__.load({
                   onDragLeave: () => setDropTarget(prev => prev === 'unsettle' ? null : prev),
                   onDrop: e => { e.preventDefault(); void onDropAction('unsettle', dragState.id) },
                 }, t('dropUnsettle'))),
-              needle
-                ? (searchResults.length > 0
-                  ? h('div', { className: 'sl-search-list', role: 'list' }, searchResults.map(g => h('div', {
-                    key: g.id, className: `sl-row sl-member${selectedId === g.id ? ' sl-selected' : ''}`,
-                    role: 'listitem', tabIndex: 0, title: g.title,
-                    onClick: () => { setQuery(''); ctx.uiWorkspace.openSession(g.request ? g.target : g.id) },
-                  },
-                  h('span', { className: 'sl-mono', 'aria-hidden': true }, wsMonogram(g.workspace)),
-                  h('span', { className: 'sl-title' }, g.title),
-                  h('span', { className: 'sl-note' }, relativeAge(g.at)))))
-                  : h('div', { className: 'sl-empty-filter' }, h('span', null, t('noSearchMatches'))))
-                : h(React.Fragment, null,
-                  wsFilter && !hasAnySection
-                    ? h('div', { className: 'sl-empty-filter' },
-                      h('span', null, t('noFilteredSessions')),
-                      h('button', { type: 'button', className: 'sl-empty-reset', onClick: () => setWsFilter('') }, t('showAllWorkspaces')))
-                    : h(React.Fragment, null,
-                      h(SidebarSection, { section: 'attention', items: attention, ...commonSectionProps }),
-                      h(SidebarSection, { section: 'working', items: working, ...commonSectionProps }),
-                      !manual && h(SidebarSection, { section: 'returned', items: returned, ...commonSectionProps })))), top),
-            !needle && ReactDOM.createPortal(h(React.Fragment, null,
+              h(SidebarSection, { section: 'attention', items: attention, ...commonSectionProps }),
+              h(SidebarSection, { section: 'working', items: working, ...commonSectionProps }),
+              !manual && h(SidebarSection, { section: 'returned', items: returned, ...commonSectionProps })), top),
+            ReactDOM.createPortal(h(React.Fragment, null,
               h(SidebarSection, { section: 'snoozed', items: snoozed, ...commonSectionProps }),
               h(SidebarSection, { section: 'settled', items: settled, ...commonSectionProps })), bottom))
         }
@@ -1339,6 +1261,7 @@ window.__ModuleLoader__.load({
           // external: DSH has no direct owner-role hook; pluginManager/listPlugins is owner-only
           const owner = props.useRemoteAccess?.('pluginManager/listPlugins')
           const [view, setView] = React.useState('board'), [notice, say] = React.useState(''), [cache, setCache] = React.useState(new Map())
+          const [wsFilter, setWsFilter] = React.useState('')
           const [limits, setLimits] = React.useState(() => origin?.limits ?? { attention: 16, updates: 16, working: 16, snoozed: 16, settled: 16, later: 16 })
           const [open, setOpen] = React.useState(() => origin?.open ?? { working: false, snoozed: false, settled: false, later: false })
           const [busy, setBusy] = React.useState(false)
@@ -1399,9 +1322,12 @@ window.__ModuleLoader__.load({
           const firstBatch = React.useRef(false)
           React.useEffect(() => { if (ready && candidates.length && !firstBatch.current) { firstBatch.current = true; void recover() } })
           const editable = life.status === 'ready'
+          const byWs = r => !wsFilter || r.workspaceId === wsFilter
+          const fAttention = board.attention.filter(byWs)
+          const fUpdates = board.updates.filter(byWs)
           const rows = (items, section) => h(Rows, { items, section, owner, editable, cache, go, noPreview, limit: limits[section], more: () => setLimits(l => ({ ...l, [section]: l[section] + 24 })) })
           const count = (section, n) => h(React.Fragment, null, t(section), h('span', { className: 'count' }, n))
-          const shownUpdates = board.updates.slice(0, limits.updates)
+          const shownUpdates = fUpdates.slice(0, limits.updates)
           return h('main', { className: 'sl-page', ref: scroller }, h('div', { className: 'sl-body' },
             view === 'settings' ? h(React.Fragment, null,
               h('header', null, h('h1', null, t('settings')), button(t('back'), () => setView('board'), 'quiet')),
@@ -1409,19 +1335,28 @@ window.__ModuleLoader__.load({
               owner && h(SummarySettings, { rows: board.updates, list })) : h(React.Fragment, null,
               h('header', null, h('h1', { tabIndex: -1 }, t('title')), owner && button(t('settings'), () => { nav.current++; setCache(new Map()); setView('settings') }, 'quiet')),
               h('p', { className: 'muted' }, ready && board.attention.length ? `${t('attention')}: ${board.attention.length}` : t('intro')),
+              ready && board.workspaces.length > 1 && h('div', { className: 'sl-page-filter', role: 'group', 'aria-label': t('filterWorkspace') },
+                h('button', { type: 'button', className: 'sl-chip', 'aria-pressed': wsFilter === '', onClick: () => setWsFilter('') }, t('allWorkspaces')),
+                board.workspaces.map(w => h('button', {
+                  key: w.id, type: 'button', className: 'sl-chip', 'aria-pressed': wsFilter === w.id,
+                  onClick: () => setWsFilter(prev => prev === w.id ? '' : w.id),
+                }, w.label))),
               h('p', { role: 'status' }, notice),
               workspaces.state === 'error' && h('p', { role: 'status' }, t('unavailable')),
               life.status === 'error' && h('p', { role: 'status' }, t('syncing'), ' ', button(t('retry'), connect, 'quiet')),
               !ready ? h('p', { role: 'status' }, t('loading')) : h(React.Fragment, null,
-                h('section', null, h('div', { className: 'sl-phead' }, h('h2', null, count('attention', board.attention.length))),
-                  board.attention.length ? rows(board.attention, 'attention') : h('p', { className: 'muted' }, t(incomplete.length ? 'incomplete' : 'noAttention'))),
-                h('section', null, h('div', { className: 'sl-phead' }, h('h2', null, count('updates', board.updates.length)),
+                h('section', null, h('div', { className: 'sl-phead' }, h('h2', null, count('attention', fAttention.length))),
+                  fAttention.length ? rows(fAttention, 'attention') : h('p', { className: 'muted' }, t(incomplete.length ? 'incomplete' : 'noAttention'))),
+                h('section', null, h('div', { className: 'sl-phead' }, h('h2', null, count('updates', fUpdates.length)),
                   editable && shownUpdates.length > 1 && button(`${t('seenBatch')} (${shownUpdates.length})`, () => markSeen(shownUpdates.map(r => ({ sessionId: r.outcomeId ?? r.id, seq: r.outcome.seq }))), 'quiet')),
-                  board.updates.length ? rows(board.updates, 'updates') : h('p', { className: 'muted' }, t('noUpdates'))),
-                ...['working', 'later', 'snoozed', 'settled'].map(section => board[section].length > 0 && h('details', {
-                  className: 'fold', key: section, open: open[section],
-                  onToggle: e => { const next = e.currentTarget.open; setOpen(p => p[section] === next ? p : { ...p, [section]: next }) },
-                }, h('summary', null, count(section, board[section].length)), rows(board[section], section))),
+                  fUpdates.length ? rows(fUpdates, 'updates') : h('p', { className: 'muted' }, t('noUpdates'))),
+                ...['working', 'later', 'snoozed', 'settled'].map(section => {
+                  const items = board[section].filter(byWs)
+                  return items.length > 0 && h('details', {
+                    className: 'fold', key: section, open: open[section],
+                    onToggle: e => { const next = e.currentTarget.open; setOpen(p => p[section] === next ? p : { ...p, [section]: next }) },
+                  }, h('summary', null, count(section, items.length)), rows(items, section))
+                }),
                 retrievable.length > 0 && h('footer', null, t('missing') + retrievable.length + ' ', button(t(busy ? 'recovering' : 'recover'), recover, '', { disabled: busy }))))))
         }
 

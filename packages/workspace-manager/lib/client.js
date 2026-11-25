@@ -219,9 +219,10 @@ window.__ModuleLoader__.load({
 .wm-confirm-paths li+li{margin-top:4px;padding-top:4px;border-top:.5px solid var(--dsw-alias-border-l1)}
 .wm-confirm-paths li{overflow-wrap:anywhere}
 .wm-toast{position:sticky;bottom:14px;align-self:center;padding:5px 12px;border-radius:999px;background:var(--dsw-alias-toast-bg,var(--dsw-alias-label-primary));color:var(--dsw-alias-toast-label,var(--dsw-alias-bg-base));font-size:12px;line-height:18px;box-shadow:var(--dsw-elevation-soft,0 2px 8px rgba(0,0,0,.16));pointer-events:none}
-.wm-foot-btn{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;text-align:left;transition:background-color 120ms ease,color 120ms ease}
-.wm-foot-btn[data-wide=false]{width:36px;height:36px;padding:0;justify-content:center;margin:0 auto}
-@media (hover:hover){.wm-foot-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.wm-foot-btn{display:flex;align-items:center;gap:var(--dsh-sidebar-label-gap,8px);width:100%;min-height:32px;margin:0;padding:5px calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));box-sizing:border-box;border:0;border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;border-radius:var(--dsw-radius-md,8px);background:transparent;background-clip:padding-box;color:var(--dsw-alias-label-primary);font:inherit;line-height:22px;cursor:pointer;text-align:left}
+.wm-foot-btn[data-wide=false]{width:36px;height:36px;min-height:36px;padding:0;border-inline:0;background-clip:border-box;justify-content:center;margin:0}
+.wm-foot-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+@media (hover:hover){.wm-foot-btn:hover{background-color:var(--dsw-alias-interactive-bg-hover)}}
 .wm-cu{display:flex;flex-direction:column;gap:12px;min-width:0}
 .wm-cu-block{border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,10px);overflow:hidden;background:var(--dsw-alias-bg-base)}
 .wm-cu-head{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--dsw-alias-bg-layer-1);cursor:pointer;user-select:none}
