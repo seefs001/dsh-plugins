@@ -8,8 +8,9 @@ window.__ModuleLoader__.load({
     const DEBOUNCE_MS = 1200
     const MAX_CACHE = 32
     const TAB_SLOT = 'sidebar.right.pane.tab'
+    const TOOLBAR_SLOT = 'forge.changes.toolbar'
     const CHANGES_ID = '@deepseek-ai/dsh-experimental-client-ui-forge/changes'
-    const TAB_PRIORITY = -10
+    const MAX_SEEDED = 128
     const localAddress = sessionId => `dsh-resource://forge-changes/${encodeURIComponent(sessionId)}/local`
 
     const CSS_TEXT = `
@@ -228,55 +229,57 @@ window.__ModuleLoader__.load({
 
         // external: DSH forge changes tab defaults to Branch scope with no setting
         const seeded = new Set()
-        const baseEntry = self => {
-          let best
+        const findChangesStore = () => {
           for (const entry of ctx.slots.entries(TAB_SLOT)) {
-            if (entry.options?.key !== CHANGES_ID || entry.component === self) continue
-            const priority = entry.options.priority ?? 0
-            if (priority <= TAB_PRIORITY) continue
-            if (best === undefined || priority < (best.options.priority ?? 0)) best = entry
+            if (entry.options?.key === CHANGES_ID && entry.store !== undefined) return entry.store
           }
-          return best
+          return undefined
         }
-        function UncommittedFirst(props) {
-          const { useTabInfo, useStore, actions } = props
-          const { tab } = useTabInfo()
-          const choices = useStore(store => store.byTab?.[tab.id])
-          const local = typeof tab.contentId === 'string' && tab.contentId.endsWith('/local')
-          React.useEffect(() => {
-            if (!local || choices === undefined) return
-            const id = `${props.sessionId}:${tab.id}`
-            if (seeded.has(id)) return
-            seeded.add(id)
-            if (choices.scope === 'branch') actions.scoped(tab.id, 'uncommitted')
-          }, [local, choices, tab.id])
-          const base = baseEntry(UncommittedFirst)
-          return base === undefined ? null : h(base.component, props)
-        }
-        ctx.slots.inject(TAB_SLOT, () => {
-          let dispose
-          let base
-          const sync = () => {
-            const next = baseEntry(UncommittedFirst)
-            if (next === base) return
-            dispose?.()
-            dispose = undefined
-            base = next
-            if (!base) return
-            // external: DSH slot entries store locale, inject, and store on the entry rather than options
-            const options = { name: TAB_SLOT, key: CHANGES_ID, priority: TAB_PRIORITY }
-            if (base.locale !== undefined) options.locale = base.locale
-            if (base.inject !== undefined) options.inject = base.inject
-            if (base.store !== undefined) options.store = base.store
-            try {
-              dispose = ctx.slots.register(options, UncommittedFirst)
-            } catch (error) {
-              console.warn('[dsh-git-changes] cannot default the changes tab to Uncommitted:', error)
+        function UncommittedFirst({ sessionId, target, form, useStore, actions }) {
+          const isLocalBar = form === 'bar' && target?.source?.kind === 'local'
+          const branchIds = useStore(store => {
+            if (!isLocalBar) return ''
+            const byTab = store?.byTab
+            if (!byTab) return ''
+            let ids = ''
+            for (const [tabId, tabState] of Object.entries(byTab)) {
+              if (tabState?.scope === 'branch') ids = ids ? `${ids}\n${tabId}` : tabId
             }
+            return ids
+          })
+          React.useEffect(() => {
+            if (!isLocalBar || !branchIds) return
+            const openTabs = ctx.sidebarRight.openTabs?.getSnapshot?.()
+            const localTabIds = Array.isArray(openTabs)
+              ? new Set(
+                openTabs
+                  .filter(tab => tab.sessionId === sessionId && typeof tab.contentId === 'string' && tab.contentId.endsWith('/local'))
+                  .map(tab => tab.tabId),
+              )
+              : null
+            for (const tabId of branchIds.split('\n')) {
+              if (localTabIds !== null && !localTabIds.has(tabId)) continue
+              const id = `${sessionId}:${tabId}`
+              if (seeded.has(id)) continue
+              seeded.add(id)
+              if (seeded.size > MAX_SEEDED) {
+                const oldest = seeded.values().next().value
+                if (oldest !== undefined) seeded.delete(oldest)
+              }
+              actions.scoped(tabId, 'uncommitted')
+            }
+          }, [isLocalBar, branchIds, sessionId, actions])
+          return null
+        }
+        ctx.slots.inject(TOOLBAR_SLOT, () => {
+          const store = findChangesStore()
+          if (store === undefined) return () => {}
+          try {
+            return ctx.slots.register({ name: TOOLBAR_SLOT, id: 'git-changes-uncommitted', store }, UncommittedFirst)
+          } catch (error) {
+            console.warn('[dsh-git-changes] cannot default the changes tab to Uncommitted:', error)
+            return () => {}
           }
-          const unsubscribe = ctx.slots.subscribe(TAB_SLOT, sync)
-          sync()
-          return () => { unsubscribe(); dispose?.() }
         })
       },
       _internal: { totals, localAddress, trigger },
