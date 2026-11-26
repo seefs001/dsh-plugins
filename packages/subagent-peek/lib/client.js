@@ -235,7 +235,7 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots', 'locale', 'sessions', 'uiWorkspace', 'uiSession.sessionStatus'],
+      inject: ['slots', 'locale', 'sessions', 'uiWorkspace', 'uiSession', 'uiSession.sessionStatus'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, COPY), `${NS}: dictionaries`)
         ctx.effect(() => {
