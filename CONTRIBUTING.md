@@ -34,11 +34,12 @@ pnpm run check      # oxlint + validate.mjs + node:test
 - `dsh/no-comments`: comments are disallowed except shebangs, top-of-file license headers, single-line URLs, and single-line `// external: <reason>` notes for external dependency, platform, or DSH host constraints we cannot reshape.
 - `dsh/no-suppression-comments`: `oxlint-disable`, `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, and `@ts-nocheck` are disallowed.
 - `dsh/no-legacy-compat`: removed pre-release compatibility tokens are disallowed.
+- DSH 0.2.3 contract & performance rules (`dsh/no-removed-host-apis`, `dsh/require-command-available`, `dsh/no-direct-model-selection-fields`, `dsh/no-root-theme-computed-style`, `dsh/locale-dict-parity`, `dsh/no-broad-session-subscription`, `dsh/require-mobile-backdrop-fallback`, `dsh/no-unconstrained-nowrap`, `dsh/safe-intervals`, `dsh/no-new-always-on-observers`, `dsh/no-server-hot-sync-fs`).
 
 `pnpm run validate` checks:
 
-- Package name `dsh-<directory>`, valid version, `repository.directory`, `type: "module"`, `keywords` containing `dsh-plugin`, `engines.dsh`, existing `files` entries, and no internal design docs (`DESIGN.md`, `ARCHITECTURE.md`, `PASEO-PARITY.md`).
-- `dsh.bundle.patch` exists and inserts a row named after the package; `exports` resolve to files; `./client` parity and `__ModuleLoader__` id match `pkg.name`.
+- Package name `dsh-<directory>`, valid version, `repository.directory`, `type: "module"`, `keywords` containing `dsh-plugin`, `engines.dsh`, zero cross-plugin sibling dependencies, existing `files` entries, and no internal design docs (`DESIGN.md`, `ARCHITECTURE.md`, `PASEO-PARITY.md`).
+- `dsh.bundle.patch` exists and inserts a row named after the package; `exports` resolve to files; `./client` parity, `__ModuleLoader__` id match `pkg.name`, `dsh.client.immediately` is not `true`, client size budgets, and `test/client.test.js` coverage for new web plugins.
 - `locale/en.json` and `locale/zh.json` exist with identical `meta` keys (`title`, `description`).
 - Full parity across `packages/*`, `apps/docs/lib/plugins.ts`, `apps/docs/content/docs/plugins/*.mdx`, `apps/docs/content/docs/plugins/meta.json`, `README.md`, and `README.zh.md`.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = new URL('..', import.meta.url).pathname
@@ -10,16 +10,55 @@ const REQUIRED = ['name', 'version', 'description', 'keywords', 'license', 'repo
 const EXPECTED_DSH_ENGINE = '>=0.2.3-alpha.2 <0.3.0'
 const FORBIDDEN_PACKAGE_DOCS = ['DESIGN.md', 'ARCHITECTURE.md', 'PASEO-PARITY.md']
 const LEGACY_TEXT = /\b(?:dsh[-_]inbox|llm-pi-ai\/model-defaults)\b/
+const DEFAULT_CLIENT_MAX_BYTES = 64 * 1024
+const CLIENT_SIZE_BUDGETS = {
+  'acp-workbench': 560 * 1024,
+  'paseo-hub': 128 * 1024,
+  roles: 112 * 1024,
+  'session-groups': 96 * 1024,
+  canvas: 96 * 1024,
+  'github-panel': 84 * 1024,
+  'config-backup': 80 * 1024,
+}
+const LEGACY_MISSING_CLIENT_TEST = new Set([
+  'ai-mascot',
+  'auto-review-model',
+  'bark-notify',
+  'cheat-sheet',
+  'diagram-preview',
+  'github-panel',
+  'message-actions',
+  'message-edit',
+  'pi-mcp',
+  'prompt-shortcut',
+  'quote-jump',
+  'roles',
+  'session-groups',
+  'subagent-model',
+  'title-model',
+])
 
 const errors = []
 const fail = (scope, msg) => errors.push(`${scope}: ${msg}`)
 
+function collectSourceFiles(dir, out = []) {
+  if (!existsSync(dir)) return out
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name === 'test' || entry.name === 'generated') continue
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) collectSourceFiles(full, out)
+    else if (/\.(?:m?[jt]s|jsx|tsx)$/.test(entry.name)) out.push(full)
+  }
+  return out
+}
+
+const packageDirs = readdirSync(PACKAGES).toSorted().filter(dir => existsSync(join(PACKAGES, dir, 'package.json')))
+const siblingNames = new Set(packageDirs.map(dir => `dsh-${dir}`))
 const slugs = []
 
-for (const dir of readdirSync(PACKAGES).toSorted()) {
+for (const dir of packageDirs) {
   const base = join(PACKAGES, dir)
   const manifestPath = join(base, 'package.json')
-  if (!existsSync(manifestPath)) continue
   slugs.push(dir)
   const pkg = JSON.parse(readFileSync(manifestPath, 'utf8'))
   const id = `packages/${dir}`
@@ -31,6 +70,25 @@ for (const dir of readdirSync(PACKAGES).toSorted()) {
   if (pkg.repository?.directory !== id) fail(id, `repository.directory should be "${id}"`)
   if (pkg.type !== 'module') fail(id, 'type must be "module"')
   if (pkg.engines?.dsh !== EXPECTED_DSH_ENGINE) fail(id, `engines.dsh should be "${EXPECTED_DSH_ENGINE}"`)
+
+  for (const depField of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
+    for (const dep of Object.keys(pkg[depField] ?? {})) {
+      if (dep !== pkg.name && siblingNames.has(dep)) {
+        fail(id, `${depField} must not depend on sibling plugin "${dep}" (keep zero cross-plugin hard dependencies)`)
+      }
+    }
+  }
+
+  for (const file of collectSourceFiles(base)) {
+    const src = readFileSync(file, 'utf8')
+    const importMatches = src.matchAll(/(?:\bfrom\s+|require\s*\(\s*|import\s*\(\s*)['"](dsh-[a-z0-9-]+)(?:\/[^'"]*)?['"]/g)
+    for (const match of importMatches) {
+      const target = match[1]
+      if (target !== pkg.name && siblingNames.has(target)) {
+        fail(file.slice(ROOT.length), `must not import sibling plugin "${target}" (use window.__DSH_*__ or loose coupling)`)
+      }
+    }
+  }
 
   for (const forbidden of FORBIDDEN_PACKAGE_DOCS) {
     if (existsSync(join(base, forbidden))) fail(id, `remove internal design doc "${forbidden}"`)
@@ -63,12 +121,31 @@ for (const dir of readdirSync(PACKAGES).toSorted()) {
 
   if (pkg.dsh?.client) {
     if (pkg.dsh.client.platform !== 'web') fail(id, 'dsh.client.platform must be "web"')
+    if (pkg.dsh.client.immediately === true) fail(id, 'dsh.client.immediately must not be true (avoid blocking first paint)')
     const clientRel = pkg.exports?.['./client']
     if (!clientRel) fail(id, 'dsh.client is declared but "./client" is not exported')
     else if (existsSync(join(base, clientRel))) {
-      const src = readFileSync(join(base, clientRel), 'utf8')
+      const clientPath = join(base, clientRel)
+      const src = readFileSync(clientPath, 'utf8')
       const m = /__ModuleLoader__\.load\(\{\s*id:\s*['"]([^'"]+)['"]/.exec(src)
       if (m?.[1] !== pkg.name) fail(id, `client bundle id "${m?.[1]}" should be "${pkg.name}"`)
+
+      const bytes = statSync(clientPath).size
+      const budget = CLIENT_SIZE_BUDGETS[dir] ?? DEFAULT_CLIENT_MAX_BYTES
+      if (bytes > budget) {
+        fail(id, `${clientRel} is ${(bytes / 1024).toFixed(1)} KiB, exceeding ${(budget / 1024).toFixed(0)} KiB budget (lazy-load heavy chunks or consciously update CLIENT_SIZE_BUDGETS)`)
+      }
+      if (dir in CLIENT_SIZE_BUDGETS && bytes <= DEFAULT_CLIENT_MAX_BYTES) {
+        fail(id, `${clientRel} is now ${(bytes / 1024).toFixed(1)} KiB (<= 64 KiB); remove "${dir}" from CLIENT_SIZE_BUDGETS`)
+      }
+    }
+
+    const hasClientTest = existsSync(join(base, 'test', 'client.test.js'))
+    if (!hasClientTest && !LEGACY_MISSING_CLIENT_TEST.has(dir)) {
+      fail(id, 'dsh.client plugin must include test/client.test.js covering apply(ctx), slot labels, and initial render')
+    }
+    if (hasClientTest && LEGACY_MISSING_CLIENT_TEST.has(dir)) {
+      fail(id, `test/client.test.js now exists; remove "${dir}" from LEGACY_MISSING_CLIENT_TEST`)
     }
   } else if (pkg.exports?.['./client']) fail(id, '"./client" is exported but dsh.client is not declared')
 
@@ -91,6 +168,13 @@ for (const dir of readdirSync(PACKAGES).toSorted()) {
 }
 
 const slugSet = new Set(slugs)
+
+for (const budgeted of Object.keys(CLIENT_SIZE_BUDGETS)) {
+  if (!slugSet.has(budgeted)) fail('scripts/validate.mjs', `unknown package "${budgeted}" in CLIENT_SIZE_BUDGETS`)
+}
+for (const legacyPkg of LEGACY_MISSING_CLIENT_TEST) {
+  if (!slugSet.has(legacyPkg)) fail('scripts/validate.mjs', `unknown package "${legacyPkg}" in LEGACY_MISSING_CLIENT_TEST`)
+}
 
 const catalogSrc = readFileSync(join(ROOT, 'apps', 'docs', 'lib', 'plugins.ts'), 'utf8')
 const catalogSlugs = [...catalogSrc.matchAll(/slug:\s*'([^']+)'/g)].map(m => m[1])

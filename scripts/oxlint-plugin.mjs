@@ -3,11 +3,151 @@ const LICENSE = /\b(?:SPDX-License-Identifier:|Copyright\b|Licensed under\b|MIT 
 const ALLOWED_LINE = /^ (?:external: \S|https?:\/\/\S)/
 const LEGACY_COMPAT = /\b(?:dsh[-_]inbox|llm-pi-ai\/model-defaults|legacyHost|legacyReview)\b/
 
+const FORBIDDEN_DIALOG_METHODS = new Set(['prompt', 'confirm', 'alert'])
+const MODEL_SELECTION_FLAT_FIELDS = new Set(['provider', 'model', 'reasoningEffort'])
+const SYNC_FS_METHODS = new Set([
+  'existsSync',
+  'readFileSync',
+  'readdirSync',
+  'statSync',
+  'lstatSync',
+  'writeFileSync',
+  'mkdirSync',
+  'rmSync',
+  'renameSync',
+  'cpSync',
+  'appendFileSync',
+  'copyFileSync',
+])
+
+const ALLOWED_EVENTSOURCE_FILES = new Set([
+  'packages/acp-workbench/lib/client.js',
+  'packages/auto-review-model/lib/client.js',
+  'packages/canvas/lib/client.js',
+])
+const ALLOWED_BODY_OBSERVER_FILES = new Set([
+  'packages/session-groups/lib/client.js',
+])
+const ALLOWED_FULL_SESSION_LIST_FILES = new Set([
+  'packages/session-groups/lib/client.js',
+])
+
+function getRelPath(context) {
+  const raw = (context.filename ?? context.getFilename?.() ?? '').replaceAll('\\', '/')
+  const match = /(?:^|\/)(packages\/.+)$/.exec(raw)
+  return match ? match[1] : raw
+}
+
+function isTestFile(rel) {
+  return /(?:^|\/)test\//.test(rel) || /\.test\.m?[jt]s$/.test(rel)
+}
+
+function isPackageFile(rel) {
+  return rel.startsWith('packages/')
+}
+
+function isClientFile(rel) {
+  return isPackageFile(rel) && !isTestFile(rel) && /(?:^|\/)(?:lib\/client|src\/client|client)\.js$/.test(rel)
+}
+
+function isServerFile(rel) {
+  return isPackageFile(rel) && !isTestFile(rel) && !isClientFile(rel)
+}
+
+function unwrapChain(node) {
+  return node?.type === 'ChainExpression' ? node.expression : node
+}
+
+function propName(node) {
+  if (!node) return null
+  if (node.type === 'Identifier') return node.name
+  if (node.type === 'Literal' && typeof node.value === 'string') return node.value
+  return null
+}
+
+function getStringContent(node) {
+  if (!node) return null
+  if (node.type === 'Literal' && typeof node.value === 'string') return node.value
+  if (node.type === 'TemplateLiteral') return node.quasis.map(q => q.value.raw).join('')
+  return null
+}
+
 function isAllowedComment(comment) {
   if (comment.type === 'Shebang') return true
   if (comment.type === 'Line' && ALLOWED_LINE.test(comment.value)) return true
   if (comment.loc.start.line <= 5 && LICENSE.test(comment.value)) return true
   return false
+}
+
+function isModelSelectionCall(node) {
+  const expr = unwrapChain(node)
+  if (!expr) return false
+  if (expr.type === 'ConditionalExpression') {
+    return isModelSelectionCall(expr.consequent) || isModelSelectionCall(expr.alternate)
+  }
+  if (expr.type === 'LogicalExpression') {
+    return isModelSelectionCall(expr.left) || isModelSelectionCall(expr.right)
+  }
+  if (expr.type !== 'CallExpression') return false
+  const callee = unwrapChain(expr.callee)
+  const calledUseProjection =
+    (callee?.type === 'Identifier' && callee.name === 'useProjection')
+    || (callee?.type === 'MemberExpression' && !callee.computed && propName(callee.property) === 'useProjection')
+  if (!calledUseProjection) return false
+  const firstArg = expr.arguments?.[0]
+  return firstArg?.type === 'Literal' && firstArg.value === 'modelSelection'
+}
+
+function isDocumentProperty(node, name) {
+  const expr = unwrapChain(node)
+  return expr?.type === 'MemberExpression'
+    && !expr.computed
+    && expr.object?.type === 'Identifier'
+    && expr.object.name === 'document'
+    && propName(expr.property) === name
+}
+
+function isSessionsListExpr(node) {
+  const expr = unwrapChain(node)
+  if (expr?.type !== 'MemberExpression' || expr.computed || propName(expr.property) !== 'list') return false
+  const obj = unwrapChain(expr.object)
+  return (obj?.type === 'Identifier' && obj.name === 'sessions')
+    || (obj?.type === 'MemberExpression' && !obj.computed && propName(obj.property) === 'sessions')
+}
+
+function isSessionsListSnapshotCall(node) {
+  const expr = unwrapChain(node)
+  if (expr?.type !== 'CallExpression') return false
+  const callee = unwrapChain(expr.callee)
+  return callee?.type === 'MemberExpression'
+    && !callee.computed
+    && propName(callee.property) === 'getSnapshot'
+    && isSessionsListExpr(callee.object)
+}
+
+function returnedExpressionOf(fn) {
+  if (!fn) return null
+  if (fn.type === 'ArrowFunctionExpression' && fn.body.type !== 'BlockStatement') return fn.body
+  if (fn.body?.type === 'BlockStatement' && fn.body.body.length === 1 && fn.body.body[0].type === 'ReturnStatement') {
+    return fn.body.body[0].argument
+  }
+  return null
+}
+
+function collectDictKeys(objNode, prefix = '', out = new Set()) {
+  if (!objNode || objNode.type !== 'ObjectExpression') return null
+  for (const prop of objNode.properties) {
+    if (prop.type !== 'Property' || prop.computed) return null
+    const key = propName(prop.key)
+    if (!key) return null
+    const full = prefix ? `${prefix}.${key}` : key
+    if (prop.value?.type === 'ObjectExpression') {
+      if (!collectDictKeys(prop.value, full, out)) return null
+    } else {
+      out.add(full)
+    }
+  }
+  return out
 }
 
 const noComments = {
@@ -80,11 +220,607 @@ const noLegacyCompat = {
   },
 }
 
+const noRemovedHostApis = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Disallow removed or nonexistent DSH 0.2.3 host APIs and browser native dialogs.' },
+  },
+  create(context) {
+    return {
+      MemberExpression(node) {
+        if (node.computed) return
+        const prop = propName(node.property)
+        const obj = unwrapChain(node.object)
+
+        if (prop === 't' && obj?.type === 'MemberExpression' && !obj.computed && propName(obj.property) === 'locale') {
+          context.report({
+            node,
+            message: 'DSH 0.2.3 has no ctx.locale.t(). Register dictionaries with ctx.locale.register(ns, { en, zh }) and use const t = ctx.locale.bind(ns).',
+          })
+          return
+        }
+
+        if (prop === 'events' && (
+          (obj?.type === 'Identifier' && obj.name === 'session')
+          || (obj?.type === 'MemberExpression' && !obj.computed && propName(obj.property) === 'session')
+        )) {
+          context.report({
+            node,
+            message: 'DSH 0.2.3 removed session.events. Use ctx.agents.turnBoundaryOf(session) or session.snapshotEvents() instead.',
+          })
+          return
+        }
+
+        if (prop === 'requestRejection') {
+          context.report({
+            node,
+            message: 'DSH 0.2.3 has no ctx.connection.requestRejection. Handle rejection via HTTP status or explicit guard.',
+          })
+          return
+        }
+
+        if (FORBIDDEN_DIALOG_METHODS.has(prop) && obj?.type === 'Identifier' && (obj.name === 'window' || obj.name === 'globalThis')) {
+          context.report({
+            node,
+            message: `Do not use ${obj.name}.${prop}() (unavailable in Electron). Use Modal from @deepseek-ai/dsh-client-ui-primitives.`,
+          })
+        }
+      },
+      Property(node) {
+        if (node.computed || propName(node.key) !== 'locale' || node.value?.type !== 'ObjectExpression') return
+        for (const inner of node.value.properties) {
+          if (inner.type === 'Property' && !inner.computed && propName(inner.key) === 't') {
+            context.report({
+              node: inner,
+              message: 'Do not stub nonexistent ctx.locale.t(). Stub register(), bind(), subscribe(), and getSnapshot() to match DSH 0.2.3.',
+            })
+          }
+        }
+      },
+    }
+  },
+}
+
+const requireCommandAvailable = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Require an available callback in commandUi.register() declarations.' },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        const callee = unwrapChain(node.callee)
+        if (callee?.type !== 'MemberExpression' || callee.computed || propName(callee.property) !== 'register') return
+        const target = unwrapChain(callee.object)
+        const isCommandUi =
+          (target?.type === 'Identifier' && target.name === 'commandUi')
+          || (target?.type === 'MemberExpression' && !target.computed && propName(target.property) === 'commandUi')
+        if (!isCommandUi) return
+        const firstArg = node.arguments?.[0]
+        if (!firstArg || firstArg.type !== 'ObjectExpression') return
+        const hasAvailableOrSpread = firstArg.properties.some(
+          p => p.type === 'SpreadElement' || (p.type === 'Property' && !p.computed && propName(p.key) === 'available'),
+        )
+        if (!hasAvailableOrSpread) {
+          context.report({
+            node: firstArg,
+            message: 'commandUi.register() must include an "available" callback (e.g. available: () => true); DSH 0.2.3 invokes contribution.available(session) unconditionally.',
+          })
+        }
+      },
+    }
+  },
+}
+
+const noDirectModelSelectionFields = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Disallow reading flat .provider/.model/.reasoningEffort directly on useProjection("modelSelection").' },
+  },
+  create(context) {
+    const scopeStack = [new Set()]
+    const current = () => scopeStack[scopeStack.length - 1]
+    const hasVar = name => {
+      for (let i = scopeStack.length - 1; i >= 0; i -= 1) {
+        if (scopeStack[i].has(name)) return true
+      }
+      return false
+    }
+    const enter = () => scopeStack.push(new Set())
+    const exit = () => scopeStack.pop()
+
+    return {
+      FunctionDeclaration: enter,
+      'FunctionDeclaration:exit': exit,
+      FunctionExpression: enter,
+      'FunctionExpression:exit': exit,
+      ArrowFunctionExpression: enter,
+      'ArrowFunctionExpression:exit': exit,
+      VariableDeclarator(node) {
+        if (node.id?.type === 'Identifier' && isModelSelectionCall(node.init)) {
+          current().add(node.id.name)
+        }
+      },
+      MemberExpression(node) {
+        if (node.computed) return
+        const prop = propName(node.property)
+        if (!MODEL_SELECTION_FLAT_FIELDS.has(prop)) return
+        const obj = unwrapChain(node.object)
+        const directCall = isModelSelectionCall(obj)
+        const trackedIdent = obj?.type === 'Identifier' && hasVar(obj.name)
+        if (directCall || trackedIdent) {
+          context.report({
+            node,
+            message: `DSH 0.2.3 modelSelection projection has shape { next, lastUsed }, not flat ".${prop}". Unwrap with projection?.next ?? projection?.lastUsed first.`,
+          })
+        }
+      },
+    }
+  },
+}
+
+const noRootThemeComputedStyle = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Disallow reading host theme variables via getComputedStyle(document.documentElement).' },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        const callee = unwrapChain(node.callee)
+        const isGetComputedStyle =
+          (callee?.type === 'Identifier' && callee.name === 'getComputedStyle')
+          || (callee?.type === 'MemberExpression' && !callee.computed && propName(callee.property) === 'getComputedStyle')
+        if (!isGetComputedStyle) return
+        if (isDocumentProperty(node.arguments?.[0], 'documentElement')) {
+          context.report({
+            node: node.arguments[0],
+            message: 'DSH --dsw-alias-* tokens live on document.body, not document.documentElement. Pass document.body (or document.body || document.documentElement).',
+          })
+        }
+      },
+    }
+  },
+}
+
+const localeDictParity = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Require inline en and zh locale dictionaries registered via ctx.locale.register() to have identical keys.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isClientFile(rel)) return {}
+
+    const objectVars = new Map()
+    const pairs = []
+    const splitEn = []
+    const splitZh = []
+    const iteratedContainers = []
+
+    function resolveObj(node) {
+      if (!node) return null
+      if (node.type === 'ObjectExpression') return node
+      if (node.type === 'Identifier') return objectVars.get(node.name) ?? null
+      if (node.type === 'MemberExpression' && !node.computed) {
+        const parent = resolveObj(node.object)
+        const key = propName(node.property)
+        if (!parent || !key) return null
+        const hit = parent.properties.find(p => p.type === 'Property' && !p.computed && propName(p.key) === key)
+        return hit ? resolveObj(hit.value) : null
+      }
+      return null
+    }
+
+    function compareObjects(reportNode, enObj, zhObj) {
+      const enKeys = collectDictKeys(enObj)
+      const zhKeys = collectDictKeys(zhObj)
+      if (!enKeys || !zhKeys) return
+      const missingInZh = [...enKeys].filter(k => !zhKeys.has(k)).toSorted()
+      const missingInEn = [...zhKeys].filter(k => !enKeys.has(k)).toSorted()
+      if (missingInZh.length > 0 || missingInEn.length > 0) {
+        const parts = []
+        if (missingInZh.length > 0) parts.push(`missing in zh: ${missingInZh.slice(0, 6).join(', ')}`)
+        if (missingInEn.length > 0) parts.push(`missing in en: ${missingInEn.slice(0, 6).join(', ')}`)
+        context.report({
+          node: reportNode,
+          message: `Inline en/zh locale dictionaries must have matching keys (${parts.join('; ')}).`,
+        })
+      }
+    }
+
+    function checkCombinedDict(reportNode, expr) {
+      const obj = resolveObj(expr)
+      if (!obj) return
+      const enProp = obj.properties.find(p => p.type === 'Property' && !p.computed && propName(p.key) === 'en')
+      const zhProp = obj.properties.find(p => p.type === 'Property' && !p.computed && propName(p.key) === 'zh')
+      if (!enProp || !zhProp) return
+      const enObj = resolveObj(enProp.value)
+      const zhObj = resolveObj(zhProp.value)
+      if (enObj && zhObj) compareObjects(reportNode, enObj, zhObj)
+    }
+
+    return {
+      VariableDeclarator(node) {
+        if (node.id?.type === 'Identifier' && node.init?.type === 'ObjectExpression') {
+          if (!objectVars.has(node.id.name)) objectVars.set(node.id.name, node.init)
+        }
+      },
+      ForOfStatement(node) {
+        const right = unwrapChain(node.right)
+        if (
+          right?.type === 'CallExpression'
+          && right.callee?.type === 'MemberExpression'
+          && right.callee.object?.type === 'Identifier'
+          && right.callee.object.name === 'Object'
+          && propName(right.callee.property) === 'entries'
+          && right.arguments?.[0]
+        ) {
+          const text = context.sourceCode.getText(node.body)
+          if (/locale\.register\s*\(/.test(text)) {
+            iteratedContainers.push({ node: right.arguments[0], expr: right.arguments[0] })
+          }
+        }
+      },
+      CallExpression(node) {
+        const callee = unwrapChain(node.callee)
+        if (callee?.type !== 'MemberExpression' || callee.computed || propName(callee.property) !== 'register') return
+        const target = unwrapChain(callee.object)
+        if (target?.type !== 'MemberExpression' || target.computed || propName(target.property) !== 'locale') return
+        if (node.arguments.length === 2) {
+          pairs.push({ node: node.arguments[1], expr: node.arguments[1] })
+        } else if (node.arguments.length === 3 && node.arguments[1]?.type === 'Literal') {
+          if (node.arguments[1].value === 'en') splitEn.push({ node: node.arguments[2], expr: node.arguments[2] })
+          if (node.arguments[1].value === 'zh') splitZh.push({ node: node.arguments[2], expr: node.arguments[2] })
+        }
+      },
+      'Program:exit'() {
+        for (const item of pairs) checkCombinedDict(item.node, item.expr)
+        for (const item of iteratedContainers) checkCombinedDict(item.node, item.expr)
+        const count = Math.min(splitEn.length, splitZh.length)
+        for (let i = 0; i < count; i += 1) {
+          const enObj = resolveObj(splitEn[i].expr)
+          const zhObj = resolveObj(splitZh[i].expr)
+          if (enObj && zhObj) compareObjects(splitZh[i].node, enObj, zhObj)
+        }
+      },
+    }
+  },
+}
+
+const noBroadSessionSubscription = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Disallow subscribing components to the entire session map (s.byId, s.ids, or raw ctx.sessions.list).' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isClientFile(rel)) return {}
+
+    return {
+      CallExpression(node) {
+        const callee = unwrapChain(node.callee)
+        const name = callee?.type === 'Identifier'
+          ? callee.name
+          : (callee?.type === 'MemberExpression' && !callee.computed ? propName(callee.property) : null)
+
+        if (name === 'useSessions' && node.arguments.length >= 1) {
+          const sel = node.arguments[0]
+          if (sel?.type === 'ArrowFunctionExpression' || sel?.type === 'FunctionExpression') {
+            const param = sel.params?.[0]?.type === 'Identifier' ? sel.params[0].name : null
+            const ret = unwrapChain(returnedExpressionOf(sel))
+            if (
+              param
+              && ret?.type === 'MemberExpression'
+              && !ret.computed
+              && ret.object?.type === 'Identifier'
+              && ret.object.name === param
+              && (propName(ret.property) === 'byId' || propName(ret.property) === 'ids')
+            ) {
+              context.report({
+                node: sel,
+                message: `Do not subscribe to the entire sessions "${propName(ret.property)}" collection. Select a primitive field (e.g. s.byId?.[sessionId]?.cwd ?? '') or derive a cached snapshot with equality checks.`,
+              })
+            }
+          }
+          return
+        }
+
+        if (name === 'useSource' && isSessionsListExpr(node.arguments?.[0])) {
+          if (ALLOWED_FULL_SESSION_LIST_FILES.has(rel)) return
+          context.report({
+            node,
+            message: 'Do not subscribe directly to full ctx.sessions.list. Use a narrowed useSyncExternalStore snapshot returning a primitive or structurally-compared slice.',
+          })
+          return
+        }
+
+        if (name === 'useSyncExternalStore' && node.arguments.length >= 2) {
+          if (ALLOWED_FULL_SESSION_LIST_FILES.has(rel)) return
+          const snapFn = node.arguments[1]
+          if (snapFn?.type === 'ArrowFunctionExpression' || snapFn?.type === 'FunctionExpression') {
+            const ret = returnedExpressionOf(snapFn)
+            if (isSessionsListSnapshotCall(ret)) {
+              context.report({
+                node: snapFn,
+                message: 'Do not return the full ctx.sessions.list.getSnapshot() from useSyncExternalStore. Derive a primitive or cached slice for the active session.',
+              })
+            }
+          }
+        }
+      },
+    }
+  },
+}
+
+const requireMobileBackdropFallback = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Require a mobile/coarse-pointer fallback disabling backdrop-filter in client CSS.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isClientFile(rel)) return {}
+
+    const HAS_BACKDROP = /(?<![a-z-])backdrop-filter\s*:\s*(?!none\b|initial\b|unset\b)/i
+    const HAS_MOBILE_FALLBACK = /@media[^{]*(?:max-width|pointer\s*:\s*coarse)[^{]*\{[\s\S]*?backdrop-filter\s*:\s*none\b/i
+
+    function check(node) {
+      const text = getStringContent(node)
+      if (!text || !HAS_BACKDROP.test(text)) return
+      if (!HAS_MOBILE_FALLBACK.test(text)) {
+        context.report({
+          node,
+          message: 'CSS with backdrop-filter must add a mobile fallback: @media (max-width:768px),(pointer:coarse){...backdrop-filter:none;-webkit-backdrop-filter:none} with an opaque --dsw-alias-bg-* background.',
+        })
+      }
+    }
+
+    return {
+      TemplateLiteral: check,
+      Literal(node) {
+        if (typeof node.value === 'string') check(node)
+      },
+    }
+  },
+}
+
+const noUnconstrainedNowrap = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Require overflow:hidden when a client CSS rule combines min-width:0 and white-space:nowrap.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isClientFile(rel)) return {}
+
+    const BLOCK_RE = /([^{};@][^{}]*?)\{([^{}]+)\}/g
+    const MIN_WIDTH_ZERO = /(?:^|[;\s])min-width\s*:\s*0(?:px|rem|em|%)?(?=\s*(?:;|!|$))/i
+    const NOWRAP = /(?:^|[;\s])white-space\s*:\s*nowrap(?=\s*(?:;|!|$))/i
+    const OVERFLOW_CLIP = /(?:^|[;\s])overflow(?:-x)?\s*:\s*(?:hidden|clip|auto|scroll)(?=\s*(?:;|!|$))/i
+
+    function check(node) {
+      const text = getStringContent(node)
+      if (!text || !text.includes('white-space') || !text.includes('min-width')) return
+      BLOCK_RE.lastIndex = 0
+      let match
+      while ((match = BLOCK_RE.exec(text)) !== null) {
+        const selector = match[1].trim()
+        const body = match[2]
+        if (!selector || selector.startsWith('@')) continue
+        if (MIN_WIDTH_ZERO.test(body) && NOWRAP.test(body) && !OVERFLOW_CLIP.test(body)) {
+          context.report({
+            node,
+            message: `CSS rule "${selector.slice(0, 60)}" combines min-width:0 and white-space:nowrap without overflow:hidden, causing text overlap on narrow viewports.`,
+          })
+          return
+        }
+      }
+    }
+
+    return {
+      TemplateLiteral: check,
+      Literal(node) {
+        if (typeof node.value === 'string') check(node)
+      },
+    }
+  },
+}
+
+const safeIntervals = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Require server setInterval timers to call .unref?.() and client setInterval timers to guard document.hidden or self-clear.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isPackageFile(rel) || isTestFile(rel)) return {}
+
+    const serverMode = isServerFile(rel)
+    const clientMode = isClientFile(rel)
+    const fnBodies = new Map()
+    const clientCalls = []
+    const serverCalls = []
+    const scopeStack = []
+
+    function pushScope(node) {
+      scopeStack.push(node)
+    }
+    function popScope() {
+      scopeStack.pop()
+    }
+
+    function hasVisibilityOrSelfClear(text) {
+      return /\bdocument\.hidden\b|\bvisibilityState\b|\bclearInterval\s*\(/.test(text)
+    }
+
+    function escapesRegex(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    }
+
+    return {
+      Program: pushScope,
+      'Program:exit'() {
+        for (const call of clientCalls) {
+          const cb = call.arguments?.[0]
+          if (!cb) continue
+          let bodyText = context.sourceCode.getText(cb)
+          if (cb.type === 'Identifier' && fnBodies.has(cb.name)) {
+            bodyText = fnBodies.get(cb.name)
+          }
+          if (!hasVisibilityOrSelfClear(bodyText)) {
+            context.report({
+              node: call,
+              message: 'Client setInterval() must skip work when document.hidden (or document.visibilityState !== "visible") unless it is a bounded self-clearing retry.',
+            })
+          }
+        }
+
+        for (const { call, scope, targetText } of serverCalls) {
+          const parent = call.parent
+          if (
+            parent?.type === 'MemberExpression'
+            && !parent.computed
+            && propName(parent.property) === 'unref'
+          ) continue
+          if (targetText) {
+            const scopeText = context.sourceCode.getText(scope)
+            const re = new RegExp(`${escapesRegex(targetText)}\\s*(?:\\?\\.)?\\.unref(?:\\?\\.)?\\s*\\(`)
+            if (re.test(scopeText)) continue
+          }
+          context.report({
+            node: call,
+            message: 'Server setInterval() must call .unref?.() so background timers do not keep the Host process alive on shutdown.',
+          })
+        }
+        popScope()
+      },
+      BlockStatement: pushScope,
+      'BlockStatement:exit': popScope,
+      FunctionDeclaration(node) {
+        if (node.id?.name) fnBodies.set(node.id.name, context.sourceCode.getText(node))
+      },
+      VariableDeclarator(node) {
+        if (
+          node.id?.type === 'Identifier'
+          && (node.init?.type === 'ArrowFunctionExpression' || node.init?.type === 'FunctionExpression')
+        ) {
+          fnBodies.set(node.id.name, context.sourceCode.getText(node.init))
+        }
+      },
+      CallExpression(node) {
+        const callee = unwrapChain(node.callee)
+        const isSetInterval =
+          (callee?.type === 'Identifier' && callee.name === 'setInterval')
+          || (callee?.type === 'MemberExpression' && !callee.computed && propName(callee.property) === 'setInterval')
+        if (!isSetInterval) return
+        if (clientMode) {
+          clientCalls.push(node)
+          return
+        }
+        if (serverMode) {
+          const parent = node.parent
+          let targetText = null
+          if (parent?.type === 'VariableDeclarator' && parent.id?.type === 'Identifier') {
+            targetText = parent.id.name
+          } else if (parent?.type === 'AssignmentExpression' && parent.right === node) {
+            targetText = context.sourceCode.getText(parent.left)
+          }
+          serverCalls.push({ call: node, scope: scopeStack[scopeStack.length - 1], targetText })
+        }
+      },
+    }
+  },
+}
+
+const noNewAlwaysOnObservers = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Prevent adding new EventSource connections or document.body MutationObservers beyond explicit allowlists.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isClientFile(rel)) return {}
+
+    return {
+      NewExpression(node) {
+        if (node.callee?.type === 'Identifier' && node.callee.name === 'EventSource') {
+          if (ALLOWED_EVENTSOURCE_FILES.has(rel)) return
+          context.report({
+            node,
+            message: 'Do not add new EventSource connections (HTTP/1.1 allows only 6 sockets per origin). Use on-demand GET + write-through + BroadcastChannel, or open SSE only on demand and update the allowlist.',
+          })
+        }
+      },
+      CallExpression(node) {
+        const callee = unwrapChain(node.callee)
+        if (callee?.type !== 'MemberExpression' || callee.computed || propName(callee.property) !== 'observe') return
+        if (isDocumentProperty(node.arguments?.[0], 'body')) {
+          if (ALLOWED_BODY_OBSERVER_FILES.has(rel)) return
+          context.report({
+            node,
+            message: 'Do not add new document.body MutationObservers. Prefer DSH slots or narrow container observers that disconnect immediately after mounting.',
+          })
+        }
+      },
+    }
+  },
+}
+
+const noServerHotSyncFs = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Disallow synchronous fs.*Sync calls inside async Host functions.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isServerFile(rel)) return {}
+
+    const asyncDepth = []
+    const isAsync = () => asyncDepth.length > 0 && asyncDepth[asyncDepth.length - 1]
+    const enterFn = node => asyncDepth.push(Boolean(node.async))
+    const exitFn = () => asyncDepth.pop()
+
+    return {
+      FunctionDeclaration: enterFn,
+      'FunctionDeclaration:exit': exitFn,
+      FunctionExpression: enterFn,
+      'FunctionExpression:exit': exitFn,
+      ArrowFunctionExpression: enterFn,
+      'ArrowFunctionExpression:exit': exitFn,
+      CallExpression(node) {
+        if (!isAsync()) return
+        const callee = unwrapChain(node.callee)
+        const name = callee?.type === 'Identifier'
+          ? callee.name
+          : (callee?.type === 'MemberExpression' && !callee.computed ? propName(callee.property) : null)
+        if (name && SYNC_FS_METHODS.has(name)) {
+          context.report({
+            node,
+            message: `Do not call synchronous ${name}() inside an async Host function; use node:fs/promises (or cache once at startup) to avoid blocking the event loop.`,
+          })
+        }
+      },
+    }
+  },
+}
+
 export default {
   meta: { name: 'dsh' },
   rules: {
     'no-comments': noComments,
     'no-suppression-comments': noSuppressionComments,
     'no-legacy-compat': noLegacyCompat,
+    'no-removed-host-apis': noRemovedHostApis,
+    'require-command-available': requireCommandAvailable,
+    'no-direct-model-selection-fields': noDirectModelSelectionFields,
+    'no-root-theme-computed-style': noRootThemeComputedStyle,
+    'locale-dict-parity': localeDictParity,
+    'no-broad-session-subscription': noBroadSessionSubscription,
+    'require-mobile-backdrop-fallback': requireMobileBackdropFallback,
+    'no-unconstrained-nowrap': noUnconstrainedNowrap,
+    'safe-intervals': safeIntervals,
+    'no-new-always-on-observers': noNewAlwaysOnObservers,
+    'no-server-hot-sync-fs': noServerHotSyncFs,
   },
 }

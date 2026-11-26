@@ -33,6 +33,17 @@
     "unicorn/consistent-function-scoping": "off",
     "dsh/no-comments": "error",
     "dsh/no-suppression-comments": "error",
-    "dsh/no-legacy-compat": "error"
+    "dsh/no-legacy-compat": "error",
+    "dsh/no-removed-host-apis": "error",
+    "dsh/require-command-available": "error",
+    "dsh/no-direct-model-selection-fields": "error",
+    "dsh/no-root-theme-computed-style": "error",
+    "dsh/locale-dict-parity": "error",
+    "dsh/no-broad-session-subscription": "error",
+    "dsh/require-mobile-backdrop-fallback": "error",
+    "dsh/no-unconstrained-nowrap": "error",
+    "dsh/safe-intervals": "error",
+    "dsh/no-new-always-on-observers": "error",
+    "dsh/no-server-hot-sync-fs": "error"
   }
 }

@@ -4,34 +4,44 @@
 
 - 本仓维护独立的 DeepSeek Harness（DSH）插件，位于 `packages/<name>`，包名固定为 `dsh-<name>`。
 - 本机 DSH 安装基线为 `/Users/seefs/.bun/install/global/node_modules/@deepseek-ai/`（`engines.dsh`: `>=0.2.3-alpha.2 <0.3.0`）。
-- 保持同仓零硬依赖：任意 `packages/<name>` 必须可在兼容 DSH profile 中单独安装，不依赖同仓其他包。
 - 改动 `packages/acp-workbench` 时，先读 `packages/acp-workbench/AGENTS.md`（覆盖 ACP 协议、流式桥接、提问/审批交互与子进程/存储约束）。
 
-## 代码风格与静态约束
+## 规则与强制检查对照表
 
-- `pnpm run lint` 使用 Oxlint（`--deny-warnings`）与 `scripts/oxlint-plugin.mjs`：
-  - `dsh/no-comments`：除 shebang、文件头许可证、单行 URL 和单行 `// external: <reason>`（说明不可改变的外部依赖、平台或 DSH 宿主限制）外，禁止写注释。
-  - `dsh/no-suppression-comments`：禁止 `oxlint-disable`、`eslint-disable`、`@ts-ignore`、`@ts-expect-error`、`@ts-nocheck`。
-  - `dsh/no-legacy-compat`：禁止残留已移除的旧版兼容标识（如 `dsh-inbox`、`llm-pi-ai/model-defaults`）。
-- 禁止在包目录下放置内部设计文档（`DESIGN.md`、`ARCHITECTURE.md`、`PASEO-PARITY.md`），`scripts/validate.mjs` 会拒绝。
+以下约束已固化到 `pnpm run check`（`scripts/oxlint-plugin.mjs` 与 `scripts/validate.mjs`）并在 CI 强制执行。若再出现同类重复错误，优先补齐自动化检查，再精简或更新本表。
 
-## 前端 UI 与性能约定
+| 规则 | 强制手段 |
+| --- | --- |
+| 禁注释（保留 shebang、文件头许可证、单行 URL、`// external: <reason>`）、禁 lint/TS 抑制注释、禁旧兼容标识 | `dsh/no-comments`、`dsh/no-suppression-comments`、`dsh/no-legacy-compat` |
+| 禁用 DSH 0.2.3 已移除/不存在接口（`ctx.locale.t`、`session.events`、`requestRejection`、Electron 不可用的 `window.prompt/confirm/alert`，以及测试 stub 虚构 `locale.t`） | `dsh/no-removed-host-apis` |
+| `commandUi.register()` 必填 `available` 回调（缺失会导致 `+` / `/` 菜单整体崩溃） | `dsh/require-command-available` |
+| `useProjection('modelSelection')` 必须解包 `next ?? lastUsed`，禁止直读 `.provider` / `.model` / `.reasoningEffort` | `dsh/no-direct-model-selection-fields` |
+| 读取宿主 `--dsw-alias-*` 必须通过 `document.body`，禁止直传 `document.documentElement` | `dsh/no-root-theme-computed-style` |
+| 客户端内联 `en` / `zh` 词典键集合必须完全一致 | `dsh/locale-dict-parity` |
+| 禁止整表订阅会话（`useSessions(s => s.byId\|s.ids)`、裸传 `ctx.sessions.list`） | `dsh/no-broad-session-subscription` |
+| 客户端 CSS 使用 `backdrop-filter` 必须附带移动端/粗指针降级（`backdrop-filter:none` + 不透明 `--dsw-alias-bg-*`） | `dsh/require-mobile-backdrop-fallback` |
+| CSS 同规则同时使用 `min-width:0` 与 `white-space:nowrap` 必须声明 `overflow:hidden` | `dsh/no-unconstrained-nowrap` |
+| 服务端 `setInterval` 必须 `.unref?.()`；客户端 `setInterval` 必须检查 `document.hidden` / `visibilityState` 或为有界自清理重试 | `dsh/safe-intervals` |
+| 禁止在白名单外新增 `EventSource` 或 `document.body` `MutationObserver` | `dsh/no-new-always-on-observers` |
+| 禁止在服务端 `async` 函数中调用同步 `fs.*Sync` | `dsh/no-server-hot-sync-fs` |
+| 禁 `dsh.client.immediately: true`、同仓零硬依赖、客户端包体体积预算、新 `client.js` 包必填 `test/client.test.js`、禁包内设计文档、目录与文档站全量同步 | `scripts/validate.mjs` |
 
-- 组件与主题：复用 `@deepseek-ai/dsh-client-ui-primitives` 组件，不用 `window.prompt()` / `window.confirm()`（Electron 不可用）或手写 `<dialog>`。DSH 的 `--dsw-alias-*` 声明在 `body` 与 `body[data-ds-dark-theme]`（不在 `document.documentElement`），读取宿主主题必须读 `document.body`；自定义样式统一使用 `--dsw-*` 语义令牌并兼顾浅色模式。
-- 会话内工具视图（`tool.call.toolview`）：对齐原生 `ToolRow` / `DisclosureRow`（24px 单行披露、4px 展开缩进、双列 `IN`/`OUT` 卡片、分隔点加 `data-shimmer-decoration`、`Inspect` 默认隐藏且 hover/focus 显现并用 `--dsw-alias-border-l3` 边框），不做大块重边框卡片。
-- 连接与首屏：DSH 本地运行在 HTTP/1.1（6 连接槽），不常驻 `EventSource`；默认走按需 `GET` + 写后回写 + `BroadcastChannel` 跨标签同步 + 窗口唤醒节流刷新，仅在面板打开或活跃流式会话时按需建连。`package.json` 不加 `dsh.client.immediately: true`；重型前端依赖懒加载或池化复用单 iframe。
-- 主线程与跨插件协作：定位目标 DOM 后立即断开 `document.body` `MutationObserver`，改用局部观察并合并到 `requestAnimationFrame`，页面隐藏时跳过定时刷新。跨插件共享前端入口（如 `#` 菜单）通过 `window.__DSH_*__` 轻量总线协作，保持零硬依赖。
+## 每次修改插件的性能护栏（必查）
 
-## 服务端存储与 DSH 0.2.3 运行时事实
+每次新增或修改插件（无论功能、样式还是修复），除通过上述静态门禁外，必须主动核对以下 5 项：
 
-- 持久存储边界：`storageDomain` 与 `session_projcache` 启动时全量载入内存且不淘汰，写入数据必须设体积上限并裁剪去重（不落盘整页原始 HTML 或未裁剪大 diff）；超大临时态放按 session 隔离的内存结构（如 `WeakMap` 或有上限 LRU），高频 flush 避免整树 `structuredClone`。
-- 0.2.3 服务端 API 现状：`Session` 无 `session.events`（轮次边界用 `ctx.agents.turnBoundaryOf(session)`，事件快照用 `session.snapshotEvents()`）；无 `ctx.connection.requestRejection`；不用 `browserPeer` 做身份相等判断；`uiSession.sessionStatus` 需显式注入；会话流客户端插件需核对 `facets` 声明。会话日志只追加，`surfaceOp: 'replace'` 不会自动隐藏旧界面节点，也不会自动触发续写。
-- 0.2.3 客户端 API 与启动期槽位契约：`ctx.locale` 无 `.t()` 方法，必须用 `ctx.locale.register(ns, { en, zh })` 后通过 `const t = ctx.locale.bind(ns)` 获取翻译函数（`t(key, params)` 原生支持 `{name}` 插值；响应式订阅用 `subscribe` / `getSnapshot()`）。`ctx.theme` 通过 `getTheme()` 读快照（`active.colorScheme`）并监听 `theme/change`；`ctx.layout` 切主面板用 `selectPanel(id)`。注册到 `sidebar.panellist` 等启动期槽位的 `label: () => ...` 会在必需入口 `@deepseek-ai/dsh-client-ui-sidebar` 激活执行 `syncPanels()` 时同步求值，抛错会直接导致整个 Web 启动失败。写 `client.js` 前务必查实对应 `@deepseek-ai/dsh-client-*` 源码，勿凭猜测调用接口。
-- 查源码与联调：查 DSH 服务、事件、配置 schema、工具与前端槽位时，优先使用 `cordis_inspect`，其次直读 `/Users/seefs/.bun/install/global/node_modules/@deepseek-ai/` 对应包（部分包如 `dsh-client-ui-primitives`、`dsh-client-ui-slots` 无 `src/`，先看包顶层目录再搜索）。
-- 本机 `web` profile 通过 `link:` 软链直连本仓（无需重跑 `dsh plugin add`），开启 `patchReload: live` 但 `hmr.config.root` 为空：
-  - 修改 `~/.dsh/profiles/web/cordis.patch.yml` 或 `package.json` 会触发对应行热重载；
-  - 修改 `packages/*/lib/*.js` 需重启 `dsh --profile web` 才生效；
-  - 修改浏览器端 `client.js` 后刷新页面加载。
+1. **订阅最小化**：组件只订阅渲染所需的原始字段或带字段级相等比较的派生快照（`useSyncExternalStore` 缓存），确保工作区其他无关会话流式输出时不触发本组件重渲染。
+2. **刷新频率与连接克制**：流式文本/思考/工具增量不得触发全量 snapshot 或全量 trace 拉取；DSH 本地跑在 HTTP/1.1（6 连接槽），默认走按需 `GET` + 写后回写 + `BroadcastChannel` + 窗口唤醒节流刷新；隐藏标签页暂停定时与网络刷新。
+3. **移动端与首屏预算**：窄屏（`<=600px` 或 `@container (max-width:460px)`）下底栏/顶栏控件需折叠且不溢出；弹层在粗指针/窄屏关闭毛玻璃滤镜；重型依赖懒加载或池化复用单 iframe，不让 `client.js` 静默膨胀。
+4. **Host 内存与存储边界**：`storageDomain` 与 `session_projcache` 启动全量载入内存且不淘汰，写入数据必须设条目数与单条字节上限并做**运行期定期裁剪**（不能只在启动时 prune）；超大临时态放按 session 隔离的内存结构（`WeakMap` 或有上限 LRU）；高频 flush 避免整树 `structuredClone`；所有定时器与监听器在卸载时清理。
+5. **可感知性能改动必须量化**：涉及性能修复或热路径改造时，核对并报告真实指标（请求频次、重渲染次数、落盘字节、客户端包体 KiB），不凭代码猜测效果。
+
+## UI 对齐与 DSH 0.2.3 运行时判断要点
+
+- **组件与主题**：复用 `@deepseek-ai/dsh-client-ui-primitives` 组件，自定义样式统一使用 `--dsw-*` 语义令牌并兼顾浅色模式；跨插件共享前端入口（如 `#` 菜单）通过 `window.__DSH_*__` 轻量总线协作。
+- **会话内工具视图（`tool.call.toolview`）**：对齐原生 `ToolRow` / `DisclosureRow`（24px 单行披露、4px 展开缩进、双列 `IN`/`OUT` 卡片、分隔点加 `data-shimmer-decoration`、`Inspect` 默认隐藏且 hover/focus 显现并用 `--dsw-alias-border-l3` 边框），不做大块重边框卡片。
+- **0.2.3 宿主契约细节**：不用 `browserPeer` 做身份相等判断；`uiSession.sessionStatus` 需显式注入；会话流客户端插件需核对 `facets` 声明；会话日志只追加，`surfaceOp: 'replace'` 不会自动隐藏旧界面节点也不会触发续写；`ctx.theme` 通过 `getTheme()` 读快照（`active.colorScheme`）并监听 `theme/change`；`ctx.layout` 切主面板用 `selectPanel(id)`。注册到 `sidebar.panellist` 等启动期槽位的 `label: () => ...` 会在 `@deepseek-ai/dsh-client-ui-sidebar` 激活执行 `syncPanels()` 时同步求值，抛错会导致整个 Web 启动失败。写 `client.js` 前务必查实对应 `@deepseek-ai/dsh-client-*` 源码。
+- **查源码与本机联调**：优先使用 `cordis_inspect`，其次直读 `/Users/seefs/.bun/install/global/node_modules/@deepseek-ai/` 对应包（部分包无 `src/`，先看包顶层目录）。本机 `web` profile 通过 `link:` 软链直连本仓并禁用 `hmr`/`client-hmr`：改 `cordis.patch.yml`、`package.json` 或服务端 `lib/*.js` 需重启 `dsh --profile web`；改浏览器端 `client.js` 后刷新页面生效。
 
 ## 构建与验证（cwd: `/Users/seefs/work/dsh-plugins`）
 
@@ -42,7 +52,7 @@
 - `pi-tools`（改 `runner/` 或 Pi 依赖时）：`pnpm --filter dsh-pi-tools build:runner:all`
 - `message-actions`（改 `src/` 时）：`pnpm --filter dsh-message-actions build`
 
-常规验证（改动插件内联中英文词典时同步保持 `en`/`zh` 键对齐；新增或大改含 `client.js` 的插件时必须补 `test/client.test.js`，按真实 DSH 运行时接口构造最小 stub 覆盖 `plugin.apply(ctx)`、槽位 `label()` 求值与组件首屏渲染，严禁在 stub 中虚构宿主不存在的方法如 `ctx.locale.t`）：
+常规验证（新增或大改含 `client.js` 的插件时补齐 `test/client.test.js`，按真实 DSH 运行时接口构造最小 stub 覆盖 `plugin.apply(ctx)`、槽位 `label()` 求值与组件首屏渲染）：
 
 ```bash
 pnpm run check                           # oxlint + scripts/validate.mjs + node --test
