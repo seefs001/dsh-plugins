@@ -37,7 +37,7 @@ window.__ModuleLoader__.load({
 .dtl-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
 .dtl-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .dtl-error{color:var(--dsw-alias-state-error-primary)}
-.dtl-stopped{color:var(--dsw-alias-state-warn-label)}
+.dtl-stopped{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
 .dtl-err-badge{flex:0 1 auto;min-width:0;max-width:min(45%,300px);margin-left:8px;gap:5px}
 .dtl-err-dot{flex:none;width:4px;height:4px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-error-primary)}
 .dtl-err-text{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -78,14 +78,14 @@ window.__ModuleLoader__.load({
 .dtl-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;
   border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);
   color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.dtl-inspect:focus-visible{opacity:1}
+.dtl-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (hover:hover){.dtl-card:hover .dtl-inspect{opacity:1}.dtl-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.dtl-inspect{opacity:1}}
 .dtl-wrap{position:relative}
 .dtl-float{position:absolute;top:0;right:0;display:flex;align-items:center;gap:4px;height:calc(24px + var(--dsh-content-font-delta,0px));
   padding-left:20px;background:linear-gradient(to right,transparent,var(--dsw-alias-bg-base) 18px);opacity:0;transition:opacity 100ms ease}
 .dtl-wrap:hover>.dtl-float,.dtl-wrap:focus-within>.dtl-float,.dtl-wrap[data-open]>.dtl-float{opacity:1}
-@media (hover:none){.dtl-float{opacity:1}}
+@media (hover:none){.dtl-float{position:static;opacity:1;height:auto;padding-left:0;margin-top:2px;flex-wrap:wrap;background:none}}
 .dtl-chip{display:inline-flex;align-items:center;gap:4px;max-width:220px;height:20px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l3);
   border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
@@ -104,6 +104,7 @@ window.__ModuleLoader__.load({
 .dtl-lines{display:inline-flex;flex:none;align-items:center;gap:3px;flex-wrap:nowrap}
 .dtl-line-btn{padding:0 5px;height:18px;border:.5px solid var(--dsw-alias-border-l3);border-radius:4px;background:var(--dsw-alias-bg-base);
   color:var(--dsw-alias-label-tertiary);font:11px/16px var(--ds-font-family-code,monospace);cursor:pointer}
+.dtl-line-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (hover:hover){.dtl-line-btn:hover{border-color:var(--dsw-alias-border-l4);color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
 .dtl-item-more{padding:3px 8px;color:var(--dsw-alias-label-caption);font-size:11px}
 @media (prefers-reduced-motion:reduce){.dtl-float,.dtl-link-icon,.dtl-inspect{transition:none}}
@@ -116,6 +117,20 @@ window.__ModuleLoader__.load({
     ])
 
     const firstLine = text => { const i = text.indexOf('\n'); return i === -1 ? text : text.slice(0, i) }
+    function firstNonEmptyLine(text) {
+      if (typeof text !== 'string') return ''
+      for (const line of text.split(/\r?\n/u)) {
+        const trimmed = line.trim()
+        if (trimmed) return trimmed
+      }
+      return ''
+    }
+    function hasNonEmptyInput(block) {
+      const { raw, args } = parseArgs(block)
+      if (args !== null) return Object.keys(args).length > 0
+      const trimmed = raw.trim()
+      return trimmed !== '' && trimmed !== '{}'
+    }
 
     function resultText(block) {
       if (!('kind' in block)) return null
@@ -189,7 +204,7 @@ window.__ModuleLoader__.load({
         ? getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: skillFilePath } }))
         : {}
 
-      const errorLine = state === 'error' && output !== null ? firstLine(output) : ''
+      const errorLine = state === 'error' && output !== null ? firstNonEmptyLine(output) : ''
       const showErrorBadge = state === 'error' && hasParsedName && errorLine !== ''
       let summary
       if (state === 'stopped') summary = h('span', { className: 'dtl-summary dtl-stopped' }, h(TextShimmer, null, t('skill.stopped')))
@@ -413,14 +428,20 @@ window.__ModuleLoader__.load({
       const { args } = parseArgs(block)
       const obj = args && !Array.isArray(args) ? args : null
       if (toolName === 'read') {
-        const rawPath = nonEmptyText(obj?.file_path, obj?.path, fallbackArgText(block, ['file_path', 'path']))
-        if (!rawPath) return ''
+        const rawPath = nonEmptyText(
+          obj?.file_path, obj?.path, obj?.Path, obj?.AbsolutePath, obj?.filePath, obj?.TargetFile, obj?.target_file,
+          fallbackArgText(block, ['file_path', 'path', 'Path', 'AbsolutePath', 'filePath']),
+        )
+        if (!rawPath) {
+          const desc = nonEmptyText(obj?.description, fallbackArgText(block, ['description']))
+          return desc ? firstLine(desc).trim() : ''
+        }
         const base = displayPath(rawPath, cwd, home)
         const offset = positiveInt(obj?.offset ?? obj?.start_line ?? obj?.StartLine)
         const endLine = positiveInt(obj?.end_line ?? obj?.EndLine)
         const limit = positiveInt(obj?.limit)
         if (offset !== undefined && endLine !== undefined) return `${base}:${offset}-${endLine}`
-        if (offset !== undefined && limit !== undefined) return `${base}:${offset}-${offset + limit - 1}`
+        if (offset !== undefined && limit !== undefined) return limit === 1 ? `${base}:${offset}` : `${base}:${offset}-${offset + limit - 1}`
         if (offset !== undefined) return `${base}:${offset}`
         if (endLine !== undefined) return `${base}:1-${endLine}`
         return base
@@ -716,10 +737,13 @@ window.__ModuleLoader__.load({
         const code = 'kind' in block ? block.error?.code : undefined
         const errorBadge = toolName === 'web_fetch' && typeof code === 'string' && Object.hasOwn(WEB_FETCH_FAILURE_KEYS, code)
           ? t(WEB_FETCH_FAILURE_KEYS[code])
-          : output !== null ? firstLine(output).trim() : ''
+          : output !== null ? firstNonEmptyLine(output) : ''
+        const displaySummary = summary || errorBadge
+        const summaryIsError = summary === '' && errorBadge !== ''
+        const showErrorBadge = summary !== '' && errorBadge !== ''
         const inputText = args !== null && Object.keys(args).length > 0
           ? JSON.stringify(args, null, 2)
-          : (raw.trim() || null)
+          : (raw.trim() && raw.trim() !== '{}' ? raw.trim() : null)
         const expandable = inputText !== null || output !== null
         const open = expanded && expandable
         const title = t(nativeToolTitleKey(toolName, args))
@@ -735,12 +759,12 @@ window.__ModuleLoader__.load({
             expandOnRowClick: true,
             keepContentWhenOpen: true,
             onToggle: toggle,
-            collapsedContent: h(React.Fragment, null,
+            collapsedContent: displaySummary ? h(React.Fragment, null,
               h('span', { className: 'dtl-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
-              h('span', { className: 'dtl-summary', title: summary }, h(TextShimmer, null, summary)),
-              errorBadge ? h(Tag, { tone: 'neutral', className: 'dtl-err-badge', title: errorBadge },
+              h('span', { className: `dtl-summary${summaryIsError ? ' dtl-error' : ''}`, title: displaySummary }, h(TextShimmer, null, displaySummary)),
+              showErrorBadge ? h(Tag, { tone: 'neutral', className: 'dtl-err-badge', title: errorBadge },
                 h('span', { className: 'dtl-err-dot', 'aria-hidden': true }),
-                h('span', { className: 'dtl-err-text', title: errorBadge }, errorBadge)) : null),
+                h('span', { className: 'dtl-err-text', title: errorBadge }, errorBadge)) : null) : null,
           },
           open ? h('div', { className: 'dtl-body' },
             inputText !== null || output !== null ? h('div', { className: 'dtl-io' },
@@ -760,15 +784,30 @@ window.__ModuleLoader__.load({
         const { toolName, block, phase, cwd, home, openFile, sessionId, useContextMenu } = props
         const { getTriggerProps } = useContextMenu()
         const [list, setList] = React.useState(null)
-        const isParsedFailure = phase === 'result'
+        const isNativeFailure = phase === 'result'
           && 'kind' in block
           && block.isError === true
           && block.error?.code !== 'interrupted'
           && block.error?.code !== 'AUTO_REVIEW_DENIED'
           && Object.hasOwn(NATIVE_TITLE_KEYS, toolName)
-          && failedToolSummary(toolName, block, cwd, home) !== ''
+        const isParsedFailure = isNativeFailure
+          && (failedToolSummary(toolName, block, cwd, home) !== '' || hasNonEmptyInput(block))
         const base = isParsedFailure ? undefined : baseEntry(toolName, AugmentedRow)
-        const inner = isParsedFailure ? h(FailedToolRow, props) : (base === undefined ? null : h(base.component, props))
+        const baseProps = React.useMemo(() => {
+          if (base === undefined) return null
+          const injectFn = base.inject ?? base.options?.inject
+          const injected = typeof injectFn === 'function' ? injectFn(sessionId) : undefined
+          const baseLocale = base.locale ?? base.options?.locale
+          const baseT = baseLocale && baseLocale !== 'conversation' ? ctx.locale.bind(baseLocale) : undefined
+          if (!injected && !baseT) return null
+          return {
+            ...(injected && typeof injected === 'object' ? injected : undefined),
+            ...(baseT ? { t: baseT } : undefined),
+          }
+        }, [base, sessionId])
+        const inner = isParsedFailure
+          ? h(FailedToolRow, props)
+          : (base === undefined ? null : h(base.component, baseProps ? { ...props, ...baseProps } : props))
         if (phase === 'preparing') return inner
 
         const spill = spillPath(block)
