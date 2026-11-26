@@ -788,6 +788,18 @@ window.__ModuleLoader__.load({
               if (typeof props.t === 'function') return props.t
               return (key, params) => boundPiT(key, params)
             }, [props.t, localeRev])
+            const nativeBound = React.useMemo(() => {
+              if (!props.nativeBase) return null
+              const baseLocale = props.nativeBaseLocale ?? 'conversation'
+              const boundBaseT = ctx.locale.bind(baseLocale)
+              return {
+                nativeBase: props.nativeBase,
+                nativeProps: {
+                  ...props.nativeProps,
+                  t: (key, params) => boundBaseT(key, params),
+                },
+              }
+            }, [props.nativeBase, props.nativeBaseLocale, props.nativeProps, localeRev])
             const fallbackBase = !props.nativeBase && WRAPPED_KEYS.includes(props.toolName)
               ? ctx.slots.entries('tool.call.toolview').find(entry =>
                 entry.options.key === props.toolName && (entry.options.priority ?? 0) >= 0)
@@ -810,7 +822,7 @@ window.__ModuleLoader__.load({
                 },
               }
             }, [fallbackBase, fallbackInjected, localeRev])
-            return h(PiToolView, { ...props, ...(fallbackNative ?? undefined), t, ct })
+            return h(PiToolView, { ...props, ...(nativeBound ?? fallbackNative ?? undefined), t, ct })
           }
 
           for (const key of DIRECT_KEYS) {
@@ -830,7 +842,8 @@ window.__ModuleLoader__.load({
                   ct: boundCt,
                   ...(base ? {
                     nativeBase: base.component,
-                    nativeProps: { ...base.inject?.(sessionId), t: ctx.locale.bind(base.locale ?? 'conversation') },
+                    nativeBaseLocale: base.locale ?? 'conversation',
+                    nativeProps: { ...base.inject?.(sessionId) },
                   } : {}),
                 }
               },
