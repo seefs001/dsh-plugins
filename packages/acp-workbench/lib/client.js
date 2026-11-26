@@ -5639,24 +5639,31 @@ button.aw-child-trigger:focus-visible{outline:none}
 
         function GrepPathsRow(props) {
           const tt = useT()
+          const localeSnap = localeSnapshot()
+          const localeRev = localeSnap?.revision ?? localeSnap
           const labels = useToolLabels()
           const { expanded, toggle } = props.useDisclosure()
           const { phase, block, inspect, sessionId } = props
           const meta = isPlainObj(block?.meta) ? block.meta : null
           const isPathsResult = phase === 'result' && 'kind' in block && !block.isError && meta?.shape === 'paths' && Array.isArray(meta.paths)
           const base = isPathsResult ? undefined : findBaseToolView('grep', GrepPathsRow, GREP_PATHS_PRIORITY)
-          const baseProps = React.useMemo(() => {
-            if (!base) return null
+          const baseInjected = React.useMemo(() => {
+            if (!base) return undefined
             const injectFn = base.inject ?? base.options?.inject
             const injected = typeof injectFn === 'function' ? injectFn(sessionId) : undefined
+            return injected && typeof injected === 'object' ? injected : undefined
+          }, [base, sessionId])
+          const baseProps = React.useMemo(() => {
+            if (!base) return null
             const baseLocale = base.locale ?? base.options?.locale
-            const baseT = baseLocale && baseLocale !== 'conversation' ? ctx.locale.bind(baseLocale) : undefined
-            if (!injected && !baseT) return null
+            const boundT = baseLocale && baseLocale !== 'conversation' ? ctx.locale.bind(baseLocale) : undefined
+            const baseT = boundT ? (key, params) => boundT(key, params) : undefined
+            if (!baseInjected && !baseT) return null
             return {
-              ...(injected && typeof injected === 'object' ? injected : undefined),
+              ...baseInjected,
               ...(baseT ? { t: baseT } : undefined),
             }
-          }, [base, sessionId])
+          }, [base, baseInjected, localeRev])
           if (!isPathsResult) {
             return base ? h(base.component, baseProps ? { ...props, ...baseProps } : props) : null
           }

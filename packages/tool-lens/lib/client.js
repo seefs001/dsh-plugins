@@ -780,7 +780,8 @@ window.__ModuleLoader__.load({
       }
 
       function AugmentedRow(props) {
-        React.useSyncExternalStore(subscribeLocale, localeSnapshot)
+        const localeSnap = React.useSyncExternalStore(subscribeLocale, localeSnapshot)
+        const localeRev = localeSnap?.revision ?? localeSnap
         const { toolName, block, phase, cwd, home, openFile, sessionId, useContextMenu } = props
         const { getTriggerProps } = useContextMenu()
         const [list, setList] = React.useState(null)
@@ -793,18 +794,23 @@ window.__ModuleLoader__.load({
         const isParsedFailure = isNativeFailure
           && (failedToolSummary(toolName, block, cwd, home) !== '' || hasNonEmptyInput(block))
         const base = isParsedFailure ? undefined : baseEntry(toolName, AugmentedRow)
-        const baseProps = React.useMemo(() => {
-          if (base === undefined) return null
+        const baseInjected = React.useMemo(() => {
+          if (base === undefined) return undefined
           const injectFn = base.inject ?? base.options?.inject
           const injected = typeof injectFn === 'function' ? injectFn(sessionId) : undefined
+          return injected && typeof injected === 'object' ? injected : undefined
+        }, [base, sessionId])
+        const baseProps = React.useMemo(() => {
+          if (base === undefined) return null
           const baseLocale = base.locale ?? base.options?.locale
-          const baseT = baseLocale && baseLocale !== 'conversation' ? ctx.locale.bind(baseLocale) : undefined
-          if (!injected && !baseT) return null
+          const boundT = baseLocale && baseLocale !== 'conversation' ? ctx.locale.bind(baseLocale) : undefined
+          const baseT = boundT ? (key, params) => boundT(key, params) : undefined
+          if (!baseInjected && !baseT) return null
           return {
-            ...(injected && typeof injected === 'object' ? injected : undefined),
+            ...baseInjected,
             ...(baseT ? { t: baseT } : undefined),
           }
-        }, [base, sessionId])
+        }, [base, baseInjected, localeRev])
         const inner = isParsedFailure
           ? h(FailedToolRow, props)
           : (base === undefined ? null : h(base.component, baseProps ? { ...props, ...baseProps } : props))

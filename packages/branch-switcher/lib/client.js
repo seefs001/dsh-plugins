@@ -331,7 +331,7 @@ window.__ModuleLoader__.load({
             const original = base.component
             dispose = ctx.slots.register({
               name: SLOT, id: ENTRY, priority: -10, order: base.options.order,
-              locale: base.locale, inject: sessionId => ({ ...base.inject(sessionId), original }),
+              locale: base.locale, inject: sessionId => ({ ...base.inject?.(sessionId), original }),
             }, SessionSeat)
           }
           const unsubscribe = ctx.slots.subscribe(SLOT, sync)

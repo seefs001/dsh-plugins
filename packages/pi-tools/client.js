@@ -768,12 +768,56 @@ window.__ModuleLoader__.load({
           return () => style.remove()
         })
         ctx.slots.inject('tool.call.toolview', function* () {
-          const ct = ctx.locale.bind('conversation')
+          const boundCt = ctx.locale.bind('conversation')
+          const boundPiT = ctx.locale.bind(NS)
+          const subscribeLocale = typeof ctx.locale.subscribe === 'function'
+            ? fn => ctx.locale.subscribe(fn)
+            : () => () => {}
+          const localeSnapshot = typeof ctx.locale.getSnapshot === 'function'
+            ? () => ctx.locale.getSnapshot()
+            : () => 'en'
+
+          function BoundPiToolView(props) {
+            const localeSnap = React.useSyncExternalStore(subscribeLocale, localeSnapshot)
+            const localeRev = localeSnap?.revision ?? localeSnap
+            const ct = React.useMemo(() => {
+              const fn = typeof props.ct === 'function' ? props.ct : boundCt
+              return (key, params) => fn(key, params)
+            }, [props.ct, localeRev])
+            const t = React.useMemo(() => {
+              if (typeof props.t === 'function') return props.t
+              return (key, params) => boundPiT(key, params)
+            }, [props.t, localeRev])
+            const fallbackBase = !props.nativeBase && WRAPPED_KEYS.includes(props.toolName)
+              ? ctx.slots.entries('tool.call.toolview').find(entry =>
+                entry.options.key === props.toolName && (entry.options.priority ?? 0) >= 0)
+              : undefined
+            const fallbackInjected = React.useMemo(() => {
+              if (!fallbackBase) return undefined
+              const injectFn = fallbackBase.inject ?? fallbackBase.options?.inject
+              const injected = typeof injectFn === 'function' ? injectFn(props.sessionId) : undefined
+              return injected && typeof injected === 'object' ? injected : undefined
+            }, [fallbackBase, props.sessionId])
+            const fallbackNative = React.useMemo(() => {
+              if (!fallbackBase) return null
+              const baseLocale = fallbackBase.locale ?? fallbackBase.options?.locale ?? 'conversation'
+              const boundBaseT = ctx.locale.bind(baseLocale)
+              return {
+                nativeBase: fallbackBase.component,
+                nativeProps: {
+                  ...fallbackInjected,
+                  t: (key, params) => boundBaseT(key, params),
+                },
+              }
+            }, [fallbackBase, fallbackInjected, localeRev])
+            return h(PiToolView, { ...props, ...(fallbackNative ?? undefined), t, ct })
+          }
+
           for (const key of DIRECT_KEYS) {
             yield ctx.slots.register({
               name: 'tool.call.toolview', key, locale: NS,
-              inject: () => ({ ct }),
-            }, PiToolView)
+              inject: () => ({ ct: boundCt }),
+            }, BoundPiToolView)
           }
           // external: DSH stock toolviews expect native tool meta shapes; priority -1 handles Pi calls and delegates others
           for (const key of WRAPPED_KEYS) {
@@ -783,14 +827,14 @@ window.__ModuleLoader__.load({
                 const base = ctx.slots.entries('tool.call.toolview').find(entry =>
                   entry.options.key === key && (entry.options.priority ?? 0) >= 0)
                 return {
-                  ct,
+                  ct: boundCt,
                   ...(base ? {
                     nativeBase: base.component,
                     nativeProps: { ...base.inject?.(sessionId), t: ctx.locale.bind(base.locale ?? 'conversation') },
                   } : {}),
                 }
               },
-            }, PiToolView)
+            }, BoundPiToolView)
           }
         })
       },
