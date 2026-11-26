@@ -535,6 +535,7 @@ export function mapToolCall(tool, terminal, options) {
         file_path: target,
         ...(offset ? { offset } : {}),
         ...(limit ? { limit } : {}),
+        ...(!limit && endLine ? { end_line: endLine } : {}),
         ...(byteOffset ? { byte_offset: byteOffset } : {}),
       }
       return { name: 'read', argumentsObj: argsObj, argumentsJson: JSON.stringify(argsObj), originalKind: 'read' }

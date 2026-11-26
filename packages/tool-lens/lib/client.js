@@ -5,9 +5,22 @@ window.__ModuleLoader__.load({
     const {
       DisclosureRow,
       FileTypeIcon,
+      IconApiOutlineRegular,
+      IconBranchOutlineRegular,
+      IconBrowseOutlineRegular,
+      IconChecklistOutlineRegular,
+      IconClockOutlineRegular,
+      IconCodeOutlineRegular,
+      IconCordisPluginOutlineRegular,
+      IconEditOutlineRegular,
       IconGlobeOutlineRegular,
+      IconGoalOutlineRegular,
       IconInspectOutlineRegular,
+      IconSearchOutlineRegular,
       IconSkillOutlineRegular,
+      IconSparkleRegular,
+      IconUsersOutlineRegular,
+      Tag,
       TextShimmer,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
@@ -25,6 +38,17 @@ window.__ModuleLoader__.load({
 .dtl-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .dtl-error{color:var(--dsw-alias-state-error-primary)}
 .dtl-stopped{color:var(--dsw-alias-state-warn-label)}
+.dtl-err-badge{flex:0 1 auto;min-width:0;max-width:min(45%,300px);margin-left:8px;gap:5px}
+.dtl-err-dot{flex:none;width:4px;height:4px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-error-primary)}
+.dtl-err-text{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.dtl-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.dtl-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.dtl-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.dtl-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.dtl-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
+.dtl-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.dtl-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.dtl-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .dtl-link{gap:4px;flex:0 1 auto;min-width:0;border-radius:4px}
 .dtl-link .dtl-summary{text-decoration:underline dotted;text-decoration-color:currentColor;text-decoration-thickness:1px;text-underline-offset:3px}
 .dtl-link-icon{display:inline-flex;flex:none;opacity:0;transition:opacity .1s}
@@ -148,14 +172,15 @@ window.__ModuleLoader__.load({
 
       const state = callState(block)
       const { raw, args } = parseArgs(block)
-      const name = typeof args?.name === 'string' && args.name !== '' ? firstLine(args.name) : (raw === '' ? block.callId : firstLine(raw))
+      const hasParsedName = typeof args?.name === 'string' && args.name.trim() !== ''
+      const name = hasParsedName ? firstLine(args.name) : (raw === '' ? block.callId : firstLine(raw))
       const output = resultText(block)
       const baseDir = baseDirectory(output)
       const skillFilePath = baseDir ? `${baseDir.replace(/[\\/]+$/, '')}/SKILL.md` : undefined
       const expandable = output !== null
       const open = expanded && expandable
       const running = state === 'running'
-      const canOpen = state !== 'error' && typeof args?.name === 'string' && args.name !== ''
+      const canOpen = state !== 'error' && hasParsedName
       const openFile = event => {
         event.stopPropagation()
         openSkill(args.name, baseDir).then(ok => { if (!ok) setMissing(true) })
@@ -164,9 +189,11 @@ window.__ModuleLoader__.load({
         ? getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: skillFilePath } }))
         : {}
 
+      const errorLine = state === 'error' && output !== null ? firstLine(output) : ''
+      const showErrorBadge = state === 'error' && hasParsedName && errorLine !== ''
       let summary
       if (state === 'stopped') summary = h('span', { className: 'dtl-summary dtl-stopped' }, h(TextShimmer, null, t('skill.stopped')))
-      else if (state === 'error' && output !== null) summary = h('span', { className: 'dtl-summary dtl-error' }, h(TextShimmer, null, firstLine(output)))
+      else if (state === 'error' && !hasParsedName && errorLine !== '') summary = h('span', { className: 'dtl-summary dtl-error', title: errorLine }, h(TextShimmer, null, errorLine))
       else if (canOpen) {
         summary = h('button', {
           type: 'button',
@@ -182,7 +209,7 @@ window.__ModuleLoader__.load({
         h('span', { className: 'dtl-summary' }, h(TextShimmer, null, name)),
         h('span', { className: 'dtl-link-icon' }, h(IconSidePanel)))
       } else {
-        summary = h('span', { className: 'dtl-summary' }, h(TextShimmer, null, name))
+        summary = h('span', { className: 'dtl-summary', title: name }, h(TextShimmer, null, name))
       }
 
       return h('div', { className: 'dtl-card', 'data-tool': 'skill', 'data-state': state },
@@ -199,6 +226,9 @@ window.__ModuleLoader__.load({
           collapsedContent: h(React.Fragment, null,
             h('span', { className: 'dtl-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
             summary,
+            showErrorBadge ? h(Tag, { tone: 'neutral', className: 'dtl-err-badge', title: errorLine },
+              h('span', { className: 'dtl-err-dot', 'aria-hidden': true }),
+              h('span', { className: 'dtl-err-text', title: errorLine }, errorLine)) : null,
             missing ? h('span', { className: 'dtl-hint', role: 'status' }, t('skill.notFound')) : null),
         },
         open ? h('div', { className: 'dtl-body' },
@@ -230,13 +260,259 @@ window.__ModuleLoader__.load({
       { key: 'skill', component: SkillRow },
     ]
 
+    const FILE_INJECT_TOOLS = new Set([
+      'read', 'write', 'edit', 'apply_patch',
+      'office_render', 'office_convert', 'office_recalculate',
+    ])
+
     const AUGMENTED = [
+      'read', 'write', 'edit', 'apply_patch',
+      'office_render', 'office_convert', 'office_recalculate',
       'bash', 'pwsh', 'grep', 'glob', 'web_search', 'web_fetch', 'grok_search', 'openai_search',
-      'subagent', 'subagent_fork', 'spawn_teammate', 'wait_agent', 'send_message', 'interrupt_agent',
-      'job_output', 'terminal_read', 'workflow', 'ralph', 'lsp',
-      'cordis_inspect', 'cordis_inspect_self',
+      'subagent', 'subagent_fork', 'spawn_teammate', 'wait_agent', 'send_message', 'session_send_message', 'interrupt_agent', 'list_agents', 'list_subagent_models',
+      'job_list', 'job_output', 'job_kill',
+      'terminal_open', 'terminal_read', 'terminal_list', 'terminal_signal', 'terminal_close',
+      'workflow', 'ralph', 'lsp',
+      'cordis_inspect', 'cordis_inspect_list', 'cordis_inspect_query', 'cordis_inspect_self',
       'session_event_read', 'session_event_search', 'session_event_trace', 'session_search', 'session_trace',
+      'create_goal', 'get_goal', 'update_goal',
+      'schedule_create', 'schedule_list', 'schedule_view', 'schedule_edit', 'schedule_delete', 'schedule_update',
+      'team_task_create', 'team_task_get', 'team_task_update', 'team_task_list',
     ]
+
+    const NATIVE_TITLE_KEYS = {
+      read: 'tool.title.read',
+      write: 'tool.title.write',
+      edit: 'tool.title.edit',
+      apply_patch: 'tool.title.applyPatch',
+      office_render: 'tool.title.officeRender',
+      office_convert: 'tool.title.officeConvert',
+      office_recalculate: 'tool.title.officeRecalculate',
+      bash: 'tool.title.bash',
+      pwsh: 'tool.title.pwsh',
+      grep: 'tool.title.grep',
+      glob: 'tool.title.glob',
+      web_search: 'tool.title.webSearch',
+      web_fetch: 'tool.title.webFetch',
+      subagent: 'tool.title.subagent',
+      subagent_fork: 'tool.title.subagentFork',
+      spawn_teammate: 'tool.title.spawnTeammate',
+      wait_agent: 'tool.title.waitAgent',
+      send_message: 'tool.title.sendMessage',
+      session_send_message: 'tool.title.sendMessage',
+      interrupt_agent: 'tool.title.interruptAgent',
+      list_agents: 'tool.title.listAgents',
+      list_subagent_models: 'tool.title.listModels',
+      job_list: 'tool.title.listJobs',
+      job_output: 'tool.title.readJob',
+      job_kill: 'tool.title.killJob',
+      terminal_open: 'tool.title.openTerminal',
+      terminal_read: 'tool.title.readTerminal',
+      terminal_list: 'tool.title.listTerminals',
+      terminal_signal: 'tool.title.signalTerminal',
+      terminal_close: 'tool.title.closeTerminal',
+      workflow: 'tool.title.workflow',
+      ralph: 'tool.title.ralph',
+      lsp: 'tool.title.lsp',
+      cordis_inspect: 'tool.title.inspect',
+      cordis_inspect_list: 'tool.title.inspectProviders',
+      cordis_inspect_query: 'tool.title.queryRuntime',
+      cordis_inspect_self: 'tool.title.inspectPlugins',
+      session_event_read: 'tool.title.readEvent',
+      session_event_search: 'tool.title.searchEvents',
+      session_event_trace: 'tool.title.traceEvent',
+      session_search: 'tool.title.searchSessions',
+      session_trace: 'tool.title.traceSession',
+      create_goal: 'tool.title.createGoal',
+      get_goal: 'tool.title.getGoal',
+      update_goal: 'tool.title.updateGoal',
+      schedule_create: 'tool.title.createSchedule',
+      schedule_list: 'tool.title.listSchedules',
+      schedule_view: 'tool.title.viewSchedule',
+      schedule_edit: 'tool.title.editSchedule',
+      schedule_delete: 'tool.title.deleteSchedule',
+      schedule_update: 'tool.title.updateSchedule',
+      team_task_create: 'tool.title.createTeamTask',
+      team_task_get: 'tool.title.getTeamTask',
+      team_task_update: 'tool.title.updateTeamTask',
+      team_task_list: 'tool.title.listTeamTasks',
+    }
+
+    const LSP_TITLE_KEYS = {
+      goToDefinition: 'tool.title.findDefinition',
+      findReferences: 'tool.title.findReferences',
+      goToImplementation: 'tool.title.findImplementation',
+      hover: 'tool.title.hoverSymbol',
+    }
+
+    const WEB_FETCH_FAILURE_KEYS = {
+      WEB_FETCH_DNS_FAILED: 'tool.webFetch.failure.dns',
+      WEB_FETCH_CONNECTION_REFUSED: 'tool.webFetch.failure.refused',
+      WEB_FETCH_CONNECTION_TIMEOUT: 'tool.webFetch.failure.connectionTimeout',
+      WEB_FETCH_CERTIFICATE_INVALID: 'tool.webFetch.failure.certificate',
+      WEB_FETCH_CONNECTION_INTERRUPTED: 'tool.webFetch.failure.interrupted',
+      WEB_FETCH_NETWORK_UNREACHABLE: 'tool.webFetch.failure.unreachable',
+      WEB_FETCH_NETWORK_ERROR: 'tool.webFetch.failure.network',
+    }
+
+    const AGENT_TOOLS = new Set([
+      'subagent', 'subagent_fork', 'list_subagent_models', 'spawn_teammate',
+      'list_agents', 'send_message', 'session_send_message', 'interrupt_agent', 'wait_agent',
+    ])
+
+    const positiveInt = value => (typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : undefined)
+    const nonEmptyText = (...values) => values.find(v => typeof v === 'string' && v.trim() !== '')
+
+    function displayPath(rawPath, cwd, home) {
+      if (typeof rawPath !== 'string') return ''
+      const path = firstLine(rawPath).trim()
+      if (!path) return ''
+      const normPath = path.replace(/\\/g, '/')
+      if (typeof cwd === 'string' && cwd) {
+        const normCwd = cwd.replace(/\\/g, '/').replace(/\/+$/, '')
+        if (normPath === normCwd) return '.'
+        if (normCwd && normPath.startsWith(`${normCwd}/`)) return normPath.slice(normCwd.length + 1)
+      }
+      if (typeof home === 'string' && home) {
+        const normHome = home.replace(/\\/g, '/').replace(/\/+$/, '')
+        if (normPath === normHome) return '~'
+        if (normHome && normPath.startsWith(`${normHome}/`)) return `~/${normPath.slice(normHome.length + 1)}`
+      }
+      return path
+    }
+
+    function patchTargetsSummary(patchText, cwd, home) {
+      if (typeof patchText !== 'string' || !patchText) return ''
+      const targets = []
+      for (const line of patchText.split(/\r?\n/u)) {
+        const header = /^\*\*\* (?:Update|Add|Delete) File:\s*(.+)$/u.exec(line)
+        if (header) {
+          targets.push({ label: displayPath(header[1].trim(), cwd, home) })
+          continue
+        }
+        const move = /^\*\*\* Move to:\s*(.+)$/u.exec(line)
+        if (move && targets.length > 0) {
+          const prev = targets[targets.length - 1]
+          prev.label = `${prev.label} → ${displayPath(move[1].trim(), cwd, home)}`
+        }
+      }
+      return targets.map(item => item.label).filter(Boolean).join(', ')
+    }
+
+    function fallbackArgText(block, keys) {
+      const view = block?.args
+      if (!view || typeof view.text !== 'function') return undefined
+      for (const key of keys) {
+        const value = view.text(key)
+        if (typeof value === 'string' && value.trim() !== '') return value
+      }
+      return undefined
+    }
+
+    function failedToolSummary(toolName, block, cwd, home) {
+      const { args } = parseArgs(block)
+      const obj = args && !Array.isArray(args) ? args : null
+      if (toolName === 'read') {
+        const rawPath = nonEmptyText(obj?.file_path, obj?.path, fallbackArgText(block, ['file_path', 'path']))
+        if (!rawPath) return ''
+        const base = displayPath(rawPath, cwd, home)
+        const offset = positiveInt(obj?.offset ?? obj?.start_line ?? obj?.StartLine)
+        const endLine = positiveInt(obj?.end_line ?? obj?.EndLine)
+        const limit = positiveInt(obj?.limit)
+        if (offset !== undefined && endLine !== undefined) return `${base}:${offset}-${endLine}`
+        if (offset !== undefined && limit !== undefined) return `${base}:${offset}-${offset + limit - 1}`
+        if (offset !== undefined) return `${base}:${offset}`
+        if (endLine !== undefined) return `${base}:1-${endLine}`
+        return base
+      }
+      if (toolName === 'write' || toolName === 'edit' || toolName.startsWith('office_')) {
+        const rawPath = nonEmptyText(obj?.file_path, obj?.path, obj?.input_path, fallbackArgText(block, ['file_path', 'path', 'input_path']))
+        return rawPath ? displayPath(rawPath, cwd, home) : ''
+      }
+      if (toolName === 'apply_patch') {
+        const patch = nonEmptyText(obj?.input, fallbackArgText(block, ['input']))
+        return patch ? patchTargetsSummary(patch, cwd, home) : ''
+      }
+      if (toolName === 'bash' || toolName === 'pwsh') {
+        const text = nonEmptyText(obj?.description, obj?.command, fallbackArgText(block, ['description', 'command']))
+        return text ? firstLine(text).trim() : ''
+      }
+      if (toolName === 'grep' || toolName === 'glob') {
+        const pattern = nonEmptyText(obj?.pattern, obj?.query, fallbackArgText(block, ['pattern', 'query']))
+        const dir = nonEmptyText(obj?.path, obj?.file_path, fallbackArgText(block, ['path', 'file_path']))
+        return [pattern ? firstLine(pattern).trim() : '', dir ? displayPath(dir, cwd, home) : ''].filter(Boolean).join(' · ')
+      }
+      if (toolName === 'web_fetch') {
+        const url = nonEmptyText(obj?.url, fallbackArgText(block, ['url']))
+        return url ? firstLine(url).trim() : ''
+      }
+      if (toolName === 'web_search') {
+        if (Array.isArray(obj?.queries)) {
+          const queries = obj.queries.filter(q => typeof q === 'string' && q.trim() !== '').map(q => firstLine(q).trim())
+          if (queries.length > 0) return queries.join(', ')
+        }
+        const query = nonEmptyText(obj?.query, fallbackArgText(block, ['query']))
+        return query ? firstLine(query).trim() : ''
+      }
+      if (toolName === 'subagent' || toolName === 'subagent_fork') {
+        const text = nonEmptyText(obj?.description, obj?.prompt, fallbackArgText(block, ['description', 'prompt']))
+        return text ? firstLine(text).trim() : ''
+      }
+      if (AGENT_TOOLS.has(toolName)) {
+        const text = nonEmptyText(obj?.name, obj?.agent, obj?.target, obj?.description, fallbackArgText(block, ['name', 'agent', 'target', 'description']))
+        return text ? firstLine(text).trim() : ''
+      }
+      if (toolName === 'lsp') {
+        const file = nonEmptyText(obj?.file_path, obj?.path, fallbackArgText(block, ['file_path', 'path']))
+        const symbol = nonEmptyText(obj?.symbol, obj?.query, fallbackArgText(block, ['symbol', 'query']))
+        const line = positiveInt(obj?.line)
+        const loc = file ? `${displayPath(file, cwd, home)}${line ? `:${line}` : ''}` : ''
+        return [loc, symbol ? firstLine(symbol).trim() : ''].filter(Boolean).join(' · ')
+      }
+      if (!obj) {
+        const fallback = fallbackArgText(block, ['description', 'title', 'name', 'file_path', 'path', 'query', 'pattern', 'command', 'url'])
+        return fallback ? firstLine(fallback).trim() : ''
+      }
+      const pathKey = nonEmptyText(obj.file_path, obj.path)
+      if (pathKey) return displayPath(pathKey, cwd, home)
+      const picked = nonEmptyText(
+        obj.description, obj.title, obj.name, obj.query, obj.pattern,
+        obj.job_id, obj.terminal_id, obj.session_id, obj.schedule_id, obj.goal_id, obj.task_id, obj.id,
+        obj.command, obj.url,
+      )
+      if (picked) return firstLine(picked).trim()
+      for (const value of Object.values(obj)) {
+        if (typeof value === 'string' && value.trim() !== '') return firstLine(value).trim()
+      }
+      return ''
+    }
+
+    function nativeToolIcon(toolName) {
+      if (toolName === 'read' || toolName === 'web_fetch' || toolName.startsWith('office_')) return h(IconBrowseOutlineRegular, { size: 14 })
+      if (toolName === 'write' || toolName === 'edit' || toolName === 'apply_patch') return h(IconEditOutlineRegular, { size: 14 })
+      if (toolName === 'bash' || toolName === 'pwsh') return h(IconApiOutlineRegular, { size: 14 })
+      if (toolName === 'grep' || toolName === 'glob' || toolName === 'lsp' || toolName.startsWith('session_')) return h(IconSearchOutlineRegular, { size: 14 })
+      if (toolName === 'web_search') return h(IconGlobeOutlineRegular, { size: 14 })
+      if (AGENT_TOOLS.has(toolName)) return h(IconUsersOutlineRegular, { size: 14 })
+      if (toolName.startsWith('schedule_')) return h(IconClockOutlineRegular, { size: 14 })
+      if (toolName.endsWith('_goal')) return h(IconGoalOutlineRegular, { size: 14 })
+      if (toolName.startsWith('cordis_')) return h(IconCordisPluginOutlineRegular, { size: 14 })
+      if (toolName.startsWith('terminal_')) return h(IconCodeOutlineRegular, { size: 14 })
+      if (toolName.startsWith('job_') || toolName.startsWith('team_task_')) return h(IconChecklistOutlineRegular, { size: 14 })
+      if (toolName === 'workflow' || toolName === 'ralph') return h(IconBranchOutlineRegular, { size: 14 })
+      return h(IconSparkleRegular, { size: 14 })
+    }
+
+    function nativeToolTitleKey(toolName, args) {
+      if (toolName === 'lsp' && typeof args?.operation === 'string' && Object.hasOwn(LSP_TITLE_KEYS, args.operation)) {
+        return LSP_TITLE_KEYS[args.operation]
+      }
+      if (toolName === 'cordis_inspect') {
+        return args?.query === undefined ? 'tool.title.inspectProviders' : 'tool.title.queryRuntime'
+      }
+      return NATIVE_TITLE_KEYS[toolName] ?? 'tool.title.generic'
+    }
+
     const LIST_CAP = 50
     const MAX_LINE_JUMPS = 6
     const SPILL_MARK = ' Full formatted result stored at: '
@@ -432,13 +708,67 @@ window.__ModuleLoader__.load({
         }, typeof icon === 'function' ? h(icon) : icon, label)
       }
 
+      function FailedToolRow({ toolName, block, cwd, home, inspect, useDisclosure, t }) {
+        const { expanded, toggle } = useDisclosure()
+        const { raw, args } = parseArgs(block)
+        const summary = failedToolSummary(toolName, block, cwd, home)
+        const output = resultText(block)
+        const code = 'kind' in block ? block.error?.code : undefined
+        const errorBadge = toolName === 'web_fetch' && typeof code === 'string' && Object.hasOwn(WEB_FETCH_FAILURE_KEYS, code)
+          ? t(WEB_FETCH_FAILURE_KEYS[code])
+          : output !== null ? firstLine(output).trim() : ''
+        const inputText = args !== null && Object.keys(args).length > 0
+          ? JSON.stringify(args, null, 2)
+          : (raw.trim() || null)
+        const expandable = inputText !== null || output !== null
+        const open = expanded && expandable
+        const title = t(nativeToolTitleKey(toolName, args))
+
+        return h('div', { className: 'dtl-card', 'data-tool': toolName, 'data-state': 'error' },
+          h(DisclosureRow, {
+            rowClassName: 'dtl-row',
+            icon: nativeToolIcon(toolName),
+            title,
+            running: false,
+            open,
+            expandable,
+            expandOnRowClick: true,
+            keepContentWhenOpen: true,
+            onToggle: toggle,
+            collapsedContent: h(React.Fragment, null,
+              h('span', { className: 'dtl-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
+              h('span', { className: 'dtl-summary', title: summary }, h(TextShimmer, null, summary)),
+              errorBadge ? h(Tag, { tone: 'neutral', className: 'dtl-err-badge', title: errorBadge },
+                h('span', { className: 'dtl-err-dot', 'aria-hidden': true }),
+                h('span', { className: 'dtl-err-text', title: errorBadge }, errorBadge)) : null),
+          },
+          open ? h('div', { className: 'dtl-body' },
+            inputText !== null || output !== null ? h('div', { className: 'dtl-io' },
+              inputText !== null ? h('div', { className: 'dtl-io-sec' },
+                h('span', { className: 'dtl-io-label' }, t('row.input')),
+                h('span', { className: 'dtl-io-text' }, inputText)) : null,
+              inputText !== null && output !== null ? h('span', { className: 'dtl-io-div', 'aria-hidden': true }) : null,
+              output !== null ? h('div', { className: 'dtl-io-sec' },
+                h('span', { className: 'dtl-io-label' }, t('row.output')),
+                h('span', { className: 'dtl-io-text', 'data-error': true }, output)) : null) : null,
+            inspect === undefined ? null : h('button', { type: 'button', className: 'dtl-inspect', onClick: inspect },
+              h(IconInspectOutlineRegular), t('row.inspect'))) : null))
+      }
+
       function AugmentedRow(props) {
         React.useSyncExternalStore(subscribeLocale, localeSnapshot)
-        const { toolName, block, phase, openFile, sessionId, useContextMenu } = props
+        const { toolName, block, phase, cwd, home, openFile, sessionId, useContextMenu } = props
         const { getTriggerProps } = useContextMenu()
         const [list, setList] = React.useState(null)
-        const base = baseEntry(toolName, AugmentedRow)
-        const inner = base === undefined ? null : h(base.component, props)
+        const isParsedFailure = phase === 'result'
+          && 'kind' in block
+          && block.isError === true
+          && block.error?.code !== 'interrupted'
+          && block.error?.code !== 'AUTO_REVIEW_DENIED'
+          && Object.hasOwn(NATIVE_TITLE_KEYS, toolName)
+          && failedToolSummary(toolName, block, cwd, home) !== ''
+        const base = isParsedFailure ? undefined : baseEntry(toolName, AugmentedRow)
+        const inner = isParsedFailure ? h(FailedToolRow, props) : (base === undefined ? null : h(base.component, props))
         if (phase === 'preparing') return inner
 
         const spill = spillPath(block)
@@ -661,6 +991,20 @@ window.__ModuleLoader__.load({
           }, lens.component))
         }
 
+        const sessionDir = sessionId => {
+          const live = ctx.sessions.binding?.(sessionId)?.session?.projections?.faceOf?.('workingDirectory')?.getSnapshot?.()
+          if (typeof live === 'string' && live) return live
+          const snap = ctx.sessions.list?.getSnapshot?.()
+          const projected = snap?.projectionsBySession?.[sessionId]?.values?.workingDirectory
+            ?? snap?.byId?.[sessionId]?.projectionValues?.workingDirectory
+          if (typeof projected === 'string' && projected) return projected
+          return snap?.byId?.[sessionId]?.cwd
+        }
+
+        const fileInject = sessionId => ({
+          resolveFilePath: path => resolveFilePathFor(sessionDir(sessionId), path),
+        })
+
         const AugmentedRow = createAugmentLens(ctx)
         for (const key of AUGMENTED) {
           ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
@@ -668,12 +1012,14 @@ window.__ModuleLoader__.load({
             key,
             priority: AUGMENT_PRIORITY,
             locale: 'conversation',
+            ...(FILE_INJECT_TOOLS.has(key) ? { inject: fileInject } : {}),
           }, AugmentedRow))
         }
       },
       _internal: {
         AUGMENTED,
         baseDirectory,
+        failedToolSummary,
         fileAddressFor,
         spillPath,
         subagentChild,
@@ -708,10 +1054,14 @@ window.__ModuleLoader__.load({
       }
       return `${prefix}${parts.join('/')}`
     }
-    function fileAddressFor(sessionId, cwd, path) {
+    function resolveFilePathFor(cwd, path) {
+      if (typeof path !== 'string' || !path) return ''
       const normalized = path.replace(/\\/g, '/')
       const absolute = normalized.startsWith('/') || /^[A-Za-z]:\//.test(normalized) || normalized.startsWith('//')
-      return sessionFileAddress(sessionId, absolute ? normalized : joinCwd(cwd, normalized))
+      return absolute ? normalized : joinCwd(cwd, normalized)
+    }
+    function fileAddressFor(sessionId, cwd, path) {
+      return sessionFileAddress(sessionId, resolveFilePathFor(cwd, path))
     }
   },
 })

@@ -7,6 +7,7 @@ window.__ModuleLoader__.load({
       IconGlobeOutlineRegular,
       IconInspectOutlineRegular,
       Switch,
+      Tag,
       TextShimmer,
       WebBlock,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
@@ -110,6 +111,9 @@ window.__ModuleLoader__.load({
 .wa-summary{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .wa-summary.wa-err{color:var(--dsw-alias-state-error-primary)}
 .wa-summary.wa-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.wa-err-badge{flex:0 1 auto;min-width:0;max-width:min(45%,300px);margin-left:8px;gap:5px}
+.wa-err-dot{flex:none;width:4px;height:4px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-error-primary)}
+.wa-err-text{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .wa-suffix{flex:none;margin-left:4px;white-space:nowrap;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
 .wa-body{display:flex;flex-direction:column;min-width:0}
 .wa-web{margin:4px 0 4px 4px}
@@ -117,8 +121,10 @@ window.__ModuleLoader__.load({
 .wa-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
 .wa-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
 .wa-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.wa-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
 .wa-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
-.wa-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-state-error-primary)}
+.wa-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.wa-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .wa-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
 .wa-inspect:focus-visible{opacity:1}
 @media (hover:hover){.wa-card:hover .wa-inspect{opacity:1}.wa-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
@@ -230,9 +236,12 @@ window.__ModuleLoader__.load({
           const expandable = hasWebResult || hasErrorBody
           const open = expanded && expandable
 
+          const errorLine = parsed.state === 'error' && parsed.text ? firstLine(parsed.text) : ''
+          const showErrorBadge = parsed.state === 'error' && Boolean(parsed.query && errorLine)
+          const summaryIsError = parsed.state === 'error' && !parsed.query && Boolean(errorLine)
           let summary = parsed.query
           if (parsed.state === 'stopped') summary = t('searchStopped')
-          else if (parsed.state === 'error' && parsed.text) summary = firstLine(parsed.text)
+          else if (summaryIsError) summary = errorLine
           const settledWithCue = parsed.state === 'error' || parsed.state === 'stopped'
           const suffix = settledWithCue ? '' : [
             channel,
@@ -253,8 +262,13 @@ window.__ModuleLoader__.load({
               collapsedContent: parsed.state === 'preparing' ? null : h(React.Fragment, null,
                 summary ? h(React.Fragment, null,
                   h('span', { className: 'wa-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
-                  h('span', { className: `wa-summary${parsed.state === 'error' ? ' wa-err' : parsed.state === 'stopped' ? ' wa-stop' : ''}` },
-                    h(TextShimmer, null, summary))) : null,
+                  h('span', {
+                    className: `wa-summary${summaryIsError ? ' wa-err' : parsed.state === 'stopped' ? ' wa-stop' : ''}`,
+                    title: summary,
+                  }, h(TextShimmer, null, summary))) : null,
+                showErrorBadge ? h(Tag, { tone: 'neutral', className: 'wa-err-badge', title: errorLine },
+                  h('span', { className: 'wa-err-dot', 'aria-hidden': true }),
+                  h('span', { className: 'wa-err-text', title: errorLine }, errorLine)) : null,
                 suffix ? h(TextShimmer, { className: 'wa-suffix' }, summary ? `· ${suffix}` : suffix) : null),
             },
             open ? h('div', { className: 'wa-body' },
@@ -267,9 +281,13 @@ window.__ModuleLoader__.load({
                 className: 'wa-web',
               }) : null,
               hasErrorBody ? h('div', { className: 'wa-io' },
+                parsed.query ? h('div', { className: 'wa-io-sec' },
+                  h('span', { className: 'wa-io-label' }, ct('row.input')),
+                  h('span', { className: 'wa-io-text' }, parsed.query)) : null,
+                parsed.query ? h('span', { className: 'wa-io-div', 'aria-hidden': true }) : null,
                 h('div', { className: 'wa-io-sec' },
                   h('span', { className: 'wa-io-label' }, ct('row.output')),
-                  h('span', { className: 'wa-io-text' }, parsed.text))) : null,
+                  h('span', { className: 'wa-io-text', 'data-error': true }, parsed.text))) : null,
               inspect ? h('button', { type: 'button', className: 'wa-inspect', onClick: inspect },
                 h(IconInspectOutlineRegular), t('searchInspect')) : null) : null))
         }
