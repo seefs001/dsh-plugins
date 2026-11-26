@@ -226,7 +226,16 @@ const noRemovedHostApis = {
     docs: { description: 'Disallow removed or nonexistent DSH 0.2.3 host APIs and browser native dialogs.' },
   },
   create(context) {
+    const rel = getRelPath(context)
     return {
+      Identifier(node) {
+        if (isPackageFile(rel) && node.name === 'browserPeer') {
+          context.report({
+            node,
+            message: 'Do not use browserPeer in DSH 0.2.3; do not rely on browserPeer identity checks.',
+          })
+        }
+      },
       MemberExpression(node) {
         if (node.computed) return
         const prop = propName(node.property)
@@ -255,6 +264,28 @@ const noRemovedHostApis = {
           context.report({
             node,
             message: 'DSH 0.2.3 has no ctx.connection.requestRejection. Handle rejection via HTTP status or explicit guard.',
+          })
+          return
+        }
+
+        if (prop === 'admit' && (
+          (obj?.type === 'Identifier' && obj.name === 'connection')
+          || (obj?.type === 'MemberExpression' && !obj.computed && propName(obj.property) === 'connection')
+        )) {
+          context.report({
+            node,
+            message: 'Do not call ctx.connection.admit(req) in route handlers; use the admitted third handler(req, res, peer) argument from ctx.webServer.register().',
+          })
+          return
+        }
+
+        if (prop === 'register' && (
+          (obj?.type === 'Identifier' && obj.name === 'storageDomain')
+          || (obj?.type === 'MemberExpression' && !obj.computed && propName(obj.property) === 'storageDomain')
+        )) {
+          context.report({
+            node,
+            message: 'DSH 0.2.3 removed storageDomain.register(). Use storageDomain.open(spec) with an "already-open" retry loop.',
           })
           return
         }
@@ -677,6 +708,19 @@ const safeIntervals = {
         }
 
         for (const { call, scope, targetText } of serverCalls) {
+          const cb = call.arguments?.[0]
+          if (cb) {
+            let bodyText = context.sourceCode.getText(cb)
+            if (cb.type === 'Identifier' && fnBodies.has(cb.name)) {
+              bodyText = fnBodies.get(cb.name)
+            }
+            if (/\.\s*write\s*\(/.test(bodyText) && !/\bdestroyed\b|\bwritableEnded\b/.test(bodyText)) {
+              context.report({
+                node: call,
+                message: 'Server setInterval() writing to a response stream must guard (res.destroyed || res.writableEnded) before calling .write().',
+              })
+            }
+          }
           const parent = call.parent
           if (
             parent?.type === 'MemberExpression'
@@ -805,6 +849,176 @@ const noServerHotSyncFs = {
   },
 }
 
+const SKIP_NESTED_FUNCTIONS = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'])
+
+function visitFunctionScope(node, isRoot, visitor) {
+  if (!node || typeof node !== 'object') return
+  if (Array.isArray(node)) {
+    for (const item of node) visitFunctionScope(item, false, visitor)
+    return
+  }
+  if (typeof node.type !== 'string') return
+  if (!isRoot && SKIP_NESTED_FUNCTIONS.has(node.type)) return
+  visitor(node)
+  for (const [key, value] of Object.entries(node)) {
+    if (key === 'parent' || key === 'loc' || key === 'range' || key === 'tokens' || key === 'comments') continue
+    if (value && typeof value === 'object') visitFunctionScope(value, false, visitor)
+  }
+}
+
+const noWithdrawViewNode = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Disallow Conversation buildViewNode definitions from returning null once materialized instead of returning hidden visibility.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isClientFile(rel)) return {}
+
+    const objectVars = new Map()
+    const fnVars = new Map()
+    const registered = []
+
+    function isConversationEventsRegister(node) {
+      const callee = unwrapChain(node.callee)
+      if (callee?.type !== 'MemberExpression' || callee.computed || propName(callee.property) !== 'register') return false
+      const eventsObj = unwrapChain(callee.object)
+      if (eventsObj?.type !== 'MemberExpression' || eventsObj.computed || propName(eventsObj.property) !== 'events') return false
+      const convObj = unwrapChain(eventsObj.object)
+      return (convObj?.type === 'Identifier' && convObj.name === 'uiConversation')
+        || (convObj?.type === 'MemberExpression' && !convObj.computed && propName(convObj.property) === 'uiConversation')
+    }
+
+    function analyzeReturnExpr(expr, guardedByCurrent, out) {
+      if (!expr) return
+      if (expr.type === 'Literal' && expr.value === null) {
+        out.returnsNull = true
+        if (!guardedByCurrent) out.unguardedNulls.push(expr)
+        return
+      }
+      if (expr.type === 'ConditionalExpression') {
+        const testText = context.sourceCode.getText(expr.test)
+        const nextGuard = guardedByCurrent || /\bcurrent\b/.test(testText)
+        analyzeReturnExpr(expr.consequent, nextGuard, out)
+        analyzeReturnExpr(expr.alternate, nextGuard, out)
+        return
+      }
+      out.returnsNonNull = true
+    }
+
+    function isGuardedByAncestorCurrent(stmt, stopNode) {
+      let cur = stmt.parent
+      while (cur && cur !== stopNode) {
+        if (cur.type === 'IfStatement' && /\bcurrent\b/.test(context.sourceCode.getText(cur.test))) {
+          return true
+        }
+        cur = cur.parent
+      }
+      return false
+    }
+
+    function checkDefinition(defNode) {
+      if (!defNode || defNode.type !== 'ObjectExpression') return
+      const prop = defNode.properties.find(p => p.type === 'Property' && !p.computed && propName(p.key) === 'buildViewNode')
+      if (!prop) return
+      let fn = prop.value
+      if (fn?.type === 'Identifier') fn = fnVars.get(fn.name)
+      if (!fn || !SKIP_NESTED_FUNCTIONS.has(fn.type)) return
+
+      const out = { returnsNull: false, returnsNonNull: false, unguardedNulls: [] }
+      if (fn.type === 'ArrowFunctionExpression' && fn.body.type !== 'BlockStatement') {
+        analyzeReturnExpr(fn.body, false, out)
+      } else {
+        visitFunctionScope(fn.body, true, inner => {
+          if (inner.type !== 'ReturnStatement') return
+          const guarded = isGuardedByAncestorCurrent(inner, fn)
+          analyzeReturnExpr(inner.argument, guarded, out)
+        })
+      }
+
+      if (!out.returnsNull || !out.returnsNonNull) return
+      const fnText = context.sourceCode.getText(fn)
+      const readsCurrent = /\.current\b/.test(fnText)
+      const emitsHidden = /['"]hidden['"]/.test(fnText)
+      if (!readsCurrent || !emitsHidden || out.unguardedNulls.length > 0) {
+        context.report({
+          node: out.unguardedNulls[0] ?? fn,
+          message: 'buildViewNode must not withdraw a materialized target by returning null; read context.current?.get(target) and return { ...current, visibility: "hidden" } when current is non-null.',
+        })
+      }
+    }
+
+    return {
+      VariableDeclarator(node) {
+        if (node.id?.type !== 'Identifier' || !node.init) return
+        if (node.init.type === 'ObjectExpression') objectVars.set(node.id.name, node.init)
+        else if (SKIP_NESTED_FUNCTIONS.has(node.init.type)) fnVars.set(node.id.name, node.init)
+      },
+      FunctionDeclaration(node) {
+        if (node.id?.name) fnVars.set(node.id.name, node)
+      },
+      CallExpression(node) {
+        if (!isConversationEventsRegister(node)) return
+        const firstArg = node.arguments?.[0]
+        if (firstArg) registered.push(firstArg)
+      },
+      'Program:exit'() {
+        for (const arg of registered) {
+          const defObj = arg.type === 'Identifier' ? objectVars.get(arg.name) : arg
+          checkDefinition(defObj)
+        }
+      },
+    }
+  },
+}
+
+const LOOP_TYPES = new Set(['ForStatement', 'WhileStatement', 'DoWhileStatement'])
+
+const safeStorageDomainOpen = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Require server storageDomain.open() calls to retry DomainError("already-open") across plugin reload overlap.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isServerFile(rel)) return {}
+
+    return {
+      CallExpression(node) {
+        const callee = unwrapChain(node.callee)
+        if (callee?.type !== 'MemberExpression' || callee.computed || propName(callee.property) !== 'open') return
+        const target = unwrapChain(callee.object)
+        const isStorageDomain =
+          (target?.type === 'Identifier' && target.name === 'storageDomain')
+          || (target?.type === 'MemberExpression' && !target.computed && propName(target.property) === 'storageDomain')
+        if (!isStorageDomain) return
+
+        let inAlreadyOpenTry = false
+        let inLoop = false
+        let prev = node
+        let cur = node.parent
+        while (cur) {
+          if (cur.type === 'TryStatement' && cur.block === prev && cur.handler) {
+            const catchText = context.sourceCode.getText(cur.handler)
+            if (/['"]already-open['"]/.test(catchText)) inAlreadyOpenTry = true
+          }
+          if (LOOP_TYPES.has(cur.type)) inLoop = true
+          if (SKIP_NESTED_FUNCTIONS.has(cur.type)) break
+          prev = cur
+          cur = cur.parent
+        }
+
+        if (!inAlreadyOpenTry || !inLoop) {
+          context.report({
+            node,
+            message: 'storageDomain.open() can throw DomainError("already-open") during DSH plugin reload; wrap it in a bounded retry loop checking error?.code === "already-open".',
+          })
+        }
+      },
+    }
+  },
+}
+
 export default {
   meta: { name: 'dsh' },
   rules: {
@@ -822,5 +1036,7 @@ export default {
     'safe-intervals': safeIntervals,
     'no-new-always-on-observers': noNewAlwaysOnObservers,
     'no-server-hot-sync-fs': noServerHotSyncFs,
+    'no-withdraw-view-node': noWithdrawViewNode,
+    'safe-storage-domain-open': safeStorageDomainOpen,
   },
 }

@@ -44,6 +44,8 @@
     "dsh/no-unconstrained-nowrap": "error",
     "dsh/safe-intervals": "error",
     "dsh/no-new-always-on-observers": "error",
-    "dsh/no-server-hot-sync-fs": "error"
+    "dsh/no-server-hot-sync-fs": "error",
+    "dsh/no-withdraw-view-node": "error",
+    "dsh/safe-storage-domain-open": "error"
   }
 }
