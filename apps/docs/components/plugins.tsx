@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { CodeBlock, Pre } from 'fumadocs-ui/components/codeblock'
 import { categories, getPlugin, plugins, pluginsIn, type CategoryId, type PluginInfo } from '@/lib/plugins'
+import { repository } from '@/lib/site'
 
 function Surface({ plugin }: { plugin: PluginInfo }) {
   return <span className="dp-tag" title="运行位置">{plugin.surface}</span>
@@ -31,7 +32,7 @@ export function PluginFacts({ slug }: { slug: string }) {
         </div>
       </dl>
       <p className="dp-facts-source">
-        <a href={`https://github.com/seefs001/dsh-plugins/tree/main/packages/${plugin.slug}`}>源码与 README</a>
+        <a href={`${repository}/tree/main/packages/${plugin.slug}`} target="_blank" rel="noreferrer noopener">源码与 README</a>
       </p>
     </section>
   )

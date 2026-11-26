@@ -340,6 +340,7 @@
 
 .dp-tag-warn {
   border-color: transparent;
+  border-radius: 0.5rem;
   background: var(--dp-warn-bg);
   color: var(--dp-warn-fg);
   white-space: normal;

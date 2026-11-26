@@ -34,7 +34,7 @@ export default async function Page({ params }: Props) {
       </DocsBody>
       <a
         href={`${repository}/edit/main/apps/docs/content/docs/${page.path}`}
-        className="mt-8 text-sm text-fd-muted-foreground hover:text-fd-primary"
+        className="mt-8 inline-flex w-fit text-sm text-fd-muted-foreground hover:text-fd-primary"
         target="_blank"
         rel="noreferrer noopener"
       >

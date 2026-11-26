@@ -66,9 +66,9 @@ export default function HomePage() {
         <footer className="dp-footer">
           <p>代码采用 MIT 协议；AI 吉祥物引用的外部角色素材适用独立的非商业条款。</p>
           <div>
-            <a href={`${repository}/blob/main/LICENSE`}>MIT License</a>
-            <a href={repository}>GitHub</a>
-            <a href="https://fumadocs.dev">Fumadocs</a>
+            <a href={`${repository}/blob/main/LICENSE`} target="_blank" rel="noreferrer noopener">MIT License</a>
+            <a href={repository} target="_blank" rel="noreferrer noopener">GitHub</a>
+            <a href="https://fumadocs.dev" target="_blank" rel="noreferrer noopener">Fumadocs</a>
           </div>
         </footer>
       </div>
