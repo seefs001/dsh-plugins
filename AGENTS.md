@@ -15,6 +15,8 @@
 | 禁注释（保留 shebang、文件头许可证、单行 URL、`// external: <reason>`）、禁 lint/TS 抑制注释、禁旧兼容标识 | `dsh/no-comments`、`dsh/no-suppression-comments`、`dsh/no-legacy-compat` |
 | 禁用 DSH 0.2.3 已移除/禁用接口（`ctx.locale.t`、`session.events`、`requestRejection`、`ctx.connection.admit`、`storageDomain.register`、`browserPeer`、Electron 不可用的 `window.prompt/confirm/alert`，以及测试 stub 虚构 `locale.t`） | `dsh/no-removed-host-apis` |
 | `uiConversation.events.register()` 的 `buildViewNode` 禁止对已物化节点返回 `null`（须查 `context.current?.get(target)` 并返回同 `key` 的 `visibility: 'hidden'`） | `dsh/no-withdraw-view-node` |
+| 禁覆盖声明了子槽位的宿主槽位/条目（如 `sidebar.right.pane.tab` 内置页与容器槽位，改用子槽位或声明私有镜像子槽位）；委托 `base.component` 须合并 `base.inject?.()` 与按语言版本刷新的翻译函数，禁在缓存的 `inject` 中静态 `ctx.locale.bind()` | `dsh/safe-slot-shadowing` |
+| 客户端 `Switch` 必须提供非空 `label`（或 `aria-label` / `aria-labelledby`） | `dsh/require-switch-label` |
 | 服务端 `storageDomain.open()` 必须包裹在检查 `error?.code === 'already-open'` 的有界重试循环中 | `dsh/safe-storage-domain-open` |
 | `commandUi.register()` 必填 `available` 回调（缺失会导致 `+` / `/` 菜单整体崩溃） | `dsh/require-command-available` |
 | `useProjection('modelSelection')` 必须解包 `next ?? lastUsed`，禁止直读 `.provider` / `.model` / `.reasoningEffort` | `dsh/no-direct-model-selection-fields` |

@@ -46,6 +46,8 @@
     "dsh/no-new-always-on-observers": "error",
     "dsh/no-server-hot-sync-fs": "error",
     "dsh/no-withdraw-view-node": "error",
-    "dsh/safe-storage-domain-open": "error"
+    "dsh/safe-storage-domain-open": "error",
+    "dsh/safe-slot-shadowing": "error",
+    "dsh/require-switch-label": "error"
   }
 }

@@ -1019,6 +1019,267 @@ const safeStorageDomainOpen = {
   },
 }
 
+const SINGLE_CHILD_OWNER_SLOTS = new Set([
+  'root',
+  'sidebar',
+  'rightbar',
+  'rightbar.session',
+  'main.conversation',
+  'conversation.session',
+  'conversation.view',
+  'conversation.chat.flow',
+  'conversation.composer.bar',
+  'conversation.composer',
+  'conversation.header',
+  'conversation.session.header',
+  'conversation.chat.aside',
+  'conversation.input.model',
+  'sidebar.workspaces',
+  'sidebar.settings',
+])
+
+const CHILDREN_OWNING_HOST_ENTRIES = {
+  'tool.call.toolview': { field: 'key', values: new Set(['read_image', 'cordis_run']) },
+  'conversation.chat.node': { field: 'key', values: new Set(['user', 'assistant', 'tool-call']) },
+  'conversation.session.panel.section': { field: 'id', values: new Set(['environment', 'change-requests']) },
+  'conversation.chat.turnTail': { field: 'id', values: new Set(['deliverables']) },
+}
+
+function resolveStaticScalar(node, constValues) {
+  if (!node) return undefined
+  if (node.type === 'Literal') return node.value
+  if (node.type === 'UnaryExpression' && node.operator === '-' && node.argument?.type === 'Literal' && typeof node.argument.value === 'number') {
+    return -node.argument.value
+  }
+  if (node.type === 'Identifier' && constValues.has(node.name)) return constValues.get(node.name)
+  return undefined
+}
+
+function findObjectProperty(objNode, name) {
+  if (!objNode || objNode.type !== 'ObjectExpression') return null
+  return objNode.properties.find(p => p.type === 'Property' && !p.computed && propName(p.key) === name) ?? null
+}
+
+function isSlotsCall(node, method) {
+  const callee = unwrapChain(node?.callee)
+  if (callee?.type !== 'MemberExpression' || callee.computed || propName(callee.property) !== method) return false
+  const obj = unwrapChain(callee.object)
+  return (obj?.type === 'Identifier' && obj.name === 'slots')
+    || (obj?.type === 'MemberExpression' && !obj.computed && propName(obj.property) === 'slots')
+}
+
+function isCreateElementCall(node) {
+  const callee = unwrapChain(node?.callee)
+  if (callee?.type === 'Identifier' && callee.name === 'h') return true
+  return callee?.type === 'MemberExpression' && !callee.computed && propName(callee.property) === 'createElement'
+}
+
+const safeSlotShadowing = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Prevent unsafe DSH slot shadowing that drops declared children/renderSlot, unguarded base.inject calls, raw base.component delegation, or cached locale.bind inside inject.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isClientFile(rel)) return {}
+
+    const constValues = new Map()
+    const objectVars = new Map()
+    const fnVars = new Map()
+    const registerCalls = []
+    const componentDelegations = []
+    const unguardedInjectCalls = []
+    let readsSlotEntries = false
+
+    function containsLocaleBind(node) {
+      let hit = null
+      visitFunctionScope(node, true, inner => {
+        if (hit || inner.type !== 'CallExpression') return
+        const callee = unwrapChain(inner.callee)
+        if (callee?.type !== 'MemberExpression' || callee.computed || propName(callee.property) !== 'bind') return
+        const target = unwrapChain(callee.object)
+        const isLocale = (target?.type === 'Identifier' && target.name === 'locale')
+          || (target?.type === 'MemberExpression' && !target.computed && propName(target.property) === 'locale')
+        if (isLocale) hit = inner
+      })
+      return hit
+    }
+
+    return {
+      VariableDeclarator(node) {
+        if (node.id?.type !== 'Identifier' || !node.init) return
+        const name = node.id.name
+        if (node.parent?.kind === 'const') {
+          const val = resolveStaticScalar(node.init, constValues)
+          if (val !== undefined) {
+            if (!constValues.has(name)) constValues.set(name, val)
+            else if (constValues.get(name) !== val) constValues.set(name, undefined)
+          }
+        }
+        if (node.init.type === 'ObjectExpression') {
+          if (!objectVars.has(name)) objectVars.set(name, node.init)
+          else objectVars.set(name, null)
+        } else if (SKIP_NESTED_FUNCTIONS.has(node.init.type)) {
+          if (!fnVars.has(name)) fnVars.set(name, node.init)
+          else fnVars.set(name, null)
+        }
+      },
+      FunctionDeclaration(node) {
+        if (node.id?.name) {
+          if (!fnVars.has(node.id.name)) fnVars.set(node.id.name, node)
+          else fnVars.set(node.id.name, null)
+        }
+      },
+      CallExpression(node) {
+        if (isSlotsCall(node, 'entries')) {
+          readsSlotEntries = true
+          return
+        }
+        if (isSlotsCall(node, 'register')) {
+          registerCalls.push(node)
+          return
+        }
+        if (isCreateElementCall(node)) {
+          const first = unwrapChain(node.arguments?.[0])
+          const second = node.arguments?.[1]
+          if (
+            first?.type === 'MemberExpression'
+            && !first.computed
+            && propName(first.property) === 'component'
+            && second?.type === 'Identifier'
+          ) {
+            componentDelegations.push(node)
+          }
+        }
+        const callee = unwrapChain(node.callee)
+        if (
+          callee?.type === 'MemberExpression'
+          && !callee.computed
+          && propName(callee.property) === 'inject'
+          && !node.optional
+        ) {
+          const receiver = unwrapChain(callee.object)
+          const firstArg = node.arguments?.[0]
+          const isContextOrSlots =
+            (receiver?.type === 'Identifier' && (receiver.name === 'ctx' || receiver.name === 'scope' || receiver.name === 'slots'))
+            || (receiver?.type === 'MemberExpression' && !receiver.computed && (propName(receiver.property) === 'ctx' || propName(receiver.property) === 'slots'))
+            || firstArg?.type === 'ArrayExpression'
+          if (!isContextOrSlots) unguardedInjectCalls.push(node)
+        }
+      },
+      'Program:exit'() {
+        for (const call of registerCalls) {
+          const rawOpt = call.arguments?.[0]
+          const optObj = rawOpt?.type === 'ObjectExpression'
+            ? rawOpt
+            : (rawOpt?.type === 'Identifier' ? objectVars.get(rawOpt.name) : null)
+          if (!optObj) continue
+
+          const slotName = resolveStaticScalar(findObjectProperty(optObj, 'name')?.value, constValues)
+          const entryKey = resolveStaticScalar(findObjectProperty(optObj, 'key')?.value, constValues)
+          const entryId = resolveStaticScalar(findObjectProperty(optObj, 'id')?.value, constValues)
+          const priority = resolveStaticScalar(findObjectProperty(optObj, 'priority')?.value, constValues)
+          const hasChildren = Boolean(findObjectProperty(optObj, 'children'))
+
+          if (typeof slotName === 'string' && SINGLE_CHILD_OWNER_SLOTS.has(slotName)) {
+            context.report({
+              node: rawOpt,
+              message: `Do not shadow host container slot "${slotName}"; shadowing it removes its declared child slots and breaks renderSlot. Register into one of its child slots instead.`,
+            })
+          } else if (
+            slotName === 'sidebar.right.pane.tab'
+            && ((typeof entryKey === 'string' && entryKey.startsWith('@deepseek-ai/')) || (typeof priority === 'number' && priority < 0))
+          ) {
+            context.report({
+              node: rawOpt,
+              message: 'Do not shadow built-in "sidebar.right.pane.tab" entries (they declare child slots like forge.changes.toolbar and SlotCore forbids duplicate children, causing "renderSlot is not a function"). Register into the tab\'s child slot instead.',
+            })
+          } else if (typeof slotName === 'string' && Object.hasOwn(CHILDREN_OWNING_HOST_ENTRIES, slotName) && !hasChildren) {
+            const spec = CHILDREN_OWNING_HOST_ENTRIES[slotName]
+            const targetVal = spec.field === 'key' ? entryKey : entryId
+            if (typeof targetVal === 'string' && spec.values.has(targetVal)) {
+              context.report({
+                node: rawOpt,
+                message: `Shadowing "${slotName}" (${targetVal}) drops its declared child slots and breaks renderSlot. Prefer a child/sibling slot, or declare a private mirrored child slot in options.children.`,
+              })
+            }
+          }
+
+          const injectProp = findObjectProperty(optObj, 'inject')
+          if (injectProp) {
+            let injectFn = injectProp.value
+            if (injectFn?.type === 'Identifier') injectFn = fnVars.get(injectFn.name)
+            if (injectFn && SKIP_NESTED_FUNCTIONS.has(injectFn.type)) {
+              const bindHit = containsLocaleBind(injectFn.body)
+              if (bindHit) {
+                context.report({
+                  node: bindHit,
+                  message: 'Do not call ctx.locale.bind() inside slots.register({ inject }); DSH caches inject() per session so delegated translator identity freezes across locale switches. Bind base.locale inside the component keyed on ctx.locale.getSnapshot().revision.',
+                })
+              }
+            }
+          }
+        }
+
+        if (readsSlotEntries) {
+          for (const call of unguardedInjectCalls) {
+            context.report({
+              node: call,
+              message: 'Guard optional slot entry inject with optional chaining (base.inject?.(sessionId)) or a typeof check; shadowed entries may omit inject.',
+            })
+          }
+          for (const call of componentDelegations) {
+            context.report({
+              node: call,
+              message: 'Do not delegate h(base.component, props) directly without merging forwarded base.inject?.(sessionId) and reactive base.locale bindings (or prefer a child/sibling slot instead of shadowing).',
+            })
+          }
+        }
+      },
+    }
+  },
+}
+
+const requireSwitchLabel = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Require every Switch primitive in client plugins to specify a non-empty accessible label.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isClientFile(rel)) return {}
+
+    return {
+      CallExpression(node) {
+        if (!isCreateElementCall(node)) return
+        const comp = unwrapChain(node.arguments?.[0])
+        if (comp?.type !== 'Identifier' || comp.name !== 'Switch') return
+        const propsArg = node.arguments?.[1]
+        if (!propsArg || propsArg.type !== 'ObjectExpression') return
+        const hasSpread = propsArg.properties.some(p => p.type === 'SpreadElement')
+        if (hasSpread) return
+        const labelProp = findObjectProperty(propsArg, 'label')
+          ?? findObjectProperty(propsArg, 'aria-label')
+          ?? findObjectProperty(propsArg, 'aria-labelledby')
+        if (!labelProp) {
+          context.report({
+            node: propsArg,
+            message: 'Switch primitive must include a non-empty accessible "label" prop (e.g. label: t("...")).',
+          })
+          return
+        }
+        const staticText = getStringContent(labelProp.value)
+        if (staticText !== null && staticText.trim() === '') {
+          context.report({
+            node: labelProp,
+            message: 'Switch "label" prop must not be empty; pass a localized label string.',
+          })
+        }
+      },
+    }
+  },
+}
+
 export default {
   meta: { name: 'dsh' },
   rules: {
@@ -1038,5 +1299,7 @@ export default {
     'no-server-hot-sync-fs': noServerHotSyncFs,
     'no-withdraw-view-node': noWithdrawViewNode,
     'safe-storage-domain-open': safeStorageDomainOpen,
+    'safe-slot-shadowing': safeSlotShadowing,
+    'require-switch-label': requireSwitchLabel,
   },
 }
