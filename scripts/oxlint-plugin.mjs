@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 const SUPPRESSION = /\b(?:oxlint-disable|eslint-disable|@ts-ignore|@ts-expect-error|@ts-nocheck)\b/i
 const LICENSE = /\b(?:SPDX-License-Identifier:|Copyright\b|Licensed under\b|MIT License\b)/i
 const ALLOWED_LINE = /^ (?:external: \S|https?:\/\/\S)/
@@ -1280,6 +1283,379 @@ const requireSwitchLabel = {
   },
 }
 
+const CORDIS_CTX_BUILTINS = new Set([
+  'accessor',
+  'bail',
+  'baseUrl',
+  'effect',
+  'emit',
+  'events',
+  'extend',
+  'fiber',
+  'get',
+  'inject',
+  'intercept',
+  'isolate',
+  'logger',
+  'mixin',
+  'on',
+  'once',
+  'parallel',
+  'plugin',
+  'provide',
+  'reflect',
+  'registry',
+  'runtime',
+  'serial',
+  'set',
+  'waterfall',
+])
+
+const KNOWN_NESTED_SERVICES = {
+  uiSession: new Set(['sessionStatus']),
+  remote: new Set(['session', 'skills', 'forgePanel', 'sessionStatus', 'userQuestions', 'toolResults']),
+}
+
+const serverPackageInjectCache = new Map()
+
+function parseInjectNode(node) {
+  const out = new Set()
+  if (!node) return out
+  if (node.type === 'ArrayExpression') {
+    for (const el of node.elements) {
+      if (el?.type === 'Literal' && typeof el.value === 'string') out.add(el.value)
+    }
+  } else if (node.type === 'ObjectExpression') {
+    for (const prop of node.properties) {
+      if (prop.type === 'Property' && !prop.computed) {
+        const key = propName(prop.key)
+        if (key) out.add(key)
+      }
+    }
+  }
+  return out
+}
+
+function readPackageServerInject(filename) {
+  const normalized = (filename ?? '').replaceAll('\\', '/')
+  const match = /^(.*\/packages\/[^/]+)\//.exec(normalized)
+  if (!match) return null
+  const pkgRoot = match[1]
+  if (serverPackageInjectCache.has(pkgRoot)) return serverPackageInjectCache.get(pkgRoot)
+  const indexPath = join(pkgRoot, 'lib', 'index.js')
+  let result = null
+  if (existsSync(indexPath)) {
+    const src = readFileSync(indexPath, 'utf8')
+    const set = new Set()
+    const arrMatch = /export\s+const\s+inject\s*=\s*\[([^\]]*)\]/s.exec(src)
+    if (arrMatch) {
+      for (const m of arrMatch[1].matchAll(/['"]([^'"]+)['"]/g)) set.add(m[1])
+    } else {
+      const objMatch = /export\s+const\s+inject\s*=\s*\{([^}]*)\}/s.exec(src)
+      if (objMatch) {
+        for (const m of objMatch[1].matchAll(/(?:['"]([^'"]+)['"]|\b([A-Za-z_$][A-Za-z0-9_$]*))\s*:/g)) {
+          set.add(m[1] ?? m[2])
+        }
+      }
+    }
+    result = set
+  }
+  serverPackageInjectCache.set(pkgRoot, result)
+  return result
+}
+
+function findChildInject(allowed, parent) {
+  const prefix = `${parent}.`
+  for (const name of allowed) {
+    if (name.startsWith(prefix)) return name
+  }
+  return null
+}
+
+function isGuardedSessionStatusCall(node, sourceCode) {
+  if (node.optional) return true
+  let cur = node.parent
+  let prev = node
+  while (cur) {
+    if (cur.type === 'ConditionalExpression' && cur.consequent === prev) {
+      if (/\buseSessionStatus\b/.test(sourceCode.getText(cur.test))) return true
+    }
+    if (cur.type === 'LogicalExpression' && cur.operator === '&&' && cur.right === prev) {
+      if (/\buseSessionStatus\b/.test(sourceCode.getText(cur.left))) return true
+    }
+    if (cur.type === 'IfStatement' && cur.consequent === prev) {
+      if (/\buseSessionStatus\b/.test(sourceCode.getText(cur.test))) return true
+    }
+    if (SKIP_NESTED_FUNCTIONS.has(cur.type)) break
+    prev = cur
+    cur = cur.parent
+  }
+  return false
+}
+
+const requireDeclaredInject = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Require Cordis services accessed on ctx (and unguarded useSessionStatus calls) to be declared in plugin inject.' },
+  },
+  create(context) {
+    const rel = getRelPath(context)
+    if (!isPackageFile(rel) || isTestFile(rel)) return {}
+
+    const clientMode = isClientFile(rel)
+    const serverMode = isServerFile(rel)
+    if (!clientMode && !serverMode) return {}
+
+    let topServerInject = null
+    let hasTopServerApply = false
+    let serverEntryChecked = false
+    let clientPluginInject = null
+    const scopeStack = [new Map()]
+    const fnBindings = new WeakMap()
+
+    function currentScope() {
+      return scopeStack[scopeStack.length - 1]
+    }
+
+    function lookupAllowed(name) {
+      for (let i = scopeStack.length - 1; i >= 0; i -= 1) {
+        if (scopeStack[i].has(name)) return scopeStack[i].get(name)
+      }
+      return null
+    }
+
+    function ensureServerBaseInject() {
+      if (!serverMode || serverEntryChecked) return topServerInject
+      serverEntryChecked = true
+      if (topServerInject === null && !hasTopServerApply) {
+        topServerInject = readPackageServerInject(context.filename ?? context.getFilename?.())
+      }
+      return topServerInject
+    }
+
+    function reportMissingService(node, prop, allowed) {
+      const child = findChildInject(allowed, prop)
+      if (child) {
+        context.report({
+          node,
+          message: `Service "${prop}" is not declared in inject (only "${child}" is declared). Accessing ctx.${prop} throws 'cannot get property "${prop}" without inject' in Cordis; add "${prop}" to inject or use ctx.get('${prop}').`,
+        })
+        return
+      }
+      context.report({
+        node,
+        message: `Service "${prop}" is accessed without declaring "${prop}" in inject. Add "${prop}" to inject, or read it optionally via ctx.get('${prop}').`,
+      })
+    }
+
+    function checkServiceRead(node, prop, allowed) {
+      if (!prop || CORDIS_CTX_BUILTINS.has(prop) || prop.startsWith('_')) return
+      if (!allowed.has(prop)) {
+        reportMissingService(node, prop, allowed)
+        return
+      }
+      const nestedKnown = KNOWN_NESTED_SERVICES[prop]
+      if (!nestedKnown) return
+      const parent = node.parent?.type === 'ChainExpression' ? node.parent.parent : node.parent
+      if (parent?.type === 'MemberExpression' && !parent.computed && unwrapChain(parent.object) === node) {
+        const subProp = propName(parent.property)
+        if (subProp && nestedKnown.has(subProp) && !allowed.has(`${prop}.${subProp}`)) {
+          context.report({
+            node: parent,
+            message: `Nested service "${prop}.${subProp}" is accessed without declaring "${prop}.${subProp}" in inject. Declare both "${prop}" and "${prop}.${subProp}".`,
+          })
+        }
+      }
+    }
+
+    function enterFunction(fnNode) {
+      const map = new Map()
+      const bound = fnBindings.get(fnNode)
+      if (bound) {
+        map.set(bound.varName, bound.allowed)
+      }
+      for (const param of fnNode.params ?? []) {
+        if (param.type === 'Identifier') {
+          if (bound && param.name === bound.varName) continue
+          if (serverMode && param.name === 'ctx') {
+            const base = ensureServerBaseInject()
+            if (base) map.set('ctx', base)
+          } else if (lookupAllowed(param.name)) {
+            map.set(param.name, null)
+          }
+        }
+      }
+      scopeStack.push(map)
+    }
+
+    function exitFunction() {
+      scopeStack.pop()
+    }
+
+    return {
+      Program(program) {
+        if (!serverMode) return
+        for (const stmt of program.body) {
+          if (stmt.type !== 'ExportNamedDeclaration') continue
+          const decl = stmt.declaration
+          if (decl?.type === 'VariableDeclaration') {
+            for (const d of decl.declarations) {
+              if (d.id?.type === 'Identifier' && d.id.name === 'inject') {
+                topServerInject = parseInjectNode(d.init)
+              }
+              if (d.id?.type === 'Identifier' && d.id.name === 'apply' && SKIP_NESTED_FUNCTIONS.has(d.init?.type)) {
+                hasTopServerApply = true
+              }
+            }
+          } else if (decl?.type === 'FunctionDeclaration' && decl.id?.name === 'apply') {
+            hasTopServerApply = true
+          }
+        }
+        if (hasTopServerApply && topServerInject === null) {
+          topServerInject = new Set()
+        }
+        for (const stmt of program.body) {
+          if (stmt.type !== 'ExportNamedDeclaration') continue
+          const decl = stmt.declaration
+          if (decl?.type === 'FunctionDeclaration' && decl.id?.name === 'apply') {
+            const first = decl.params?.[0]
+            if (first?.type === 'Identifier') {
+              fnBindings.set(decl, { varName: first.name, allowed: topServerInject })
+            }
+          } else if (decl?.type === 'VariableDeclaration') {
+            for (const d of decl.declarations) {
+              if (d.id?.type === 'Identifier' && d.id.name === 'apply' && SKIP_NESTED_FUNCTIONS.has(d.init?.type)) {
+                const first = d.init.params?.[0]
+                if (first?.type === 'Identifier') {
+                  fnBindings.set(d.init, { varName: first.name, allowed: topServerInject })
+                }
+              }
+            }
+          }
+        }
+      },
+      ObjectExpression(node) {
+        if (!clientMode) return
+        const applyProp = findObjectProperty(node, 'apply')
+        if (!applyProp || !SKIP_NESTED_FUNCTIONS.has(applyProp.value?.type)) return
+        const injectProp = findObjectProperty(node, 'inject')
+        const isPluginObject = Boolean(injectProp)
+          || node.parent?.type === 'ReturnStatement'
+          || node.parent?.type === 'ExportDefaultDeclaration'
+        if (!isPluginObject) return
+        const allowed = injectProp ? parseInjectNode(injectProp.value) : new Set()
+        clientPluginInject = allowed
+        const firstParam = applyProp.value.params?.[0]
+        if (firstParam?.type === 'Identifier') {
+          fnBindings.set(applyProp.value, { varName: firstParam.name, allowed })
+        }
+      },
+      CallExpression(node) {
+        const callee = unwrapChain(node.callee)
+        if (
+          clientMode
+          && callee?.type === 'Identifier'
+          && callee.name === 'useSessionStatus'
+          && clientPluginInject !== null
+          && !clientPluginInject.has('uiSession.sessionStatus')
+          && !isGuardedSessionStatusCall(node, context.sourceCode)
+        ) {
+          context.report({
+            node,
+            message: 'Calling useSessionStatus requires declaring "uiSession.sessionStatus" in plugin inject (or guarding with typeof useSessionStatus === "function").',
+          })
+        }
+
+        if (callee?.type === 'MemberExpression' && !callee.computed && propName(callee.property) === 'inject') {
+          const depsArg = node.arguments?.[0]
+          const cbArg = node.arguments?.[1]
+          if (
+            depsArg
+            && (depsArg.type === 'ArrayExpression' || depsArg.type === 'ObjectExpression')
+            && cbArg
+            && SKIP_NESTED_FUNCTIONS.has(cbArg.type)
+          ) {
+            const receiver = unwrapChain(callee.object)
+            let parentAllowed = null
+            if (receiver?.type === 'Identifier') {
+              parentAllowed = lookupAllowed(receiver.name)
+            } else if (
+              serverMode
+              && receiver?.type === 'MemberExpression'
+              && !receiver.computed
+              && receiver.object?.type === 'ThisExpression'
+              && propName(receiver.property) === 'ctx'
+            ) {
+              parentAllowed = ensureServerBaseInject()
+            }
+            const merged = new Set(parentAllowed ?? [])
+            for (const dep of parseInjectNode(depsArg)) merged.add(dep)
+            const firstParam = cbArg.params?.[0]
+            if (firstParam?.type === 'Identifier') {
+              fnBindings.set(cbArg, { varName: firstParam.name, allowed: merged })
+            }
+          }
+        }
+      },
+      FunctionDeclaration: enterFunction,
+      'FunctionDeclaration:exit': exitFunction,
+      FunctionExpression: enterFunction,
+      'FunctionExpression:exit': exitFunction,
+      ArrowFunctionExpression: enterFunction,
+      'ArrowFunctionExpression:exit': exitFunction,
+      VariableDeclarator(node) {
+        if (node.id?.type === 'Identifier') {
+          if (lookupAllowed(node.id.name)) {
+            currentScope().set(node.id.name, null)
+          }
+          return
+        }
+        if (node.id?.type === 'ObjectPattern' && node.init) {
+          const init = unwrapChain(node.init)
+          let allowed = null
+          if (init?.type === 'Identifier') {
+            allowed = lookupAllowed(init.name)
+          } else if (
+            serverMode
+            && init?.type === 'MemberExpression'
+            && !init.computed
+            && init.object?.type === 'ThisExpression'
+            && propName(init.property) === 'ctx'
+          ) {
+            allowed = ensureServerBaseInject()
+          }
+          if (!allowed) return
+          for (const prop of node.id.properties) {
+            if (prop.type === 'Property' && !prop.computed) {
+              checkServiceRead(prop, propName(prop.key), allowed)
+            }
+          }
+        }
+      },
+      MemberExpression(node) {
+        if (node.computed) return
+        if (node.parent?.type === 'AssignmentExpression' && node.parent.left === node) return
+        if (node.parent?.type === 'UpdateExpression' && node.parent.argument === node) return
+        const obj = unwrapChain(node.object)
+        let allowed = null
+        if (obj?.type === 'Identifier') {
+          allowed = lookupAllowed(obj.name)
+        } else if (
+          serverMode
+          && obj?.type === 'MemberExpression'
+          && !obj.computed
+          && obj.object?.type === 'ThisExpression'
+          && propName(obj.property) === 'ctx'
+        ) {
+          allowed = ensureServerBaseInject()
+        }
+        if (!allowed) return
+        checkServiceRead(node, propName(node.property), allowed)
+      },
+    }
+  },
+}
+
 export default {
   meta: { name: 'dsh' },
   rules: {
@@ -1301,5 +1677,6 @@ export default {
     'safe-storage-domain-open': safeStorageDomainOpen,
     'safe-slot-shadowing': safeSlotShadowing,
     'require-switch-label': requireSwitchLabel,
+    'require-declared-inject': requireDeclaredInject,
   },
 }

@@ -14,6 +14,7 @@
 | --- | --- |
 | 禁注释（保留 shebang、文件头许可证、单行 URL、`// external: <reason>`）、禁 lint/TS 抑制注释、禁旧兼容标识 | `dsh/no-comments`、`dsh/no-suppression-comments`、`dsh/no-legacy-compat` |
 | 禁用 DSH 0.2.3 已移除/禁用接口（`ctx.locale.t`、`session.events`、`requestRejection`、`ctx.connection.admit`、`storageDomain.register`、`browserPeer`、Electron 不可用的 `window.prompt/confirm/alert`，以及测试 stub 虚构 `locale.t`） | `dsh/no-removed-host-apis` |
+| 插件直接读取的 Cordis 服务 `ctx.<service>`（含嵌套子服务 `ctx.<parent>.<child>` 须同时声明父服务与子服务）及无保护调用 `useSessionStatus` 必须在 `inject` 中显式声明，可选服务改用 `ctx.get('<service>')` | `dsh/require-declared-inject`、`test-utils/load-client.js` |
 | `uiConversation.events.register()` 的 `buildViewNode` 禁止对已物化节点返回 `null`（须查 `context.current?.get(target)` 并返回同 `key` 的 `visibility: 'hidden'`） | `dsh/no-withdraw-view-node` |
 | 禁覆盖声明了子槽位的宿主槽位/条目（如 `sidebar.right.pane.tab` 内置页与容器槽位，改用子槽位或声明私有镜像子槽位）；委托 `base.component` 须合并 `base.inject?.()` 与按语言版本刷新的翻译函数，禁在缓存的 `inject` 中静态 `ctx.locale.bind()` | `dsh/safe-slot-shadowing` |
 | 客户端 `Switch` 必须提供非空 `label`（或 `aria-label` / `aria-labelledby`） | `dsh/require-switch-label` |
@@ -44,7 +45,7 @@
 
 - **组件与主题**：复用 `@deepseek-ai/dsh-client-ui-primitives` 组件，自定义样式统一使用 `--dsw-*` 语义令牌并兼顾浅色模式；跨插件共享前端入口（如 `#` 菜单）通过 `window.__DSH_*__` 轻量总线协作。
 - **会话内工具视图（`tool.call.toolview`）**：对齐原生 `ToolRow` / `DisclosureRow`（24px 单行披露、4px 展开缩进、双列 `IN`/`OUT` 卡片、分隔点加 `data-shimmer-decoration`、`Inspect` 默认隐藏且 hover/focus 显现并用 `--dsw-alias-border-l3` 边框），不做大块重边框卡片。
-- **0.2.3 宿主契约细节**：`uiSession.sessionStatus` 需显式注入；会话流客户端插件需核对 `facets` 声明；会话日志只追加，`surfaceOp: 'replace'` 不会自动隐藏旧界面节点也不会触发续写；`ctx.theme` 通过 `getTheme()` 读快照（`active.colorScheme`）并监听 `theme/change`；`ctx.layout` 切主面板用 `selectPanel(id)`。注册到 `sidebar.panellist` 等启动期槽位的 `label: () => ...` 会在 `@deepseek-ai/dsh-client-ui-sidebar` 激活执行 `syncPanels()` 时同步求值，抛错会导致整个 Web 启动失败。写 `client.js` 前务必查实对应 `@deepseek-ai/dsh-client-*` 源码。
+- **0.2.3 宿主契约细节**：会话流客户端插件需核对 `facets` 声明；会话日志只追加，`surfaceOp: 'replace'` 不会自动隐藏旧界面节点也不会触发续写；`ctx.theme` 通过 `getTheme()` 读快照（`active.colorScheme`）并监听 `theme/change`；`ctx.layout` 切主面板用 `selectPanel(id)`。注册到 `sidebar.panellist` 等启动期槽位的 `label: () => ...` 会在 `@deepseek-ai/dsh-client-ui-sidebar` 激活执行 `syncPanels()` 时同步求值，抛错会导致整个 Web 启动失败。写 `client.js` 前务必查实对应 `@deepseek-ai/dsh-client-*` 源码。
 - **查源码与本机联调**：优先使用 `cordis_inspect`，其次直读 `/Users/seefs/.bun/install/global/node_modules/@deepseek-ai/` 对应包（部分包无 `src/`，先看包顶层目录）。本机 `web` profile 通过 `link:` 软链直连本仓并禁用 `hmr`/`client-hmr`：改 `cordis.patch.yml`、`package.json` 或服务端 `lib/*.js` 需重启 `dsh --profile web`；改浏览器端 `client.js` 后刷新页面生效。
 
 ## 构建与验证（cwd: `/Users/seefs/work/dsh-plugins`）

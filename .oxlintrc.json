@@ -48,6 +48,7 @@
     "dsh/no-withdraw-view-node": "error",
     "dsh/safe-storage-domain-open": "error",
     "dsh/safe-slot-shadowing": "error",
-    "dsh/require-switch-label": "error"
+    "dsh/require-switch-label": "error",
+    "dsh/require-declared-inject": "error"
   }
 }

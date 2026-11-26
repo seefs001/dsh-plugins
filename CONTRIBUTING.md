@@ -34,7 +34,7 @@ pnpm run check      # oxlint + validate.mjs + node:test
 - `dsh/no-comments`: comments are disallowed except shebangs, top-of-file license headers, single-line URLs, and single-line `// external: <reason>` notes for external dependency, platform, or DSH host constraints we cannot reshape.
 - `dsh/no-suppression-comments`: `oxlint-disable`, `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, and `@ts-nocheck` are disallowed.
 - `dsh/no-legacy-compat`: removed pre-release compatibility tokens are disallowed.
-- DSH 0.2.3 contract & performance rules (`dsh/no-removed-host-apis`, `dsh/no-withdraw-view-node`, `dsh/safe-slot-shadowing`, `dsh/require-switch-label`, `dsh/safe-storage-domain-open`, `dsh/require-command-available`, `dsh/no-direct-model-selection-fields`, `dsh/no-root-theme-computed-style`, `dsh/locale-dict-parity`, `dsh/no-broad-session-subscription`, `dsh/require-mobile-backdrop-fallback`, `dsh/no-unconstrained-nowrap`, `dsh/safe-intervals`, `dsh/no-new-always-on-observers`, `dsh/no-server-hot-sync-fs`).
+- DSH 0.2.3 contract & performance rules (`dsh/no-removed-host-apis`, `dsh/require-declared-inject`, `dsh/no-withdraw-view-node`, `dsh/safe-slot-shadowing`, `dsh/require-switch-label`, `dsh/safe-storage-domain-open`, `dsh/require-command-available`, `dsh/no-direct-model-selection-fields`, `dsh/no-root-theme-computed-style`, `dsh/locale-dict-parity`, `dsh/no-broad-session-subscription`, `dsh/require-mobile-backdrop-fallback`, `dsh/no-unconstrained-nowrap`, `dsh/safe-intervals`, `dsh/no-new-always-on-observers`, `dsh/no-server-hot-sync-fs`).
 
 `pnpm run validate` checks:
 
