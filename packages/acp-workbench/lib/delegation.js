@@ -23,6 +23,11 @@ const execFileAsync = promisify(execFile)
 const STDIO_BRIDGE_PATH = fileURLToPath(new URL('./mcp-stdio.js', import.meta.url))
 const MCP_SERVER_NAME = 'dsh_agents'
 const EXCLUDED_FORWARD_SERVERS = new Set([MCP_SERVER_NAME, MCP_PROXY_SERVER_NAME])
+const DSH_AGENTS_MCP_INSTRUCTIONS = [
+  'This session runs inside DeepSeek Harness (DSH).',
+  'When delegating subtasks (subject to user and workspace delegation rules), prefer dsh_agents (list_providers, spawn_agent, list_agents, send_message, read_agent_result, interrupt_agent) instead of CLI built-in subagent/task/swarm tools so child sessions appear in the DSH subagent tree and can run on any DSH or ACP engine.',
+  'Do not poll spawned agents; DSH delivers child results automatically.',
+].join(' ')
 const MAX_BODY_BYTES = 1024 * 1024
 const MAX_RESULT_CHARS = 12_000
 const AGENT_NAME_RE = /^[a-z][a-z0-9-]{0,31}$/u
@@ -119,7 +124,7 @@ const TOOL_SPECS = {
   },
   spawn_agent: {
     name: 'spawn_agent',
-    description: 'Spawn a continuable child agent on either a native DSH model or any configured ACP CLI engine (e.g. "dsh", "cursor", "antigravity", "claude-code", or an exact provider route). Returns immediately after launching; results auto-deliver to your inbox when the child finishes, so do not poll. Use isolation="worktree" for parallel code edits to avoid file conflicts.',
+    description: 'Spawn a continuable child agent on either a native DSH model or any configured ACP CLI engine (e.g. "dsh", "cursor", "antigravity", "claude-code", or an exact provider route). Prefer this over CLI-native subagent tools (invoke_subagent, Agent, Task, swarm) so child agents join the DSH subagent tree, appear in the DSH sidebar, and can target any DSH or ACP engine. Returns immediately after launching; results auto-deliver to your inbox when the child finishes, so do not poll. Use isolation="worktree" for parallel code edits to avoid file conflicts.',
     parameters: {
       type: 'object',
       additionalProperties: false,
@@ -253,24 +258,66 @@ export class DelegationHub {
     }
   }
 
-  forwardedServerNames(caller) {
-    return discoverDshMcpServers(this.ctx, caller, EXCLUDED_FORWARD_SERVERS)
+  excludedForwardServersFor(providerOrId) {
+    let providerId = ''
+    if (typeof providerOrId === 'string') {
+      providerId = this.isRoute(providerOrId) ? providerOrId.slice(4) : providerOrId
+    } else if (typeof providerOrId?.id === 'string') {
+      providerId = providerOrId.id
+    }
+    const provider = providerId ? this.manager?.store?.providers?.get(providerId) : null
+    const extra = Array.isArray(provider?.excludedMcpServers) ? provider.excludedMcpServers : []
+    if (!extra.length) return EXCLUDED_FORWARD_SERVERS
+    return new Set([...EXCLUDED_FORWARD_SERVERS, ...extra])
   }
 
-  issueToken(sessionId) {
-    const existing = this.sessionTokens.get(sessionId)
+  forwardedServerNames(caller, providerOrId) {
+    return discoverDshMcpServers(this.ctx, caller, this.excludedForwardServersFor(providerOrId))
+  }
+
+  buildHostBridgePrompt(session, adapter) {
+    const dshSessionId = session?.native?.sessionId
+    if (!dshSessionId) return ''
+    const caller = this.ctx.agents?.get?.(dshSessionId)
+    const forwarded = this.forwardedServerNames(caller, session?.providerId)
+    const resolvedAdapter = adapter ?? resolveAdapter({
+      providerId: session?.providerId,
+      capabilities: session?.capabilities,
+    })
+    const lines = [
+      'DSH Host Bridge:',
+      '- This session runs inside DeepSeek Harness (DSH). Keep your own built-in tools for file/code operations (prefer dedicated file read/edit tools over shell cat/bat so DSH renders native tool rows).',
+      '- Subagents (only when authorized by user/workspace rules): prefer the `dsh_agents` MCP tools (`list_providers`, `spawn_agent`, `list_agents`, `send_message`, `read_agent_result`, `interrupt_agent`) instead of built-in `invoke_subagent`, `Agent`, `Task`, `swarm`, or `run_workflow`, so children integrate into the DSH subagent tree and can target any DSH or ACP engine.',
+    ]
+    if (forwarded.length) {
+      const list = forwarded.slice(0, 12).join(', ')
+      const more = forwarded.length > 12 ? `, +${forwarded.length - 12} more` : ''
+      if (resolvedAdapter?.compactMcpBridge) {
+        lines.push(`- Additional DSH MCP servers (${list}${more}) are available via the \`dsh_mcp\` MCP proxy (\`list_tools\` -> \`get_tool_schema\` -> \`call_tool\`). If this CLI already mounts a server natively, prefer the direct native MCP tool.`)
+      } else {
+        lines.push(`- Additional DSH MCP servers mounted for this session: ${list}${more}.`)
+      }
+    }
+    return lines.join('\n')
+  }
+
+  issueToken(sessionId, providerId = '') {
+    const key = `${sessionId}:${providerId}`
+    const existing = this.sessionTokens.get(key)
     if (existing && this.tokens.has(existing)) return existing
     const token = randomBytes(32).toString('hex')
-    this.tokens.set(token, { sessionId, issuedAt: Date.now() })
-    this.sessionTokens.set(sessionId, token)
+    this.tokens.set(token, { sessionId, providerId, issuedAt: Date.now() })
+    this.sessionTokens.set(key, token)
     return token
   }
 
   revokeSession(sessionId) {
-    const token = this.sessionTokens.get(sessionId)
-    if (!token) return
-    this.sessionTokens.delete(sessionId)
-    this.tokens.delete(token)
+    const prefix = `${sessionId}:`
+    for (const [key, token] of Array.from(this.sessionTokens.entries())) {
+      if (key !== sessionId && !key.startsWith(prefix)) continue
+      this.sessionTokens.delete(key)
+      this.tokens.delete(token)
+    }
   }
 
   clearTokens() {
@@ -283,10 +330,10 @@ export class DelegationHub {
     if (!dshSessionId) return []
     const delegationUrl = this.endpointUrl(MCP_SERVER_NAME)
     if (!delegationUrl) return []
-    const token = this.issueToken(dshSessionId)
+    const token = this.issueToken(dshSessionId, session?.providerId ?? '')
     const supportsHttp = session.capabilities?.mcpCapabilities?.http === true
     const caller = this.ctx.agents?.get?.(dshSessionId)
-    const forwarded = this.forwardedServerNames(caller)
+    const forwarded = this.forwardedServerNames(caller, session?.providerId)
     const entries = [this.mcpEntry(MCP_SERVER_NAME, delegationUrl, token, supportsHttp)]
     if (!forwarded.length) return entries
     const resolvedAdapter = adapter ?? resolveAdapter({
@@ -749,7 +796,7 @@ export class DelegationHub {
           caller,
           signal: controller.signal,
           headers: req.headers,
-          excludedNames: EXCLUDED_FORWARD_SERVERS,
+          excludedNames: this.excludedForwardServersFor(binding.providerId),
         })
         const headers = { ...sessionHeader, ...outcome.headers }
         if (outcome.body === null) {
@@ -788,13 +835,13 @@ export class DelegationHub {
       const method = context.method
 
       if (method === 'initialize') {
-        const result = buildMcpInitializeResult(message.params, serverInfo)
+        const result = buildMcpInitializeResult(message.params, serverInfo, { instructions: DSH_AGENTS_MCP_INSTRUCTIONS })
         writeJson(res, 200, { jsonrpc: '2.0', id, result }, { ...responseHeaders, 'mcp-protocol-version': result.protocolVersion })
         return
       }
 
       if (method === 'server/discover') {
-        const result = buildMcpDiscoverResult(serverInfo)
+        const result = buildMcpDiscoverResult(serverInfo, { instructions: DSH_AGENTS_MCP_INSTRUCTIONS })
         writeJson(res, 200, { jsonrpc: '2.0', id, result }, { ...responseHeaders, 'mcp-protocol-version': MCP_MODERN_PROTOCOL_VERSION })
         return
       }

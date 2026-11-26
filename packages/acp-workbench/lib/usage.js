@@ -57,6 +57,71 @@ function sessionTotals(usage) {
   return Object.fromEntries(['totalTokens', 'inputTokens', 'outputTokens', 'cachedReadTokens', 'cachedWriteTokens', 'thoughtTokens'].filter(k => tokenCount(usage[k])).map(k => [k, usage[k]]))
 }
 
+function diffSessionTotals(current, previous) {
+  if (!current) return null
+  if (!previous) return current
+  if (
+    current.totalTokens < previous.totalTokens
+    || current.inputTokens < previous.inputTokens
+    || current.outputTokens < previous.outputTokens
+  ) {
+    return current
+  }
+  const delta = {
+    totalTokens: current.totalTokens - previous.totalTokens,
+    inputTokens: current.inputTokens - previous.inputTokens,
+    outputTokens: current.outputTokens - previous.outputTokens,
+  }
+  for (const key of ['cachedReadTokens', 'cachedWriteTokens', 'thoughtTokens']) {
+    if (tokenCount(current[key])) {
+      const prev = tokenCount(previous[key]) ? previous[key] : 0
+      if (current[key] < prev) return current
+      delta[key] = current[key] - prev
+    }
+  }
+  return delta
+}
+
+function toDshTokenUsage(usage) {
+  if (!usage || !tokenCount(usage.totalTokens) || !tokenCount(usage.inputTokens) || !tokenCount(usage.outputTokens)) return null
+  const rawIn = usage.inputTokens
+  const rawOut = usage.outputTokens
+  const rawTotal = usage.totalTokens
+  const cacheRead = tokenCount(usage.cachedReadTokens) ? usage.cachedReadTokens : undefined
+  const cacheWrite = tokenCount(usage.cachedWriteTokens) ? usage.cachedWriteTokens : undefined
+  const thought = tokenCount(usage.thoughtTokens) ? usage.thoughtTokens : undefined
+  const cacheSum = (cacheRead ?? 0) + (cacheWrite ?? 0)
+  const thoughtSeparate = thought !== undefined
+    && (rawIn + rawOut + thought === rawTotal || rawIn + cacheSum + rawOut + thought === rawTotal)
+  const outputTokens = thoughtSeparate ? rawOut + thought : rawOut
+  const promptBudget = rawTotal - outputTokens
+  let inputTokens
+  if (promptBudget === rawIn && cacheSum <= rawIn) {
+    inputTokens = rawIn - cacheSum
+  } else if (promptBudget === rawIn + cacheSum) {
+    inputTokens = rawIn
+  } else if (cacheSum <= rawIn && rawIn + outputTokens >= rawTotal) {
+    inputTokens = rawIn - cacheSum
+  } else {
+    inputTokens = rawIn
+  }
+  const totalTokens = inputTokens + cacheSum + outputTokens
+  if (totalTokens <= 0) return null
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    ...(cacheRead !== undefined ? { cacheReadTokens: cacheRead } : {}),
+    ...(cacheWrite !== undefined ? { cacheWriteTokens: cacheWrite } : {}),
+    ...(thought !== undefined && thought <= outputTokens ? { reasoningTokens: thought } : {}),
+  }
+}
+
+function computeTps(outputTokens, decodeMs) {
+  if (!tokenCount(outputTokens) || outputTokens <= 0 || typeof decodeMs !== 'number' || !Number.isFinite(decodeMs) || decodeMs <= 0) return undefined
+  return Math.round((outputTokens / (decodeMs / 1000)) * 10) / 10
+}
+
 function recordWindow(rows, windows, key, event, window) {
   let row = windows.get(key)
   if (!row) {
@@ -66,4 +131,4 @@ function recordWindow(rows, windows, key, event, window) {
   row.window = window; row.at = event.at
 }
 
-export { contextWindow, rateLimitInfo, sessionTotals, recordWindow }
+export { contextWindow, rateLimitInfo, sessionTotals, diffSessionTotals, toDshTokenUsage, computeTps, recordWindow }

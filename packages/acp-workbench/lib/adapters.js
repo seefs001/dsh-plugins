@@ -22,6 +22,7 @@ const ADAPTERS = {
     catalogMode: 'cursor-extension',
     mapDefaultToAuto: true,
     probePerModelConfig: false,
+    nativeInstructionFiles: ['AGENTS.md', 'CLAUDE.md'],
   },
   antigravity: {
     id: 'antigravity',
@@ -31,6 +32,7 @@ const ADAPTERS = {
     probePerModelConfig: false,
     asyncToolWakeup: true,
     compactMcpBridge: true,
+    nativeInstructionFiles: ['AGENTS.md'],
   },
   'claude-code': {
     id: 'claude-code',
@@ -38,6 +40,7 @@ const ADAPTERS = {
     catalogMode: 'probe-models',
     mapDefaultToAuto: false,
     probePerModelConfig: true,
+    nativeInstructionFiles: ['CLAUDE.md', 'CLAUDE.local.md'],
   },
   codex: {
     id: 'codex',
@@ -45,6 +48,7 @@ const ADAPTERS = {
     catalogMode: 'probe-models',
     mapDefaultToAuto: false,
     probePerModelConfig: true,
+    nativeInstructionFiles: ['AGENTS.md'],
   },
   hermes: {
     id: 'hermes',
@@ -283,6 +287,20 @@ export function extractAgentMeta(info, sessionResult) {
   if (info?._meta?.steering?.supported === true) result.steering = true
   if (info?.agentCapabilities?._meta?.claudeCode?.promptQueueing === true) result.promptQueueing = true
   if (info?.agentCapabilities?._meta?.antigravity?.systemPrompt?.append === true) result.systemPromptAppend = true
+  if (info?.agentCapabilities?.sessionCapabilities?.additionalDirectories) result.additionalDirectories = true
+  if (info?.agentCapabilities?.promptCapabilities?.embeddedContext === true) result.embeddedContext = true
+  if (info?.agentCapabilities?.auth?.logout) result.authLogout = true
+  if (Array.isArray(info?.authMethods) && info.authMethods.length) {
+    const methods = info.authMethods
+      .filter(item => item && typeof item === 'object' && typeof item.id === 'string' && item.id.trim())
+      .slice(0, 16)
+      .map(item => ({
+        id: item.id.trim(),
+        ...(typeof item.name === 'string' && item.name.trim() ? { name: item.name.trim() } : {}),
+        ...(typeof item.description === 'string' && item.description.trim() ? { description: item.description.trim() } : {}),
+      }))
+    if (methods.length) result.authMethods = methods
+  }
   const agentInfo = info?.agentInfo ?? info?.serverInfo
   if (agentInfo && typeof agentInfo === 'object') {
     const label = [agentInfo.title ?? agentInfo.name, agentInfo.version].filter(v => typeof v === 'string' && v.trim()).join(' ')

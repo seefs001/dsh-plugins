@@ -8,6 +8,27 @@ function isSubagentDelivery(message) {
   return kind === 'agent-message' || kind === 'subagent-settled'
 }
 
+function messageChars(message) {
+  let total = 0
+  for (const block of message?.content ?? []) {
+    if (block?.type === 'text' && typeof block.text === 'string') total += block.text.length
+  }
+  return total
+}
+
+function contextLabelOf(message) {
+  const source = message?.source
+  if (!source || typeof source !== 'object') return ''
+  if (source.kind === 'agent-instructions' && Array.isArray(source.changes)) {
+    const paths = []
+    for (const entry of source.changes) {
+      if (typeof entry?.path === 'string' && entry.path && !paths.includes(entry.path)) paths.push(entry.path)
+    }
+    return paths.join(', ').slice(0, 120)
+  }
+  return ''
+}
+
 function parentRelay(agent, message) {
   const { origin, parentSession } = agent.session.header
   return origin === 'subagent' && parentSession && message.source?.kind === 'agent-message'
@@ -134,6 +155,38 @@ export function installContinuations(native, isRoute) {
 
     return decision
   }))
+
+  // external: DSH built-in context plugins (dsh-time-context, dsh-agent-instructions, dsh-tool-skill) append to decision.messages after next(), so prepend runs outermost after all of them.
+  disposers.push(ctx.on('agent/pre-step', async ({ agent, turn, modelSelection }, next) => {
+    const decision = await next()
+    if (decision.kind !== 'enter' || !isRoute(modelSelection.provider)) return decision
+    if (!Array.isArray(decision.messages) || decision.messages.length === 0) return decision
+    const policy = typeof native.contextPolicyFor === 'function'
+      ? native.contextPolicyFor(modelSelection.provider)
+      : { agentInstructions: true, timeContext: true, nowledgeContext: true }
+    const kept = []
+    const dropped = []
+    for (const message of decision.messages) {
+      const kind = message?.source?.kind
+      if (kind === 'skill-catalog') {
+        dropped.push({ kind, action: 'dropped', reason: 'host-only', chars: messageChars(message), stage: 'pre-step' })
+        continue
+      }
+      if (kind === 'agent-instructions' && policy.agentInstructions === false) {
+        const label = contextLabelOf(message)
+        dropped.push({ kind, ...(label ? { label } : {}), action: 'dropped', reason: 'policy-off', chars: messageChars(message), stage: 'pre-step' })
+        continue
+      }
+      if (kind === 'time-context' && policy.timeContext === false) {
+        dropped.push({ kind, action: 'dropped', reason: 'policy-off', chars: messageChars(message), stage: 'pre-step' })
+        continue
+      }
+      kept.push(message)
+    }
+    if (!dropped.length || !kept.length) return decision
+    native.noteSuppressedContext?.(agent.id, turn, dropped)
+    return { ...decision, messages: kept }
+  }, { prepend: true }))
 
   const receipts = new WeakMap()
   disposers.push(ctx.on('tools/execute', async (exec, next) => {

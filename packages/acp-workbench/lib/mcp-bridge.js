@@ -440,6 +440,13 @@ function parseProxyArguments(raw) {
   return { ok: false, error: 'arguments must be a JSON object.' }
 }
 
+function buildProxyMcpInstructions(servers) {
+  const listed = servers.slice(0, MAX_DESC_SERVERS).join(', ')
+  const suffix = servers.length > MAX_DESC_SERVERS ? `, +${servers.length - MAX_DESC_SERVERS} more` : ''
+  const scope = servers.length ? ` Available servers: ${listed}${suffix}.` : ''
+  return `DSH MCP proxy exposing external MCP servers configured in DeepSeek Harness.${scope} Call list_tools to discover tools, get_tool_schema to inspect parameters, then call_tool to execute. If your CLI already mounts a server natively, prefer the native tool instead of this proxy.`
+}
+
 export function proxyMcpToolList(ctx, caller, excludedNames = new Set()) {
   const servers = discoverDshMcpServers(ctx, caller, excludedNames)
   const listed = servers.slice(0, MAX_DESC_SERVERS).join(', ')
@@ -645,7 +652,10 @@ export async function handleMcpBridgeRequest(ctx, message, {
   const method = context.method
 
   if (method === 'initialize') {
-    const result = buildMcpInitializeResult(message.params, resolvedServerInfo)
+    const instructions = isProxy
+      ? buildProxyMcpInstructions(discoverDshMcpServers(ctx, caller, excludedNames))
+      : undefined
+    const result = buildMcpInitializeResult(message.params, resolvedServerInfo, { instructions })
     return {
       status: 200,
       headers: { ...responseHeaders, 'mcp-protocol-version': result.protocolVersion },
@@ -654,7 +664,10 @@ export async function handleMcpBridgeRequest(ctx, message, {
   }
 
   if (method === 'server/discover') {
-    const result = buildMcpDiscoverResult(resolvedServerInfo)
+    const instructions = isProxy
+      ? buildProxyMcpInstructions(discoverDshMcpServers(ctx, caller, excludedNames))
+      : undefined
+    const result = buildMcpDiscoverResult(resolvedServerInfo, { instructions })
     return {
       status: 200,
       headers: { ...responseHeaders, 'mcp-protocol-version': MCP_MODERN_PROTOCOL_VERSION },

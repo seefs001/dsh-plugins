@@ -138,6 +138,16 @@ window.__ModuleLoader__.load({
       modelEfforts: 'Reasoning: {levels}', modelInfoUnknown: 'No model details advertised', modalityText: 'text', modalityImage: 'image',
       supported: 'Advertised', unsupported: 'Not supported', unreported: 'Not reported', authMethods: 'Sign-in methods', rawResult: 'Raw result', none: 'None advertised',
       tierLabel: 'Plan tier', authLabel: 'Account', authSignedIn: 'Signed in', authSignedOut: 'Signed out', authUnknown: 'Not checked',
+      authMethodLabel: 'Auth method', authSignIn: 'Authenticate', authSigningIn: 'Authenticating…', authSignOut: 'Sign out', authSigningOut: 'Signing out…',
+      authSignOutConfirm: 'Sign out of {label} via ACP auth/logout? Active sessions must be disconnected first.',
+      authSignedInDone: 'Authenticated via {method}.', authSignedOutDone: 'Signed out of {label}.',
+      fieldExtraDirs: 'Additional workspace directories (optional)',
+      fieldExtraDirsHint: 'One absolute path per line. Sent when the CLI advertises sessionCapabilities.additionalDirectories (e.g. Antigravity).',
+      fieldExtraDirsPlaceholder: '/path/to/another-repo',
+      extraDirsInvalid: 'Each additional directory must be an absolute path.',
+      fieldSystemAppend: 'Appended system instructions (optional)',
+      fieldSystemAppendHint: 'Sent via _meta.antigravity.systemPrompt.append when advertised by the CLI (takes effect on new/resumed sessions).',
+      fieldSystemAppendPlaceholder: 'Extra project conventions or guardrails…',
       subHeading: 'Subscription & usage', refreshUsage: 'Refresh usage', refreshingUsage: 'Refreshing…', usageUpdated: 'Subscription and usage updated.', usageUpdatedAt: 'Updated {time}', usageOpenDashboard: 'Usage dashboard ↗',
       quotaLimit5h: '5-hour window', quotaLimit7d: '7-day window', quotaLimitModel7d: 'Weekly · {model}', quotaLimitDuration: '{hours}h window', quotaLimitExtra: 'Extra usage',
       quotaStatusWarn: 'Near limit', quotaStatusRejected: 'Limit reached', quotaResetsAt: 'Resets {time}',
@@ -155,6 +165,7 @@ window.__ModuleLoader__.load({
       'cap.loadSession': 'Load session', 'cap.resume': 'Resume', 'cap.fork': 'Fork', 'cap.close': 'Close', 'cap.options': 'Session options',
       'cap.steering': 'Steering', 'cap.additionalDirs': 'Extra dirs', 'cap.image': 'Image input', 'cap.audio': 'Audio input', 'cap.embeddedContext': 'Embedded context',
       'cap.list': 'Session list', 'cap.mcpHttp': 'MCP over HTTP', 'cap.mcpSse': 'MCP over SSE',
+      'cap.authLogout': 'Auth logout', 'cap.systemPromptAppend': 'System prompt append',
       discovered: 'CLI sessions in this directory', more: 'More', noDiscovered: 'No sessions found.',
       loginHint: 'If sign-in fails, run the CLI login command in a terminal, then reconnect.',
       search: 'Search name, provider, directory or session ID', noRecords: 'No execution records yet.', noMatch: 'No records match.',
@@ -203,6 +214,23 @@ window.__ModuleLoader__.load({
       bgTaskRunningHint: 'Running in external CLI. Output will appear here when it completes.',
       bgTaskTruncated: 'Earlier output was truncated (showing last 16 KiB).',
       engineConnected: '{n} connected', engineReady: 'Ready', engineConfigured: 'Standby', engineUnchecked: 'Unchecked', engineError: 'Unavailable', probeLatency: 'Probe latency',
+      ctxReceiptTitle: 'Context receipt', ctxSummarySent: '{n} sent', ctxSummaryCompacted: '{n} compacted', ctxSummarySkipped: '{n} skipped', ctxSummaryMcp: 'MCP {n}',
+      ctxActionSent: 'Forwarded', ctxActionCompacted: 'Compacted', ctxActionDropped: 'Skipped', ctxActionIgnored: 'CLI-owned',
+      ctxReasonHostOnly: 'DSH host only', ctxReasonCliOwned: 'Owned by external CLI', ctxReasonPolicyOff: 'Disabled in settings', ctxReasonEmpty: 'Empty snapshot',
+      ctxReasonMarkdownOnly: 'Folded JSON to Markdown', ctxReasonHandoff: 'Initial handoff', ctxReasonDelta: 'Incremental sync', ctxReasonSystemPromptAppend: 'Appended via ACP _meta',
+      ctxKindSystemPrompt: 'DSH system prompt', ctxKindRuntimeContext: 'Runtime context', ctxKindSkillCatalog: 'DSH skill catalog',
+      ctxKindAgentInstructions: 'Workspace instructions', ctxKindTimeContext: 'Time & time zone', ctxKindNowledge: 'DSH Nowledge bundle',
+      ctxKindDshHistory: 'DSH conversation history', ctxKindSkillInvocation: 'Invoked DSH skill', ctxKindSessionReference: 'Referenced session', ctxKindDeveloper: 'DSH developer notice',
+      ctxChars: '{n} chars', ctxCharsReduced: '{before} → {after}', ctxHistoryCount: '{n} msgs',
+      ctxMcpMounted: 'MCP bridge', ctxMcpProxied: 'Proxies DSH MCP: {names}', ctxMcpNone: 'No MCP bridge',
+      ctxScopeTitle: 'DSH context forwarding',
+      ctxScopeOwned: 'Owned by CLI: system prompt, built-in tools, skills, permissions (DSH runtime-context and skill catalog are skipped).',
+      ctxScopeHint: 'Applies to this provider from the next turn. Turn off items the CLI already loads to avoid duplicates.',
+      ctxPolicyAgentInstructions: 'Forward workspace instructions (AGENTS.md)',
+      ctxPolicyTimeContext: 'Forward time & time zone snapshots',
+      ctxPolicyNowledge: 'Forward DSH Nowledge Mem bundle',
+      ctxPolicySystemPromptAppend: 'Append DSH system prompt via ACP _meta (Antigravity)',
+      ctxExtraDirsLabel: 'Extra dirs',
     }
     const zh = {
       panel: 'ACP 工作台', panelHint: '管理本机 ACP CLI 提供方、检测协议能力，并配置出现在 DSH 模型选择器中的模型。',
@@ -322,6 +350,16 @@ window.__ModuleLoader__.load({
       modelEfforts: '思考强度：{levels}', modelInfoUnknown: 'CLI 未公布模型信息', modalityText: '文本', modalityImage: '图片',
       supported: '已公布', unsupported: '不支持', unreported: '未公布', authMethods: '登录方式', rawResult: '原始结果', none: '未公布',
       tierLabel: '订阅档位', authLabel: '登录状态', authSignedIn: '已登录', authSignedOut: '未登录', authUnknown: '未检测',
+      authMethodLabel: '认证方式', authSignIn: '发起认证', authSigningIn: '认证中…', authSignOut: '退出登录', authSigningOut: '退出中…',
+      authSignOutConfirm: '确定通过 ACP auth/logout 退出 {label} 的登录态？需先断开该提供方的活跃会话。',
+      authSignedInDone: '已通过 {method} 完成认证。', authSignedOutDone: '已退出 {label} 登录态。',
+      fieldExtraDirs: '附加工作区目录（可选）',
+      fieldExtraDirsHint: '每行填写一个绝对路径；当 CLI 公布 sessionCapabilities.additionalDirectories（如 Antigravity）时自动传入。',
+      fieldExtraDirsPlaceholder: '/path/to/another-repo',
+      extraDirsInvalid: '每条附加目录都必须是绝对路径。',
+      fieldSystemAppend: '追加系统指令（可选）',
+      fieldSystemAppendHint: '当 CLI 公布 _meta.antigravity.systemPrompt.append 时随会话创建/恢复传入（对新建或重连会话生效）。',
+      fieldSystemAppendPlaceholder: '补充项目约定或约束说明…',
       subHeading: '订阅与用量', refreshUsage: '刷新用量', refreshingUsage: '刷新中…', usageUpdated: '订阅与用量已刷新。', usageUpdatedAt: '更新于 {time}', usageOpenDashboard: '查看网页用量 ↗',
       quotaLimit5h: '5 小时窗口', quotaLimit7d: '7 天总量', quotaLimitModel7d: '7 天 · {model}', quotaLimitDuration: '{hours} 小时窗口', quotaLimitExtra: '超额用量',
       quotaStatusWarn: '接近上限', quotaStatusRejected: '已达上限', quotaResetsAt: '重置于 {time}',
@@ -339,6 +377,7 @@ window.__ModuleLoader__.load({
       'cap.loadSession': '加载会话', 'cap.resume': '恢复会话', 'cap.fork': '分支会话', 'cap.close': '关闭会话', 'cap.options': '会话选项',
       'cap.steering': '运行中引导', 'cap.additionalDirs': '附加目录', 'cap.image': '图片输入', 'cap.audio': '音频输入', 'cap.embeddedContext': '嵌入上下文',
       'cap.list': '会话列表', 'cap.mcpHttp': 'HTTP MCP', 'cap.mcpSse': 'SSE MCP',
+      'cap.authLogout': '协议登出', 'cap.systemPromptAppend': '追加系统提示',
       discovered: '此目录下的 CLI 会话', more: '更多', noDiscovered: '没有找到会话。',
       loginHint: '若登录失败，请在终端执行 CLI 的登录命令后重新连接。',
       search: '搜索名称、提供方、目录或会话 ID', noRecords: '还没有执行记录。', noMatch: '没有匹配的记录。',
@@ -386,6 +425,23 @@ window.__ModuleLoader__.load({
       bgTaskRunningHint: '正在外部 CLI 后台运行，完成后将在此展示输出。',
       bgTaskTruncated: '较早输出已截断（仅保留末尾 16 KiB）。',
       engineConnected: '已连接 {n}', engineReady: '就绪', engineConfigured: '待命', engineUnchecked: '未检测', engineError: '不可用', probeLatency: '探测延迟',
+      ctxReceiptTitle: '上下文回执', ctxSummarySent: '已转发 {n}', ctxSummaryCompacted: '已裁剪 {n}', ctxSummarySkipped: '未转发 {n}', ctxSummaryMcp: 'MCP {n}',
+      ctxActionSent: '已转发', ctxActionCompacted: '已裁剪', ctxActionDropped: '未转发', ctxActionIgnored: 'CLI 接管',
+      ctxReasonHostOnly: '仅 DSH 宿主有效', ctxReasonCliOwned: '由外部 CLI 接管', ctxReasonPolicyOff: '已在设置中关闭', ctxReasonEmpty: '空快照',
+      ctxReasonMarkdownOnly: '已折叠 JSON 为 Markdown', ctxReasonHandoff: '首次交接', ctxReasonDelta: '增量同步', ctxReasonSystemPromptAppend: '通过 ACP _meta 追加',
+      ctxKindSystemPrompt: 'DSH 系统提示词', ctxKindRuntimeContext: '运行时上下文', ctxKindSkillCatalog: 'DSH 技能目录',
+      ctxKindAgentInstructions: '工作区指令', ctxKindTimeContext: '时间与时区', ctxKindNowledge: 'DSH Nowledge 上下文',
+      ctxKindDshHistory: '跨引擎历史交接', ctxKindSkillInvocation: '手动调用的技能', ctxKindSessionReference: '引用的会话', ctxKindDeveloper: 'DSH 开发者消息',
+      ctxChars: '{n} 字符', ctxCharsReduced: '{before} → {after}', ctxHistoryCount: '{n} 条消息',
+      ctxMcpMounted: '已挂载 MCP', ctxMcpProxied: '代理 DSH MCP：{names}', ctxMcpNone: '未挂载 MCP',
+      ctxScopeTitle: 'DSH 上下文转发',
+      ctxScopeOwned: '由外部 CLI 接管：系统提示词、内置工具、技能与权限（DSH 的运行时上下文与技能目录不会转发）。',
+      ctxScopeHint: '对该提供方从下一轮起生效；关闭 CLI 自身已加载的项可避免重复注入。',
+      ctxPolicyAgentInstructions: '转发工作区指令（AGENTS.md）',
+      ctxPolicyTimeContext: '转发时间与时区快照',
+      ctxPolicyNowledge: '转发 DSH 侧 Nowledge 上下文',
+      ctxPolicySystemPromptAppend: '通过 ACP _meta 追加 DSH 系统提示词（Antigravity）',
+      ctxExtraDirsLabel: '附加目录',
     }
 
     const CSS = `
@@ -636,6 +692,17 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-reply-clamped{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .aw-trace-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);min-width:0}
 .aw-trace-meta .aw-path{max-width:min(100%,360px)}
+.aw-ctx-receipt{display:flex;flex-direction:column;gap:4px;min-width:0}
+.aw-ctx-toggle{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;min-height:24px;padding:2px 6px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;line-height:18px;text-align:left;cursor:pointer}
+@media (hover:hover){.aw-ctx-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.aw-ctx-list{display:flex;flex-direction:column;gap:4px;margin-inline-start:6px;padding:4px 0 4px 10px;border-inline-start:1.5px solid var(--dsw-alias-border-l1);min-width:0}
+.aw-ctx-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:12px;line-height:18px;min-width:0}
+.aw-ctx-name{color:var(--dsw-alias-label-primary);font-weight:500}
+.aw-ctx-label{color:var(--dsw-alias-label-secondary);max-width:min(100%,320px)}
+.aw-ctx-meta{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.aw-ctx-scope{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:.5px solid var(--dsw-alias-border-l1);min-width:0}
+.aw-ctx-switches{display:flex;flex-direction:column;gap:6px;min-width:0}
+.aw-ctx-switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
 .aw-summary{color:var(--dsw-alias-label-tertiary);font-size:12px;margin-left:8px;font-weight:400}
 .aw-list{display:flex;flex-direction:column;gap:2px;min-width:0}
 .aw-detail{display:flex;flex-direction:column;gap:8px;padding:2px 0 8px 26px;min-width:0}
@@ -3485,8 +3552,9 @@ button.aw-child-trigger:focus-visible{outline:none}
                 : h(React.Fragment, null, headMeta, h('span', { className: 'aw-grow' })),
               expanded ? h(Button, { size: 'sm', variant: 'ghost', 'aria-pressed': raw, onClick: () => setRaw(!raw) }, tt(raw ? 'viewTimeline' : 'viewRaw')) : null),
             expanded ? h('div', { className: 'aw-trace-body' },
+              run.context ? h(ContextReceipt, { context: run.context, handoff: run.handoff }) : null,
               raw ? h('div', { className: 'aw-trace-meta' }, h(PathLabel, { path: session.cwd, className: 'aw-path' }),
-                run.handoff !== undefined ? h('span', null, tt(run.handoff ? 'handoff' : 'sameContext')) : null,
+                !run.context && run.handoff !== undefined ? h('span', null, tt(run.handoff ? 'handoff' : 'sameContext')) : null,
                 events[0]?.seq > from ? h(Button, { size: 'sm', variant: 'ghost', disabled: loadingOlder, onClick: older }, tt('older')) : null) : null,
               run.stopReason && run.stopReason !== 'end_turn' ? h('p', { className: 'aw-note' }, tt('stopReason', { reason: run.stopReason })) : null,
               (raw ? ready || events.length : traceReady) ? h(TraceList, { key: `${session.id}:${run.id}`, recordId: session.id, remoteId: session.remoteId, events, folded: raw ? undefined : fallback.rows, raw, interactions: current?.interactions ?? EMPTY, live: active, conversation: true, openFile, cwd: session.cwd }) : h('p', { className: 'aw-note' }, tt('loading')),
@@ -3496,6 +3564,137 @@ button.aw-child-trigger:focus-visible{outline:none}
               (run.error || error || view.error) ? h('div', { className: 'aw-trace-body' },
                 run.error ? h('p', { className: 'aw-error', role: 'alert' }, run.error) : null,
                 error || view.error ? h('p', { className: 'aw-error', role: 'alert' }, error || view.error) : null) : null))
+        }
+
+        function formatChars(value) {
+          if (!Number.isFinite(value) || value < 0) return '0'
+          if (value >= 1000) return `${(value / 1000).toFixed(value >= 10_000 ? 0 : 1)}k`
+          return String(Math.round(value))
+        }
+
+        function contextKindLabel(kind, tt) {
+          switch (kind) {
+            case 'system-prompt': return tt('ctxKindSystemPrompt')
+            case 'runtime-context': return tt('ctxKindRuntimeContext')
+            case 'skill-catalog': return tt('ctxKindSkillCatalog')
+            case 'agent-instructions': return tt('ctxKindAgentInstructions')
+            case 'time-context': return tt('ctxKindTimeContext')
+            case 'nowledge-context': return tt('ctxKindNowledge')
+            case 'dsh-history': return tt('ctxKindDshHistory')
+            case 'skill-invocation': return tt('ctxKindSkillInvocation')
+            case 'session-reference': return tt('ctxKindSessionReference')
+            case 'developer':
+            case 'tool-registry': return tt('ctxKindDeveloper')
+            default: return kind || 'context'
+          }
+        }
+
+        function contextActionMeta(action, tt) {
+          if (action === 'sent') return { label: tt('ctxActionSent'), tone: 'success' }
+          if (action === 'compacted') return { label: tt('ctxActionCompacted'), tone: 'warn' }
+          if (action === 'ignored') return { label: tt('ctxActionIgnored'), tone: 'quiet' }
+          return { label: tt('ctxActionDropped'), tone: 'quiet' }
+        }
+
+        function contextReasonLabel(reason, tt) {
+          switch (reason) {
+            case 'host-only': return tt('ctxReasonHostOnly')
+            case 'cli-owned': return tt('ctxReasonCliOwned')
+            case 'policy-off': return tt('ctxReasonPolicyOff')
+            case 'empty': return tt('ctxReasonEmpty')
+            case 'markdown-only': return tt('ctxReasonMarkdownOnly')
+            case 'handoff': return tt('ctxReasonHandoff')
+            case 'delta': return tt('ctxReasonDelta')
+            case 'system-prompt-append': return tt('ctxReasonSystemPromptAppend')
+            default: return reason || ''
+          }
+        }
+
+        function ContextReceipt({ context, handoff }) {
+          const tt = useT()
+          const [open, setOpen] = React.useState(false)
+          if (!context) return null
+          const items = Array.isArray(context.items) ? context.items : EMPTY
+          const mcpServers = Array.isArray(context.mcp?.servers) ? context.mcp.servers : EMPTY
+          const forwardedMcp = Array.isArray(context.mcp?.forwardedServers) ? context.mcp.forwardedServers : EMPTY
+          if (!items.length && !mcpServers.length) return null
+          const parts = [
+            context.sentCount ? tt('ctxSummarySent', { n: context.sentCount }) : null,
+            context.compactedCount ? tt('ctxSummaryCompacted', { n: context.compactedCount }) : null,
+            context.droppedCount ? tt('ctxSummarySkipped', { n: context.droppedCount }) : null,
+            mcpServers.length ? tt('ctxSummaryMcp', { n: mcpServers.length }) : null,
+          ].filter(Boolean)
+          return h('div', { className: 'aw-ctx-receipt' },
+            h('button', {
+              type: 'button',
+              className: 'aw-ctx-toggle',
+              'aria-expanded': open,
+              onClick: () => setOpen(v => !v),
+            },
+            h('span', { className: 'aw-ctx-name' }, tt('ctxReceiptTitle')),
+            parts.length ? h('span', { className: 'aw-ctx-meta' }, parts.join(' · ')) : null,
+            handoff !== undefined ? h('span', { className: 'aw-ctx-meta' }, `· ${tt(handoff ? 'handoff' : 'sameContext')}`) : null,
+            h(open ? IconChevronUpOutlineRegular : IconChevronDownOutlineRegular, { size: 13, className: 'aw-trace-chevron' })),
+            open ? h('div', { className: 'aw-ctx-list' },
+              items.map((item, idx) => {
+                const action = contextActionMeta(item.action, tt)
+                const reason = contextReasonLabel(item.reason, tt)
+                const sizeText = item.beforeChars && item.beforeChars !== item.chars
+                  ? tt('ctxCharsReduced', { before: formatChars(item.beforeChars), after: formatChars(item.chars ?? 0) })
+                  : item.chars ? tt('ctxChars', { n: formatChars(item.chars) }) : ''
+                return h('div', { key: `${item.kind}:${idx}`, className: 'aw-ctx-row' },
+                  h(Tag, { tone: action.tone }, action.label),
+                  h('span', { className: 'aw-ctx-name' }, contextKindLabel(item.kind, tt)),
+                  item.label ? h('span', { className: 'aw-ctx-label aw-mono aw-ellipsis', title: item.label }, item.label) : null,
+                  item.count ? h('span', { className: 'aw-ctx-meta' }, tt('ctxHistoryCount', { n: item.count })) : null,
+                  reason ? h('span', { className: 'aw-ctx-meta' }, reason) : null,
+                  sizeText ? h('span', { className: 'aw-ctx-meta' }, sizeText) : null)
+              }),
+              h('div', { className: 'aw-ctx-row' },
+                h(Tag, { tone: mcpServers.length ? 'success' : 'quiet' }, tt(mcpServers.length ? 'ctxMcpMounted' : 'ctxMcpNone')),
+                mcpServers.length ? h('span', { className: 'aw-ctx-label aw-mono' }, mcpServers.join(', ')) : null,
+                forwardedMcp.length ? h('span', { className: 'aw-ctx-meta' }, tt('ctxMcpProxied', { names: forwardedMcp.join(', ') })) : null)) : null)
+        }
+
+        function ContextScopeSection({ context, disabled, onToggle }) {
+          const tt = useT()
+          if (!context) return null
+          const policy = {
+            agentInstructions: context.policy?.agentInstructions !== false,
+            timeContext: context.policy?.timeContext !== false,
+            nowledgeContext: context.policy?.nowledgeContext !== false,
+            systemPromptAppend: context.policy?.systemPromptAppend === true,
+          }
+          const mcpServers = Array.isArray(context.mcpServers) ? context.mcpServers : EMPTY
+          const forwardedMcp = Array.isArray(context.forwardedMcpServers) ? context.forwardedMcpServers : EMPTY
+          const extraDirs = Array.isArray(context.additionalDirectories) ? context.additionalDirectories : EMPTY
+          const plannedMcp = mcpServers.length
+            ? mcpServers.map(item => item.name)
+            : ['dsh_agents', ...(forwardedMcp.length ? (context.compactMcpBridge ? ['dsh_mcp'] : forwardedMcp) : [])]
+          return h('div', { className: 'aw-ctx-scope' },
+            h('strong', null, tt('ctxScopeTitle')),
+            h('p', { className: 'aw-note' }, tt('ctxScopeOwned')),
+            h('div', { className: 'aw-ctx-row' },
+              h(Tag, { tone: 'quiet' }, tt('ctxMcpMounted')),
+              h('span', { className: 'aw-ctx-label aw-mono' }, plannedMcp.join(', ')),
+              forwardedMcp.length ? h('span', { className: 'aw-ctx-meta' }, tt('ctxMcpProxied', { names: forwardedMcp.join(', ') })) : null),
+            extraDirs.length ? h('div', { className: 'aw-ctx-row' },
+              h(Tag, { tone: 'quiet' }, tt('ctxExtraDirsLabel')),
+              h('span', { className: 'aw-ctx-label aw-mono aw-ellipsis', title: extraDirs.join('\n') }, extraDirs.join(', '))) : null,
+            h('div', { className: 'aw-ctx-switches' },
+              h('div', { className: 'aw-ctx-switch-row' },
+                h('span', null, tt('ctxPolicyAgentInstructions')),
+                h(Switch, { checked: policy.agentInstructions, disabled, label: tt('ctxPolicyAgentInstructions'), onChange: checked => onToggle('agentInstructions', checked) })),
+              h('div', { className: 'aw-ctx-switch-row' },
+                h('span', null, tt('ctxPolicyTimeContext')),
+                h(Switch, { checked: policy.timeContext, disabled, label: tt('ctxPolicyTimeContext'), onChange: checked => onToggle('timeContext', checked) })),
+              h('div', { className: 'aw-ctx-switch-row' },
+                h('span', null, tt('ctxPolicyNowledge')),
+                h(Switch, { checked: policy.nowledgeContext, disabled, label: tt('ctxPolicyNowledge'), onChange: checked => onToggle('nowledgeContext', checked) })),
+              (context.systemPromptAppendSupported || policy.systemPromptAppend) ? h('div', { className: 'aw-ctx-switch-row' },
+                h('span', null, tt('ctxPolicySystemPromptAppend')),
+                h(Switch, { checked: policy.systemPromptAppend, disabled, label: tt('ctxPolicySystemPromptAppend'), onChange: checked => onToggle('systemPromptAppend', checked) })) : null),
+            h('p', { className: 'aw-note' }, tt('ctxScopeHint')))
         }
 
         function conversationTarget(s) {
@@ -3789,6 +3988,14 @@ button.aw-child-trigger:focus-visible{outline:none}
               return !!result
             } }) : null,
             info?.usage && view.data?.contextReport?.externalId !== binding?.id ? h('p', { className: 'aw-note' }, usageText(info.usage)) : null,
+            controls?.context ? h(ContextScopeSection, {
+              context: {
+                ...controls.context,
+                mcpServers: info?.injectedMcp?.length ? info.injectedMcp : controls.context.mcpServers,
+              },
+              disabled: !canWrite || view.busy,
+              onToggle: (key, checked) => view.run({ action: 'native-set-context-policy', dshSessionId: sessionId, route: provider.route, patch: { [key]: checked } }),
+            }) : null,
             error || view.error ? h('p', { role: 'alert', className: 'aw-error' }, error || view.error) : null))
         }
 
@@ -5695,7 +5902,20 @@ button.aw-child-trigger:focus-visible{outline:none}
           return { data, ready, error, refresh: () => kick.current?.() }
         }
 
-        const blankProvider = () => ({ id: '', label: '', command: '', args: '["acp"]' })
+        const normalizePolicyDraft = policy => ({
+          agentInstructions: policy?.agentInstructions !== false,
+          timeContext: policy?.timeContext !== false,
+          nowledgeContext: policy?.nowledgeContext !== false,
+          systemPromptAppend: policy?.systemPromptAppend === true,
+        })
+        const providerToDraft = provider => provider ? ({
+          ...provider,
+          args: JSON.stringify(provider.args),
+          contextPolicy: normalizePolicyDraft(provider.contextPolicy),
+          additionalDirectoriesText: Array.isArray(provider.additionalDirectories) ? provider.additionalDirectories.join('\n') : '',
+          systemPromptAppend: typeof provider.systemPromptAppend === 'string' ? provider.systemPromptAppend : '',
+        }) : blankProvider()
+        const blankProvider = () => ({ id: '', label: '', command: '', args: '["acp"]', contextPolicy: normalizePolicyDraft(null), additionalDirectoriesText: '', systemPromptAppend: '' })
         const FALLBACK_PROVIDER_TEMPLATES = [
           { id: 'cursor', label: 'Cursor', bin: 'cursor-agent', command: 'cursor-agent', args: ['acp'] },
           { id: 'antigravity', label: 'Antigravity', bin: 'agy', command: 'agy', args: ['acp'] },
@@ -5800,11 +6020,17 @@ button.aw-child-trigger:focus-visible{outline:none}
           return ''
         }
 
-        function SubscriptionCard({ provider, authStatus, localUsage, busy, refreshing, onRefresh }) {
+        function SubscriptionCard({ provider, authStatus, localUsage, authMethods, canLogout, busy, refreshing, authBusy, onRefresh, onAuthenticate, onLogout }) {
           const tt = useT()
           const sub = provider?.subscription ?? null
           const account = effectiveAccount(provider, authStatus)
           const windows = sub?.windows ?? EMPTY
+          const methods = Array.isArray(authMethods) ? authMethods : EMPTY
+          const [selectedMethod, setSelectedMethod] = React.useState(methods[0]?.id ?? '')
+          React.useEffect(() => {
+            if (!methods.length) setSelectedMethod('')
+            else if (!methods.some(item => item.id === selectedMethod)) setSelectedMethod(methods[0].id)
+          }, [provider?.id, methods.length])
           const dotState = account.state === 'authenticated' ? 'done' : account.state === 'unauthenticated' ? 'warning' : 'idle'
           const stateLabel = account.state === 'authenticated' ? tt('authSignedIn')
             : account.state === 'unauthenticated' ? tt('authSignedOut')
@@ -5822,7 +6048,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               h('h3', { className: 'aw-grow' }, tt('subHeading')),
               updatedLabel ? h('span', { className: 'aw-note' }, updatedLabel) : null,
               sub?.dashboardUrl ? h('a', { className: 'aw-url-link', href: sub.dashboardUrl, target: '_blank', rel: 'noopener noreferrer' }, tt('usageOpenDashboard')) : null,
-              h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: onRefresh }, refreshing ? tt('refreshingUsage') : tt('refreshUsage'))),
+              h(Button, { size: 'sm', variant: 'outline', disabled: busy || authBusy, onClick: onRefresh }, refreshing ? tt('refreshingUsage') : tt('refreshUsage'))),
             h('div', { className: 'aw-sub-account' },
               h(StateDot, { state: dotState, size: 7 }),
               h('span', { className: 'aw-strong' }, stateLabel),
@@ -5834,6 +6060,27 @@ button.aw-child-trigger:focus-visible{outline:none}
                 ? h('span', { className: 'aw-pill', 'data-tone': 'error' }, tt('quotaStatusRejected'))
                 : sub?.liveRateLimit?.status === 'allowed_warning'
                   ? h('span', { className: 'aw-pill', 'data-tone': 'fast' }, tt('quotaStatusWarn')) : null),
+            (methods.length > 0 || canLogout) ? h('div', { className: 'aw-row' },
+              methods.length > 0 && onAuthenticate ? h(React.Fragment, null,
+                h('select', {
+                  className: 'aw-select',
+                  'aria-label': tt('authMethodLabel'),
+                  value: selectedMethod || methods[0].id,
+                  disabled: busy || authBusy,
+                  onChange: event => setSelectedMethod(event.target.value),
+                }, methods.map(method => h('option', { key: method.id, value: method.id }, method.name || method.id))),
+                h(Button, {
+                  size: 'sm',
+                  variant: 'ghost',
+                  disabled: busy || authBusy || !(selectedMethod || methods[0]?.id),
+                  onClick: () => onAuthenticate(selectedMethod || methods[0].id),
+                }, authBusy === 'login' ? tt('authSigningIn') : tt('authSignIn'))) : null,
+              canLogout && onLogout ? h(Button, {
+                size: 'sm',
+                variant: 'ghost',
+                disabled: busy || authBusy,
+                onClick: onLogout,
+              }, authBusy === 'logout' ? tt('authSigningOut') : tt('authSignOut')) : null) : null,
             windows.length > 0 ? h('div', { className: 'aw-quota-grid' },
               windows.map(win => {
                 const pct = typeof win.usedPercent === 'number' ? Math.max(0, Math.min(100, win.usedPercent)) : null
@@ -5881,6 +6128,8 @@ button.aw-child-trigger:focus-visible{outline:none}
             ['cap.list', sess.list],
             ['cap.additionalDirs', sess.additionalDirectories],
             ['cap.steering', info._meta?.steering?.supported],
+            ['cap.authLogout', agent.auth?.logout],
+            ['cap.systemPromptAppend', agent._meta?.antigravity?.systemPrompt?.append],
             ['cap.image', agent.promptCapabilities?.image],
             ['cap.audio', agent.promptCapabilities?.audio],
             ['cap.embeddedContext', agent.promptCapabilities?.embeddedContext],
@@ -5965,9 +6214,10 @@ button.aw-child-trigger:focus-visible{outline:none}
             h(Json, { label: tt('rawResult'), payload: info }))
         }
 
-        function ProviderForm({ saved, draft, templates, existingIds, busy, notice, probeCwd, defaultCwd, onApplyTemplate, onResetBlank, onChange, onProbeCwd, onSave, onRemove, onCancel }) {
+        function ProviderForm({ saved, draft, templates, existingIds, busy, notice, probeCwd, defaultCwd, onApplyTemplate, onResetBlank, onChange, onPolicyChange, onProbeCwd, onSave, onRemove, onCancel }) {
           const tt = useT()
           const isBlank = !draft.id && !draft.label && !draft.command && draft.args === '["acp"]'
+          const policy = normalizePolicyDraft(draft.contextPolicy)
           return h('form', { className: 'aw-box', onSubmit: onSave },
             h('div', { className: 'aw-box-head' },
               h('h3', { className: 'aw-grow' }, saved ? tt('editProvider') : tt('newProviderTitle')),
@@ -6003,7 +6253,29 @@ button.aw-child-trigger:focus-visible{outline:none}
                 h('span', { className: 'aw-note' }, tt('fieldArgsHint'))),
               saved ? h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('probeDirLabel')),
                 h(Input, { className: 'aw-input aw-mono', value: probeCwd, disabled: busy, placeholder: defaultCwd || tt('cwdPlaceholder'), onChange: event => onProbeCwd(event.target.value) }),
-                h('span', { className: 'aw-note' }, tt('probeDirHint'))) : null),
+                h('span', { className: 'aw-note' }, tt('probeDirHint'))) : null,
+              h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('fieldExtraDirs')),
+                h('textarea', { className: 'aw-textarea aw-mono', value: draft.additionalDirectoriesText ?? '', rows: 2, spellCheck: false, placeholder: tt('fieldExtraDirsPlaceholder'), disabled: busy, onChange: onChange('additionalDirectoriesText') }),
+                h('span', { className: 'aw-note' }, tt('fieldExtraDirsHint'))),
+              h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('fieldSystemAppend')),
+                h('textarea', { className: 'aw-textarea', value: draft.systemPromptAppend ?? '', rows: 2, placeholder: tt('fieldSystemAppendPlaceholder'), disabled: busy, onChange: onChange('systemPromptAppend') }),
+                h('span', { className: 'aw-note' }, tt('fieldSystemAppendHint')))),
+            onPolicyChange ? h('div', { className: 'aw-ctx-scope' },
+              h('strong', null, tt('ctxScopeTitle')),
+              h('p', { className: 'aw-note' }, tt('ctxScopeOwned')),
+              h('div', { className: 'aw-ctx-switches' },
+                h('div', { className: 'aw-ctx-switch-row' },
+                  h('span', null, tt('ctxPolicyAgentInstructions')),
+                  h(Switch, { checked: policy.agentInstructions, disabled: busy, label: tt('ctxPolicyAgentInstructions'), onChange: checked => onPolicyChange('agentInstructions', checked) })),
+                h('div', { className: 'aw-ctx-switch-row' },
+                  h('span', null, tt('ctxPolicyTimeContext')),
+                  h(Switch, { checked: policy.timeContext, disabled: busy, label: tt('ctxPolicyTimeContext'), onChange: checked => onPolicyChange('timeContext', checked) })),
+                h('div', { className: 'aw-ctx-switch-row' },
+                  h('span', null, tt('ctxPolicyNowledge')),
+                  h(Switch, { checked: policy.nowledgeContext, disabled: busy, label: tt('ctxPolicyNowledge'), onChange: checked => onPolicyChange('nowledgeContext', checked) })),
+                h('div', { className: 'aw-ctx-switch-row' },
+                  h('span', null, tt('ctxPolicySystemPromptAppend')),
+                  h(Switch, { checked: policy.systemPromptAppend, disabled: busy, label: tt('ctxPolicySystemPromptAppend'), onChange: checked => onPolicyChange('systemPromptAppend', checked) })))) : null,
             h('div', { className: 'aw-row' },
               h(Button, { type: 'submit', size: 'sm', variant: 'primary', disabled: busy }, tt('save')),
               saved ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy, onClick: onRemove }, tt('remove')) : null,
@@ -6044,9 +6316,10 @@ button.aw-child-trigger:focus-visible{outline:none}
           const templates = providerTemplates?.length ? providerTemplates : FALLBACK_PROVIDER_TEMPLATES
           const existingIds = React.useMemo(() => new Set(providers.map(provider => provider.id)), [providers])
           const [editing, setEditing] = React.useState(providers[0]?.id ?? '')
-          const [draft, setDraft] = React.useState(() => providers[0] ? { ...providers[0], args: JSON.stringify(providers[0].args) } : blankProvider())
+          const [draft, setDraft] = React.useState(() => providerToDraft(providers[0]))
           const [showConfig, setShowConfig] = React.useState(false)
           const [usageRefreshing, setUsageRefreshing] = React.useState(false)
+          const [authBusy, setAuthBusy] = React.useState('')
           const [notice, setNotice] = React.useState('')
           const [statusBanner, setStatusBanner] = React.useState('')
           const [probeCwd, setProbeCwd] = React.useState('')
@@ -6061,7 +6334,7 @@ button.aw-child-trigger:focus-visible{outline:none}
           const selectProvider = provider => {
             setCreating(false)
             setEditing(provider?.id ?? '')
-            setDraft(provider ? { ...provider, args: JSON.stringify(provider.args) } : blankProvider())
+            setDraft(providerToDraft(provider))
             setShowConfig(false)
             setNotice(''); setStatusBanner(''); setReport(null)
             setHiddenModels(provider?.hiddenModels ?? [])
@@ -6109,12 +6382,16 @@ button.aw-child-trigger:focus-visible{outline:none}
           })
 
           const changeField = key => event => { setDraft(old => ({ ...old, [key]: event.target.value })); setNotice('') }
+          const changePolicy = (key, checked) => {
+            setDraft(old => ({ ...old, contextPolicy: { ...normalizePolicyDraft(old.contextPolicy), [key]: checked } }))
+            setNotice('')
+          }
           const applyTemplate = template => {
             if (saved) {
               setDraft(old => ({ ...old, command: template.command, args: JSON.stringify(template.args) }))
             } else {
               const { id, label } = nextTemplateIdentity(template, existingIds)
-              setDraft({ id, label, command: template.command, args: JSON.stringify(template.args) })
+              setDraft({ ...blankProvider(), id, label, command: template.command, args: JSON.stringify(template.args) })
             }
             setNotice('')
           }
@@ -6124,14 +6401,32 @@ button.aw-child-trigger:focus-visible{outline:none}
             let args
             try { args = JSON.parse(draft.args) } catch { args = null }
             if (!Array.isArray(args) || args.some(item => typeof item !== 'string')) { setNotice(tt('argsInvalid')); return }
+            const extraDirs = String(draft.additionalDirectoriesText ?? '')
+              .split(/\r?\n/u)
+              .map(line => line.trim())
+              .filter(Boolean)
+            if (extraDirs.some(dir => !/^(\/|[a-zA-Z]:[\\/])/u.test(dir))) {
+              setNotice(tt('extraDirsInvalid'))
+              return
+            }
             const value = await run({
               action: 'provider-save',
-              provider: { id: draft.id.trim(), label: draft.label, command: draft.command, args, models: saved?.models ?? [], hiddenModels: saved?.hiddenModels ?? [] },
+              provider: {
+                id: draft.id.trim(),
+                label: draft.label,
+                command: draft.command,
+                args,
+                models: saved?.models ?? [],
+                hiddenModels: saved?.hiddenModels ?? [],
+                contextPolicy: normalizePolicyDraft(draft.contextPolicy),
+                additionalDirectories: extraDirs,
+                systemPromptAppend: String(draft.systemPromptAppend ?? '').trim(),
+              },
             })
             if (value) {
               setCreating(false)
               setEditing(value.id)
-              setDraft({ ...value, args: JSON.stringify(value.args) })
+              setDraft(providerToDraft(value))
               setHiddenModels(value.hiddenModels ?? [])
               setNotice(tt('saved'))
               setStatusBanner(tt('saved'))
@@ -6163,6 +6458,29 @@ button.aw-child-trigger:focus-visible{outline:none}
               if (value) setStatusBanner(tt('usageUpdated'))
             } finally {
               setUsageRefreshing(false)
+            }
+          }
+          const authenticateProvider = async methodId => {
+            if (!saved || !methodId) return
+            setStatusBanner('')
+            setAuthBusy('login')
+            try {
+              const value = await run({ action: 'auth-login', providerId: saved.id, methodId, cwd: effectiveCwd })
+              if (value) setStatusBanner(tt('authSignedInDone', { method: methodId }))
+            } finally {
+              setAuthBusy('')
+            }
+          }
+          const logoutProvider = async () => {
+            if (!saved) return
+            if (!await askConfirm(tt('authSignOutConfirm', { label: saved.label }), { title: tt('authSignOut'), confirmLabel: tt('authSignOut'), danger: true })) return
+            setStatusBanner('')
+            setAuthBusy('logout')
+            try {
+              const value = await run({ action: 'auth-logout', providerId: saved.id, cwd: effectiveCwd })
+              if (value) setStatusBanner(tt('authSignedOutDone', { label: saved.label }))
+            } finally {
+              setAuthBusy('')
             }
           }
           const saveVisibility = async () => {
@@ -6219,7 +6537,7 @@ button.aw-child-trigger:focus-visible{outline:none}
                 ? h(ProviderForm, {
                   saved: null, draft, templates, existingIds, busy, notice, probeCwd, defaultCwd: activeWorkspacePath || defaultCwd,
                   onApplyTemplate: applyTemplate, onResetBlank: resetBlank,
-                  onChange: changeField, onProbeCwd: setProbeCwd, onSave: saveProvider,
+                  onChange: changeField, onPolicyChange: changePolicy, onProbeCwd: setProbeCwd, onSave: saveProvider,
                   onCancel: providers.length ? () => selectProvider(providers.find(p => p.id === editing) ?? providers[0]) : null,
                 })
                 : h(React.Fragment, null,
@@ -6246,14 +6564,19 @@ button.aw-child-trigger:focus-visible{outline:none}
                     provider: saved,
                     authStatus: authByProvider?.[saved.id] ?? null,
                     localUsage: localUsageByProvider?.[saved.id] ?? null,
+                    authMethods: report?.authMethods ?? saved.advertised?.meta?.authMethods ?? EMPTY,
+                    canLogout: Boolean(report?.agentCapabilities?.auth?.logout ?? saved.advertised?.meta?.authLogout),
                     busy,
                     refreshing: usageRefreshing,
+                    authBusy,
                     onRefresh: refreshUsage,
+                    onAuthenticate: authenticateProvider,
+                    onLogout: logoutProvider,
                   }),
                   showConfig ? h(ProviderForm, {
                     saved, draft, templates, existingIds, busy, notice, probeCwd, defaultCwd: activeWorkspacePath || defaultCwd,
                     onApplyTemplate: applyTemplate, onResetBlank: resetBlank,
-                    onChange: changeField, onProbeCwd: setProbeCwd, onSave: saveProvider, onRemove: removeProvider,
+                    onChange: changeField, onPolicyChange: changePolicy, onProbeCwd: setProbeCwd, onSave: saveProvider, onRemove: removeProvider,
                     onCancel: () => setShowConfig(false),
                   }) : null,
                   report ? h(CapabilityReport, { info: report, onClose: () => setReport(null) }) : null,

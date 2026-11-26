@@ -35,6 +35,10 @@ const str = (value, name, max = 1000) => {
 const MAX_MODELS = 200
 const MAX_HIDDEN_MODELS = 500
 const MAX_PROBE_MODELS = 24
+const MAX_ADDITIONAL_DIRS = 32
+const MAX_EXCLUDED_MCP_SERVERS = 64
+const MCP_SERVER_NAME_RE = /^[A-Za-z0-9_-]{1,64}$/u
+const MAX_SYSTEM_PROMPT_APPEND = 16_384
 const CLIENT_CAPABILITY_META = { parameterizedModelPicker: true }
 const ASYNC_WAKEUP_SETTLE_MS = 1_500
 const ASYNC_WAKEUP_SILENT_SETTLE_MS = 15_000
@@ -264,6 +268,7 @@ export class Workbench {
     log,
     autoApprove,
     mcpServersFor,
+    hostBridgePromptFor,
     asyncWakeup,
     backgroundTaskPromoteMs,
     idleDisconnectMs,
@@ -278,6 +283,7 @@ export class Workbench {
     this.log = log
     this.autoApprove = autoApprove
     this.mcpServersFor = mcpServersFor
+    this.hostBridgePromptFor = hostBridgePromptFor
     this.asyncWakeupSettleMs = asyncWakeup?.settleMs ?? ASYNC_WAKEUP_SETTLE_MS
     this.asyncWakeupSilentSettleMs = asyncWakeup?.silentSettleMs ?? ASYNC_WAKEUP_SILENT_SETTLE_MS
     this.asyncWakeupIdleTimeoutMs = asyncWakeup?.idleTimeoutMs ?? ASYNC_WAKEUP_IDLE_TIMEOUT_MS
@@ -439,6 +445,9 @@ export class Workbench {
     const report = this.commandReport(session)
     return { ...this.overview(session), capabilities: session.capabilities ?? {}, agentMeta: session.agentMeta ?? null, authMethods: session.authMethods ?? [], modes: session.modes ?? null,
       models: session.models ?? null, configOptions: session.configOptions ?? [], commands: report?.commands ?? [], commandStamp: report?.stamp ?? null, usage: session.lastContext?.window ?? null,
+      injectedMcp: session.injectedMcp ?? [],
+      additionalDirectories: session.additionalDirectories ?? [],
+      systemPromptAppendApplied: Boolean(session.systemPromptAppendApplied),
       storageError: this.store.failure?.message ?? null }
   }
 
@@ -554,6 +563,8 @@ export class Workbench {
       case 'models': return this.probe(op.providerId, op.cwd, 'models')
       case 'discover': return this.probe(op.providerId, op.cwd, 'discover', op.cursor)
       case 'usage': return this.refreshUsage(op.providerId, op.cwd)
+      case 'auth-login': return this.authenticate(op.providerId, op.methodId, op.cwd)
+      case 'auth-logout': return this.logout(op.providerId, op.cwd)
       default: break
     }
     const session = this.session(op.sessionId)
@@ -621,9 +632,84 @@ export class Workbench {
       }
       if (Object.keys(cleanLegacy).length) legacyModes = cleanLegacy
     }
+    const rawContextPolicy = raw.contextPolicy === undefined ? previous?.contextPolicy : raw.contextPolicy
+    let contextPolicy
+    if (rawContextPolicy !== undefined && rawContextPolicy !== null) {
+      if (typeof rawContextPolicy !== 'object' || Array.isArray(rawContextPolicy)) {
+        throw new Error('contextPolicy must be an object')
+      }
+      const cleanPolicy = {}
+      for (const key of ['agentInstructions', 'timeContext', 'nowledgeContext']) {
+        if (rawContextPolicy[key] !== undefined) {
+          if (typeof rawContextPolicy[key] !== 'boolean') throw new Error(`contextPolicy.${key} must be a boolean`)
+          if (rawContextPolicy[key] === false) cleanPolicy[key] = false
+        }
+      }
+      if (rawContextPolicy.systemPromptAppend !== undefined) {
+        if (typeof rawContextPolicy.systemPromptAppend !== 'boolean') throw new Error('contextPolicy.systemPromptAppend must be a boolean')
+        if (rawContextPolicy.systemPromptAppend === true) cleanPolicy.systemPromptAppend = true
+      }
+      if (Object.keys(cleanPolicy).length) contextPolicy = cleanPolicy
+    }
+    const rawExtraDirs = raw.additionalDirectories === undefined ? previous?.additionalDirectories : raw.additionalDirectories
+    let additionalDirectories
+    if (rawExtraDirs !== undefined && rawExtraDirs !== null) {
+      if (!Array.isArray(rawExtraDirs) || rawExtraDirs.length > MAX_ADDITIONAL_DIRS) {
+        throw new Error(`additionalDirectories must be an array of at most ${MAX_ADDITIONAL_DIRS} absolute directory paths`)
+      }
+      const cleanDirs = []
+      const seenDirs = new Set()
+      for (const entry of rawExtraDirs) {
+        if (typeof entry !== 'string' || entry.length > 4096) throw new Error('Each additional directory must be a path string')
+        const trimmed = entry.trim()
+        if (!trimmed) continue
+        if (!isAbsolute(trimmed)) throw new Error(`Additional directory must be an absolute path: ${trimmed}`)
+        if (!seenDirs.has(trimmed)) {
+          seenDirs.add(trimmed)
+          cleanDirs.push(trimmed)
+        }
+      }
+      if (cleanDirs.length) additionalDirectories = cleanDirs
+    }
+    const rawExcludedMcp = raw.excludedMcpServers === undefined ? previous?.excludedMcpServers : raw.excludedMcpServers
+    let excludedMcpServers
+    if (rawExcludedMcp !== undefined && rawExcludedMcp !== null) {
+      if (!Array.isArray(rawExcludedMcp) || rawExcludedMcp.length > MAX_EXCLUDED_MCP_SERVERS) {
+        throw new Error(`excludedMcpServers must be an array of at most ${MAX_EXCLUDED_MCP_SERVERS} server names`)
+      }
+      const cleanExcluded = []
+      const seenExcluded = new Set()
+      for (const entry of rawExcludedMcp) {
+        if (typeof entry !== 'string') throw new Error('Each excluded MCP server name must be a string')
+        const trimmed = entry.trim()
+        if (!trimmed) continue
+        if (!MCP_SERVER_NAME_RE.test(trimmed)) {
+          throw new Error(`Invalid excluded MCP server name: ${trimmed}`)
+        }
+        if (!seenExcluded.has(trimmed)) {
+          seenExcluded.add(trimmed)
+          cleanExcluded.push(trimmed)
+        }
+      }
+      if (cleanExcluded.length) excludedMcpServers = cleanExcluded
+    }
+    const rawSystemAppend = raw.systemPromptAppend === undefined ? previous?.systemPromptAppend : raw.systemPromptAppend
+    let systemPromptAppend
+    if (rawSystemAppend !== undefined && rawSystemAppend !== null) {
+      if (typeof rawSystemAppend !== 'string') throw new Error('systemPromptAppend must be a string')
+      const trimmed = rawSystemAppend.trim()
+      if (trimmed.length > MAX_SYSTEM_PROMPT_APPEND) {
+        throw new Error(`systemPromptAppend must be at most ${MAX_SYSTEM_PROMPT_APPEND} characters`)
+      }
+      if (trimmed) systemPromptAppend = trimmed
+    }
     const provider = { id, label: str(raw.label, 'label', 100), command, args: raw.args, models: cleanModels,
       ...(hiddenModels.length ? { hiddenModels } : {}),
       ...(legacyModes ? { legacyModes } : {}),
+      ...(contextPolicy ? { contextPolicy } : {}),
+      ...(additionalDirectories ? { additionalDirectories } : {}),
+      ...(excludedMcpServers ? { excludedMcpServers } : {}),
+      ...(systemPromptAppend ? { systemPromptAppend } : {}),
       ...(previous?.advertised ? { advertised: previous.advertised } : {}),
       ...(previous?.defaults ? { defaults: previous.defaults } : {}),
       ...(previous?.subscription ? { subscription: previous.subscription } : {}) }
@@ -1051,9 +1137,90 @@ export class Workbench {
     })
   }
 
+  async authenticate(providerId, methodId, rawCwd) {
+    const cleanMethodId = str(methodId, 'methodId', 120)
+    const provider = this.provider(providerId)
+    return this.withProbe(provider.id, rawCwd, async ({ connection, info }) => {
+      const methods = Array.isArray(info.authMethods) ? info.authMethods : []
+      if (methods.length && !methods.some(item => item?.id === cleanMethodId)) {
+        throw new Error(`Authentication method "${cleanMethodId}" is not advertised by ${provider.label}`)
+      }
+      const result = await connection.request('authenticate', { methodId: cleanMethodId }, 60_000)
+      if (info.agentCapabilities?.auth?.status) {
+        try {
+          const authResp = await connection.request('auth/status', {}, 5_000)
+          if (authResp && typeof authResp === 'object') this.recordAuthStatus(provider.id, authResp)
+        } catch {}
+      }
+      const meta = extractAgentMeta(info, null)
+      if (meta) await this.noteAdvertised(provider.id, [], info.agentCapabilities, { meta })
+      if (provider.subscription?.quotaNote === 'signed_out') {
+        const nextSub = { ...provider.subscription, fetchedAt: now() }
+        delete nextSub.quotaNote
+        await this.saveProviderSubscription(provider.id, nextSub)
+      }
+      return {
+        authenticated: true,
+        methodId: cleanMethodId,
+        result: result ?? {},
+        authMethods: methods,
+        authStatus: this.authByProvider.get(provider.id) ?? null,
+      }
+    })
+  }
+
+  async logout(providerId, rawCwd) {
+    const provider = this.provider(providerId)
+    if ([...this.store.sessions.values()].some(s => s.providerId === provider.id && this.runtimes.has(s.id))) {
+      throw new Error('Disconnect this provider’s active sessions before signing out')
+    }
+    return this.withProbe(provider.id, rawCwd, async ({ connection, info }) => {
+      if (!info.agentCapabilities?.auth?.logout) {
+        throw new Error(`${provider.label} does not advertise auth/logout`)
+      }
+      const result = await connection.request('auth/logout', {}, 15_000)
+      this.authByProvider.set(provider.id, { state: 'unauthenticated', accounts: [], updatedAt: now() })
+      const nextSub = {
+        fetchedAt: now(),
+        adapterId: resolveAdapter({ providerId: provider.id, command: provider.command, agentInfo: info.agentInfo, capabilities: info.agentCapabilities }).id,
+        source: 'acp-logout',
+        quotaSupported: false,
+        quotaNote: 'signed_out',
+        account: { state: 'unauthenticated' },
+        windows: [],
+      }
+      await this.saveProviderSubscription(provider.id, nextSub)
+      const meta = extractAgentMeta(info, null)
+      if (meta) await this.noteAdvertised(provider.id, [], info.agentCapabilities, { meta })
+      return { loggedOut: true, result: result ?? {} }
+    })
+  }
+
+  async resolveAdditionalDirectories(rawDirs, primaryCwd) {
+    if (!Array.isArray(rawDirs) || !rawDirs.length) return []
+    const resolved = []
+    const seen = new Set(primaryCwd ? [primaryCwd] : [])
+    for (const raw of rawDirs.slice(0, MAX_ADDITIONAL_DIRS)) {
+      if (typeof raw !== 'string') continue
+      const trimmed = raw.trim()
+      if (!trimmed || !isAbsolute(trimmed)) continue
+      try {
+        const real = await realpath(trimmed)
+        if (!(await stat(real)).isDirectory()) continue
+        if (!seen.has(real)) {
+          seen.add(real)
+          resolved.push(real)
+        }
+      } catch (error) {
+        this.log?.(`ACP skipped unavailable additional directory "${trimmed}": ${error.message}`)
+      }
+    }
+    return resolved
+  }
+
   isCurrent(session, runtime) { return !this.closed && this.runtimes.get(session.id) === runtime && !runtime.closing }
 
-  async connect(session, { initialConfigOptions } = {}) {
+  async connect(session, { initialConfigOptions, systemPromptAppend, additionalDirectories } = {}) {
     if (this.closed) throw new Error('ACP Workbench is unloading')
     this.store.assertWritable()
     if (session.native?.retired) throw new Error('This external context was retired; its history is read-only')
@@ -1124,16 +1291,48 @@ export class Workbench {
         provider,
       })
       const useInitialConfig = Array.isArray(normalizedInitialConfig) && normalizedInitialConfig.length > 0 && !!session.capabilities.sessionCapabilities?.options
+      const rawExtraDirs = [
+        ...(Array.isArray(provider.additionalDirectories) ? provider.additionalDirectories : []),
+        ...(Array.isArray(additionalDirectories) ? additionalDirectories : []),
+      ]
+      const validExtraDirs = session.capabilities.sessionCapabilities?.additionalDirectories
+        ? await this.resolveAdditionalDirectories(rawExtraDirs, session.cwd)
+        : []
+      const rawHostBridge = typeof this.hostBridgePromptFor === 'function'
+        ? this.hostBridgePromptFor(session, runtime.adapter)
+        : ''
+      const hostBridgePrompt = typeof rawHostBridge === 'string' ? rawHostBridge.trim() : ''
+      const dshSystemAppend = typeof systemPromptAppend === 'string' ? systemPromptAppend.trim() : ''
+      const appendParts = [
+        hostBridgePrompt,
+        typeof provider.systemPromptAppend === 'string' ? provider.systemPromptAppend.trim() : '',
+        dshSystemAppend,
+      ].filter(Boolean)
+      const combinedAppend = appendParts.length
+        ? appendParts.join('\n\n').slice(0, MAX_SYSTEM_PROMPT_APPEND)
+        : ''
+      const useSystemPromptAppend = Boolean(
+        combinedAppend && session.capabilities._meta?.antigravity?.systemPrompt?.append === true,
+      )
       const injectedMcp = typeof this.mcpServersFor === 'function' ? (this.mcpServersFor(session, runtime.adapter) ?? []) : []
       const baseParams = { cwd: session.cwd, mcpServers: injectedMcp, ...(session.remoteId ? { sessionId: session.remoteId } : {}) }
       const plainBaseParams = injectedMcp.length ? { ...baseParams, mcpServers: [] } : baseParams
-      const params = useInitialConfig ? { ...baseParams, configOptions: normalizedInitialConfig } : baseParams
+      const withExtensions = base => ({
+        ...base,
+        ...(useInitialConfig ? { configOptions: normalizedInitialConfig } : {}),
+        ...(validExtraDirs.length ? { additionalDirectories: validExtraDirs } : {}),
+        ...(useSystemPromptAppend ? { _meta: { antigravity: { systemPrompt: { append: combinedAppend } } } } : {}),
+      })
+      const hasExtensions = useInitialConfig || validExtraDirs.length > 0 || useSystemPromptAppend
+      const params = hasExtensions ? withExtensions(baseParams) : baseParams
       const from = session.eventSeq + 1
+      let extensionsAccepted = hasExtensions
       const openSession = async (targetParams, fallbackBase) => {
         try {
           return await connection.request(method, targetParams, 60_000)
         } catch (error) {
-          if (useInitialConfig && error instanceof RpcError && error.code === -32602 && this.isCurrent(session, runtime)) {
+          if (hasExtensions && error instanceof RpcError && error.code === -32602 && this.isCurrent(session, runtime)) {
+            extensionsAccepted = false
             try { return await connection.request(method, fallbackBase, 60_000) } catch (retryError) {
               if (method !== 'session/resume' || !canLoad || !(retryError instanceof RpcError) || retryError.code !== -32601 || !this.isCurrent(session, runtime)) throw retryError
               return connection.request('session/load', fallbackBase, 60_000)
@@ -1144,15 +1343,26 @@ export class Workbench {
         }
       }
       let result
+      let acceptedMcp = injectedMcp
       try {
         result = await openSession(params, baseParams)
       } catch (error) {
         if (!injectedMcp.length || !(error instanceof RpcError) || error.code !== -32602 || !this.isCurrent(session, runtime)) throw error
         this.log?.(`ACP ${session.providerId} rejected injected mcpServers (${error.message}); retrying without MCP bridge`)
-        const plainParams = useInitialConfig ? { ...plainBaseParams, configOptions: normalizedInitialConfig } : plainBaseParams
+        acceptedMcp = []
+        extensionsAccepted = hasExtensions
+        const plainParams = hasExtensions ? withExtensions(plainBaseParams) : plainBaseParams
         result = await openSession(plainParams, plainBaseParams)
       }
       if (!this.isCurrent(session, runtime)) throw new Error('Connection was canceled during startup')
+      session.injectedMcp = acceptedMcp.map(entry => ({
+        name: entry.name,
+        transport: entry.type === 'http' ? 'http' : 'stdio',
+      }))
+      session.additionalDirectories = extensionsAccepted ? validExtraDirs : []
+      session.hostBridgePromptApplied = Boolean(extensionsAccepted && useSystemPromptAppend && hostBridgePrompt)
+      session.hostBridgePromptChars = session.hostBridgePromptApplied ? hostBridgePrompt.length : 0
+      session.systemPromptAppendApplied = Boolean(extensionsAccepted && useSystemPromptAppend && dshSystemAppend)
       session.historyLoaded = true
       if (captureImport) session.native.replayRange = { from, to: session.eventSeq }
       if (!session.remoteId) {
@@ -1968,6 +2178,9 @@ export class Workbench {
       try {
         await runtime.spawnReady
         if (runtime.connection && runtime.turnId && !runtime.connection.closed) runtime.connection.notify('session/cancel', { sessionId: session.remoteId })
+        if (runtime.connection && !runtime.connection.closed && session.remoteId) {
+          await this.closeRemoteSession(runtime.connection, session.capabilities, session.remoteId)
+        }
         await runtime.connection?.stop()
         await this.transition(session, 'disconnected', { reason })
       } catch (error) {

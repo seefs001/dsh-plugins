@@ -5,7 +5,7 @@ import { NativeAcp } from './native.js'
 export const name = 'acp-workbench'
 export const inject = ['storageDomain', 'subprocess', 'webServer', 'connection', 'llm', 'agents', 'sessions', 'subagents', 'attachments']
 const BASE = '/acp-workbench'
-const USER_ONLY = new Set(['provider-save', 'provider-remove', 'diagnose', 'models', 'discover', 'usage', 'respond', 'configure', 'native-stop', 'native-steer', 'native-reset', 'native-connect', 'native-discover', 'native-adopt', 'native-fork', 'native-command', 'native-set-option'])
+const USER_ONLY = new Set(['provider-save', 'provider-remove', 'diagnose', 'models', 'discover', 'usage', 'auth-login', 'auth-logout', 'respond', 'configure', 'native-stop', 'native-steer', 'native-reset', 'native-connect', 'native-discover', 'native-adopt', 'native-fork', 'native-command', 'native-set-option', 'native-set-context-policy'])
 
 function send(res, status, value) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
@@ -70,6 +70,7 @@ export async function apply(ctx, config = {}) {
     log: message => ctx.logger.warn(message),
     autoApprove: (session, params) => bridge.native?.autoApprove(session, params) ?? null,
     mcpServersFor: (session, adapter) => bridge.native?.mcpServersFor(session, adapter) ?? [],
+    hostBridgePromptFor: (session, adapter) => bridge.native?.hostBridgePromptFor(session, adapter) ?? '',
     chunkRetentionDays: config.chunkRetentionDays,
     archivedChunkRetentionDays: config.archivedChunkRetentionDays,
     maxChunkBytes: config.maxChunkBytes })
@@ -116,6 +117,7 @@ export async function apply(ctx, config = {}) {
           case 'native-reset': result = await native.reset(op.externalId); break
           case 'native-trace': result = native.trace(op); break
           case 'native-set-option': result = await native.setOption(op); break
+          case 'native-set-context-policy': result = await native.setContextPolicy(op); break
           default: throw new Error('Unknown native ACP operation')
         }
       } else {
