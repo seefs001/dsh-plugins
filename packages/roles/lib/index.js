@@ -509,8 +509,13 @@ export function apply(ctx) {
       })
       res.write(`retry: 3000\ndata: ${JSON.stringify(snapshot())}\n\n`)
       streams.add(res)
-      const heartbeat = setInterval(() => res.write(': ping\n\n'), HEARTBEAT_MS)
+      let heartbeat = null
       const drop = () => { clearInterval(heartbeat); streams.delete(res) }
+      heartbeat = setInterval(() => {
+        if (res.destroyed || res.writableEnded) { drop(); return }
+        res.write(': ping\n\n')
+      }, HEARTBEAT_MS)
+      heartbeat.unref?.()
       res.once('close', drop)
     },
   }), `roles: GET ${EVENTS_PATH}`)

@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -23,7 +24,7 @@ export function piAiDirectory() {
 
 async function install() {
   const directory = piAiDirectory()
-  const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'))
+  const manifest = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8'))
   const entry = manifest.exports?.['./models']
   const file = typeof entry === 'string' ? entry : entry?.import ?? entry?.default
   if (typeof file !== 'string') throw new Error(`pi-ai ${manifest.version} has no ./models export`)

@@ -429,12 +429,17 @@ export function apply(ctx, config) {
       const set = streams.get(sessionId) ?? new Set()
       streams.set(sessionId, set)
       set.add(res)
-      const heartbeat = setInterval(() => res.write(': ping\n\n'), HEARTBEAT_MS)
+      let heartbeat = null
       const drop = () => {
         clearInterval(heartbeat)
         set.delete(res)
         if (set.size === 0 && streams.get(sessionId) === set) streams.delete(sessionId)
       }
+      heartbeat = setInterval(() => {
+        if (res.destroyed || res.writableEnded) { drop(); return }
+        res.write(': ping\n\n')
+      }, HEARTBEAT_MS)
+      heartbeat.unref?.()
       res.once('close', drop)
     },
   }), `auto-review-model: GET ${LOG_EVENTS_PATH}`)

@@ -118,7 +118,7 @@ function hasStartedTurn(ctx, session, fallbackAgents) {
     const boundary = agents.turnBoundaryOf(session)
     return boundary.lastTurn > 0 || boundary.openTurnStartSeq !== null
   }
-  const events = typeof session?.snapshotEvents === 'function' ? session.snapshotEvents() : session?.events
+  const events = typeof session?.snapshotEvents === 'function' ? session.snapshotEvents() : []
   return Array.isArray(events) && events.some(event => event.type === 'turn/start')
 }
 
