@@ -4986,9 +4986,31 @@ button.aw-child-trigger:focus-visible{outline:none}
           },
           start: (_context, match) => traceState(match.event),
           update: (context, match) => ({ ...traceState(match.event, context.state), seq: context.state.seq }),
-          buildViewNode: context => context.state?.provider?.startsWith('acp-') && context.state?.reference?.version === 1 ? { key: context.key, id: context.id, kind: 'acp-run', target: 'chat',
-            groupTree: 'turn',
-            anchorSeq: context.state.seq, location: context.start?.location ?? { kind: 'unresolved' }, visibility: 'visible', data: context.state } : null,
+          buildViewNode: context => {
+            const current = context.current?.get('chat') ?? null
+            if (!(context.state?.provider?.startsWith('acp-') && context.state?.reference?.version === 1)) {
+              return current == null ? null : current.visibility === 'hidden' ? current : { ...current, visibility: 'hidden' }
+            }
+            const location = context.start?.location ?? { kind: 'unresolved' }
+            if (current
+              && current.visibility === 'visible'
+              && current.anchorSeq === context.state.seq
+              && current.location === location
+              && current.data === context.state) {
+              return current
+            }
+            return {
+              key: context.key,
+              id: context.id,
+              kind: 'acp-run',
+              target: 'chat',
+              groupTree: 'turn',
+              anchorSeq: context.state.seq,
+              location,
+              visibility: 'visible',
+              data: context.state,
+            }
+          },
         })
         function NativeNode(props) {
           return h(NativeTrace, { sessionId: props.sessionId, openFile: props.openFile, ...props.node.data,
@@ -5053,18 +5075,33 @@ button.aw-child-trigger:focus-visible{outline:none}
           update: (context, match) => waitUpdate(context.state, match.event),
           publication: match => match.event.type === 'assistant/live-chunk' ? 'animation-frame' : 'immediate',
           buildViewNode: context => {
+            const current = context.current?.get('chat') ?? null
             const state = context.state
-            if (!state || state.closed || state.phase === 'idle') return null
             const location = context.start?.location ?? context.matches[0]?.location
-            if ((location?.kind === 'turn' || location?.kind === 'step') && location.turn.status === 'closed') return null
+            const hidden = !state
+              || state.closed
+              || state.phase === 'idle'
+              || ((location?.kind === 'turn' || location?.kind === 'step') && location.turn.status === 'closed')
+            if (hidden) {
+              return current == null ? null : current.visibility === 'hidden' ? current : { ...current, visibility: 'hidden' }
+            }
+            const anchorSeq = Math.floor(state.lastSeq) + 0.9999
+            const resolvedLocation = location ?? { kind: 'unresolved' }
+            if (current
+              && current.visibility === 'visible'
+              && current.anchorSeq === anchorSeq
+              && current.location === resolvedLocation
+              && current.data === state) {
+              return current
+            }
             return {
               key: context.key,
               id: context.id,
               kind: 'acp-wait',
               target: 'chat',
               groupTree: 'turn',
-              anchorSeq: Math.floor(state.lastSeq) + 0.9999,
-              location: location ?? { kind: 'unresolved' },
+              anchorSeq,
+              location: resolvedLocation,
               visibility: 'visible',
               data: state,
             }
