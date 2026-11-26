@@ -145,6 +145,10 @@ window.__ModuleLoader__.load({
       fieldExtraDirsHint: 'One absolute path per line. Sent when the CLI advertises sessionCapabilities.additionalDirectories (e.g. Antigravity).',
       fieldExtraDirsPlaceholder: '/path/to/another-repo',
       extraDirsInvalid: 'Each additional directory must be an absolute path.',
+      fieldExcludedMcp: 'Excluded DSH MCP servers (optional)',
+      fieldExcludedMcpHint: 'Comma or newline separated server names to skip when forwarding DSH MCP tools (e.g. nowledge_mem if the CLI already mounts it natively).',
+      fieldExcludedMcpPlaceholder: 'nowledge_mem',
+      excludedMcpInvalid: 'Excluded MCP server names may only contain letters, digits, hyphens, and underscores.',
       fieldSystemAppend: 'Appended system instructions (optional)',
       fieldSystemAppendHint: 'Sent via _meta.antigravity.systemPrompt.append when advertised by the CLI (takes effect on new/resumed sessions).',
       fieldSystemAppendPlaceholder: 'Extra project conventions or guardrails…',
@@ -217,12 +221,12 @@ window.__ModuleLoader__.load({
       ctxReceiptTitle: 'Context receipt', ctxSummarySent: '{n} sent', ctxSummaryCompacted: '{n} compacted', ctxSummarySkipped: '{n} skipped', ctxSummaryMcp: 'MCP {n}',
       ctxActionSent: 'Forwarded', ctxActionCompacted: 'Compacted', ctxActionDropped: 'Skipped', ctxActionIgnored: 'CLI-owned',
       ctxReasonHostOnly: 'DSH host only', ctxReasonCliOwned: 'Owned by external CLI', ctxReasonPolicyOff: 'Disabled in settings', ctxReasonEmpty: 'Empty snapshot',
-      ctxReasonMarkdownOnly: 'Folded JSON to Markdown', ctxReasonHandoff: 'Initial handoff', ctxReasonDelta: 'Incremental sync', ctxReasonSystemPromptAppend: 'Appended via ACP _meta',
-      ctxKindSystemPrompt: 'DSH system prompt', ctxKindRuntimeContext: 'Runtime context', ctxKindSkillCatalog: 'DSH skill catalog',
+      ctxReasonMarkdownOnly: 'Folded JSON to Markdown', ctxReasonHandoff: 'Initial handoff', ctxReasonDelta: 'Incremental sync', ctxReasonSystemPromptAppend: 'Appended via ACP _meta', ctxReasonDedupWorkspace: 'Deduplicated CLI-owned root file',
+      ctxKindSystemPrompt: 'DSH system prompt', ctxKindHostBridge: 'DSH ACP bridge instructions', ctxKindRuntimeContext: 'Runtime context', ctxKindSkillCatalog: 'DSH skill catalog',
       ctxKindAgentInstructions: 'Workspace instructions', ctxKindTimeContext: 'Time & time zone', ctxKindNowledge: 'DSH Nowledge bundle',
       ctxKindDshHistory: 'DSH conversation history', ctxKindSkillInvocation: 'Invoked DSH skill', ctxKindSessionReference: 'Referenced session', ctxKindDeveloper: 'DSH developer notice',
       ctxChars: '{n} chars', ctxCharsReduced: '{before} → {after}', ctxHistoryCount: '{n} msgs',
-      ctxMcpMounted: 'MCP bridge', ctxMcpProxied: 'Proxies DSH MCP: {names}', ctxMcpNone: 'No MCP bridge',
+      ctxMcpMounted: 'MCP bridge', ctxMcpProxied: 'Proxies DSH MCP: {names}', ctxMcpNone: 'No MCP bridge', ctxExcludedMcpLabel: 'Excluded MCP',
       ctxScopeTitle: 'DSH context forwarding',
       ctxScopeOwned: 'Owned by CLI: system prompt, built-in tools, skills, permissions (DSH runtime-context and skill catalog are skipped).',
       ctxScopeHint: 'Applies to this provider from the next turn. Turn off items the CLI already loads to avoid duplicates.',
@@ -357,6 +361,10 @@ window.__ModuleLoader__.load({
       fieldExtraDirsHint: '每行填写一个绝对路径；当 CLI 公布 sessionCapabilities.additionalDirectories（如 Antigravity）时自动传入。',
       fieldExtraDirsPlaceholder: '/path/to/another-repo',
       extraDirsInvalid: '每条附加目录都必须是绝对路径。',
+      fieldExcludedMcp: '排除转发的 DSH MCP 服务器（可选）',
+      fieldExcludedMcpHint: '用逗号或换行分隔要跳过转发的 DSH MCP 名称（如 CLI 已原生挂载 nowledge_mem 时填写以防重复暴露）。',
+      fieldExcludedMcpPlaceholder: 'nowledge_mem',
+      excludedMcpInvalid: '排除的 MCP 名称只能包含字母、数字、连字符和下划线。',
       fieldSystemAppend: '追加系统指令（可选）',
       fieldSystemAppendHint: '当 CLI 公布 _meta.antigravity.systemPrompt.append 时随会话创建/恢复传入（对新建或重连会话生效）。',
       fieldSystemAppendPlaceholder: '补充项目约定或约束说明…',
@@ -428,12 +436,12 @@ window.__ModuleLoader__.load({
       ctxReceiptTitle: '上下文回执', ctxSummarySent: '已转发 {n}', ctxSummaryCompacted: '已裁剪 {n}', ctxSummarySkipped: '未转发 {n}', ctxSummaryMcp: 'MCP {n}',
       ctxActionSent: '已转发', ctxActionCompacted: '已裁剪', ctxActionDropped: '未转发', ctxActionIgnored: 'CLI 接管',
       ctxReasonHostOnly: '仅 DSH 宿主有效', ctxReasonCliOwned: '由外部 CLI 接管', ctxReasonPolicyOff: '已在设置中关闭', ctxReasonEmpty: '空快照',
-      ctxReasonMarkdownOnly: '已折叠 JSON 为 Markdown', ctxReasonHandoff: '首次交接', ctxReasonDelta: '增量同步', ctxReasonSystemPromptAppend: '通过 ACP _meta 追加',
-      ctxKindSystemPrompt: 'DSH 系统提示词', ctxKindRuntimeContext: '运行时上下文', ctxKindSkillCatalog: 'DSH 技能目录',
+      ctxReasonMarkdownOnly: '已折叠 JSON 为 Markdown', ctxReasonHandoff: '首次交接', ctxReasonDelta: '增量同步', ctxReasonSystemPromptAppend: '通过 ACP _meta 追加', ctxReasonDedupWorkspace: '已去重 CLI 原生加载的根目录规则',
+      ctxKindSystemPrompt: 'DSH 系统提示词', ctxKindHostBridge: 'DSH ACP 桥接指令', ctxKindRuntimeContext: '运行时上下文', ctxKindSkillCatalog: 'DSH 技能目录',
       ctxKindAgentInstructions: '工作区指令', ctxKindTimeContext: '时间与时区', ctxKindNowledge: 'DSH Nowledge 上下文',
       ctxKindDshHistory: '跨引擎历史交接', ctxKindSkillInvocation: '手动调用的技能', ctxKindSessionReference: '引用的会话', ctxKindDeveloper: 'DSH 开发者消息',
       ctxChars: '{n} 字符', ctxCharsReduced: '{before} → {after}', ctxHistoryCount: '{n} 条消息',
-      ctxMcpMounted: '已挂载 MCP', ctxMcpProxied: '代理 DSH MCP：{names}', ctxMcpNone: '未挂载 MCP',
+      ctxMcpMounted: '已挂载 MCP', ctxMcpProxied: '代理 DSH MCP：{names}', ctxMcpNone: '未挂载 MCP', ctxExcludedMcpLabel: '已排除 MCP',
       ctxScopeTitle: 'DSH 上下文转发',
       ctxScopeOwned: '由外部 CLI 接管：系统提示词、内置工具、技能与权限（DSH 的运行时上下文与技能目录不会转发）。',
       ctxScopeHint: '对该提供方从下一轮起生效；关闭 CLI 自身已加载的项可避免重复注入。',
@@ -917,6 +925,8 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-tv-error{color:var(--dsw-alias-state-error-primary)}
 .aw-tv-stopped{color:var(--dsw-alias-state-warn-label)}
 .aw-tv-exit{flex:none;margin-left:8px;gap:5px}
+.aw-tv-err-badge{flex:0 1 auto;min-width:0;max-width:min(45%,300px);margin-left:8px;gap:5px}
+.aw-tv-err-text{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .aw-tv-exit-dot{flex:none;width:4px;height:4px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-error-primary)}
 .aw-tv-tag{flex:none;margin-left:6px}
 .aw-tv-body{display:flex;flex-direction:column;min-width:0}
@@ -3575,6 +3585,7 @@ button.aw-child-trigger:focus-visible{outline:none}
         function contextKindLabel(kind, tt) {
           switch (kind) {
             case 'system-prompt': return tt('ctxKindSystemPrompt')
+            case 'host-bridge': return tt('ctxKindHostBridge')
             case 'runtime-context': return tt('ctxKindRuntimeContext')
             case 'skill-catalog': return tt('ctxKindSkillCatalog')
             case 'agent-instructions': return tt('ctxKindAgentInstructions')
@@ -3606,6 +3617,7 @@ button.aw-child-trigger:focus-visible{outline:none}
             case 'handoff': return tt('ctxReasonHandoff')
             case 'delta': return tt('ctxReasonDelta')
             case 'system-prompt-append': return tt('ctxReasonSystemPromptAppend')
+            case 'dedup-workspace': return tt('ctxReasonDedupWorkspace')
             default: return reason || ''
           }
         }
@@ -3667,6 +3679,7 @@ button.aw-child-trigger:focus-visible{outline:none}
           }
           const mcpServers = Array.isArray(context.mcpServers) ? context.mcpServers : EMPTY
           const forwardedMcp = Array.isArray(context.forwardedMcpServers) ? context.forwardedMcpServers : EMPTY
+          const excludedMcp = Array.isArray(context.excludedMcpServers) ? context.excludedMcpServers : EMPTY
           const extraDirs = Array.isArray(context.additionalDirectories) ? context.additionalDirectories : EMPTY
           const plannedMcp = mcpServers.length
             ? mcpServers.map(item => item.name)
@@ -3678,6 +3691,9 @@ button.aw-child-trigger:focus-visible{outline:none}
               h(Tag, { tone: 'quiet' }, tt('ctxMcpMounted')),
               h('span', { className: 'aw-ctx-label aw-mono' }, plannedMcp.join(', ')),
               forwardedMcp.length ? h('span', { className: 'aw-ctx-meta' }, tt('ctxMcpProxied', { names: forwardedMcp.join(', ') })) : null),
+            excludedMcp.length ? h('div', { className: 'aw-ctx-row' },
+              h(Tag, { tone: 'quiet' }, tt('ctxExcludedMcpLabel')),
+              h('span', { className: 'aw-ctx-label aw-mono' }, excludedMcp.join(', '))) : null,
             extraDirs.length ? h('div', { className: 'aw-ctx-row' },
               h(Tag, { tone: 'quiet' }, tt('ctxExtraDirsLabel')),
               h('span', { className: 'aw-ctx-label aw-mono aw-ellipsis', title: extraDirs.join('\n') }, extraDirs.join(', '))) : null,
@@ -5730,9 +5746,12 @@ button.aw-child-trigger:focus-visible{outline:none}
           const { raw, args } = tvParseArgs(block)
           const output = tvResultText(block)
           const mode = spec?.mode ?? 'generic'
+          const argSummary = acpToolSummary(mode, args)
+          const errorLine = state === 'error' && output ? tvFirstLine(output) : ''
           const summaryBase = state === 'stopped' ? tt('tool.stopped')
-            : state === 'error' && output ? tvFirstLine(output)
-              : acpToolSummary(mode, args)
+            : argSummary || errorLine
+          const showErrorBadge = state === 'error' && Boolean(argSummary && errorLine)
+          const summaryIsError = state === 'error' && !argSummary && Boolean(errorLine)
           const planPath = mode === 'plan' ? firstText(args?.planFilePath) : undefined
           const planText = mode === 'plan' ? firstText(args?.plan) : undefined
           const memoryPaths = mode === 'memory' && Array.isArray(args?.paths) ? args.paths.filter(p => typeof p === 'string' && p.trim()) : EMPTY
@@ -5778,8 +5797,13 @@ button.aw-child-trigger:focus-visible{outline:none}
               onToggle: toggle,
               collapsedContent: state === 'preparing' || !summaryBase ? null : h(React.Fragment, null,
                 h('span', { className: 'aw-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
-                h('span', { className: `aw-tv-summary${state === 'error' ? ' aw-tv-error' : state === 'stopped' ? ' aw-tv-stopped' : ''}` },
-                  h(TextShimmer, null, summaryBase))),
+                h('span', {
+                  className: `aw-tv-summary${summaryIsError ? ' aw-tv-error' : state === 'stopped' ? ' aw-tv-stopped' : ''}`,
+                  title: summaryBase,
+                }, h(TextShimmer, null, summaryBase)),
+                showErrorBadge ? h(Tag, { tone: 'neutral', className: 'aw-tv-err-badge', title: errorLine },
+                  h('span', { className: 'aw-tv-exit-dot', 'aria-hidden': true }),
+                  h('span', { className: 'aw-tv-err-text', title: errorLine }, errorLine)) : null),
             },
             open ? h('div', { className: 'aw-tv-body' },
               spawnedId ? h('div', { className: 'aw-tv-files' },
@@ -5913,9 +5937,10 @@ button.aw-child-trigger:focus-visible{outline:none}
           args: JSON.stringify(provider.args),
           contextPolicy: normalizePolicyDraft(provider.contextPolicy),
           additionalDirectoriesText: Array.isArray(provider.additionalDirectories) ? provider.additionalDirectories.join('\n') : '',
+          excludedMcpServersText: Array.isArray(provider.excludedMcpServers) ? provider.excludedMcpServers.join(', ') : '',
           systemPromptAppend: typeof provider.systemPromptAppend === 'string' ? provider.systemPromptAppend : '',
         }) : blankProvider()
-        const blankProvider = () => ({ id: '', label: '', command: '', args: '["acp"]', contextPolicy: normalizePolicyDraft(null), additionalDirectoriesText: '', systemPromptAppend: '' })
+        const blankProvider = () => ({ id: '', label: '', command: '', args: '["acp"]', contextPolicy: normalizePolicyDraft(null), additionalDirectoriesText: '', excludedMcpServersText: '', systemPromptAppend: '' })
         const FALLBACK_PROVIDER_TEMPLATES = [
           { id: 'cursor', label: 'Cursor', bin: 'cursor-agent', command: 'cursor-agent', args: ['acp'] },
           { id: 'antigravity', label: 'Antigravity', bin: 'agy', command: 'agy', args: ['acp'] },
@@ -6257,6 +6282,9 @@ button.aw-child-trigger:focus-visible{outline:none}
               h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('fieldExtraDirs')),
                 h('textarea', { className: 'aw-textarea aw-mono', value: draft.additionalDirectoriesText ?? '', rows: 2, spellCheck: false, placeholder: tt('fieldExtraDirsPlaceholder'), disabled: busy, onChange: onChange('additionalDirectoriesText') }),
                 h('span', { className: 'aw-note' }, tt('fieldExtraDirsHint'))),
+              h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('fieldExcludedMcp')),
+                h(Input, { className: 'aw-input aw-mono', value: draft.excludedMcpServersText ?? '', spellCheck: false, placeholder: tt('fieldExcludedMcpPlaceholder'), disabled: busy, onChange: onChange('excludedMcpServersText') }),
+                h('span', { className: 'aw-note' }, tt('fieldExcludedMcpHint'))),
               h('label', { className: 'aw-field aw-wide' }, h('span', null, tt('fieldSystemAppend')),
                 h('textarea', { className: 'aw-textarea', value: draft.systemPromptAppend ?? '', rows: 2, placeholder: tt('fieldSystemAppendPlaceholder'), disabled: busy, onChange: onChange('systemPromptAppend') }),
                 h('span', { className: 'aw-note' }, tt('fieldSystemAppendHint')))),
@@ -6409,6 +6437,14 @@ button.aw-child-trigger:focus-visible{outline:none}
               setNotice(tt('extraDirsInvalid'))
               return
             }
+            const excludedMcp = String(draft.excludedMcpServersText ?? '')
+              .split(/[\r\n,\s]+/u)
+              .map(item => item.trim())
+              .filter(Boolean)
+            if (excludedMcp.some(name => !/^[A-Za-z0-9_-]{1,64}$/u.test(name))) {
+              setNotice(tt('excludedMcpInvalid'))
+              return
+            }
             const value = await run({
               action: 'provider-save',
               provider: {
@@ -6420,6 +6456,7 @@ button.aw-child-trigger:focus-visible{outline:none}
                 hiddenModels: saved?.hiddenModels ?? [],
                 contextPolicy: normalizePolicyDraft(draft.contextPolicy),
                 additionalDirectories: extraDirs,
+                excludedMcpServers: excludedMcp,
                 systemPromptAppend: String(draft.systemPromptAppend ?? '').trim(),
               },
             })
