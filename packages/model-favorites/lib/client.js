@@ -88,18 +88,19 @@ window.__ModuleLoader__.load({
 .mf-label-text{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mf-badged{display:inline-flex;align-items:center;max-width:100%;gap:4px;vertical-align:baseline;white-space:nowrap}
 .mf-badged-text{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.mf-badge{flex:none}
+.mf-badge{flex:none;max-width:55%;overflow:hidden;text-overflow:ellipsis}
 .mf-star{flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin-left:-3px;border:0;border-radius:var(--dsw-radius-xs,6px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;opacity:.28;transition:opacity .12s,color .12s,background-color .12s}
 .mf-star[data-favorited="true"]{color:var(--dsw-alias-state-warn-primary);opacity:1}
 [role="menuitemradio"]:hover .mf-star,[role="menuitemradio"][data-highlighted] .mf-star,[role="menuitemradio"]:focus-visible .mf-star{opacity:.85}
 [role="menuitemradio"]:hover .mf-star[data-favorited="true"],[role="menuitemradio"][data-highlighted] .mf-star[data-favorited="true"],.mf-star:hover{opacity:1}
 @media (hover:hover){.mf-star:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-state-warn-primary)}}
 @media (hover:none){.mf-star{opacity:.5}}
+@media (pointer:coarse){.mf-star{width:34px;height:34px;margin:-6px 0 -6px -7px}.mf-icon-btn{width:32px;height:32px}}
 .mf-group{padding-bottom:4px;margin-bottom:4px;border-bottom:.5px solid var(--dsw-alias-border-l1)}
 .mf-group-title{display:flex;align-items:center;justify-content:space-between;padding:5px 7px 3px;font-size:11px;line-height:15px;font-weight:500;color:var(--dsw-alias-label-tertiary);user-select:none}
 .mf-opt{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:100%;min-height:34px;padding:5px 7px;border:0;border-radius:var(--dsw-radius-md,8px);outline:none;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:18px;text-align:left;cursor:pointer}
 .mf-opt:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
-.mf-opt:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
+.mf-opt:focus-visible{background:var(--dsw-alias-interactive-bg-hover);box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 @media (hover:hover){.mf-opt:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
 .mf-opt-copy{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px}
 .mf-opt-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -108,7 +109,7 @@ window.__ModuleLoader__.load({
 .mf-check svg{width:14px;height:14px}
 .mf-divider{height:.5px;margin:4px 4px;background:var(--dsw-alias-border-l1)}
 .mf-cell{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:100%;height:34px;padding:0 8px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-align:left;cursor:pointer;outline:none}
-.mf-cell:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
+.mf-cell:focus-visible{background:var(--dsw-alias-interactive-bg-hover);box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 @media (hover:hover){.mf-cell:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
 .mf-cell:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
 .mf-cell-label{flex:0 0 auto;white-space:nowrap}
@@ -130,23 +131,30 @@ window.__ModuleLoader__.load({
 .mf-icon-btn:disabled{opacity:.3;cursor:default}
 .mf-icon-btn:focus-visible{box-shadow:0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 @media (hover:hover){.mf-icon-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary)}}
+@media (pointer:coarse){.mf-pane-actions{gap:4px}.mf-icon-btn{width:30px;height:30px}}
 .mf-icon-btn[data-star="true"]{color:var(--dsw-alias-state-warn-primary)}
 .mf-empty{padding:10px 8px;display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .mf-empty-title{color:var(--dsw-alias-label-secondary);font-weight:500}
 .mf-error{padding:5px 7px;margin-bottom:4px;border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);font-size:11px;line-height:15px}
-.mf-tv-row{position:relative}
-.mf-tv-head{display:flex;align-items:center;gap:6px;min-width:0;font-size:13px;line-height:20px}
-.mf-tv-label{color:var(--dsw-alias-label-secondary);white-space:nowrap}
-.mf-tv-dot{color:var(--dsw-alias-label-tertiary);flex:none}
-.mf-tv-arg{color:var(--dsw-alias-label-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.mf-tv-body{padding:4px 0 2px 4px;display:flex;flex-direction:column;gap:6px}
-.mf-tv-io{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.mf-tv-card{padding:6px 8px;border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-2);border:.5px solid var(--dsw-alias-border-l2);min-width:0}
-.mf-tv-cap{font-size:10px;line-height:14px;font-weight:600;letter-spacing:.04em;color:var(--dsw-alias-label-tertiary);margin-bottom:3px}
-.mf-tv-pre{margin:0;font-family:var(--dsw-font-mono,monospace);font-size:11px;line-height:15px;color:var(--dsw-alias-label-secondary);white-space:pre-wrap;word-break:break-word;max-height:140px;overflow:auto}
-.mf-tv-inspect{display:inline-flex;align-items:center;gap:4px;align-self:flex-start;height:24px;padding:0 8px;border-radius:var(--dsw-radius-xs,6px);border:.5px solid var(--dsw-alias-border-l3);background:transparent;color:var(--dsw-alias-label-secondary);font-size:12px;cursor:pointer;opacity:0;transition:opacity .12s,background-color .12s}
-.mf-tv-row:hover .mf-tv-inspect,.mf-tv-row:focus-within .mf-tv-inspect,.mf-tv-inspect:focus-visible{opacity:1}
-@media (hover:hover){.mf-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+.mf-tv{display:flex;flex-direction:column}
+.mf-tv-row{min-width:0}
+.mf-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
+.mf-tv-summary{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--dsh-content-font-size-secondary,13px);line-height:calc(24px + var(--dsh-content-font-delta,0px))}
+.mf-tv-summary.is-err{color:var(--dsw-alias-state-error-primary)}
+.mf-tv-summary.is-stop{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.mf-tv-body{display:flex;flex-direction:column;min-width:0}
+.mf-tv-io{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:14px;margin:4px 0 4px 4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-markdown-code-block);font:var(--dsw-font-markdown-code-block-small)}
+.mf-tv-io-sec{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:baseline;padding:12px 16px;max-height:150px;overflow-y:auto}
+.mf-tv-io-sec::-webkit-scrollbar-thumb{border:2px solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-sm)}
+.mf-tv-io-sec::-webkit-scrollbar-track{margin:6px 0}
+.mf-tv-io-div{grid-column:1/-1;height:.5px;background:var(--dsw-alias-border-l2)}
+.mf-tv-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
+.mf-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
+.mf-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
+.mf-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
+.mf-tv-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+@media (hover:hover){.mf-tv:hover .mf-tv-inspect{opacity:1}.mf-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
+@media (hover:none){.mf-tv-inspect{opacity:1}}
 `
 
     const favoriteKey = (provider, model) => `${provider}\0${model}`
@@ -441,14 +449,14 @@ window.__ModuleLoader__.load({
     }
 
     function renderBadgeName(ctx, model, placement) {
-      if (!model?.badge) return model?.name ?? ''
+      if (placement !== 'option' || !model?.badge) return model?.name ?? ''
       const badgeEl = Tag
         ? h(Tag, { className: 'mf-badge', tone: model.badge.tone }, resolveBadgeText(ctx, model.badge.text))
         : h('span', { className: 'mf-badge' }, resolveBadgeText(ctx, model.badge.text))
       return h('span', { className: 'mf-badged' },
-        placement === 'trigger' ? h(React.Fragment, null, badgeEl, ' ') : null,
         h('span', { className: 'mf-badged-text' }, model.name),
-        placement === 'trigger' ? null : h(React.Fragment, null, ' ', badgeEl))
+        ' ',
+        badgeEl)
     }
 
     function findNativeOptionButton(groupsEl, providerId, modelId) {
@@ -961,9 +969,9 @@ window.__ModuleLoader__.load({
             if (!contrib?.ui || contrib.ui.kind !== 'popupSelect') return false
             const originalOptions = contrib.ui.options
             const originalOnSelect = contrib.ui.onSelect
-            contrib.ui.options = async session => {
+            contrib.ui.options = async (session, signal) => {
               const [rows] = await Promise.all([
-                originalOptions(session),
+                originalOptions(session, signal),
                 store.ensureLoaded().catch(() => store.get().favorites),
               ])
               return reorderCommandOptions(rows, store.get().favorites, t('favorites'))
@@ -991,50 +999,69 @@ window.__ModuleLoader__.load({
           }
         }, 'model-favorites: /model command order')
 
-        function ModelFavoritesToolView({ call, result, state, inspect }) {
+        function ModelFavoritesToolView({ phase, block, inspect, useDisclosure }) {
           useLocaleSnap()
-          const [open, setOpen] = React.useState(false)
-          const args = call?.arguments && typeof call.arguments === 'object' ? call.arguments : {}
-          const action = typeof args.action === 'string' ? args.action : 'list'
-          const target = args.provider && args.model ? `${args.provider}/${args.model}` : ''
-          let parsed = null
+          const [localExpanded, setLocalExpanded] = React.useState(false)
+          const disclosure = typeof useDisclosure === 'function' ? useDisclosure() : null
+          const expanded = disclosure ? disclosure.expanded : localExpanded
+          const toggle = disclosure ? disclosure.toggle : () => setLocalExpanded(v => !v)
+          const settled = phase === 'result' && block && 'kind' in block
+          const call = settled ? block.call : block
+          let args = {}
           try {
-            const text = Array.isArray(result?.content) ? result.content.map(c => c.text ?? '').join('') : ''
-            if (text) parsed = JSON.parse(text)
+            const parsedArgs = JSON.parse(call?.argsRaw ?? '{}')
+            if (parsedArgs && typeof parsedArgs === 'object' && !Array.isArray(parsedArgs)) args = parsedArgs
           } catch {}
-          const count = Array.isArray(parsed?.favorites) ? parsed.favorites.length : null
-          const summary = [
-            action,
-            target,
-            count !== null ? t('tvCount', { count }) : '',
-          ].filter(Boolean).join(' · ')
-          const running = state === 'running' || state === 'pending'
-          const labelNode = running && TextShimmer ? h(TextShimmer, null, t('tvTitle')) : h('span', { className: 'mf-tv-label' }, t('tvTitle'))
-          const header = h('span', { className: 'mf-tv-head' },
-            labelNode,
-            summary ? h('span', { className: 'mf-tv-dot', 'data-shimmer-decoration': '' }, '·') : null,
-            summary ? h('span', { className: 'mf-tv-arg' }, summary) : null,
-            state === 'stopped' ? h('span', { className: 'mf-tv-arg' }, t('tvStopped')) : null)
+          const text = settled && Array.isArray(block.content)
+            ? block.content.filter(c => c.type === 'text').map(c => c.text ?? '').join('\n') : ''
+          let payload = null
+          if (text) { try { payload = JSON.parse(text) } catch {} }
+          const action = typeof args.action === 'string' ? args.action : block?.args?.text?.('action') ?? ''
+          const state = phase === 'preparing' ? 'preparing'
+            : !settled ? 'running'
+              : block?.error?.code === 'interrupted' ? 'stopped'
+                : block?.isError ? 'error' : 'ok'
+          const running = state === 'preparing' || state === 'running'
+          const target = args.provider && args.model ? `${args.provider}/${args.model}` : ''
+          const count = Array.isArray(payload?.favorites) ? payload.favorites.length : null
+          const detail = state === 'stopped' ? t('tvStopped')
+            : state === 'error' ? (text.split('\n')[0] || '')
+              : [target, count !== null ? t('tvCount', { count }) : ''].filter(Boolean).join(' · ')
+          const summary = state === 'error' || state === 'stopped' ? detail : [action, detail].filter(Boolean).join(' · ')
+          const inputText = Object.keys(args).length > 0 ? JSON.stringify(args, null, 2) : ''
+          const outputText = payload !== null ? JSON.stringify(payload, null, 2) : text
+          const expandable = state !== 'preparing' && Boolean(inputText || outputText)
+          const open = expanded && expandable
 
           const body = open ? h('div', { className: 'mf-tv-body' },
             h('div', { className: 'mf-tv-io' },
-              h('div', { className: 'mf-tv-card' },
-                h('div', { className: 'mf-tv-cap' }, t('tvInput')),
-                h('pre', { className: 'mf-tv-pre' }, JSON.stringify(args, null, 2))),
-              h('div', { className: 'mf-tv-card' },
-                h('div', { className: 'mf-tv-cap' }, t('tvOutput')),
-                h('pre', { className: 'mf-tv-pre' }, parsed ? JSON.stringify(parsed, null, 2) : ''))),
+              inputText ? h('div', { className: 'mf-tv-io-sec' },
+                h('span', { className: 'mf-tv-io-label' }, t('tvInput')),
+                h('span', { className: 'mf-tv-io-text' }, inputText)) : null,
+              inputText && outputText ? h('span', { className: 'mf-tv-io-div', 'aria-hidden': true }) : null,
+              outputText ? h('div', { className: 'mf-tv-io-sec' },
+                h('span', { className: 'mf-tv-io-label' }, t('tvOutput')),
+                h('span', { className: 'mf-tv-io-text', 'data-error': state === 'error' || undefined }, outputText)) : null),
             inspect ? h('button', { type: 'button', className: 'mf-tv-inspect', onClick: inspect },
               IconInspectOutlineRegular ? h(IconInspectOutlineRegular, { size: 12 }) : null,
               t('tvInspect')) : null) : null
 
-          if (DisclosureRow) {
-            return h('div', { className: 'mf-tv-row' },
-              h(DisclosureRow, { open, onToggle: () => setOpen(v => !v), label: header }, body))
-          }
-          return h('div', { className: 'mf-tv-row' },
-            h('button', { type: 'button', onClick: () => setOpen(v => !v) }, header),
-            body)
+          return h('div', { className: 'mf-tv', 'data-tool': 'model_favorites', 'data-state': state },
+            h(DisclosureRow, {
+              rowClassName: 'mf-tv-row',
+              icon: h(StarIcon, { filled: true, size: 14 }),
+              title: t('tvTitle'),
+              running,
+              open,
+              expandable,
+              expandOnRowClick: true,
+              keepContentWhenOpen: true,
+              onToggle: toggle,
+              collapsedContent: state === 'preparing' || !summary ? null : h(React.Fragment, null,
+                h('span', { className: 'mf-tv-sep', 'data-shimmer-decoration': true, 'aria-hidden': true }),
+                h('span', { className: `mf-tv-summary${state === 'error' ? ' is-err' : state === 'stopped' ? ' is-stop' : ''}` },
+                  TextShimmer ? h(TextShimmer, null, summary) : summary)),
+            }, body))
         }
 
         ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({

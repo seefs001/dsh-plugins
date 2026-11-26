@@ -55,7 +55,7 @@ function loadClient({ react = createReactStub(), doc = null, fetchImpl = null, p
   vm.runInNewContext(readFileSync(clientPath, 'utf8'), sandbox, { filename: clientPath })
 
   const primitives = {
-    DisclosureRow: ({ label, children }) => react.createElement('div', { 'data-disclosure': true }, label, children),
+    DisclosureRow: ({ icon, title, collapsedContent, children }) => react.createElement('div', { 'data-disclosure': true }, icon, title, collapsedContent, children),
     StateDot: ({ state }) => react.createElement('span', { 'data-state-dot': state }),
     Tag: ({ tone, children }) => react.createElement('span', { 'data-tag': tone }, children),
     TextShimmer: ({ children }) => react.createElement('span', { 'data-shimmer': true }, children),
@@ -280,9 +280,13 @@ test('model-favorites client registers slots, locales, evaluates labels, and ren
 
   const toolSlot = registeredSlots.find(s => s.options.name === 'tool.call.toolview')
   const toolTree = toolSlot.component({
-    call: { arguments: { action: 'list' } },
-    result: { content: [{ text: JSON.stringify({ favorites: [{ provider: 'openai', model: 'gpt-5' }] }) }] },
-    state: 'done',
+    phase: 'result',
+    block: {
+      kind: 'tool_result',
+      call: { argsRaw: JSON.stringify({ action: 'list' }) },
+      content: [{ type: 'text', text: JSON.stringify({ favorites: [{ provider: 'openai', model: 'gpt-5' }] }) }],
+    },
+    useDisclosure: () => ({ expanded: false, toggle() {} }),
     inspect() {},
   })
   assert.match(collectText(toolTree), /收藏模型/)
