@@ -48,7 +48,7 @@ window.__ModuleLoader__.load({
 
     const CSS = `
 .sp-pill{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 7px;border:0;box-shadow:inset 0 0 0 .5px var(--dsw-alias-border-l4,var(--dsw-alias-border-l3));border-radius:var(--dsw-radius-sm,6px);background:none;color:var(--dsw-alias-label-secondary);font-family:var(--dsw-font-family,inherit);font-size:11px;line-height:16px;font-variant-numeric:tabular-nums;cursor:pointer;flex:none}
-.sp-pill:focus-visible{outline:none;background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.sp-pill:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px;background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 @media (hover:hover){.sp-pill:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 .sp-pill[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .sp-pill[data-tone=warn]{box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--dsw-alias-state-warn-primary) 60%,transparent);color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 7%,transparent)}
@@ -56,14 +56,17 @@ window.__ModuleLoader__.load({
 .sp-dot-run{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));flex:none;animation:sp-pulse 1.4s ease-in-out infinite}
 .sp-dot-warn{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-warn-primary);flex:none}
 .sp-dot-err{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-error-primary);flex:none}
-.sp-dot-done{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));flex:none}
+.sp-dot-done{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-success-primary);flex:none}
 .sp-dot-idle{width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-border-l3);flex:none}
 @keyframes sp-pulse{50%{opacity:.35}}
-.sp-menu{position:fixed;z-index:9999;width:300px;max-width:calc(100vw - 16px);max-height:360px;overflow:auto;padding:4px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));box-shadow:var(--dsw-elevation-medium,0 10px 28px rgba(0,0,0,.2));display:flex;flex-direction:column;gap:2px}
+.sp-menu{position:fixed;z-index:9999;width:300px;max-width:calc(100vw - 16px);max-height:min(360px,calc(100vh - 16px));overflow:auto;overscroll-behavior:contain;padding:4px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));box-shadow:var(--dsw-elevation-medium,0 10px 28px rgba(0,0,0,.2));display:flex;flex-direction:column;gap:2px}
 .sp-menu-head{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;font-size:11px;font-weight:500;color:var(--dsw-alias-label-tertiary);border-bottom:.5px solid var(--dsw-alias-border-l1);margin-bottom:2px}
-.sp-row{display:flex;align-items:center;gap:6px;min-height:30px;padding:4px 6px;border-radius:var(--dsw-radius-sm,6px);color:var(--dsw-alias-label-primary);cursor:pointer;font-size:12px;line-height:16px}
-.sp-row[data-disabled=true]{cursor:default;color:var(--dsw-alias-label-tertiary)}
+.sp-row{display:flex;align-items:center;gap:4px;min-height:30px;padding:2px 4px;border-radius:var(--dsw-radius-sm,6px);color:var(--dsw-alias-label-primary);font-size:12px;line-height:16px}
+.sp-row[data-disabled=true]{color:var(--dsw-alias-label-tertiary)}
 @media (hover:hover){.sp-row:not([data-disabled=true]):hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.sp-row-main{flex:1;min-width:0;display:flex;align-items:center;gap:6px;min-height:26px;padding:2px 4px;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.sp-row-main:disabled{cursor:default}
+.sp-row-main:focus-visible,.sp-row-aside:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-1px}
 .sp-row-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sp-row-meta{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
 .sp-row-meta[data-tone=warn]{color:var(--dsw-alias-state-warn-primary);font-weight:500}
@@ -72,6 +75,7 @@ window.__ModuleLoader__.load({
 .sp-row:focus-within .sp-row-aside{opacity:1}
 @media (hover:hover){.sp-row:hover .sp-row-aside{opacity:1}.sp-row-aside:hover{background:var(--dsw-alias-interactive-bg-hover-solid,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.sp-row-aside{opacity:1}}
+@media (pointer:coarse){.sp-row-aside{width:32px;height:32px}}
 @media (prefers-reduced-motion:reduce){.sp-dot-run{animation:none}}
 `
 
@@ -104,6 +108,32 @@ window.__ModuleLoader__.load({
       return `${Math.floor(hr / 24)}d`
     }
 
+    const subagentIndexCache = new WeakMap()
+
+    function subagentsByParent(byId) {
+      if (!byId || typeof byId !== 'object') return null
+      let index = subagentIndexCache.get(byId)
+      if (!index) {
+        index = new Map()
+        for (const row of Object.values(byId)) {
+          if (row?.origin !== 'subagent' || !row.parentId) continue
+          let bucket = index.get(row.parentId)
+          if (!bucket) {
+            bucket = []
+            index.set(row.parentId, bucket)
+          }
+          bucket.push(row)
+        }
+        for (const bucket of index.values()) {
+          if (bucket.length > 1) {
+            bucket.sort((a, b) => (a.createdAt ?? a.updatedAt ?? 0) - (b.createdAt ?? b.updatedAt ?? 0))
+          }
+        }
+        subagentIndexCache.set(byId, index)
+      }
+      return index
+    }
+
     function catalogEntriesFor(parentId, list) {
       const proj = list?.projectionsBySession?.[parentId]?.values?.subagentCatalog
         ?? list?.byId?.[parentId]?.projectionValues?.subagentCatalog
@@ -116,10 +146,9 @@ window.__ModuleLoader__.load({
           entries.push(item)
         }
       }
-      const extras = Object.values(list?.byId ?? {})
-        .filter(row => row?.origin === 'subagent' && row.parentId === parentId && !seen.has(row.id))
-        .toSorted((a, b) => (a.createdAt ?? a.updatedAt ?? 0) - (b.createdAt ?? b.updatedAt ?? 0))
+      const extras = subagentsByParent(list?.byId)?.get(parentId) ?? []
       for (const row of extras) {
+        if (seen.has(row.id)) continue
         seen.add(row.id)
         entries.push({ id: row.id, name: row.displayTitle || row.id, mode: 'continuable', createdAt: row.createdAt ?? row.updatedAt ?? 0 })
       }
@@ -168,6 +197,7 @@ window.__ModuleLoader__.load({
             failed,
             done,
             unseenDone,
+            since,
             durationMs,
             idleAt: summary?.updatedAt ?? entry.createdAt ?? 0,
             finishedAt,
@@ -177,6 +207,31 @@ window.__ModuleLoader__.load({
       }
       walk(rootId, 0)
       return rows
+    }
+
+    function sameDescendantRows(a, b) {
+      if (a === b) return true
+      if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+      for (let i = 0; i < a.length; i++) {
+        const left = a[i]
+        const right = b[i]
+        if (
+          left.id !== right.id
+          || left.name !== right.name
+          || left.depth !== right.depth
+          || left.mode !== right.mode
+          || left.external !== right.external
+          || left.running !== right.running
+          || left.attention !== right.attention
+          || left.failed !== right.failed
+          || left.done !== right.done
+          || left.unseenDone !== right.unseenDone
+          || left.since !== right.since
+          || left.idleAt !== right.idleAt
+          || left.finishedAt !== right.finishedAt
+        ) return false
+      }
+      return true
     }
 
     return {
@@ -196,29 +251,67 @@ window.__ModuleLoader__.load({
         const statusSource = ctx.uiSession.sessionStatus
         const useSource = source => React.useSyncExternalStore(fn => source.subscribe(fn), () => source.getSnapshot())
 
+        function useSubagentRows(sessionId, seenVersion) {
+          const cacheRef = React.useRef({
+            sessionId: null,
+            seenVersion: -1,
+            list: null,
+            statuses: null,
+            rows: null,
+          })
+          return React.useSyncExternalStore(
+            onStoreChange => {
+              const offList = ctx.sessions.list.subscribe(onStoreChange)
+              const offStatus = statusSource.subscribe(onStoreChange)
+              return () => {
+                if (typeof offList === 'function') offList()
+                if (typeof offStatus === 'function') offStatus()
+              }
+            },
+            () => {
+              const list = ctx.sessions.list.getSnapshot()
+              const statuses = statusSource.getSnapshot()
+              const cache = cacheRef.current
+              if (
+                cache.rows !== null
+                && cache.sessionId === sessionId
+                && cache.seenVersion === seenVersion
+                && cache.list === list
+                && cache.statuses === statuses
+              ) return cache.rows
+              const next = buildDescendantTree(sessionId, list, statuses, seenDoneAt, 0)
+              cache.sessionId = sessionId
+              cache.seenVersion = seenVersion
+              cache.list = list
+              cache.statuses = statuses
+              if (cache.rows !== null && sameDescendantRows(cache.rows, next)) return cache.rows
+              cache.rows = next
+              return next
+            },
+          )
+        }
+
         function SubagentPeekControl({ sessionId }) {
           useSource(ctx.locale)
-          const list = useSource(ctx.sessions.list)
-          const statuses = useSource(statusSource)
+          const [seenVersion, markSeen] = React.useReducer(n => n + 1, 0)
+          const rows = useSubagentRows(sessionId, seenVersion)
           const [menuRect, setMenuRect] = React.useState(null)
           const [, bump] = React.useReducer(n => n + 1, 0)
           const btnRef = React.useRef(null)
           const menuRef = React.useRef(null)
 
-          const now = Date.now()
-          const rows = React.useMemo(
-            () => buildDescendantTree(sessionId, list, statuses, seenDoneAt, now),
-            [sessionId, list, statuses, menuRect !== null ? Math.floor(now / 1000) : 0],
-          )
-
           const runningCount = rows.filter(r => r.running).length
           const attentionCount = rows.filter(r => Boolean(r.attention)).length
           const failedCount = rows.filter(r => r.failed).length
           const menuOpen = menuRect !== null
+          const now = menuOpen ? Date.now() : 0
 
           React.useEffect(() => {
             if (!menuOpen || runningCount === 0) return undefined
-            const timer = setInterval(bump, 1000)
+            const timer = setInterval(() => {
+              if (typeof document !== 'undefined' && document.hidden) return
+              bump()
+            }, 1000)
             return () => clearInterval(timer)
           }, [menuOpen, runningCount])
 
@@ -228,7 +321,12 @@ window.__ModuleLoader__.load({
               if (menuRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return
               setMenuRect(null)
             }
-            const onKey = e => { if (e.key === 'Escape') setMenuRect(null) }
+            const onKey = e => {
+              if (e.key === 'Escape') {
+                setMenuRect(null)
+                btnRef.current?.focus?.()
+              }
+            }
             const onResize = () => setMenuRect(null)
             window.addEventListener('pointerdown', onDown, true)
             window.addEventListener('keydown', onKey)
@@ -266,6 +364,7 @@ window.__ModuleLoader__.load({
           const openRow = (row, aside = false) => {
             if (row.external) return
             seenDoneAt.set(row.id, Math.max(Date.now(), row.finishedAt || 0))
+            markSeen()
             setMenuRect(null)
             if (aside && typeof sidebarRight?.openResource === 'function') {
               sidebarRight.openResource(`${SUBAGENT_CHAT_PREFIX}${encodeURIComponent(row.id)}`, {
@@ -299,9 +398,18 @@ window.__ModuleLoader__.load({
                 className: 'sp-menu',
                 role: 'menu',
                 'aria-label': t('menuHeader'),
+                onKeyDown: e => {
+                  const list = [...(menuRef.current?.querySelectorAll('[role=menuitem]:not(:disabled)') ?? [])]
+                  if (!list.length) return
+                  const at = list.indexOf(document.activeElement)
+                  if (e.key === 'ArrowDown') { e.preventDefault(); list[(at + 1 + list.length) % list.length]?.focus() }
+                  else if (e.key === 'ArrowUp') { e.preventDefault(); list[(at - 1 + list.length) % list.length]?.focus() }
+                  else if (e.key === 'Home') { e.preventDefault(); list[0]?.focus() }
+                  else if (e.key === 'End') { e.preventDefault(); list[list.length - 1]?.focus() }
+                },
                 style: {
-                  top: `${Math.min(window.innerHeight - 280, Math.max(8, menuRect.bottom + 6))}px`,
-                  left: `${Math.min(window.innerWidth - 312, Math.max(8, menuRect.left))}px`,
+                  top: `${Math.max(8, Math.min(menuRect.bottom + 6, window.innerHeight - 280))}px`,
+                  left: `${Math.max(8, Math.min(menuRect.left, window.innerWidth - 312))}px`,
                 },
               },
               h('div', { className: 'sp-menu-head' },
@@ -315,22 +423,25 @@ window.__ModuleLoader__.load({
                 const metaText = row.external ? t('external')
                   : row.attention ? t(row.attention)
                     : row.failed ? t('failed')
-                      : row.running ? formatElapsed(row.durationMs)
+                      : row.running ? formatElapsed(row.since ? Math.max(0, now - row.since) : row.durationMs)
                         : formatAge(row.idleAt, now)
                 const metaTone = row.attention ? 'warn' : row.failed ? 'error' : undefined
                 return h('div', {
                   key: row.id,
-                  role: 'menuitem',
-                  tabIndex: row.external ? -1 : 0,
                   className: 'sp-row',
                   'data-disabled': row.external || undefined,
-                  style: { paddingLeft: `${8 + Math.min(row.depth, 4) * 14}px` },
+                  style: { paddingLeft: `${4 + Math.min(row.depth, 4) * 14}px` },
+                },
+                h('button', {
+                  type: 'button',
+                  role: 'menuitem',
+                  className: 'sp-row-main',
+                  disabled: row.external || undefined,
                   onClick: () => openRow(row, false),
-                  onKeyDown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); openRow(row, false) } },
                 },
                 h('span', { className: dotClass, 'aria-hidden': true }),
                 h('span', { className: 'sp-row-name', title: row.name }, row.name),
-                metaText && h('span', { className: 'sp-row-meta', 'data-tone': metaTone }, metaText),
+                metaText && h('span', { className: 'sp-row-meta', 'data-tone': metaTone }, metaText)),
                 !row.external && typeof sidebarRight?.openResource === 'function' && h('button', {
                   type: 'button',
                   className: 'sp-row-aside',

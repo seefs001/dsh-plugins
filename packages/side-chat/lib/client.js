@@ -19,6 +19,7 @@ window.__ModuleLoader__.load({
       empty: 'No side chats yet.', removeQuote: 'Remove selection', untitled: 'Untitled side chat',
       justNow: 'just now', dismiss: 'Dismiss',
       archived: 'Archived “{name}”.', undo: 'Undo', undoFailed: 'Could not restore side chat', restored: 'Side chat restored.',
+      quoteSelection: 'Quote selection', noSelection: 'Select text in the chat first.',
     }
     const ZH = {
       title: '侧聊', newChat: '新建侧聊', ask: '在侧聊中提问', main: '主聊',
@@ -32,13 +33,15 @@ window.__ModuleLoader__.load({
       empty: '还没有侧聊。', removeQuote: '移除选区', untitled: '未命名侧聊',
       justNow: '刚刚', dismiss: '关闭提示',
       archived: '已归档「{name}」。', undo: '撤销', undoFailed: '恢复侧聊失败', restored: '已恢复侧聊。',
+      quoteSelection: '引用选中文本', noSelection: '请先在对话中选中一段文字。',
     }
 
     const CSS = `
-.sc-anchor{display:inline-flex;min-width:0;font-size:calc(var(--dsh-content-font-size-secondary,13px) - 1px);line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px))}
-.sc-trigger{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;margin:0;padding:1px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);
+.sc-anchor{display:inline-flex;min-width:0;max-width:100%;overflow:hidden;font-size:calc(var(--dsh-content-font-size-secondary,13px) - 1px);line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px))}
+.sc-trigger{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;overflow:hidden;margin:0;padding:1px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);
   background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-variant-numeric:tabular-nums;line-height:inherit;white-space:nowrap;cursor:pointer}
 .sc-trigger svg{flex:none;width:14px;height:14px}
+@media (max-width:600px){.sc-anchor{flex:none}.sc-trigger{min-height:22px;gap:4px;padding:1px 5px}.sc-label{display:none}}
 @media (hover:hover){.sc-trigger:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}}
 .sc-trigger:focus-visible,.sc-selection:focus-visible,.sc-page :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .sc-selection{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border:0;border-radius:999px;corner-shape:round;
@@ -95,8 +98,8 @@ window.__ModuleLoader__.load({
 .sc-intro{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
 
 .sc-compose{display:flex;flex-direction:column;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);
-  background:var(--dsw-alias-bg-layer-1);transition:border-color .12s}
-.sc-compose:focus-within{border-color:var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
+  background:var(--dsw-alias-bg-layer-1);transition:border-color .12s,box-shadow .12s}
+.sc-compose:focus-within{border-color:var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));box-shadow:0 0 0 1px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 .sc-quote{position:relative;display:flex;align-items:flex-start;gap:6px;margin:10px 10px 0;padding:7px 8px 7px 12px;
   border-radius:var(--dsw-radius-sm,8px);background:color-mix(in srgb,var(--dsw-alias-label-primary) 5%,transparent);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
 .sc-quote::before{content:'';position:absolute;left:4px;top:7px;bottom:7px;width:2.5px;border-radius:2px;background:var(--dsw-alias-brand-primary);opacity:.75}
@@ -106,7 +109,10 @@ window.__ModuleLoader__.load({
 .sc-compose textarea:focus-visible{outline:none}
 .sc-compose textarea::placeholder{color:var(--dsw-alias-label-tertiary)}
 .sc-compose-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px 8px 12px}
+.sc-compose-left{display:flex;align-items:center;gap:6px;min-width:0}
 .sc-hint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+@media (hover:none),(pointer:coarse){.sc-hint{display:none}}
+@media (pointer:coarse){.sc-compose textarea{font-size:16px}.sc-icon-btn{width:32px;height:32px}.sc-btn{min-height:32px}.sc-trigger{min-height:28px}}
 
 .sc-rows{display:flex;flex-direction:column;gap:2px}
 .sc-row{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;padding:6px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);
@@ -121,6 +127,7 @@ window.__ModuleLoader__.load({
 .sc-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 16px;border-radius:var(--dsw-radius-md,12px);
   border:.5px dashed var(--dsw-alias-border-l2);text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
 
+@media (pointer:coarse){.sc-compose textarea{font-size:16px}}
 @container (max-width:340px){
   .sc-list{padding:14px 14px 20px}
   .sc-bring-text,.sc-hint{display:none}
@@ -198,18 +205,80 @@ window.__ModuleLoader__.load({
           return rtf.format(seconds, 'second')
         }
 
+        const subscribeSessions = listener => ctx.sessions.list.subscribe(listener)
+
+        function sameSideChatRows(a, b) {
+          if (a === b) return true
+          if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+          for (let i = 0; i < a.length; i += 1) {
+            if (
+              a[i].id !== b[i].id
+              || a[i].title !== b[i].title
+              || a[i].updatedAt !== b[i].updatedAt
+              || a[i].running !== b[i].running
+            ) return false
+          }
+          return true
+        }
+
+        function useSideChatRows(sessionId, archived) {
+          const cacheRef = React.useRef({ sessionId: null, archived: null, list: null, rows: null })
+          return React.useSyncExternalStore(
+            subscribeSessions,
+            () => {
+              const list = ctx.sessions.list.getSnapshot()
+              const cache = cacheRef.current
+              if (
+                cache.rows !== null
+                && cache.sessionId === sessionId
+                && cache.archived === archived
+                && cache.list === list
+              ) return cache.rows
+              const ids = list?.ids ?? []
+              const byId = list?.byId ?? {}
+              const chats = listSideChats(ids, byId, archived, sessionId)
+              const next = chats.map(child => ({
+                id: child,
+                title: byId[child]?.title ?? '',
+                updatedAt: byId[child]?.updatedAt ?? 0,
+                running: Boolean(byId[child]?.running),
+              }))
+              cache.sessionId = sessionId
+              cache.archived = archived
+              cache.list = list
+              if (cache.rows !== null && sameSideChatRows(cache.rows, next)) return cache.rows
+              cache.rows = next
+              return next
+            },
+          )
+        }
+
         function Trigger({ sessionId, useSessions, useWorkspaces, t }) {
-          const ids = useSessions(s => s.ids)
-          const byId = useSessions(s => s.byId)
           const archived = useWorkspaces(s => s.archivedSessionIds)
-          if (!canOpen(sessionId)) return null
-          const chats = listSideChats(ids, byId, archived, sessionId)
-          const running = chats.some(item => byId[item].running)
+          const summary = useSessions(s => {
+            if (!canOpen(sessionId)) return ''
+            const scope = prefix(sessionId)
+            const hidden = new Set(archived)
+            let count = 0
+            let running = false
+            for (const item of s.ids) {
+              if (!item.startsWith(scope) || hidden.has(item)) continue
+              const row = s.byId[item]
+              if (!row || row.blank) continue
+              count += 1
+              if (row.running) running = true
+            }
+            return `${count}:${running ? 1 : 0}`
+          })
+          if (!summary) return null
+          const [countText, runningText] = summary.split(':')
+          const count = Number(countText)
+          const running = runningText === '1'
           return h('span', { className: 'sc-anchor', 'data-side-chat': '' },
-            h('button', { type: 'button', className: 'sc-trigger', onClick: () => open({}) },
+            h('button', { type: 'button', className: 'sc-trigger', title: t('title'), 'aria-label': t('title'), onClick: () => open({}) },
               h(SideChatIcon, { size: 14 }),
-              h('span', null, t('title')),
-              chats.length > 0 && h('span', { className: 'sc-count' }, chats.length),
+              h('span', { className: 'sc-label' }, t('title')),
+              count > 0 && h('span', { className: 'sc-count' }, count),
               running && h('span', { className: 'sc-dot', 'aria-hidden': true })))
         }
 
@@ -275,13 +344,13 @@ window.__ModuleLoader__.load({
         }
 
         function Desk({ sessionId, revision, navQuote, useSessions, useWorkspaces, useProjection, inputActions, SessionProvider, renderSlot, t }) {
-          const byId = useSessions(s => s.byId)
-          const ids = useSessions(s => s.ids)
+          const parentCwd = useSessions(s => s.byId[sessionId]?.cwd ?? '')
           const preset = useProjection('agentPreset')
           const listed = useSessions(s => s.phase === 'ready')
           const workspaces = useWorkspaces(s => s.items)
           const located = useWorkspaces(s => s.phase === 'ready')
           const archived = useWorkspaces(s => s.archivedSessionIds)
+          const rows = useSideChatRows(sessionId, archived)
           const [id, setId] = React.useState(null)
           const [quote, setQuote] = React.useState(navQuote)
           const [question, setQuestion] = React.useState('')
@@ -306,16 +375,17 @@ window.__ModuleLoader__.load({
 
           React.useEffect(() => {
             if (notice?.tone !== 'info') return undefined
-            const timer = setTimeout(() => setNotice(null), 2600)
+            const timer = setTimeout(() => setNotice(null), notice.undoId ? 8000 : 2600)
             return () => clearTimeout(timer)
           }, [notice])
 
           const scope = prefix(sessionId)
-          const chats = listSideChats(ids, byId, archived, sessionId)
-          const label = child => byId[child]?.title || t('untitled')
+          const rowById = new Map(rows.map(row => [row.id, row]))
+          const lookup = child => rowById.get(child) ?? ctx.sessions.list.getSnapshot()?.byId?.[child]
+          const label = child => lookup(child)?.title || t('untitled')
           const show = child => { setId(child); setNotice(null) }
           const ready = listed && located
-          const active = id ? byId[id] : undefined
+          const active = id ? lookup(id) : undefined
 
           async function start(event) {
             event?.preventDefault()
@@ -329,7 +399,7 @@ window.__ModuleLoader__.load({
                 pending.current = await ctx.sessions.create({
                   sessionId: scope + nonce(),
                   agentPreset: preset,
-                  ...(parentWorkspace ? { workspaceId: parentWorkspace.workspaceId } : byId[sessionId]?.cwd ? { cwd: byId[sessionId].cwd } : {}),
+                  ...(parentWorkspace ? { workspaceId: parentWorkspace.workspaceId } : parentCwd ? { cwd: parentCwd } : {}),
                 })
               }
               const child = pending.current
@@ -421,7 +491,7 @@ window.__ModuleLoader__.load({
                 h('span', { className: 'sc-ellipsis' }, label(id))),
               h('div', { className: 'sc-bar-actions' },
                 h('button', {
-                  type: 'button', className: 'sc-btn', 'data-variant': 'outline', disabled: busy, title: t('bring'), onClick: bring,
+                  type: 'button', className: 'sc-btn', 'data-variant': 'outline', disabled: busy, 'aria-label': t('bring'), title: t('bring'), onClick: bring,
                 }, h(MentionIcon), h('span', { className: 'sc-bring-text' }, t('bring'))),
                 h('button', {
                   type: 'button', className: 'sc-icon-btn', 'data-danger': '', disabled: busy || active?.running,
@@ -446,7 +516,19 @@ window.__ModuleLoader__.load({
                       onChange: event => setQuestion(event.target.value),
                     }),
                     h('div', { className: 'sc-compose-foot' },
-                      h('span', { className: 'sc-hint' }, isMac ? '⌘↵' : 'Ctrl+↵'),
+                      h('div', { className: 'sc-compose-left' },
+                        !quote && h('button', {
+                          type: 'button',
+                          className: 'sc-btn',
+                          disabled: busy,
+                          onMouseDown: event => event.preventDefault(),
+                          onClick: () => {
+                            const picked = typeof window !== 'undefined' ? window.getSelection?.()?.toString().trim() ?? '' : ''
+                            if (picked) { setQuote(picked); setNotice(null) }
+                            else setNotice({ tone: 'info', text: t('noSelection') })
+                          },
+                        }, t('quoteSelection')),
+                        h('span', { className: 'sc-hint' }, isMac ? '⌘↵' : 'Ctrl+↵')),
                       h('button', {
                         type: 'submit', className: 'sc-btn', 'data-variant': 'primary',
                         disabled: busy || !ready || !question.trim(),
@@ -454,15 +536,14 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'sc-section' },
                   h('h3', { className: 'sc-heading' },
                     t('history'),
-                    chats.length > 0 && h('span', { className: 'sc-count' }, chats.length)),
-                  chats.length
-                    ? h('ul', { className: 'sc-rows' }, chats.map(child => {
-                      const row = byId[child]
+                    rows.length > 0 && h('span', { className: 'sc-count' }, rows.length)),
+                  rows.length
+                    ? h('ul', { className: 'sc-rows' }, rows.map(row => {
                       const time = formatAgo(row.updatedAt, t)
-                      return h('li', { key: child },
-                        h('button', { type: 'button', className: 'sc-row', disabled: busy, onClick: () => show(child) },
+                      return h('li', { key: row.id },
+                        h('button', { type: 'button', className: 'sc-row', disabled: busy, onClick: () => show(row.id) },
                           row.running ? h('span', { className: 'sc-dot', 'aria-hidden': true }) : h(SideChatIcon, { size: 14, className: 'sc-row-icon' }),
-                          h('span', { className: 'sc-row-title sc-ellipsis' }, label(child)),
+                          h('span', { className: 'sc-row-title sc-ellipsis' }, row.title || t('untitled')),
                           time && h('span', { className: 'sc-row-time' }, time),
                           h(ChevronIcon, { className: 'sc-row-chev' })))
                     }))
@@ -478,8 +559,12 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.uiConversation.interactions.register({
           id: KIND,
           onInteraction(request) {
-            if (request.trigger !== 'contextmenu' || !request.hasSelection || !canOpen(request.sessionId) || !request.readText()) return
-            request.preventDefault()
+            const allowTouchSelection = request.trigger === 'selection'
+              && typeof window !== 'undefined'
+              && typeof window.matchMedia === 'function'
+              && window.matchMedia('(hover: none), (pointer: coarse)').matches
+            if ((request.trigger !== 'contextmenu' && !allowTouchSelection) || !request.hasSelection || !canOpen(request.sessionId) || !request.readText()) return
+            if (request.trigger === 'contextmenu') request.preventDefault()
             request.open()
           },
         }))
