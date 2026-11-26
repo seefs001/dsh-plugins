@@ -18,7 +18,7 @@ description: 各插件的配置、storage domain、凭据、会话日志与浏�
 | `角色管理` | 角色库（上限 100）与会话绑定（上限 2000） | Host `roles` storage domain |
 | `会话分组` | 分组、成员、顺序与组内置顶 | Host `session_groups` storage domain |
 | `GitHub 面板` | 企业主机列表；单会话隐藏的提及项 | `cordis.patch.yml`（`hosts`）+ 浏览器 `localStorage` |
-| `画布` | 会话开关、交互状态（上限 200 键 / 256 KB）与修订历史（最近 25 次）；画布源码 | Host `canvas` storage domain + 工作区 `<cwd>/.dsh/canvases/` / 全局 `~/.dsh/canvases/` `.canvas.{tsx,html,svg}` |
+| `画布` | 会话开关、交互状态（上限 200 键 / 256 KB）与修订历史（最近 25 次）；画布源码 | Host `canvas` storage domain + 工作区 `<cwd>/.dsh/canvases/` `.canvas.{tsx,html,svg}` |
 | `Wait, what? 回复解释` | 专用解释模型与推理强度 | `cordis.patch.yml` |
 | `Wait, what? 回复解释` | 最近 200 份解释缓存 | Host `message_actions` storage domain |
 | `ACP 工作台` | 提供方、隐藏模型、顶层模式/选项默认值、会话绑定、运行摘要与事件分块 | Host `acp_workbench` storage domain |

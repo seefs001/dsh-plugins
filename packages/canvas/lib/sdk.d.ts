@@ -164,7 +164,7 @@ declare module 'dsh/canvas' {
       }
     | { type: 'sendToSession'; sessionId: string; prompt: string; mode?: 'queue' | 'steer' }
     | { type: 'triggerSchedule'; taskId: string }
-    | { type: 'openCanvas'; path: string; scope?: 'workspace' | 'global' }
+    | { type: 'openCanvas'; path: string }
 
   export interface CanvasFileOptions {
     parse?: 'auto' | 'json' | 'text' | 'markdown' | 'lines'

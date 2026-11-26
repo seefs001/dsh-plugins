@@ -52,7 +52,7 @@
 | 包 | 作用 | 运行位置 |
 |---|---|---|
 | [`dsh-diagram-preview`](packages/diagram-preview) | 在对话中预览 Mermaid、Graphviz、ECharts 和 SVG 图表，支持放大、导出 PNG/SVG 与切回源码。 | Web |
-| [`dsh-canvas`](packages/canvas) | 沙箱隔离的交互画布（`.canvas.tsx` / `.canvas.html` / `.canvas.svg`）与全局 `~/.dsh/canvases/` 应用工作台，支持 0 token 本地活数据订阅、TypeScript 诊断、持久化状态、版本对比与白名单宿主联动。 | Host + Web |
+| [`dsh-canvas`](packages/canvas) | 沙箱隔离的交互画布（`.canvas.tsx` / `.canvas.html` / `.canvas.svg`），支持 0 token 本地活数据订阅、TypeScript 诊断、持久化状态、版本对比与白名单宿主联动。 | Host + Web |
 | [`dsh-side-chat`](packages/side-chat) | 在右栏沿用主聊预设独立追问，按需将引用带回主聊草稿。 | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 把用户消息中的引用渲染为可点击块，点击跳回原文并高亮。 | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 在工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理对话。 | Web |

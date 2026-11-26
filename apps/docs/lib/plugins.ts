@@ -37,7 +37,7 @@ const entries: Entry[] = [
   { slug: 'github-panel', category: 'sessions', surface: 'Host + Web', summary: '会话关联 GitHub 仓库或提及链接时，在右侧会话面板展示概览、PR、Issue、Actions 与发布，点击直接新标签打开 GitHub。', requires: ['已登录的 GitHub CLI (gh)'] },
   { slug: 'keep-awake', category: 'sessions', surface: 'Host', summary: 'DSH Host 运行期间阻止 macOS 闲置休眠。', requires: ['macOS'] },
   { slug: 'diagram-preview', category: 'conversation', surface: 'Web', summary: '在对话中渲染 Mermaid、Graphviz、ECharts 和 SVG 图表，支持放大、导出 PNG/SVG 与切回源码。' },
-  { slug: 'canvas', category: 'conversation', surface: 'Host + Web', summary: '沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.svg）与全局画布应用，支持本地活数据订阅、TypeScript 诊断、持久化状态与版本对比。', requires: ['@deepseek-ai/dsh-storage-domain'] },
+  { slug: 'canvas', category: 'conversation', surface: 'Host + Web', summary: '沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.svg），支持本地活数据订阅、TypeScript 诊断、持久化状态与版本对比。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'side-chat', category: 'conversation', surface: 'Web', summary: '在右栏用相同预设独立追问，将会话引用带回主聊草稿。' },
   { slug: 'quote-jump', category: 'conversation', surface: 'Web', summary: '把用户消息中的引用渲染为可点击块，点击跳回原文并高亮。' },
   { slug: 'tool-lens', category: 'conversation', surface: 'Web', summary: '在工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理会话。' },

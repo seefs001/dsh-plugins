@@ -1,6 +1,5 @@
 import { watch } from 'node:fs'
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 export const CANVAS_EXT = '.canvas.tsx'
@@ -26,12 +25,6 @@ const SKIP_DIRS = new Set([
   'venv',
   '__pycache__',
 ])
-
-export function getGlobalCanvasesRoot() {
-  const envHome = process.env.DSH_HOME
-  const dshHome = typeof envHome === 'string' && envHome.trim() ? resolve(envHome.trim()) : join(homedir(), '.dsh')
-  return join(dshHome, 'canvases')
-}
 
 export function getArtifactKind(filePath) {
   if (typeof filePath !== 'string') return 'react'
@@ -107,29 +100,6 @@ export function resolveCanvasPath(cwd, inputPath, kind) {
   return target
 }
 
-export function resolveGlobalCanvasPath(inputPath, kind) {
-  const root = getGlobalCanvasesRoot()
-  const raw = typeof inputPath === 'string' ? inputPath.trim() : ''
-  if (!raw || raw.includes('\0')) throw new Error('Canvas path or name is required.')
-  const defaultExt = extFromKind(kind)
-  let target
-  if (isAbsolute(raw)) {
-    target = resolve(raw)
-  } else if (isCanvasFileName(raw)) {
-    const ext = CANVAS_EXTENSIONS.find(e => raw.endsWith(e)) ?? defaultExt
-    target = resolve(root, `${normalizeSlug(raw)}${ext}`)
-  } else {
-    target = resolve(root, `${normalizeSlug(raw)}${defaultExt}`)
-  }
-  if (!isCanvasFileName(target)) {
-    throw new Error(`Canvas file must end with "${CANVAS_EXT}", "${HTML_EXT}", or "${SVG_EXT}".`)
-  }
-  if (!isWithinDirectory(root, target)) {
-    throw new Error('Global canvas path must stay within ~/.dsh/canvases.')
-  }
-  return target
-}
-
 export function deriveTitle(filePath, source = '') {
   const kind = getArtifactKind(filePath)
   if (kind === 'html' || kind === 'svg') {
@@ -201,21 +171,6 @@ export async function discoverCanvasFiles(cwd) {
   return found
 }
 
-export async function discoverGlobalCanvasFiles() {
-  const root = getGlobalCanvasesRoot()
-  const found = []
-  try {
-    const entries = await readdir(root, { withFileTypes: true })
-    entries.sort((a, b) => a.name.localeCompare(b.name))
-    for (const entry of entries) {
-      if (entry.isFile() && isCanvasFileName(entry.name) && found.length < MAX_CANVASES) {
-        found.push(join(root, entry.name))
-      }
-    }
-  } catch {}
-  return found
-}
-
 export async function readCanvasFile(cwd, filePath) {
   const full = resolveCanvasPath(cwd, filePath)
   const [source, info] = await Promise.all([readFile(full, 'utf8'), stat(full)])
@@ -225,25 +180,6 @@ export async function readCanvasFile(cwd, filePath) {
     relativePath: rel,
     name: basename(full),
     kind: getArtifactKind(full),
-    scope: 'workspace',
-    title: deriveTitle(full, source),
-    source,
-    mtimeMs: info.mtimeMs,
-    size: info.size,
-  }
-}
-
-export async function readGlobalCanvasFile(filePath) {
-  const root = getGlobalCanvasesRoot()
-  const full = resolveGlobalCanvasPath(filePath)
-  const [source, info] = await Promise.all([readFile(full, 'utf8'), stat(full)])
-  const rel = `~/.dsh/canvases/${relative(root, full).split(sep).join('/')}`
-  return {
-    path: full,
-    relativePath: rel,
-    name: basename(full),
-    kind: getArtifactKind(full),
-    scope: 'global',
     title: deriveTitle(full, source),
     source,
     mtimeMs: info.mtimeMs,
@@ -258,21 +194,8 @@ export async function writeCanvasFile(cwd, inputPath, source, kind) {
   return readCanvasFile(cwd, full)
 }
 
-export async function writeGlobalCanvasFile(inputPath, source, kind) {
-  const full = resolveGlobalCanvasPath(inputPath, kind)
-  await mkdir(dirname(full), { recursive: true })
-  await writeFile(full, source, 'utf8')
-  return readGlobalCanvasFile(full)
-}
-
 export async function deleteCanvasFile(cwd, inputPath) {
   const full = resolveCanvasPath(cwd, inputPath)
-  await unlink(full)
-  return full
-}
-
-export async function deleteGlobalCanvasFile(inputPath) {
-  const full = resolveGlobalCanvasPath(inputPath)
   await unlink(full)
   return full
 }
@@ -327,40 +250,6 @@ export function createWorkspaceWatcher(cwd, onChange) {
         try { handle.close() } catch {}
       }
       watched.clear()
-    },
-  }
-}
-
-export function createGlobalCanvasWatcher(onChange) {
-  const root = getGlobalCanvasesRoot()
-  let handle = null
-  let timer = null
-  const schedule = () => {
-    clearTimeout(timer)
-    timer = setTimeout(() => {
-      timer = null
-      onChange()
-    }, 180)
-  }
-  const ensure = () => {
-    if (handle) return
-    try {
-      handle = watch(root, { persistent: false }, (_event, filename) => {
-        if (!filename || isCanvasFileName(String(filename))) schedule()
-      })
-      handle.on('error', () => {
-        try { handle.close() } catch {}
-        handle = null
-      })
-    } catch {}
-  }
-  ensure()
-  return {
-    sync() { ensure() },
-    close() {
-      clearTimeout(timer)
-      try { handle?.close() } catch {}
-      handle = null
     },
   }
 }

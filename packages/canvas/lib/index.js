@@ -22,21 +22,14 @@ import {
 import { appendRevision, DOMAIN_SPEC, MAX_STATE_JSON_BYTES, MAX_STATE_KEYS } from './store.js'
 import {
   computeLineDiff,
-  createGlobalCanvasWatcher,
   createWorkspaceWatcher,
   deleteCanvasFile,
-  deleteGlobalCanvasFile,
   discoverCanvasFiles,
-  discoverGlobalCanvasFiles,
   getArtifactKind,
-  getGlobalCanvasesRoot,
   normalizeSlug,
   readCanvasFile,
-  readGlobalCanvasFile,
   resolveCanvasPath,
-  resolveGlobalCanvasPath,
   writeCanvasFile,
-  writeGlobalCanvasFile,
 } from './workspace.js'
 
 export const name = 'canvas'
@@ -46,7 +39,6 @@ export const STATE_PATH = '/canvas/state'
 export const OP_PATH = '/canvas/op'
 export const EVENTS_PATH = '/canvas/events'
 export const PROVIDER_NAME = 'dsh-canvas'
-export const GLOBAL_SESSION_ID = '__global__'
 
 const MAX_BODY_BYTES = 512 * 1024
 const HEARTBEAT_MS = 25_000
@@ -109,7 +101,6 @@ export function apply(ctx) {
   const streams = new Set()
   const agentHandles = new Map()
   const watchedDataDirs = new Set()
-  let globalWatcher = null
 
   const ready = openDomain(ctx).then(domain => {
     for (const [id, entry] of domain.table('sessions').entries()) sessionMap.set(id, entry)
@@ -127,7 +118,6 @@ export function apply(ctx) {
   const agentCwd = agent => ctx.get('workingDirectory')?.get(agent?.session) ?? agent?.session?.header?.cwd ?? ''
 
   const resolveSessionCwd = (sessionId, fallbackCwd = '') => {
-    if (sessionId === GLOBAL_SESSION_ID) return ''
     for (const agent of agentHandles.keys()) {
       if (agent.session?.id === sessionId) {
         const live = agentCwd(agent)
@@ -220,7 +210,8 @@ export function apply(ctx) {
     }
   }
 
-  async function buildCanvasRecordFromFile(file, reason) {
+  async function buildCanvasRecord(cwd, filePath, reason) {
+    const file = await readCanvasFile(cwd, filePath)
     const kind = file.kind ?? getArtifactKind(file.path)
     const compiled = compileCached(file.path, file.source, kind)
     const errorCount = compiled.diagnostics.filter(d => d.severity === 'error').length
@@ -238,7 +229,6 @@ export function apply(ctx) {
       relativePath: file.relativePath,
       name: file.name,
       kind,
-      scope: file.scope ?? 'workspace',
       title: file.title,
       source: file.source,
       compiled: compiled.compiled,
@@ -251,16 +241,6 @@ export function apply(ctx) {
       revision: revEntry.entries[revEntry.entries.length - 1]?.revision ?? 1,
       revisions,
     }
-  }
-
-  async function buildCanvasRecord(cwd, filePath, reason) {
-    const file = await readCanvasFile(cwd, filePath)
-    return buildCanvasRecordFromFile(file, reason)
-  }
-
-  async function buildGlobalCanvasRecord(filePath, reason) {
-    const file = await readGlobalCanvasFile(filePath)
-    return buildCanvasRecordFromFile(file, reason)
   }
 
   function ensureWatcher(cwd, files) {
@@ -277,44 +257,7 @@ export function apply(ctx) {
     entry.watcher.sync(files)
   }
 
-  function ensureGlobalWatcher() {
-    if (closed) return
-    if (!globalWatcher) {
-      globalWatcher = createGlobalCanvasWatcher(() => {
-        broadcastSession(GLOBAL_SESSION_ID).catch(() => {})
-      })
-    } else {
-      globalWatcher.sync()
-    }
-  }
-
-  async function snapshotForGlobal() {
-    await ready
-    const entry = sessionMap.get(GLOBAL_SESSION_ID) ?? { enabled: true, cwd: '', activePath: '', updatedAt: 0 }
-    const files = await discoverGlobalCanvasFiles()
-    ensureGlobalWatcher()
-    const canvases = []
-    for (const filePath of files) {
-      try {
-        canvases.push(await buildGlobalCanvasRecord(filePath))
-      } catch {}
-    }
-    const activePath = canvases.some(c => c.path === entry.activePath)
-      ? entry.activePath
-      : canvases[0]?.path ?? ''
-    return {
-      sessionId: GLOBAL_SESSION_ID,
-      scope: 'global',
-      enabled: true,
-      cwd: getGlobalCanvasesRoot(),
-      activePath,
-      canvases,
-      dataTick,
-    }
-  }
-
   async function snapshotForSession(sessionId, fallbackCwd = '') {
-    if (sessionId === GLOBAL_SESSION_ID) return snapshotForGlobal()
     await ready
     const entry = sessionMap.get(sessionId) ?? { enabled: false, cwd: '', activePath: '', updatedAt: 0 }
     const cwd = resolveSessionCwd(sessionId, fallbackCwd)
@@ -334,7 +277,6 @@ export function apply(ctx) {
 
     return {
       sessionId,
-      scope: 'workspace',
       enabled: entry.enabled,
       cwd,
       activePath,
@@ -356,7 +298,6 @@ export function apply(ctx) {
   async function broadcastForCwd(cwd) {
     const seen = new Set()
     for (const stream of streams) {
-      if (stream.sessionId === GLOBAL_SESSION_ID) continue
       const streamCwd = resolveSessionCwd(stream.sessionId, stream.cwd)
       if (streamCwd !== cwd) continue
       if (seen.has(stream.sessionId)) continue
@@ -480,14 +421,13 @@ export function apply(ctx) {
     handle.toolsFiber = agent.ctx.inject(['tools'], toolScope => {
       toolScope.effect(() => toolScope.tools.register({
         name: 'canvas_write',
-        description: 'Create or update a Canvas artifact (.canvas.tsx, .canvas.html, or .canvas.svg) in the workspace or global ~/.dsh/canvases directory, run validation/type-checking, and refresh live preview.',
+        description: 'Create or update a Canvas artifact (.canvas.tsx, .canvas.html, or .canvas.svg) in the session workspace, run validation/type-checking, and refresh live preview.',
         parameters: {
           type: 'object',
           properties: {
             path: { type: 'string', description: 'Canvas slug (e.g. "latency-audit") or path ending in .canvas.tsx, .canvas.html, or .canvas.svg.' },
             source: { type: 'string', description: 'Complete source code for the artifact.' },
             reason: { type: 'string', description: 'Short revision summary shown in the Canvas history tab.' },
-            scope: { type: 'string', enum: ['workspace', 'global'], description: 'Target scope: workspace (default) or global (~/.dsh/canvases).' },
           },
           required: ['path', 'source'],
           additionalProperties: false,
@@ -499,29 +439,18 @@ export function apply(ctx) {
         async execute(args, exec) {
           await ready
           const targetSid = exec?.agent?.session?.id ?? agent.session?.id
-          const isGlobal = args.scope === 'global'
-          const cwd = isGlobal ? '' : (agentCwd(exec?.agent ?? agent) || resolveSessionCwd(targetSid))
-          if (!isGlobal && !cwd) throw new Error('Session has no workspace directory (cwd).')
-          const saved = isGlobal
-            ? await writeGlobalCanvasFile(args.path, args.source)
-            : await writeCanvasFile(cwd, args.path, args.source)
+          const cwd = agentCwd(exec?.agent ?? agent) || resolveSessionCwd(targetSid)
+          if (!cwd) throw new Error('Session has no workspace directory (cwd).')
+          const saved = await writeCanvasFile(cwd, args.path, args.source)
           clearCompileCache(saved.path)
-          const record = isGlobal
-            ? await buildGlobalCanvasRecord(saved.path, args.reason ?? 'Agent update')
-            : await buildCanvasRecord(cwd, saved.path, args.reason ?? 'Agent update')
-          if (isGlobal) {
-            await saveSessionEntry(GLOBAL_SESSION_ID, { enabled: true, activePath: saved.path })
-            await broadcastSession(GLOBAL_SESSION_ID)
-          } else {
-            await saveSessionEntry(targetSid, { cwd, activePath: saved.path })
-            await broadcastSession(targetSid)
-          }
+          const record = await buildCanvasRecord(cwd, saved.path, args.reason ?? 'Agent update')
+          await saveSessionEntry(targetSid, { cwd, activePath: saved.path })
+          await broadcastSession(targetSid)
           return {
             ok: record.ok,
             path: record.path,
             relativePath: record.relativePath,
             kind: record.kind,
-            scope: record.scope,
             title: record.title,
             revision: record.revision,
             errorCount: record.errorCount,
@@ -575,12 +504,11 @@ export function apply(ctx) {
 
       toolScope.effect(() => toolScope.tools.register({
         name: 'canvas_state',
-        description: 'Read the current persisted interactive useCanvasState values (user selections, filters, edits) for a workspace or global Canvas file.',
+        description: 'Read the current persisted interactive useCanvasState values (user selections, filters, edits) for a workspace Canvas file.',
         parameters: {
           type: 'object',
           properties: {
             path: { type: 'string', description: 'Canvas slug or path ending in .canvas.tsx, .canvas.html, or .canvas.svg.' },
-            scope: { type: 'string', enum: ['workspace', 'global'], description: 'Target scope: workspace (default) or global.' },
           },
           required: ['path'],
           additionalProperties: false,
@@ -592,16 +520,10 @@ export function apply(ctx) {
         isConcurrencySafe: () => true,
         async execute(args, exec) {
           await ready
-          const isGlobal = args.scope === 'global'
-          let full
-          if (isGlobal) {
-            full = resolveGlobalCanvasPath(args.path)
-          } else {
-            const targetSid = exec?.agent?.session?.id ?? agent.session?.id
-            const cwd = agentCwd(exec?.agent ?? agent) || resolveSessionCwd(targetSid)
-            if (!cwd) throw new Error('Session has no workspace directory (cwd).')
-            full = resolveCanvasPath(cwd, args.path)
-          }
+          const targetSid = exec?.agent?.session?.id ?? agent.session?.id
+          const cwd = agentCwd(exec?.agent ?? agent) || resolveSessionCwd(targetSid)
+          if (!cwd) throw new Error('Session has no workspace directory (cwd).')
+          const full = resolveCanvasPath(cwd, args.path)
           const entry = stateMap.get(full)
           return {
             path: full,
@@ -707,13 +629,12 @@ export function apply(ctx) {
       }
     }
 
-    const sessionId = op.scope === 'global' ? GLOBAL_SESSION_ID : op.sessionId
+    const sessionId = op.sessionId
     if (!isSessionId(sessionId)) throw new OpError('sessionId is required')
-    const isGlobal = sessionId === GLOBAL_SESSION_ID
 
     if (op.action === 'queryData') {
       await ready
-      const cwd = isGlobal ? (typeof op.cwd === 'string' ? op.cwd : '') : resolveSessionCwd(sessionId, op.cwd)
+      const cwd = resolveSessionCwd(sessionId, op.cwd)
       return queryDataSubscriptions(op.subscriptions, cwd)
     }
 
@@ -721,7 +642,7 @@ export function apply(ctx) {
       if (closed) throw new OpError('canvas plugin is unloading')
       await ready
 
-      const cwd = isGlobal ? '' : resolveSessionCwd(sessionId, op.cwd)
+      const cwd = resolveSessionCwd(sessionId, op.cwd)
 
       if (op.action === 'patchData') {
         if (typeof op.uri !== 'string' || !op.uri.trim()) throw new OpError('uri is required')
@@ -779,10 +700,9 @@ export function apply(ctx) {
       }
 
       if (op.action === 'refresh') {
-        const prefix = isGlobal ? getGlobalCanvasesRoot() : cwd
-        if (prefix) {
+        if (cwd) {
           for (const key of compileCache.keys()) {
-            if (key.startsWith(prefix)) compileCache.delete(key)
+            if (key.startsWith(cwd)) compileCache.delete(key)
           }
         }
         dataTick += 1
@@ -792,7 +712,7 @@ export function apply(ctx) {
       }
 
       if (op.action === 'create') {
-        if (!isGlobal && !cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
+        if (!cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
         const tpl = typeof op.template === 'string'
           ? CANVAS_TEMPLATES.find(item => item.id === op.template)
           : null
@@ -801,51 +721,42 @@ export function apply(ctx) {
         const source = typeof op.source === 'string' && op.source.trim()
           ? op.source
           : tpl?.source ?? STARTER_TEMPLATE
-        const saved = isGlobal
-          ? await writeGlobalCanvasFile(slug, source, kind)
-          : await writeCanvasFile(cwd, slug, source, kind)
+        const saved = await writeCanvasFile(cwd, slug, source, kind)
         clearCompileCache(saved.path)
-        const record = isGlobal
-          ? await buildGlobalCanvasRecord(saved.path, 'Created')
-          : await buildCanvasRecord(cwd, saved.path, 'Created')
-        await saveSessionEntry(sessionId, { ...(cwd ? { cwd } : {}), activePath: saved.path })
+        const record = await buildCanvasRecord(cwd, saved.path, 'Created')
+        await saveSessionEntry(sessionId, { cwd, activePath: saved.path })
         await broadcastSession(sessionId)
         return { ...(await snapshotForSession(sessionId, cwd)), created: record.path }
       }
 
       if (op.action === 'save') {
-        if (!isGlobal && !cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
+        if (!cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
         if (typeof op.source !== 'string') throw new OpError('source must be a string')
-        const saved = isGlobal
-          ? await writeGlobalCanvasFile(op.path, op.source)
-          : await writeCanvasFile(cwd, op.path, op.source)
+        const saved = await writeCanvasFile(cwd, op.path, op.source)
         clearCompileCache(saved.path)
-        if (isGlobal) await buildGlobalCanvasRecord(saved.path, op.reason ?? 'Edited in Canvas')
-        else await buildCanvasRecord(cwd, saved.path, op.reason ?? 'Edited in Canvas')
-        await saveSessionEntry(sessionId, { ...(cwd ? { cwd } : {}), activePath: saved.path })
+        await buildCanvasRecord(cwd, saved.path, op.reason ?? 'Edited in Canvas')
+        await saveSessionEntry(sessionId, { cwd, activePath: saved.path })
         await broadcastSession(sessionId)
         return snapshotForSession(sessionId, cwd)
       }
 
       if (op.action === 'restore') {
-        if (!isGlobal && !cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
-        const full = isGlobal ? resolveGlobalCanvasPath(op.path) : resolveCanvasPath(cwd, op.path)
+        if (!cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
+        const full = resolveCanvasPath(cwd, op.path)
         const revNum = Number(op.revision)
         const entry = revisionMap.get(full)
         const target = entry?.entries.find(r => r.revision === revNum)
         if (!target) throw new OpError(`Revision ${revNum} not found`)
-        if (isGlobal) await writeGlobalCanvasFile(full, target.source)
-        else await writeCanvasFile(cwd, full, target.source)
+        await writeCanvasFile(cwd, full, target.source)
         clearCompileCache(full)
-        if (isGlobal) await buildGlobalCanvasRecord(full, `Restored revision ${revNum}`)
-        else await buildCanvasRecord(cwd, full, `Restored revision ${revNum}`)
+        await buildCanvasRecord(cwd, full, `Restored revision ${revNum}`)
         await broadcastSession(sessionId)
         return snapshotForSession(sessionId, cwd)
       }
 
       if (op.action === 'delete') {
-        if (!isGlobal && !cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
-        const full = isGlobal ? await deleteGlobalCanvasFile(op.path) : await deleteCanvasFile(cwd, op.path)
+        if (!cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
+        const full = await deleteCanvasFile(cwd, op.path)
         clearCompileCache(full)
         const domain = await ready
         await domain.table('states').delete(full)
@@ -860,8 +771,8 @@ export function apply(ctx) {
       }
 
       if (op.action === 'setState') {
-        if (!isGlobal && !cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
-        const full = isGlobal ? resolveGlobalCanvasPath(op.path) : resolveCanvasPath(cwd, op.path)
+        if (!cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
+        const full = resolveCanvasPath(cwd, op.path)
         if (typeof op.key !== 'string' || !op.key || op.key.length > 128) throw new OpError('Invalid state key')
         const prev = stateMap.get(full)?.values ?? {}
         const nextValues = { ...prev, [op.key]: op.value }
@@ -871,8 +782,8 @@ export function apply(ctx) {
       }
 
       if (op.action === 'resetState') {
-        if (!isGlobal && !cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
-        const full = isGlobal ? resolveGlobalCanvasPath(op.path) : resolveCanvasPath(cwd, op.path)
+        if (!cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
+        const full = resolveCanvasPath(cwd, op.path)
         const domain = await ready
         await domain.table('states').delete(full)
         stateMap.delete(full)
@@ -963,8 +874,14 @@ export function apply(ctx) {
         if (!res.destroyed) res.write(`retry: 3000\ndata: ${JSON.stringify(initial)}\n\n`)
       } catch {}
       const heartbeat = setInterval(() => {
-        if (!res.destroyed) res.write(': ping\n\n')
+        if (res.destroyed || res.writableEnded) {
+          clearInterval(heartbeat)
+          streams.delete(stream)
+          return
+        }
+        res.write(': ping\n\n')
       }, HEARTBEAT_MS)
+      heartbeat.unref?.()
       res.once('close', () => {
         clearInterval(heartbeat)
         streams.delete(stream)
@@ -978,8 +895,6 @@ export function apply(ctx) {
     streams.clear()
     for (const entry of watchers.values()) entry.watcher.close()
     watchers.clear()
-    globalWatcher?.close()
-    globalWatcher = null
     dataWatcher.close()
     await tail
     const domain = await ready.catch(() => null)

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Canvas",
-    "description": "Interactive sandboxed Canvas artifacts (.canvas.tsx, .canvas.html, .canvas.svg) beside chat and in global apps, with live file subscriptions, TypeScript checking, persistent state, revision diffs, and host actions."
+    "description": "Interactive sandboxed Canvas artifacts (.canvas.tsx, .canvas.html, .canvas.svg) beside chat, with live file subscriptions, TypeScript checking, persistent state, revision diffs, and host actions."
   }
 }

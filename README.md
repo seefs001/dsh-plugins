@@ -52,7 +52,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | Package | What it does | Runs in |
 |---|---|---|
 | [`dsh-diagram-preview`](packages/diagram-preview) | Render Mermaid, Graphviz, ECharts, and SVG blocks in chat, with zoom, PNG/SVG export, and a toggle back to source. | Web |
-| [`dsh-canvas`](packages/canvas) | Interactive sandboxed Canvas artifacts (`.canvas.tsx`, `.canvas.html`, `.canvas.svg`) in sessions and global `~/.dsh/canvases/` apps, with live file subscriptions, TypeScript checking, persistent state, revision diffs, and allowlisted host actions. | Host + Web |
+| [`dsh-canvas`](packages/canvas) | Interactive sandboxed Canvas artifacts (`.canvas.tsx`, `.canvas.html`, `.canvas.svg`) in sessions, with live file subscriptions, TypeScript checking, persistent state, revision diffs, and allowlisted host actions. | Host + Web |
 | [`dsh-side-chat`](packages/side-chat) | Open a separate chat in the sidebar with the main session's agent preset and bring its reference back to your draft. | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Turn quotes in user messages into clickable blocks that jump to and highlight the source. | Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Open skill files, full spill outputs, search hits, links, and subagent chats directly from tool-call rows. | Web |

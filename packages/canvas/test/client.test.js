@@ -47,7 +47,7 @@ test('readJsonResponse handles empty and non-JSON error responses without Syntax
   assert.deepEqual(ok, { enabled: true })
 })
 
-test('apply uses real DSH locale, theme, and layout client APIs during boot and render', () => {
+test('apply uses real DSH locale and theme client APIs during boot and render', () => {
   const reactStub = {
     Fragment: Symbol('Fragment'),
     createElement: (type, props, ...children) => ({ type, props, children }),
@@ -69,7 +69,6 @@ test('apply uses real DSH locale, theme, and layout client APIs during boot and 
   const sidebarTabs = []
   const commands = []
   const openedTabs = []
-  const selectedPanels = []
   const themeListeners = new Set()
 
   const locale = {
@@ -88,9 +87,6 @@ test('apply uses real DSH locale, theme, and layout client APIs during boot and 
   }
   const theme = {
     getTheme: () => ({ active: { colorScheme: 'light' } }),
-  }
-  const layout = {
-    selectPanel: panelId => selectedPanels.push(panelId),
   }
 
   const ctx = {
@@ -118,7 +114,7 @@ test('apply uses real DSH locale, theme, and layout client APIs during boot and 
       if (event === 'theme/change') themeListeners.add(fn)
       return () => themeListeners.delete(fn)
     },
-    get: name => (name === 'layout' ? layout : undefined),
+    get: () => undefined,
     inject: (deps, fn) => {
       if (deps.includes('commandUi')) {
         fn({
@@ -136,9 +132,8 @@ test('apply uses real DSH locale, theme, and layout client APIs during boot and 
 
   livePlugin.apply(ctx)
 
-  const panelEntry = slotEntries.get('sidebar.panellist:dsh-canvas-apps')
-  assert.ok(panelEntry)
-  assert.equal(panelEntry.opts.label(), 'Canvases')
+  assert.equal(slotEntries.has('sidebar.panellist:dsh-canvas-apps'), false)
+  assert.equal(slotEntries.has('main:dsh-canvas-apps'), false)
 
   assert.equal(sidebarTabs.length, 1)
   assert.equal(sidebarTabs[0].title(), 'Canvas')
@@ -163,11 +158,13 @@ test('apply uses real DSH locale, theme, and layout client APIs during boot and 
     phase: 'result',
     block: {
       kind: 'tool_result',
-      call: { argsRaw: JSON.stringify({ path: 'board.canvas.tsx', scope: 'global' }) },
-      content: [{ type: 'text', text: JSON.stringify({ title: 'Board', scope: 'global', revision: 1 }) }],
+      call: { argsRaw: JSON.stringify({ path: 'board.canvas.tsx' }) },
+      content: [{ type: 'text', text: JSON.stringify({ title: 'Board', path: '/repo/.dsh/canvases/board.canvas.tsx', revision: 1 }) }],
     },
   })
   const actionsDiv = cardEl.children.find(c => c?.props?.className === 'cv-toolcard-actions')
   actionsDiv.children[0].props.onClick()
-  assert.deepEqual(selectedPanels, ['dsh-canvas-apps'])
+  assert.equal(openedTabs.length, 2)
+  assert.equal(openedTabs[1].kind, 'dsh-canvas')
+  assert.equal(openedTabs[1].opts?.params?.path, '/repo/.dsh/canvases/board.canvas.tsx')
 })

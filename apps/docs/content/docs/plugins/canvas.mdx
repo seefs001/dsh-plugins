@@ -1,14 +1,14 @@
 ---
 title: 画布
-description: 沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.svg）与全局 ~/.dsh/canvases/ 应用工作台，支持 0 token 本地活数据订阅、TypeScript 诊断、持久化状态与版本对比。
+description: 沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.svg），支持 0 token 本地活数据订阅、TypeScript 诊断、持久化状态与版本对比。
 ---
 
 <PluginFacts slug="canvas" />
 
-在对话右侧边栏和左侧栏「画布应用」全屏页面渲染沙箱隔离的交互画布，支持 `.canvas.tsx`（React）、`.canvas.html`（独立离线 HTML）与 `.canvas.svg`（矢量图），适用于数据分析报告、架构依赖图、安全审计面板、全局总控台和可交互排查工具。
+在对话右侧边栏渲染沙箱隔离的交互画布，支持 `.canvas.tsx`（React）、`.canvas.html`（独立离线 HTML）与 `.canvas.svg`（矢量图），适用于数据分析报告、架构依赖图、安全审计面板和可交互排查工具。
 
 <Callout type="info" title="按会话开启，默认零注入">
-未开启 Canvas 模式的会话不会注入任何 skill、tool 或 system prompt。在输入框下方点击 **画布**（或执行 `/canvas`）并在面板顶部打开 **当前会话画布** 开关后，才仅对该会话动态启用 `canvas` skill 与 `canvas_write` / `canvas_check` / `canvas_state` 工具；关闭开关即刻卸载。全局应用可通过左侧栏 **画布应用** 随时访问，内置 Chief of Staff 全局总控台等模板。
+未开启 Canvas 模式的会话不会注入任何 skill、tool 或 system prompt。在输入框下方点击 **画布**（或执行 `/canvas`）并在面板顶部打开 **当前会话画布** 开关后，才仅对该会话动态启用 `canvas` skill 与 `canvas_write` / `canvas_check` / `canvas_state` 工具；关闭开关即刻卸载。
 </Callout>
 
 ## 安装
@@ -17,7 +17,7 @@ description: 沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.
 
 ## 画布文件与热重载
 
-- **工作区与全局目录**：会话画布默认保存在 `<cwd>/.dsh/canvases/*.canvas.{tsx,html,svg}`（同时自动发现工作区内已有画布）；全局应用位于 `~/.dsh/canvases/*.canvas.{tsx,html,svg}`。
+- **工作区目录**：会话画布默认保存在 `<cwd>/.dsh/canvases/*.canvas.{tsx,html,svg}`（同时自动发现工作区内已有画布）。
 - **增量热重载**：Host 通过文件监听检测磁盘改动并增量重编译，无论智能体写文件、调用 `canvas_write`，还是你在本地编辑器或面板源码页保存，预览都会热更新且保留交互状态。
 - **零 token 本地数据订阅**：通过 `useCanvasFile` / `useCanvasGlob`（支持 `workspace://` 与 `bots://`，自动解析 JSON 与 Markdown YAML frontmatter，经 `fs.watch` + SSE 实时推送）和 `useHostData('sessions' | 'schedules' | 'git')`，后台脚本或定时任务更新磁盘即可实时刷新画布。
 

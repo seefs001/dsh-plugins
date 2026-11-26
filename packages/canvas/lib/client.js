@@ -6,16 +6,12 @@ window.__ModuleLoader__.load({
     try { primitives = require('@deepseek-ai/dsh-client-ui-primitives') } catch {}
     const h = React.createElement
     const KEY = 'dsh-canvas'
-    const APPS_PANEL_ID = 'dsh-canvas-apps'
-    const GLOBAL_SESSION_ID = '__global__'
     const NS = 'canvas'
     const VIEWS = ['preview', 'source', 'history', 'inspect']
 
     const DICTS = {
       en: {
         title: 'Canvas',
-        appsPanel: 'Canvases',
-        appsSubtitle: 'Global live React, HTML, and SVG artifacts stored in ~/.dsh/canvases',
         subtitle: 'Live sandboxed React, HTML, and SVG artifacts with reactive data binding',
         modeLabel: 'Session Canvas',
         modeOn: 'Enabled for this session (skill & tools active)',
@@ -52,10 +48,7 @@ window.__ModuleLoader__.load({
         noWorkspace: 'This session has no workspace directory yet.',
         emptyTitle: 'No Canvas artifacts yet',
         emptyBody: 'Enable Session Canvas above to let the agent author interactive .canvas.tsx / .canvas.html / .canvas.svg views, or start from a template.',
-        emptyGlobalTitle: 'No global Canvas apps yet',
-        emptyGlobalBody: 'Create a global live app under ~/.dsh/canvases (for example, the Chief of Staff Control Plane across all ~/.dsh/bots/*).',
         createStarter: 'Create starter canvas',
-        createChief: 'Create Chief of Staff board',
         enableSession: 'Enable for this session',
         disableSession: 'Disable for this session',
         loadingRuntime: 'Loading sandbox runtime…',
@@ -80,7 +73,6 @@ window.__ModuleLoader__.load({
         iterateSend: 'Iterate',
         openInCanvas: 'Open',
         artifactBuilding: 'Writing artifact…',
-        artifactGlobal: 'Global',
         tvStopped: 'Stopped',
         tvInspect: 'Inspect',
         tvOutput: 'OUT',
@@ -89,8 +81,6 @@ window.__ModuleLoader__.load({
       },
       zh: {
         title: '画布',
-        appsPanel: '画布应用',
-        appsSubtitle: '存放在 ~/.dsh/canvases 下的全局实时 React / HTML / SVG 动态应用',
         subtitle: '支持实时数据绑定的沙箱交互式 React / HTML / SVG 画布',
         modeLabel: '当前会话画布',
         modeOn: '已在当前会话启用（已注入画布技能与工具）',
@@ -127,10 +117,7 @@ window.__ModuleLoader__.load({
         noWorkspace: '当前会话还没有关联工作区目录。',
         emptyTitle: '暂无画布文件',
         emptyBody: '开启上方“当前会话画布”让智能体编写 .canvas.tsx / .canvas.html / .canvas.svg 交互视图，或从模板新建。',
-        emptyGlobalTitle: '暂无全局画布应用',
-        emptyGlobalBody: '在 ~/.dsh/canvases 下创建全局实时应用（例如聚合全部 ~/.dsh/bots/* 的 Chief of Staff 总控台）。',
         createStarter: '创建示例画布',
-        createChief: '创建 Chief of Staff 总控台',
         enableSession: '在当前会话启用',
         disableSession: '在当前会话关闭',
         loadingRuntime: '正在加载沙箱运行时…',
@@ -155,7 +142,6 @@ window.__ModuleLoader__.load({
         iterateSend: '发送调整',
         openInCanvas: '打开',
         artifactBuilding: '正在编写画布…',
-        artifactGlobal: '全局',
         tvStopped: '已中止',
         tvInspect: '查看',
         tvOutput: '输出',
@@ -195,10 +181,11 @@ window.__ModuleLoader__.load({
 .cv :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
 .cv-ellipsis{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 
-.cv-anchor{display:inline-flex;min-width:0;font-size:calc(var(--dsh-content-font-size-secondary,13px) - 1px);line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px))}
-.cv-trigger{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;margin:0;padding:1px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);
+.cv-anchor{display:inline-flex;min-width:0;max-width:100%;overflow:hidden;font-size:calc(var(--dsh-content-font-size-secondary,13px) - 1px);line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px))}
+.cv-trigger{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;overflow:hidden;margin:0;padding:1px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);
   background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-variant-numeric:tabular-nums;line-height:inherit;white-space:nowrap;cursor:pointer}
 .cv-trigger svg{flex:none;width:14px;height:14px}
+@media (max-width:600px){.cv-anchor{flex:none}.cv-trigger{min-height:22px;gap:4px;padding:1px 5px}.cv-label{display:none}}
 @media (hover:hover){.cv-trigger:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}}
 .cv-trigger:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .cv-trigger[data-enabled=true]{color:var(--dsw-alias-label-secondary)}
@@ -213,6 +200,7 @@ window.__ModuleLoader__.load({
   --dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-panel)}
 .cv-dock-card::before{content:'';position:absolute;z-index:-1;inset:0;border-radius:inherit;pointer-events:none;
   background:var(--dsw-specific-menu,var(--dsw-alias-bg-base));backdrop-filter:var(--dsw-menu-backdrop-filter)}
+@media (max-width:768px),(pointer:coarse){.cv-dock-card::before{background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .cv-dock-btn{display:flex;align-items:center;gap:10px;width:100%;min-height:36px;padding:4px 12px;border-radius:inherit}
 @media (hover:hover){.cv-dock-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .cv-dock-title{flex:0 1 auto;max-width:48%;font-weight:500}
@@ -239,6 +227,7 @@ window.__ModuleLoader__.load({
 .cv-btn:disabled{opacity:.5;cursor:default}
 .cv-btn[data-primary=true]{background:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-label-on-color,#fff)}
 .cv-btn[data-danger=true]{color:var(--dsw-alias-state-error-primary)}
+.cv-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
 
 .cv-tabs{flex:none;display:flex;gap:2px;margin:8px 14px 0;padding:2px;border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-1)}
 .cv-tab{flex:1 1 0;height:26px;padding:0 8px;border-radius:6px;text-align:center;font-size:12px;color:var(--dsw-alias-label-secondary);white-space:nowrap}
@@ -269,12 +258,13 @@ window.__ModuleLoader__.load({
 .cv-pre{margin:0;padding:10px 12px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);font-family:var(--ds-font-family-code,ui-monospace,monospace);font-size:11.5px;line-height:17px;overflow-x:auto;white-space:pre-wrap;word-break:break-word}
 
 .cv-rev-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-.cv-rev-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:7px 10px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);font-size:12px}
-.cv-rev-btn[data-active=true]{border-color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-bg-base)}
+.cv-rev-row{display:flex;align-items:center;gap:6px;padding:4px 8px 4px 4px;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}
+.cv-rev-row[data-active=true]{border-color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-bg-base)}
+.cv-rev-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:1 1 auto;min-width:0;padding:3px 6px;border-radius:var(--dsw-radius-xs,6px);font-size:12px}
 .cv-diff{border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-sm,8px);overflow:auto;font-family:var(--ds-font-family-code,ui-monospace,monospace);font-size:11.5px;line-height:18px;max-height:360px}
 .cv-diff-line{display:flex;white-space:pre;min-width:max-content}
-.cv-diff-line[data-type=added]{background:rgba(34,197,94,.14);color:var(--dsw-alias-state-success-primary)}
-.cv-diff-line[data-type=removed]{background:rgba(239,68,68,.14);color:var(--dsw-alias-state-error-primary)}
+.cv-diff-line[data-type=added]{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 14%,transparent);color:var(--dsw-alias-state-success-primary)}
+.cv-diff-line[data-type=removed]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 14%,transparent);color:var(--dsw-alias-state-error-primary)}
 .cv-diff-num{width:38px;padding:0 5px;text-align:right;color:var(--dsw-alias-label-tertiary);user-select:none;flex:none}
 .cv-diff-mark{width:16px;text-align:center;user-select:none;flex:none}
 
@@ -299,24 +289,15 @@ window.__ModuleLoader__.load({
 .cv-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
 .cv-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .cv-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.cv-tv-inspect:focus-visible{opacity:1}
+.cv-tv-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .cv-toolcard-actions{position:absolute;top:0;right:0;display:inline-flex;align-items:center;gap:4px;height:calc(24px + var(--dsh-content-font-delta,0px));padding-left:20px;background:linear-gradient(to right,transparent,var(--dsw-alias-bg-base) 18px);opacity:0;transition:opacity 100ms ease}
 .cv-tv:hover>.cv-toolcard-actions,.cv-tv:focus-within>.cv-toolcard-actions{opacity:1}
 .cv-tv-open{display:inline-flex;align-items:center;height:20px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;line-height:16px;cursor:pointer}
 .cv-tv-open:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (hover:hover){.cv-tv:hover .cv-tv-inspect{opacity:1}.cv-tv-inspect:hover,.cv-tv-open:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
-@media (hover:none){.cv-tv-inspect,.cv-toolcard-actions{opacity:1}}
+@media (hover:none){.cv-tv-inspect{opacity:1}.cv-toolcard-actions{position:static;align-self:flex-start;height:auto;margin:2px 0 2px 4px;padding-left:0;background:none;opacity:1}}
+@media (pointer:coarse){.cv-select,.cv-iterate-input,.cv-textarea{font-size:16px}.cv-select,.cv-iterate-input,.cv-btn{min-height:34px;height:auto;padding-block:4px}}
 @media (prefers-reduced-motion:reduce){.cv-tv-inspect,.cv-toolcard-actions{transition:none}}
-
-.cv-apps{display:flex;height:100%;min-height:0;background:var(--dsw-alias-bg-base)}
-.cv-apps-rail{width:260px;flex:none;border-right:.5px solid var(--dsw-alias-border-l1);display:flex;flex-direction:column;min-height:0;background:var(--dsw-alias-bg-layer-1)}
-.cv-apps-rail-head{padding:14px 14px 10px;border-bottom:.5px solid var(--dsw-alias-border-l1);display:flex;flex-direction:column;gap:8px}
-.cv-apps-list{flex:1 1 0;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px}
-.cv-apps-item{display:flex;flex-direction:column;gap:2px;width:100%;padding:8px 10px;border-radius:8px;border:.5px solid transparent}
-.cv-apps-item[data-active=true]{background:var(--dsw-alias-bg-base);border-color:var(--dsw-alias-border-l2)}
-@media (hover:hover){.cv-apps-item:hover:not([data-active=true]){background:var(--dsw-alias-interactive-bg-hover)}}
-.cv-apps-stage{flex:1 1 0;min-width:0;display:flex;flex-direction:column;min-height:0}
-.cv-apps-stage-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;border-bottom:.5px solid var(--dsw-alias-border-l1)}
 `
 
     function CanvasIcon({ size = 14, className }) {
@@ -345,7 +326,7 @@ window.__ModuleLoader__.load({
     function readHostTheme(scheme) {
       const overrides = {}
       if (typeof document !== 'undefined' && typeof getComputedStyle === 'function') {
-        const cs = getComputedStyle(document.documentElement)
+        const cs = getComputedStyle(document.body || document.documentElement)
         const pick = (key, cssVar) => {
           const val = cs.getPropertyValue(cssVar).trim()
           if (val) overrides[key] = val
@@ -544,8 +525,7 @@ window.__ModuleLoader__.load({
       let state = {
         status: 'loading',
         sessionId,
-        scope: sessionId === GLOBAL_SESSION_ID ? 'global' : 'workspace',
-        enabled: sessionId === GLOBAL_SESSION_ID,
+        enabled: false,
         cwd,
         activePath: '',
         canvases: [],
@@ -556,13 +536,12 @@ window.__ModuleLoader__.load({
       let es = null
 
       const emit = () => { for (const fn of listeners) fn() }
-      const shouldStream = snap => sessionId === GLOBAL_SESSION_ID || Boolean(snap?.enabled) || (Array.isArray(snap?.canvases) && snap.canvases.length > 0)
+      const shouldStream = snap => Boolean(snap?.enabled) || (Array.isArray(snap?.canvases) && snap.canvases.length > 0)
       const applySnapshot = data => {
         if (!data || typeof data !== 'object') return
         state = {
           status: 'ready',
           sessionId: data.sessionId ?? sessionId,
-          scope: data.scope ?? (sessionId === GLOBAL_SESSION_ID ? 'global' : 'workspace'),
           enabled: Boolean(data.enabled),
           cwd: data.cwd ?? cwd,
           activePath: data.activePath ?? '',
@@ -579,7 +558,7 @@ window.__ModuleLoader__.load({
 
       const queryString = () => {
         const params = new URLSearchParams({ sessionId })
-        if (cwd && sessionId !== GLOBAL_SESSION_ID) params.set('cwd', cwd)
+        if (cwd) params.set('cwd', cwd)
         return params.toString()
       }
 
@@ -622,7 +601,6 @@ window.__ModuleLoader__.load({
       return {
         getSnapshot: () => state,
         setCwd(nextCwd) {
-          if (sessionId === GLOBAL_SESSION_ID) return
           if (!nextCwd || nextCwd === cwd) return
           cwd = nextCwd
           const wasStreaming = Boolean(es)
@@ -649,8 +627,7 @@ window.__ModuleLoader__.load({
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
               sessionId,
-              ...(sessionId === GLOBAL_SESSION_ID ? { scope: 'global' } : {}),
-              ...(cwd && sessionId !== GLOBAL_SESSION_ID ? { cwd } : {}),
+              ...(cwd ? { cwd } : {}),
               ...payload,
             }),
           })
@@ -679,7 +656,7 @@ window.__ModuleLoader__.load({
       }, [store, cwd])
       const snapshot = React.useSyncExternalStore(
         React.useCallback(cb => (store ? store.subscribe(cb) : () => {}), [store]),
-        () => (store ? store.getSnapshot() : { status: 'idle', sessionId: '', scope: 'workspace', enabled: false, cwd: '', activePath: '', canvases: [], dataTick: 0, error: '' }),
+        () => (store ? store.getSnapshot() : { status: 'idle', sessionId: '', enabled: false, cwd: '', activePath: '', canvases: [], dataTick: 0, error: '' }),
       )
       return { snapshot, op: store ? store.op : async () => ({}) }
     }
@@ -707,7 +684,6 @@ window.__ModuleLoader__.load({
         const getScheme = () => ctx.theme.getTheme()?.active?.colorScheme ?? 'dark'
         const useScheme = () => React.useSyncExternalStore(subscribeTheme, getScheme)
         const openSidebar = params => ctx.sidebarRight.openTab(KEY, params ? { params } : undefined)
-        const openAppsPage = () => ctx.get('layout')?.selectPanel?.(APPS_PANEL_ID)
 
         function SandboxFrame({ canvas, scheme, dataTick, queryData, onSetState, onAction, onRuntimeError, onLiveData, t }) {
           const hostRef = React.useRef(null)
@@ -848,6 +824,7 @@ window.__ModuleLoader__.load({
 
         function FullscreenDialog({ canvas, scheme, dataTick, queryData, onSetState, onAction, onRuntimeError, onLiveData, onExport, onClose, t }) {
           const dialogRef = React.useRef(null)
+          const backdropPress = React.useRef(false)
           React.useEffect(() => {
             const el = dialogRef.current
             el.showModal()
@@ -858,7 +835,11 @@ window.__ModuleLoader__.load({
             className: 'cv cv-dialog',
             'aria-label': canvas.title,
             onClose: e => { if (!e.currentTarget.open) onClose() },
-            onClick: e => { if (e.target === e.currentTarget) e.currentTarget.close() },
+            onPointerDown: e => { backdropPress.current = e.target === e.currentTarget },
+            onClick: e => {
+              if (backdropPress.current && e.target === e.currentTarget) e.currentTarget.close()
+              backdropPress.current = false
+            },
           },
           h('header', { className: 'cv-dialog-head' },
             h('div', { className: 'cv-row' },
@@ -873,8 +854,7 @@ window.__ModuleLoader__.load({
 
         function ComposerTrigger({ sessionId, useSessions }) {
           const t = useLocale()
-          const byId = useSessions ? useSessions(s => s.byId) : null
-          const cwd = byId?.[sessionId]?.cwd ?? ''
+          const cwd = useSessions ? (useSessions(s => s.byId?.[sessionId]?.cwd ?? '') ?? '') : ''
           const { snapshot } = useCanvasSession(sessionId, cwd)
           if (!sessionId) return null
           return h('span', { className: 'cv-anchor', 'data-canvas': '' },
@@ -883,10 +863,11 @@ window.__ModuleLoader__.load({
               className: 'cv-trigger',
               'data-enabled': snapshot.enabled ? 'true' : undefined,
               title: snapshot.enabled ? t('modeOn') : t('modeOff'),
+              'aria-label': t('title'),
               onClick: () => openSidebar(),
             },
             h(CanvasIcon, { size: 14 }),
-            h('span', null, t('title')),
+            h('span', { className: 'cv-label' }, t('title')),
             snapshot.canvases.length > 0 && h('span', { className: 'cv-count' }, snapshot.canvases.length),
             snapshot.enabled && h('span', { className: 'cv-dot', 'aria-hidden': true })))
         }
@@ -898,8 +879,7 @@ window.__ModuleLoader__.load({
 
         function InputDock({ sessionId, useSessions }) {
           const t = useLocale()
-          const byId = useSessions ? useSessions(s => s.byId) : null
-          const cwd = byId?.[sessionId]?.cwd ?? ''
+          const cwd = useSessions ? (useSessions(s => s.byId?.[sessionId]?.cwd ?? '') ?? '') : ''
           const { snapshot } = useCanvasSession(sessionId, cwd)
           if (!sessionId || !snapshot.enabled || snapshot.canvases.length === 0) return null
           const active = snapshot.canvases.find(c => c.path === snapshot.activePath) ?? snapshot.canvases[0]
@@ -942,7 +922,6 @@ window.__ModuleLoader__.load({
           const title = payload?.title || ''
           const rel = payload?.relativePath || args.path || ''
           const kind = (payload?.kind || (String(rel).endsWith('.canvas.html') ? 'html' : String(rel).endsWith('.canvas.svg') ? 'svg' : 'react')).toUpperCase()
-          const isGlobal = (payload?.scope || args.scope) === 'global'
           const settledWithCue = state === 'error' || state === 'stopped'
 
           let summary = ''
@@ -953,7 +932,6 @@ window.__ModuleLoader__.load({
 
           const suffix = settledWithCue ? '' : [
             kind,
-            isGlobal ? t('artifactGlobal') : '',
             !running && payload?.revision ? t('revLabel', { n: payload.revision }) : '',
           ].filter(Boolean).join(' · ')
 
@@ -963,12 +941,7 @@ window.__ModuleLoader__.load({
 
           const openCard = event => {
             event?.stopPropagation?.()
-            if (isGlobal) {
-              if (payload?.path) getSessionStore(GLOBAL_SESSION_ID, '').op({ action: 'select', path: payload.path }).catch(() => {})
-              openAppsPage()
-            } else {
-              openSidebar(payload?.path ? { path: payload.path } : undefined)
-            }
+            openSidebar(payload?.path ? { path: payload.path } : undefined)
           }
 
           const DisclosureRow = primitives?.DisclosureRow
@@ -1009,7 +982,7 @@ window.__ModuleLoader__.load({
               h('button', { type: 'button', className: 'cv-tv-open', onClick: openCard }, t('openInCanvas'))))
         }
 
-        function CanvasWorkspace({ sessionId, cwd, isGlobal, tab, inputActions }) {
+        function CanvasWorkspace({ sessionId, cwd, tab, inputActions }) {
           const t = useLocale()
           const scheme = useScheme()
           const { snapshot, op } = useCanvasSession(sessionId, cwd)
@@ -1055,7 +1028,6 @@ window.__ModuleLoader__.load({
           }
 
           const handleToggle = async () => {
-            if (isGlobal) return
             setBusy(true)
             try { await op({ action: 'toggle', enabled: !snapshot.enabled }) }
             catch (err) { flash(err.message) }
@@ -1078,10 +1050,9 @@ window.__ModuleLoader__.load({
           }
 
           const handleCreate = async templateId => {
-            const defaultName = templateId === 'chief-global' ? 'chief-control-plane'
-              : templateId === 'repo-radar' ? 'repo-radar'
-                : templateId === 'html-prototype' ? 'prototype.canvas.html'
-                  : 'overview'
+            const defaultName = templateId === 'repo-radar' ? 'repo-radar'
+              : templateId === 'html-prototype' ? 'prototype.canvas.html'
+                : 'overview'
             if (templateId) {
               await submitCreate(defaultName, templateId)
               return
@@ -1189,8 +1160,7 @@ window.__ModuleLoader__.load({
             try {
               if (action.type === 'openFile' && typeof action.path === 'string') {
                 const resolved = resolveTargetPath(snapshot.cwd || cwd, action.path)
-                if (resolved && !isGlobal) ctx.sidebarRight.openResource(fileAddress(sessionId, resolved))
-                else if (resolved) navigator.clipboard?.writeText(resolved).then(() => flash(t('actionNotice'))).catch(() => {})
+                if (resolved) ctx.sidebarRight.openResource(fileAddress(sessionId, resolved))
               } else if (action.type === 'askInChat' && typeof action.prompt === 'string') {
                 if (inputActions) insertPrompt(action.prompt)
                 else navigator.clipboard?.writeText(action.prompt).then(() => flash(t('actionNotice'))).catch(() => {})
@@ -1207,12 +1177,7 @@ window.__ModuleLoader__.load({
                 await op({ action: 'triggerSchedule', taskId: action.taskId })
                 flash(t('scheduleTriggered'))
               } else if (action.type === 'openCanvas' && typeof action.path === 'string') {
-                if (action.scope === 'global') {
-                  await getSessionStore(GLOBAL_SESSION_ID, '').op({ action: 'select', path: action.path })
-                  openAppsPage()
-                } else {
-                  await op({ action: 'select', path: action.path })
-                }
+                await op({ action: 'select', path: action.path })
               }
             } catch (err) {
               flash(err.message)
@@ -1224,7 +1189,7 @@ window.__ModuleLoader__.load({
             op({ action: 'setState', path: active.path, key, value }).catch(() => {})
           }
 
-          const effectiveCwd = isGlobal ? snapshot.cwd : (snapshot.cwd || cwd)
+          const effectiveCwd = snapshot.cwd || cwd
           const revRow = active?.revisions?.find(r => r.revision === selectedRev) ?? active?.revisions?.[active.revisions.length - 1] ?? null
           const hasErrors = Boolean(active && (active.errorCount > 0 || runtimeErr))
 
@@ -1261,6 +1226,7 @@ window.__ModuleLoader__.load({
                     className: 'cv-iterate-input',
                     value: iterateText,
                     placeholder: t('iteratePlaceholder'),
+                    'aria-label': t('iteratePlaceholder'),
                     onChange: e => setIterateText(e.target.value),
                   }),
                   h('button', { type: 'submit', className: 'cv-btn', 'data-primary': true, disabled: !iterateText.trim() }, t('iterateSend')))),
@@ -1275,6 +1241,7 @@ window.__ModuleLoader__.load({
                     h('button', { type: 'button', className: 'cv-btn', 'data-danger': true, disabled: busy, onClick: handleDelete }, t('delete')))),
                 h('textarea', {
                   className: 'cv-textarea',
+                  'aria-label': t('source'),
                   value: draft,
                   spellCheck: false,
                   onChange: e => { setDraft(e.target.value); setDirty(true) },
@@ -1293,23 +1260,22 @@ window.__ModuleLoader__.load({
                 active.revisions.length === 0
                   ? h('p', { style: { margin: 0, color: 'var(--dsw-alias-label-secondary)' } }, t('noRevisions'))
                   : h(React.Fragment, null,
-                    h('ul', { className: 'cv-rev-list' }, active.revisions.toReversed().map(r => h('li', { key: r.revision },
+                    h('ul', { className: 'cv-rev-list' }, active.revisions.toReversed().map(r => h('li', { key: r.revision, className: 'cv-rev-row', 'data-active': revRow?.revision === r.revision ? 'true' : undefined },
                       h('button', {
                         type: 'button',
                         className: 'cv-rev-btn',
-                        'data-active': revRow?.revision === r.revision ? 'true' : undefined,
+                        'aria-current': revRow?.revision === r.revision ? 'true' : undefined,
                         onClick: () => setSelectedRev(r.revision),
                       },
                       h('span', { className: 'cv-ellipsis' }, `${t('revLabel', { n: r.revision })} · ${r.reason}`),
                       h('span', { className: 'cv-row' },
                         h('span', { style: { color: 'var(--dsw-alias-state-success-primary)', fontSize: 11 } }, `+${r.diff?.added ?? 0}`),
-                        h('span', { style: { color: 'var(--dsw-alias-state-error-primary)', fontSize: 11 } }, `-${r.diff?.removed ?? 0}`),
-                        r.revision !== active.revision && h('span', {
-                          role: 'button',
-                          tabIndex: 0,
-                          className: 'cv-btn',
-                          onClick: e => { e.stopPropagation(); handleRestore(r.revision) },
-                        }, t('restore'))))))),
+                        h('span', { style: { color: 'var(--dsw-alias-state-error-primary)', fontSize: 11 } }, `-${r.diff?.removed ?? 0}`))),
+                      r.revision !== active.revision && h('button', {
+                        type: 'button',
+                        className: 'cv-btn',
+                        onClick: () => handleRestore(r.revision),
+                      }, t('restore'))))),
                     revRow?.diff?.lines?.length > 0 && h('div', { className: 'cv-diff' },
                       revRow.diff.lines.map((line, idx) => h('div', { key: idx, className: 'cv-diff-line', 'data-type': line.type },
                         h('span', { className: 'cv-diff-num' }, line.oldLine ?? ''),
@@ -1391,74 +1357,13 @@ window.__ModuleLoader__.load({
                     ? h(ButtonComp, { variant: 'ghost', size: 'sm', disabled: busy, onClick: () => setDeleteDialog(null) }, t('cancel'))
                     : h('button', { type: 'button', className: 'cv-btn', disabled: busy, onClick: () => setDeleteDialog(null) }, t('cancel')),
                   ButtonComp
-                    ? h(ButtonComp, { variant: 'danger', size: 'sm', disabled: busy, onClick: () => confirmDeleteNow(deleteDialog) }, t('delete'))
+                    ? h(ButtonComp, { variant: 'primary', className: 'cv-danger-fill', size: 'sm', disabled: busy, onClick: () => confirmDeleteNow(deleteDialog) }, t('delete'))
                     : h('button', { type: 'button', className: 'cv-btn', 'data-danger': true, disabled: busy, onClick: () => confirmDeleteNow(deleteDialog) }, t('delete'))),
               },
               h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
                 h('p', { style: { margin: 0 } }, t('confirmDelete', { name: deleteDialog.name })),
                 deleteDialog.relativePath && h('code', { style: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)' } }, deleteDialog.relativePath),
                 h('p', { style: { margin: 0, fontSize: 12, color: 'var(--dsw-alias-label-tertiary)' } }, t('deleteWarning')))))
-          }
-
-          if (isGlobal) {
-            return h('div', { className: 'cv cv-apps' },
-              h('aside', { className: 'cv-apps-rail' },
-                h('div', { className: 'cv-apps-rail-head' },
-                  h('div', { className: 'cv-row', style: { justifyContent: 'space-between' } },
-                    h('strong', null, t('appsPanel')),
-                    h('button', { type: 'button', className: 'cv-btn', disabled: busy, onClick: () => op({ action: 'refresh' }).catch(() => {}) }, t('refresh'))),
-                  h('span', { className: 'cv-mode-hint' }, t('appsSubtitle')),
-                  h('div', { className: 'cv-row-wrap' },
-                    h('button', { type: 'button', className: 'cv-btn', 'data-primary': true, disabled: busy, onClick: () => handleCreate('chief-global') }, `+ ${t('createChief')}`),
-                    h('button', { type: 'button', className: 'cv-btn', disabled: busy, onClick: () => handleCreate() }, `+ ${t('newCanvas')}`))),
-                h('div', { className: 'cv-apps-list' },
-                  snapshot.canvases.map(c => h('button', {
-                    key: c.path,
-                    type: 'button',
-                    className: 'cv-apps-item',
-                    'data-active': active?.path === c.path ? 'true' : undefined,
-                    onClick: () => { setDirty(false); setRuntimeErr(''); op({ action: 'select', path: c.path }).catch(() => {}) },
-                  },
-                  h('div', { className: 'cv-row', style: { justifyContent: 'space-between' } },
-                    h('span', { className: 'cv-ellipsis', style: { fontWeight: 600 } }, c.title),
-                    h('span', { className: 'cv-pill', 'data-tone': c.errorCount > 0 ? 'err' : 'neutral' }, (c.kind || 'react').toUpperCase())),
-                  h('span', { className: 'cv-editor-path cv-ellipsis' }, c.name))))),
-
-              h('main', { className: 'cv-apps-stage' },
-                active && h('header', { className: 'cv-apps-stage-head' },
-                  h('div', { className: 'cv-row' },
-                    h('strong', { className: 'cv-ellipsis' }, active.title),
-                    h('span', { className: 'cv-editor-path cv-ellipsis' }, active.relativePath)),
-                  h('div', { className: 'cv-row' },
-                    h('button', { type: 'button', className: 'cv-btn', onClick: handleExport }, t('exportHtml')),
-                    active.compiled && h('button', { type: 'button', className: 'cv-btn', onClick: () => setFullscreen(true) }, t('fullscreen')))),
-                notice && h('div', { className: 'cv-notice', role: 'status' }, notice),
-                snapshot.error && h('div', { className: 'cv-banner', role: 'alert' }, h('span', null, snapshot.error)),
-                !active
-                  ? h('div', { className: 'cv-empty' },
-                    h(CanvasIcon, { size: 32 }),
-                    h('h2', null, t('emptyGlobalTitle')),
-                    h('p', null, t('emptyGlobalBody')),
-                    h('div', { className: 'cv-row-wrap' },
-                      h('button', { type: 'button', className: 'cv-btn', 'data-primary': true, disabled: busy, onClick: () => handleCreate('chief-global') }, t('createChief')),
-                      h('button', { type: 'button', className: 'cv-btn', disabled: busy, onClick: () => handleCreate('starter') }, t('createStarter')),
-                      h('button', { type: 'button', className: 'cv-btn', disabled: busy, onClick: () => handleCreate('html-prototype') }, 'HTML Prototype')))
-                  : renderBody()),
-
-              fullscreen && active && h(FullscreenDialog, {
-                canvas: active,
-                scheme,
-                dataTick: snapshot.dataTick,
-                queryData,
-                onSetState: handleSetState,
-                onAction: handleAction,
-                onRuntimeError: setRuntimeErr,
-                onLiveData: data => { liveDataRef.current = data },
-                onExport: handleExport,
-                onClose: () => setFullscreen(false),
-                t,
-              }),
-              renderModals())
           }
 
           return h('section', { className: 'cv cv-panel', 'aria-label': t('title') },
@@ -1521,20 +1426,16 @@ window.__ModuleLoader__.load({
         }
 
         function CanvasPanel({ sessionId, useSessions, useTabInfo, inputActions }) {
-          const byId = useSessions ? useSessions(s => s.byId) : null
-          const cwd = byId?.[sessionId]?.cwd ?? ''
+          const cwd = useSessions ? (useSessions(s => s.byId?.[sessionId]?.cwd ?? '') ?? '') : ''
           const { tab } = useTabInfo()
-          return h(CanvasWorkspace, { sessionId, cwd, isGlobal: false, tab, inputActions })
-        }
-
-        function GlobalCanvasPage() {
-          return h(CanvasWorkspace, { sessionId: GLOBAL_SESSION_ID, cwd: '', isGlobal: true, tab: null, inputActions: null })
+          return h(CanvasWorkspace, { sessionId, cwd, tab, inputActions })
         }
 
         ctx.inject(['commandUi'], scope => scope.effect(() => scope.commandUi.register({
           name: 'canvas',
           label: () => translate('title'),
           description: () => translate('subtitle'),
+          available: () => true,
           ui: { kind: 'action', run: () => openSidebar() },
         })), 'canvas: command')
 
@@ -1557,10 +1458,6 @@ window.__ModuleLoader__.load({
         ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'canvas', order: 5 }, InputDock))
         ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({ name: 'conversation.composer.dock', id: 'canvas', order: 15 }, ComposerTrigger))
         ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key: 'canvas_write', locale: NS, priority: -10 }, CanvasToolCard))
-        ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: APPS_PANEL_ID, locale: NS }, GlobalCanvasPage))
-        ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
-          name: 'sidebar.panellist', id: APPS_PANEL_ID, order: 45, locale: NS, label: () => translate('appsPanel'),
-        }, CanvasIcon))
       },
       _internal: { buildSrcDoc, resolveTargetPath, fileAddress, readHostTheme, readJsonResponse },
     }

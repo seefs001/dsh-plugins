@@ -1,12 +1,12 @@
 # dsh-canvas
 
-在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）中提供沙箱隔离的交互画布与全局应用工作台，支持 `.canvas.tsx`（React）、`.canvas.html`（独立离线 HTML）与 `.canvas.svg`（矢量图），支持零 token 本地数据订阅、白名单宿主动作与全局 `~/.dsh/canvases/` 应用。
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）中提供沙箱隔离的交互画布，支持 `.canvas.tsx`（React）、`.canvas.html`（独立离线 HTML）与 `.canvas.svg`（矢量图），支持零 token 本地数据订阅与白名单宿主动作。
 
 | 项目 | 说明 |
 | --- | --- |
 | 运行位置 | Host + Web |
-| 激活方式 | 会话侧按需开关（未开启零注入）；全局应用通过左侧栏「画布应用」随时访问 |
-| 源码位置 | 工作区 `<cwd>/.dsh/canvases/*.canvas.{tsx,html,svg}` 与全局 `~/.dsh/canvases/*.canvas.{tsx,html,svg}`，实时热重载 |
+| 激活方式 | 会话侧按需开关（未开启零注入） |
+| 源码位置 | 工作区 `<cwd>/.dsh/canvases/*.canvas.{tsx,html,svg}`，实时热重载 |
 | 状态存储 | Host `canvas` storage domain 保存会话开关、`useCanvasState` 交互状态与最近 25 次修订快照 |
 
 ## 安装
@@ -23,7 +23,7 @@ dsh plugin --profile web add "link:$PWD/packages/canvas"
 
 ## 功能
 
-- **按会话启用与全局应用页**：会话内默认零注入，开启后动态暴露 `canvas` skill 与 `canvas_write` / `canvas_check` / `canvas_state` 工具；同时在左侧栏提供独立「画布应用」全屏页面，管理 `~/.dsh/canvases/` 下的跨项目全局应用（内置 **Chief of Staff 全局总控台** 模板）。
+- **按会话启用**：会话内默认零注入，开启后动态暴露 `canvas` skill 与 `canvas_write` / `canvas_check` / `canvas_state` 工具；关闭开关即刻卸载。
 - **多格式画布与内置组件**：支持 `.canvas.tsx`（允许从 `dsh/canvas`、`react`、`lucide-react` 导入）、`.canvas.html` 与 `.canvas.svg`；内置 `Markdown`、`CodeBlock`、`Kanban`、`Modal`、`Drawer`、`SplitPane`、`EmptyState`、`ProgressBar`、`SearchInput`、`KeyValue`、`Timeline`、65+ 离线 Lucide 图标、图表与 DAG 组件，以及离线主题跟随 utility CSS 类。
 - **零 token 本地数据订阅**：通过 `useCanvasFile` / `useCanvasGlob`（支持 `workspace://` 与 `bots://`，自动解析 JSON 与 Markdown YAML frontmatter，Host 通过 `fs.watch` 与 SSE 实时推送）和 `useHostData('sessions' | 'schedules' | 'git')`，后台脚本或定时任务更新磁盘文件即可实时刷新画布。
 - **白名单宿主动作**：在保留严格 CSP（`default-src 'none'`、nonce-only script、`connect-src 'none'`）的前提下，`useCanvasAction()` 支持 `openFile`、`askInChat`、`copyText`、白名单 `patchData`（仅限 `bots://<bot>/ledger/*.{json,md}` 与 `workspace://.dsh/canvas-data/*.{json,md}`，0 token 落盘）、`sendToSession`（跨会话发消息）、`triggerSchedule`（手动触发定时任务）与 `openCanvas`。
