@@ -116,7 +116,8 @@ window.__ModuleLoader__.load({
 .ig-image-body{margin:4px 0 4px 4px}
 .ig-meta-list{margin-top:4px;display:flex;flex-direction:column;gap:4px;font:var(--dsw-font-markdown-code-block-small);color:var(--dsw-alias-label-tertiary)}
 .ig-meta-item{display:flex;flex-direction:column;gap:2px}
-.ig-file-link{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left}
+.ig-file-link{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:0;border:0;border-radius:4px;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left}
+.ig-file-link:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .ig-file-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ig-file-size{flex:none;color:var(--dsw-alias-label-caption)}
 @media (hover:hover){.ig-file-link:hover{color:var(--dsw-alias-label-primary)}.ig-file-link:hover .ig-file-path{text-decoration:underline;text-underline-offset:3px}}
@@ -129,12 +130,13 @@ window.__ModuleLoader__.load({
 .ig-io-label{position:sticky;top:0;align-self:start;color:var(--dsw-alias-label-caption)}
 .ig-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-state-error-primary)}
 .ig-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.ig-inspect:focus-visible{opacity:1}
+.ig-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (hover:hover){.ig-card:hover .ig-inspect{opacity:1}.ig-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.ig-inspect{opacity:1}}
 .ig-tail{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .ig-tail-files{display:flex;flex-wrap:wrap;gap:6px}
 .ig-tail-chip{display:inline-flex;align-items:center;gap:5px;max-width:300px;height:22px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer}
+.ig-tail-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .ig-tail-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (hover:hover){.ig-tail-chip:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 `
@@ -510,7 +512,7 @@ window.__ModuleLoader__.load({
             h('h4', { className: 'ig-title' }, t('title')),
             h('div', { className: 'ig-hint' }, t('hint'), ' ', t('onlyResponses')),
             catalog.status === 'loading' ? h('div', { className: 'ig-note' }, t('loading')) : null,
-            catalog.status === 'error' ? h('div', { className: 'ig-note err' }, t('loadFailed'), ' ',
+            catalog.status === 'error' ? h('div', { className: 'ig-note err', role: 'alert' }, t('loadFailed'), ' ',
               h('button', { type: 'button', className: 'ig-btn', onClick: loadCatalog }, t('retry'))) : null,
             h('label', { className: 'ig-row' },
               h('span', null, t('outputDir')),
@@ -521,10 +523,10 @@ window.__ModuleLoader__.load({
             h('div', { className: 'ig-actions' },
               h('button', { type: 'button', className: 'ig-btn primary', disabled: busy || !dirty, onClick: save },
                 status.kind === 'saving' ? t('saving') : t('save')),
-              status.kind === 'ok' ? h('span', { className: 'ig-note ok' }, t('saved')) : null,
+              status.kind === 'ok' ? h('span', { className: 'ig-note ok', role: 'status' }, t('saved')) : null,
               status.kind === 'loadError' ? h('span', { className: 'ig-note err', role: 'alert' }, t('loadFailed'), ' ', status.message, ' ',
                 h('button', { type: 'button', className: 'ig-btn', onClick: loadState }, t('retry'))) : null,
-              status.kind === 'err' ? h('span', { className: 'ig-note err' }, t('saveFailed') + status.message) : null))
+              status.kind === 'err' ? h('span', { className: 'ig-note err', role: 'alert' }, t('saveFailed') + status.message) : null))
         }
 
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({

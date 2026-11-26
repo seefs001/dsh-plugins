@@ -75,6 +75,9 @@ window.__ModuleLoader__.load({
         tvInput: 'IN',
         tvOutput: 'OUT',
         tvPinsCount: '{n} pinned',
+        tvPinned: 'pinned',
+        tvUnpinned: 'unpinned',
+        backToList: 'Back to list',
       },
       zh: {
         title: '技能速查',
@@ -139,6 +142,9 @@ window.__ModuleLoader__.load({
         tvInput: '输入',
         tvOutput: '输出',
         tvPinsCount: '{n} 个置顶',
+        tvPinned: '已置顶',
+        tvUnpinned: '已取消置顶',
+        backToList: '返回列表',
       },
     }
 
@@ -215,9 +221,10 @@ window.__ModuleLoader__.load({
 .dcs-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .dcs-feedback[data-error]{color:var(--dsw-alias-state-error-primary)}
 @media(hover:hover){.dcs-trigger:hover,.dcs-button:hover:not([aria-disabled=true]),.dcs-icon-button:hover:not([aria-disabled=true]),.dcs-row:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.dcs-button[data-primary]:hover:not([aria-disabled=true]){background:var(--dsw-alias-button-primary-hover);color:var(--dsw-alias-label-primary-foreground)}.dcs-seg button:hover:not([aria-disabled=true]){color:var(--dsw-alias-label-primary)}}
-@media(pointer:coarse){.dcs-search{font-size:16px}}
+@media(pointer:coarse){.dcs-search{font-size:16px}.dcs-icon-button{width:36px;height:36px}.dcs-button{min-height:36px}}
+.dcs-mobile-back{display:none;margin-bottom:10px}
 @media(max-width:480px){.dcs-trigger span{display:none}}
-@media(max-width:720px){.dcs-main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}.dcs-list-pane{border-right:0}.dcs-detail{max-height:44dvh;border-top:.5px solid var(--dsw-alias-border-l1);padding:14px 12px 16px}.dcs-head{padding:14px 12px 10px}.dcs-toolbar{padding:0 12px 10px}.dcs-banner{padding:8px 12px}.dcs-foot{padding:10px 12px}.dcs-foot .dcs-hint{display:none}}
+@media(max-width:720px){.dcs-dialog{width:calc(100vw - 16px);height:calc(100dvh - 24px)}.dcs-intro{display:none}.dcs-main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}.dcs-list-pane{border-right:0}.dcs-detail{max-height:none;border-top:0;padding:12px 12px 16px}.dcs-main[data-mobile-view=list] .dcs-detail{display:none}.dcs-main[data-mobile-view=detail] .dcs-list-pane{display:none}.dcs-mobile-back{display:inline-flex}.dcs-head{padding:12px 12px 8px}.dcs-toolbar{padding:0 12px 8px}.dcs-banner{padding:8px 12px}.dcs-foot{padding:8px 12px}.dcs-foot p:not([role]){display:none}.dcs-foot .dcs-hint{display:none}}
 .dcs-tv{display:flex;flex-direction:column}
 .dcs-tv-row{min-width:0}
 .dcs-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
@@ -234,7 +241,7 @@ window.__ModuleLoader__.load({
 .dcs-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
 .dcs-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .dcs-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.dcs-tv-inspect:focus-visible{opacity:1}
+.dcs-tv-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media(hover:hover){.dcs-tv:hover .dcs-tv-inspect{opacity:1}.dcs-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media(hover:none){.dcs-tv-inspect{opacity:1}}
 `
@@ -324,6 +331,7 @@ window.__ModuleLoader__.load({
       const [showAutomatic, setShowAutomatic] = React.useState(false)
       const [sort, setSort] = React.useState('usage')
       const [selected, setSelected] = React.useState(null)
+      const [mobileView, setMobileView] = React.useState('list')
       const [revision, setRevision] = React.useState(0)
       const [usageRevision, setUsageRevision] = React.useState(0)
       const [catalog, setCatalog] = React.useState({ phase: 'loading', skills: [] })
@@ -456,7 +464,12 @@ window.__ModuleLoader__.load({
           setQuery('')
         }
       }
-      const onRowKey = (event, index) => {
+      const onRowKey = (event, index, skill) => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          write(skill.name)
+          return
+        }
         const moves = { ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: shown.length - 1 }
         if (!(event.key in moves)) return
         event.preventDefault()
@@ -495,9 +508,10 @@ window.__ModuleLoader__.load({
           h('button', {
             type: 'button', className: 'dcs-row-main', 'aria-current': isCurrent || undefined,
             'aria-controls': ids.detail,
-            onClick: () => setSelected(skill.name),
+            onClick: () => { setSelected(skill.name); setMobileView('detail') },
+            onDoubleClick: () => write(skill.name),
             onFocus: () => setSelected(skill.name),
-            onKeyDown: event => onRowKey(event, shown.indexOf(skill)),
+            onKeyDown: event => onRowKey(event, shown.indexOf(skill), skill),
           },
           h('span', { className: 'dcs-line' },
             h('span', { className: 'dcs-row-name' }, `/${skill.name}`),
@@ -522,9 +536,11 @@ window.__ModuleLoader__.load({
       }
 
       const detail = () => {
-        if (!current) return h('section', { id: ids.detail, className: 'dcs-detail', 'aria-label': t('details') }, h('p', { className: 'dcs-empty' }, t('selectHint')))
+        const backBtn = h('button', { type: 'button', className: 'dcs-button dcs-mobile-back', onClick: () => setMobileView('list') }, `← ${t('backToList')}`)
+        if (!current) return h('section', { id: ids.detail, className: 'dcs-detail', 'aria-label': t('details') }, backBtn, h('p', { className: 'dcs-empty' }, t('selectHint')))
         const count = current.loads
         return h('section', { id: ids.detail, className: 'dcs-detail', 'aria-labelledby': `${ids.detail}-name` },
+          backBtn,
           h('h3', { id: `${ids.detail}-name`, className: 'dcs-detail-name' }, `/${current.name}`),
           h('div', { className: 'dcs-detail-meta' },
             current.modelInvocable === false ? h('span', { className: 'dcs-badge' }, t('userOnly')) : null,
@@ -550,7 +566,7 @@ window.__ModuleLoader__.load({
       } else if (waiting) {
         body = h('p', { className: 'dcs-message' }, t('loading'))
       } else {
-        body = h('div', { className: 'dcs-main' },
+        body = h('div', { className: 'dcs-main', 'data-mobile-view': mobileView },
           h('div', { className: 'dcs-list-pane' }, list()),
           detail())
       }
@@ -562,7 +578,7 @@ window.__ModuleLoader__.load({
         type: 'button',
         'aria-pressed': effectiveSort === key,
         'aria-disabled': (key === 'usage' && !usageReady) || undefined,
-        title: key === 'usage' && !usageReady ? t('pinUnavailable') : t('loadsHint'),
+        title: key === 'usage' ? (!usageReady ? t('pinUnavailable') : t('loadsHint')) : undefined,
         onClick: () => { if (key === 'name' || usageReady) setSort(key) },
       }, t(label))
       const refreshBusy = catalog.phase === 'loading' || saving !== null
@@ -587,7 +603,7 @@ window.__ModuleLoader__.load({
           h('input', {
             ref: search, type: 'search', className: 'dcs-search', value: query, placeholder: t('search'), 'aria-label': t('search'),
             'aria-keyshortcuts': 'ArrowDown Enter', autoComplete: 'off', spellCheck: false,
-            onChange: event => setQuery(event.target.value),
+            onChange: event => { setQuery(event.target.value); setMobileView('list') },
             onKeyDown: onSearchKey,
           })),
         h('div', { className: 'dcs-tools' },
@@ -669,7 +685,7 @@ window.__ModuleLoader__.load({
           if (state === 'stopped') detail = t('tvStopped')
           else if (state === 'error') detail = text.split('\n')[0] || ''
           else if (typeof args.name === 'string' && args.name) {
-            detail = `${args.name}${typeof args.pinned === 'boolean' ? ` · ${args.pinned ? 'pinned' : 'unpinned'}` : ''}`
+            detail = `${args.name}${typeof args.pinned === 'boolean' ? ` · ${t(args.pinned ? 'tvPinned' : 'tvUnpinned')}` : ''}`
           } else if (Array.isArray(payload?.pinned)) {
             detail = t('tvPinsCount', { n: payload.pinned.length })
           }

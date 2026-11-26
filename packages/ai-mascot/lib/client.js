@@ -156,6 +156,8 @@ window.__ModuleLoader__.load({
 .dsh-mascot-panel{pointer-events:auto;position:absolute;bottom:34px;right:min(0px,calc(100vw - var(--mascot-right) - min(280px,100vw - 16px) - 8px));box-sizing:border-box;width:min(280px,calc(100vw - 16px));max-height:calc(100vh - var(--mascot-bottom,max(22px,env(safe-area-inset-bottom))) - 42px);overflow-y:auto;padding:14px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);font-size:12px}
 .dsh-mascot-panel header{display:flex;justify-content:space-between;align-items:center;font-weight:500;font-size:13px;margin-bottom:12px}
 .dsh-mascot-panel label{display:flex;align-items:center;gap:8px;margin:10px 0}
+.dsh-mascot-panel input[type=checkbox]{accent-color:var(--dsw-alias-brand-primary,var(--dsw-alias-state-business-primary))}
+.dsh-mascot-panel[data-below=true]{bottom:auto;top:calc(100% + 8px);max-height:calc(var(--mascot-bottom,22px) - 16px)}
 .dsh-mascot-sizes{display:flex;align-items:center;gap:6px}
 .dsh-mascot-sizes button{border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);padding:4px 10px;background:transparent;color:var(--dsw-alias-label-secondary)}
 .dsh-mascot-sizes button[aria-pressed=true]{border-color:transparent;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);font-weight:500}
@@ -163,6 +165,7 @@ window.__ModuleLoader__.load({
 .dsh-mascot-panel p{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:1.55;margin:12px 0 6px}
 .dsh-mascot-panel a{color:var(--dsw-alias-link,var(--dsw-alias-brand-primary));font-size:11px}
 .dsh-mascot-mini{pointer-events:auto;margin-left:auto;width:40px;height:40px;border:0;border-radius:50%;corner-shape:round;background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);color:var(--mascot-accent);--dsw-elevation-stroke-color:var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-panel);font:600 14px var(--ds-font-family-code,ui-monospace,monospace)}
+@media (max-width:768px),(pointer:coarse){.dsh-mascot-bubble,.dsh-mascot-control,.dsh-mascot-panel,.dsh-mascot-mini{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .dsh-mascot-fallback{position:absolute;inset:0;display:grid;place-items:center;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);font-size:13px}
 .dsh-mascot[data-motion=on] .dsh-mascot-portrait{animation:dsh-mascot-breathe 4s ease-in-out infinite}
 .dsh-mascot[data-motion=on][data-activity=thinking] .dsh-mascot-portrait{animation:dsh-mascot-think 3.2s ease-in-out infinite}
@@ -197,7 +200,9 @@ window.__ModuleLoader__.load({
 @keyframes dsh-mascot-shake{25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
 @keyframes dsh-mascot-blink{50%{opacity:.4}}
 @media(prefers-reduced-motion:reduce){.dsh-mascot *,.dsh-mascot *::before,.dsh-mascot *::after{animation:none!important}}
-@media(max-width:600px){.dsh-mascot{--mascot-right:12px;bottom:12px;--mascot-scale:.7;width:116px}.dsh-mascot[data-size=small]{--mascot-scale:.6;width:106px}.dsh-mascot-bubble{font-size:11px;max-width:120px;padding:6px 9px}}
+@media(max-width:768px),(pointer:coarse){.dsh-mascot-bubble,.dsh-mascot-control,.dsh-mascot-panel,.dsh-mascot-mini{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
+@media(pointer:coarse){.dsh-mascot-control{width:32px;height:32px}}
+@media(max-width:600px){.dsh-mascot{--mascot-right:max(12px,env(safe-area-inset-right));bottom:calc(96px + env(safe-area-inset-bottom));--mascot-scale:.7;width:116px}.dsh-mascot[data-size=small]{--mascot-scale:.6;width:106px}.dsh-mascot-bubble{font-size:11px;max-width:120px;padding:6px 9px}}
 `
 
     function cutout(image) {
@@ -321,8 +326,16 @@ window.__ModuleLoader__.load({
           React.useEffect(() => {
             if (!settings) return
             const onKey = event => { if (event.key === 'Escape') setSettings(false) }
+            const onDown = event => {
+              if (element.current?.contains(event.target)) return
+              setSettings(false)
+            }
             document.addEventListener('keydown', onKey)
-            return () => document.removeEventListener('keydown', onKey)
+            document.addEventListener('pointerdown', onDown, true)
+            return () => {
+              document.removeEventListener('keydown', onKey)
+              document.removeEventListener('pointerdown', onDown, true)
+            }
           }, [settings])
           function startDrag(event) {
             if (!event.isPrimary || event.button !== 0) return
@@ -410,7 +423,7 @@ window.__ModuleLoader__.load({
             h('div', { className: 'dsh-mascot-controls' },
               button(t('settings'), '⚙', () => setSettings(!settings), { 'aria-expanded': settings }),
               button(t('collapse'), '−', () => { change({ compact: true }); setSettings(false) })),
-            settings ? h('section', { className: 'dsh-mascot-panel', role: 'region', 'aria-label': t('settings') },
+            settings ? h('section', { className: 'dsh-mascot-panel', 'data-below': (position && window.innerHeight - position.bottom < 260) || undefined, role: 'region', 'aria-label': t('settings') },
               h('header', null, t('settings'), button(t('close'), '×', () => setSettings(false))),
               h('label', null, h('input', { type: 'checkbox', checked: preferences.motion, onChange: event => change({ motion: event.target.checked }) }), t('motion')),
               h('div', { className: 'dsh-mascot-sizes' }, h('span', null, t('size')),

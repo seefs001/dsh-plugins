@@ -223,10 +223,12 @@ window.__ModuleLoader__.load({
 .wm-foot-btn[data-wide=false]{width:36px;height:36px;min-height:36px;padding:0;border-inline:0;background-clip:border-box;justify-content:center;margin:0}
 .wm-foot-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
 @media (hover:hover){.wm-foot-btn:hover{background-color:var(--dsw-alias-interactive-bg-hover)}}
+.wm-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .wm-cu{display:flex;flex-direction:column;gap:12px;min-width:0}
+.wm-cu :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .wm-cu-block{border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,10px);overflow:hidden;background:var(--dsw-alias-bg-base)}
-.wm-cu-head{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--dsw-alias-bg-layer-1);cursor:pointer;user-select:none}
-.wm-cu-head-btn{flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:500;text-align:left;padding:0;cursor:pointer}
+.wm-cu-head{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--dsw-alias-bg-layer-1);user-select:none}
+.wm-cu-head-btn{flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:0;border-radius:4px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;font-weight:500;text-align:left;padding:0;cursor:pointer}
 .wm-cu-count{font-size:12px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
 .wm-cu-list{list-style:none;margin:0;padding:0;border-top:.5px solid var(--dsw-alias-border-l1)}
 .wm-cu-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:.5px solid var(--dsw-alias-border-l1)}
@@ -234,16 +236,16 @@ window.__ModuleLoader__.load({
 .wm-cu-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .wm-cu-name{font-size:13px;font-weight:500;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wm-cu-sub{font-size:11.5px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wm-cu-act{flex:none;width:64px;height:26px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.wm-cu-act{flex:none;min-width:64px;height:26px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 .wm-cu-act:disabled{opacity:.5;cursor:default}
 @media (hover:hover){.wm-cu-act:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
 .wm-cu-cards{display:flex;flex-direction:column;gap:8px}
 .wm-cu-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1)}
 .wm-cu-note{margin:0;font-size:11.5px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
 .wm-cu-err{margin:0;font-size:12px;color:var(--dsw-alias-state-error-primary)}
-.wm-cu-toast-float{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:10000;padding:6px 14px;border-radius:999px;background:var(--dsw-alias-toast-bg,var(--dsw-alias-label-primary));color:var(--dsw-alias-toast-label,var(--dsw-alias-bg-base));font-size:12px;line-height:18px;box-shadow:var(--dsw-elevation-soft,0 4px 14px rgba(0,0,0,.2));pointer-events:none}
+.wm-cu-toast-float{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100vw - 24px);z-index:10000;padding:6px 14px;border-radius:999px;background:var(--dsw-alias-toast-bg,var(--dsw-alias-label-primary));color:var(--dsw-alias-toast-label,var(--dsw-alias-bg-base));font-size:12px;line-height:18px;box-shadow:var(--dsw-elevation-soft,0 4px 14px rgba(0,0,0,.2));pointer-events:none}
 @container (max-width:560px){.wm-row{align-items:flex-start;flex-wrap:wrap}.wm-row-actions{width:100%;justify-content:flex-end;padding-top:4px}}
-@media (pointer:coarse){.wm-select{font-size:16px}}
+@media (pointer:coarse){.wm-select{font-size:16px;height:36px;min-height:36px}}
 `
 
     return {
@@ -736,7 +738,7 @@ window.__ModuleLoader__.load({
                         className: 'wm-check',
                         checked,
                         disabled,
-                        label: '',
+                        label: h('span', { className: 'wm-sr-only' }, tf('selectRow', { title: row.title })),
                         title: tf('selectRow', { title: row.title }),
                         onChange: next => toggleSelect(row.workspaceId, next),
                       }),
@@ -801,8 +803,8 @@ window.__ModuleLoader__.load({
         function CleanupOverlay() {
           useSource(ctx.locale)
           const cu = useSource(cleanupStore)
-          const [openInvalid, setOpenInvalid] = React.useState(false)
-          const [openWorktrees, setOpenWorktrees] = React.useState(false)
+          const [openInvalid, setOpenInvalid] = React.useState(true)
+          const [openWorktrees, setOpenWorktrees] = React.useState(true)
           const { invalidWorkspaces, idleJobs, cleanWorktrees } = cu.data
           const total = invalidWorkspaces.length + idleJobs.length + cleanWorktrees.length
           return h(React.Fragment, null,

@@ -32,13 +32,14 @@ window.__ModuleLoader__.load({
     }
     const CSS = `
 .dbs-root{display:inline-flex;flex:none;align-items:center;gap:2px;min-width:0}
-.dbs-chip,.dbs-toggle{display:inline-flex;align-items:center;gap:6px;min-width:0;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer}
+.dbs-chip,.dbs-toggle{display:inline-flex;align-items:center;gap:6px;min-width:0;overflow:hidden;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer}
 .dbs-chip{max-width:200px}.dbs-chip svg{width:14px;height:14px;flex:none}.dbs-label{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .dbs-toggle input{width:14px;height:14px;flex:none;margin:0;accent-color:var(--dsw-alias-brand-primary);cursor:inherit}
 .dbs-chip:disabled,.dbs-toggle:has(input:disabled){color:var(--dsw-alias-label-dimmed);cursor:default}
 .dbs-chip:focus-visible,.dbs-toggle:has(input:focus-visible),.dbs-pop button:focus-visible,.dbs-search:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .dbs-toggle input:focus-visible{outline:none}
 .dbs-pop{box-sizing:border-box;position:fixed;inset:auto;margin:0;width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:8px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);color:var(--dsw-alias-label-primary);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);font:inherit;font-size:13px;text-align:left;overflow:auto}
+@media (max-width:768px),(pointer:coarse){.dbs-pop{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .dbs-pop::backdrop{background:transparent}
 .dbs-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 4px 8px;font-weight:500}
 .dbs-search{box-sizing:border-box;width:100%;height:32px;margin:0 0 6px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:inherit;font:inherit}
@@ -57,7 +58,7 @@ window.__ModuleLoader__.load({
 .dbs-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 @media(hover:hover){.dbs-chip:hover:not(:disabled),.dbs-toggle:hover:not(:has(input:disabled)),.dbs-row:hover:not(:disabled),.dbs-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dbs-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
 @media(pointer:coarse){.dbs-search{font-size:16px}}
-@media(max-width:600px){.dbs-root{flex-direction:column;align-items:flex-end;gap:0}.dbs-chip{max-width:120px}}
+@media(max-width:600px){.dbs-root{flex-wrap:wrap;align-items:center;gap:2px 6px}.dbs-chip{max-width:120px}}
 .dbs-tv{display:flex;flex-direction:column}
 .dbs-tv-row{min-width:0}
 .dbs-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
@@ -74,7 +75,7 @@ window.__ModuleLoader__.load({
 .dbs-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
 .dbs-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .dbs-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.dbs-tv-inspect:focus-visible{opacity:1}
+.dbs-tv-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media(hover:hover){.dbs-tv:hover .dbs-tv-inspect{opacity:1}.dbs-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media(hover:none){.dbs-tv-inspect{opacity:1}}
 `
@@ -125,6 +126,8 @@ window.__ModuleLoader__.load({
           const [query, setQuery] = React.useState('')
           const [candidate, setCandidate] = React.useState(null)
           const [error, setError] = React.useState(null)
+          const [worktreeError, setWorktreeError] = React.useState(null)
+          const [open, setOpen] = React.useState(false)
           const [message, setMessage] = React.useState('')
           const button = React.useRef(null)
           const popup = React.useRef(null)
@@ -162,8 +165,13 @@ window.__ModuleLoader__.load({
             if (popup.current.matches(':popover-open')) { close(); return }
             const rect = button.current.getBoundingClientRect()
             const width = Math.min(360, window.innerWidth - 24)
+            const availBelow = window.innerHeight - rect.bottom - 18
+            const availAbove = rect.top - 18
+            const openAbove = availBelow < 220 && availAbove > availBelow
             popup.current.style.left = `${Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12))}px`
-            popup.current.style.top = `${Math.max(12, Math.min(rect.bottom + 6, window.innerHeight - 440))}px`
+            popup.current.style.top = openAbove ? 'auto' : `${Math.max(12, rect.bottom + 6)}px`
+            popup.current.style.bottom = openAbove ? `${Math.max(12, window.innerHeight - rect.top + 6)}px` : 'auto'
+            popup.current.style.maxHeight = `${Math.max(160, Math.min(440, openAbove ? availAbove : availBelow))}px`
             popup.current.showPopover()
             search.current?.focus()
             setQuery(''); setMessage('')
@@ -184,12 +192,12 @@ window.__ModuleLoader__.load({
             finally { if (mounted.current) setPending(false) }
           }
           async function worktree() {
-            setPending(true); setError(null)
+            setPending(true); setWorktreeError(null)
             try {
               const from = branch && state?.checkout?.commit ? `refs/heads/${branch}` : null
               const result = await props.request(from, null)
               if (result && result !== 'accepted' && result !== 'failed') throw new Error(`Worktree request rejected (${result})`)
-            } catch (failure) { if (mounted.current) setError(failure.message) }
+            } catch (failure) { if (mounted.current) setWorktreeError(failure.message) }
             finally { if (mounted.current) setPending(false) }
           }
           function keys(event) {
@@ -209,12 +217,24 @@ window.__ModuleLoader__.load({
           const worktreeBlocked = panel.worktree.blocker !== null
           return h('span', { className: 'dbs-root', 'data-branch-switcher': '' },
             h('button', { ref: button, type: 'button', className: 'dbs-chip', disabled: pending || readonly,
-              'aria-label': `${t('switch')}: ${label}`, title: readonly ? t('readonly') : `${t('switch')}: ${label}`, 'aria-haspopup': 'dialog', onClick: show },
+              'aria-label': `${t('switch')}: ${label}`, title: readonly ? t('readonly') : `${t('switch')}: ${label}`, 'aria-haspopup': 'dialog', 'aria-expanded': open, onClick: show },
             h(BranchIcon), h('span', { className: 'dbs-label' }, label), h(ChevronDownIcon)),
             h('label', { className: 'dbs-toggle', title: worktreeBlocked ? props.t(`worktree.blocked.${panel.worktree.blocker}`) : t('worktreeHint') },
               h('input', { type: 'checkbox', checked: false, disabled: pending || worktreeBlocked, onChange: () => void worktree() }), t('worktree')),
+            worktreeError ? h('span', { role: 'alert', className: 'dbs-error' }, worktreeError) : null,
             h('span', { role: 'status', className: 'dbs-status' }, message),
-            h('div', { ref: popup, popover: 'auto', role: 'dialog', 'aria-label': t('switch'), className: 'dbs-pop', onKeyDown: keys },
+            h('div', {
+              ref: popup, popover: 'auto', role: 'dialog', 'aria-label': t('switch'), className: 'dbs-pop', onKeyDown: keys,
+              onToggle: event => {
+                if (event.target !== event.currentTarget) return
+                const isOpen = event.newState === 'open'
+                setOpen(isOpen)
+                if (!isOpen) {
+                  listAbort.current?.abort()
+                  button.current?.focus?.()
+                }
+              },
+            },
               h('div', { className: 'dbs-heading' }, t('switch'), h('button', { type: 'button', className: 'dbs-btn dbs-close', 'aria-label': t('close'), onClick: close }, h(CloseIcon))),
               h('input', { ref: search, type: 'search', className: 'dbs-search', placeholder: t('search'), 'aria-label': t('search'), value: query, disabled: pending,
                 onChange: event => { setQuery(event.target.value); setCandidate(null) },

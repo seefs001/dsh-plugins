@@ -178,7 +178,8 @@ window.__ModuleLoader__.load({
 
     const CSS = `
 .mh-anchor{display:none}
-.mh-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:100;box-sizing:border-box;display:flex;flex-direction:column;max-height:320px;overflow-y:auto;padding:4px;border-radius:12px;background:var(--dsw-specific-menu);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);backdrop-filter:var(--dsw-menu-backdrop-filter);box-shadow:var(--dsw-elevation-prominent);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1)}
+.mh-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:100;box-sizing:border-box;display:flex;flex-direction:column;max-height:min(320px,45dvh);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:12px;background:var(--dsw-specific-menu);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);backdrop-filter:var(--dsw-menu-backdrop-filter);box-shadow:var(--dsw-elevation-prominent);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1)}
+@media (max-width:768px),(pointer:coarse){.mh-menu{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .mh-title{padding:5px 8px 2px;font-size:11px;line-height:15px;color:var(--dsw-alias-label-tertiary)}
 .mh-title:not(:first-child){margin-top:4px;padding-top:7px;border-top:.5px solid var(--dsw-alias-border-l1)}
 .mh-item{display:flex;align-items:center;gap:6px;width:100%;min-height:34px;padding:6px 8px;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-align:left;cursor:pointer}
@@ -196,8 +197,8 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         const { ModelDirectory } = require('@deepseek-ai/dsh-client-ui-model-selection')
         ctx.effect(() => installEffortMemory(ModelDirectory), 'model-reference: restore model efforts')
-        ctx.effect(() => ctx.locale.register(NS, 'en', { title: 'Reference a model', aria: 'Models' }), 'model-reference: en')
-        ctx.effect(() => ctx.locale.register(NS, 'zh', { title: '引用模型', aria: '模型' }), 'model-reference: zh')
+        ctx.effect(() => ctx.locale.register(NS, 'en', { title: 'Reference a model', aria: 'Models', fast: 'Fast' }), 'model-reference: en')
+        ctx.effect(() => ctx.locale.register(NS, 'zh', { title: '引用模型', aria: '模型', fast: '快速' }), 'model-reference: zh')
         ctx.effect(() => {
           if (typeof document === 'undefined') return undefined
           const style = document.createElement('style')
@@ -291,6 +292,7 @@ window.__ModuleLoader__.load({
 
         function HashMenuBody({ sessionId, useInput, inputActions, bus: activeBus, busRev }) {
           const localeSnap = React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
+          const listId = React.useId()
           const draftRev = useInput(s => s.draftRev)
           const phase = useInput(s => s.phase)
           const anchorRef = React.useRef(null)
@@ -387,19 +389,19 @@ window.__ModuleLoader__.load({
           }, [visible, flat, index, pick, dismiss])
 
           React.useEffect(() => {
-            if (visible) document.getElementById(`mh-opt-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
-          }, [visible, activeIndex])
+            if (visible) document.getElementById(`${listId}-opt-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
+          }, [visible, activeIndex, listId])
 
           return h(React.Fragment, null,
             h('span', { ref: anchorRef, className: 'mh-anchor' }),
-            visible ? h('div', { className: 'mh-menu', role: 'listbox', 'aria-label': t('aria'), 'aria-activedescendant': `mh-opt-${activeIndex}` },
+            visible ? h('div', { className: 'mh-menu', role: 'listbox', 'aria-label': t('aria'), 'aria-activedescendant': `${listId}-opt-${activeIndex}` },
               sections.map(sec => h(React.Fragment, { key: sec.id },
                 h('div', { className: 'mh-title', role: 'presentation' }, sec.title),
                 sec.items.map(entry => {
                   const it = entry.item
                   const i = entry.flatIndex
                   return h('button', {
-                    key: it.key, id: `mh-opt-${i}`, type: 'button', role: 'option',
+                    key: it.key, id: `${listId}-opt-${i}`, type: 'button', role: 'option',
                     className: 'mh-item', 'aria-selected': i === activeIndex,
                     onMouseDown: ev => { ev.preventDefault(); pick(entry) },
                     onMouseMove: i === activeIndex ? undefined : () => setIndex(i),
@@ -408,7 +410,7 @@ window.__ModuleLoader__.load({
                   h('span', { className: 'mh-name' }, it.name),
                   it.meta || it.fast ? h('span', { className: 'mh-meta' },
                     it.meta ? h('span', null, it.meta) : null,
-                    it.fast ? h('span', { className: 'mh-bolt', role: 'img', 'aria-label': 'fast' }, h(Bolt)) : null) : null,
+                    it.fast ? h('span', { className: 'mh-bolt', role: 'img', 'aria-label': t('fast') }, h(Bolt)) : null) : null,
                   it.desc ? h('span', { className: 'mh-desc' }, it.desc) : null)
                 })))) : null)
         }

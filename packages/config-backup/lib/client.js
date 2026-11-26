@@ -282,6 +282,7 @@ window.__ModuleLoader__.load({
 .cb-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .cb-tabs{display:inline-flex;align-items:center;gap:4px;padding:3px;border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l2);align-self:flex-start}
 .cb-tab{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:none;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-weight:500;cursor:pointer;transition:background-color .15s,color .15s}
+@media (hover:hover){.cb-tab:hover:not([aria-selected=true]){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 .cb-tab[aria-selected=true]{background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .cb-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 @container (max-width:680px){.cb-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -319,16 +320,21 @@ window.__ModuleLoader__.load({
 .cb-row-sub{font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
 .cb-row-right{display:flex;align-items:center;gap:8px;flex:none}
 .cb-mono{font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11px}
-.cb-footer-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);position:sticky;bottom:0;z-index:2}
+.cb-footer-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px max(12px,env(safe-area-inset-bottom));border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);position:sticky;bottom:0;z-index:2}
+@container (max-width:600px){.cb-footer-bar{padding:10px 12px max(10px,env(safe-area-inset-bottom));justify-content:flex-end}.cb-footer-hint{display:none}}
 .cb-dropzone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:34px 20px;border:1.5px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);text-align:center;cursor:pointer;transition:border-color .15s,background-color .15s}
 .cb-dropzone[data-over=true]{border-color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 6%,var(--dsw-alias-bg-layer-1))}
 .cb-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .cb-pills{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.cb-pill{padding:4px 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}
+.cb-pill{padding:4px 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;transition:background-color .15s,color .15s}
+@media (hover:hover){.cb-pill:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 .cb-pill[aria-pressed=true]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));font-weight:500}
 .cb-mode{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary)}
 .cb-select{height:30px;padding:0 8px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px}
+@media (pointer:coarse){.cb-select{font-size:16px;height:36px;min-height:36px}}
 .cb-diff-box{margin-left:26px;padding:8px 10px;border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-layer-1);border:.5px solid var(--dsw-alias-border-l1);display:flex;flex-direction:column;gap:4px;max-height:260px;overflow:auto}
+@container (max-width:560px){.cb-diff-box{margin-left:0}}
+.cb-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .cb-diff-line{display:flex;align-items:baseline;gap:8px;font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11px;line-height:16px;white-space:pre-wrap;word-break:break-all}
 .cb-diff-line[data-kind=add]{color:var(--dsw-alias-state-success-primary)}
 .cb-diff-line[data-kind=remove]{color:var(--dsw-alias-state-error-primary)}
@@ -509,10 +515,10 @@ window.__ModuleLoader__.load({
             }
           }
 
-          const fetchPreview = React.useCallback(async (bundleObj, pass, mode) => {
+          const fetchPreview = React.useCallback(async (bundleObj, pass, mode, opts = {}) => {
             setPreviewLoading(true)
             setImportError('')
-            setApplyResult(null)
+            if (!opts.keepApplyResult) setApplyResult(null)
             try {
               const data = await apiJson('config-backup/preview', {
                 method: 'POST',
@@ -590,7 +596,7 @@ window.__ModuleLoader__.load({
               setApplyResult(result)
               await Promise.all([
                 loadInventory(),
-                fetchPreview(rawBundle, unlockPass, tableMode),
+                fetchPreview(rawBundle, unlockPass, tableMode, { keepApplyResult: true }),
               ])
             } catch (error) {
               setImportError(`${t('applyFailed')}: ${error.message}`)
@@ -716,7 +722,7 @@ window.__ModuleLoader__.load({
                     const checked = selConfigs.has(item.id)
                     return h('li', { key: item.id, className: 'cb-row', 'data-selected': checked || undefined },
                       h('div', { className: 'cb-row-main' },
-                        h(Checkbox, { checked, label: '', onChange: next => toggleSet(setSelConfigs, item.id, next) }),
+                        h(Checkbox, { checked, label: h('span', { className: 'cb-sr-only' }, item.id), onChange: next => toggleSet(setSelConfigs, item.id, next) }),
                         h('div', { className: 'cb-row-copy' },
                           h('div', { className: 'cb-row-top' },
                             h('span', { className: 'cb-row-name' }, item.id),
@@ -744,7 +750,7 @@ window.__ModuleLoader__.load({
                     const catKey = item.category === 'plugin' ? 'catPlugin' : item.category === 'host' ? 'catHost' : item.category === 'optional' ? 'catOptional' : 'catOther'
                     return h('li', { key: item.name, className: 'cb-row', 'data-selected': checked || undefined, 'data-disabled': item.oversized || undefined },
                       h('div', { className: 'cb-row-main' },
-                        h(Checkbox, { checked, disabled: item.oversized, label: '', onChange: next => toggleSet(setSelDomains, item.name, next) }),
+                        h(Checkbox, { checked, disabled: item.oversized, label: h('span', { className: 'cb-sr-only' }, item.name), onChange: next => toggleSet(setSelDomains, item.name, next) }),
                         h('div', { className: 'cb-row-copy' },
                           h('div', { className: 'cb-row-top' },
                             h('span', { className: 'cb-row-name' }, item.name),
@@ -772,7 +778,7 @@ window.__ModuleLoader__.load({
                     const checked = selHomeFiles.has(item.id)
                     return h('li', { key: item.id, className: 'cb-row', 'data-selected': checked || undefined },
                       h('div', { className: 'cb-row-main' },
-                        h(Checkbox, { checked, label: '', onChange: next => toggleSet(setSelHomeFiles, item.id, next) }),
+                        h(Checkbox, { checked, label: h('span', { className: 'cb-sr-only' }, `~/.dsh/${item.relPath}`), onChange: next => toggleSet(setSelHomeFiles, item.id, next) }),
                         h('div', { className: 'cb-row-copy' },
                           h('div', { className: 'cb-row-top' },
                             h('span', { className: 'cb-row-name cb-mono' }, `~/.dsh/${item.relPath}`),
@@ -790,7 +796,7 @@ window.__ModuleLoader__.load({
                       const checked = selCredentials.has(item.id)
                       return h('li', { key: item.id, className: 'cb-row', 'data-selected': checked || undefined },
                         h('div', { className: 'cb-row-main' },
-                          h(Checkbox, { checked, label: '', onChange: next => toggleSet(setSelCredentials, item.id, next) }),
+                          h(Checkbox, { checked, label: h('span', { className: 'cb-sr-only' }, `~/.dsh/${item.relPath}`), onChange: next => toggleSet(setSelCredentials, item.id, next) }),
                           h('div', { className: 'cb-row-copy' },
                             h('div', { className: 'cb-row-top' },
                               h('span', { className: 'cb-row-name cb-mono' }, `~/.dsh/${item.relPath}`),
@@ -800,7 +806,7 @@ window.__ModuleLoader__.load({
                 : null,
 
               exportNotice
-                ? h('div', { className: 'cb-banner', 'data-tone': exportNotice.tone, role: 'status' },
+                ? h('div', { className: 'cb-banner', 'data-tone': exportNotice.tone, role: exportNotice.tone === 'error' ? 'alert' : 'status' },
                   exportNotice.tone === 'error'
                     ? h(IconWarningTriangleOutlineRegular, { size: 15 })
                     : h(IconCheckOutlineRegular, { size: 15 }),
@@ -808,7 +814,7 @@ window.__ModuleLoader__.load({
                 : null,
 
               h('div', { className: 'cb-footer-bar' },
-                h('span', { className: 'cb-note' },
+                h('span', { className: passphrase.length >= 4 ? 'cb-note' : 'cb-note cb-footer-hint' },
                   passphrase.length >= 4
                     ? h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } }, h(IconLock, { size: 13 }), t('encryptedTag'))
                     : t('optSecretsHint')),
@@ -846,7 +852,7 @@ window.__ModuleLoader__.load({
                   'data-over': dragOver || undefined,
                   onClick: () => fileInputRef.current?.click(),
                   onDragOver: event => { event.preventDefault(); setDragOver(true) },
-                  onDragLeave: () => setDragOver(false),
+                  onDragLeave: event => { if (!event.currentTarget.contains(event.relatedTarget)) setDragOver(false) },
                   onDrop: event => {
                     event.preventDefault()
                     setDragOver(false)
@@ -885,6 +891,7 @@ window.__ModuleLoader__.load({
                       className: 'cb-unlock-input',
                       value: unlockPass,
                       placeholder: t('unlockPlaceholder'),
+                      'aria-label': t('unlockPlaceholder'),
                       onChange: event => setUnlockPass(event.target.value),
                       onKeyDown: event => {
                         if (event.key === 'Enter' && unlockPass) void fetchPreview(rawBundle, unlockPass, tableMode)
@@ -952,6 +959,7 @@ window.__ModuleLoader__.load({
                       h('span', null, t('tableModeLabel')),
                       h('select', {
                         className: 'cb-select',
+                        'aria-label': t('tableModeLabel'),
                         value: tableMode,
                         disabled: previewLoading || applying,
                         onChange: event => void handleTableModeChange(event.target.value),
@@ -992,7 +1000,7 @@ window.__ModuleLoader__.load({
                         const isOpen = expanded.has(expKey)
                         return h('li', { key: item.id, className: 'cb-row', 'data-selected': checked || undefined, 'data-disabled': disabled || undefined },
                           h('div', { className: 'cb-row-main' },
-                            h(Checkbox, { checked, disabled, label: '', onChange: next => toggleSet(setImpConfigs, item.id, next) }),
+                            h(Checkbox, { checked, disabled, label: h('span', { className: 'cb-sr-only' }, item.id), onChange: next => toggleSet(setImpConfigs, item.id, next) }),
                             h('div', { className: 'cb-row-copy' },
                               h('div', { className: 'cb-row-top' },
                                 h('span', { className: 'cb-row-name' }, item.id),
@@ -1026,7 +1034,7 @@ window.__ModuleLoader__.load({
                           : null
                         return h('li', { key: item.name, className: 'cb-row', 'data-selected': checked || undefined, 'data-disabled': disabled || undefined },
                           h('div', { className: 'cb-row-main' },
-                            h(Checkbox, { checked, disabled, label: '', onChange: next => toggleSet(setImpDomains, item.name, next) }),
+                            h(Checkbox, { checked, disabled, label: h('span', { className: 'cb-sr-only' }, item.name), onChange: next => toggleSet(setImpDomains, item.name, next) }),
                             h('div', { className: 'cb-row-copy' },
                               h('div', { className: 'cb-row-top' },
                                 h('span', { className: 'cb-row-name' }, item.name),
@@ -1056,7 +1064,7 @@ window.__ModuleLoader__.load({
                         const isOpen = expanded.has(expKey)
                         return h('li', { key: item.id, className: 'cb-row', 'data-selected': checked || undefined },
                           h('div', { className: 'cb-row-main' },
-                            h(Checkbox, { checked, label: '', onChange: next => toggleSet(setImpHomeFiles, item.id, next) }),
+                            h(Checkbox, { checked, label: h('span', { className: 'cb-sr-only' }, `~/.dsh/${item.relPath}`), onChange: next => toggleSet(setImpHomeFiles, item.id, next) }),
                             h('div', { className: 'cb-row-copy' },
                               h('div', { className: 'cb-row-top' },
                                 h('span', { className: 'cb-row-name cb-mono' }, `~/.dsh/${item.relPath}`),
@@ -1082,7 +1090,7 @@ window.__ModuleLoader__.load({
                         const checked = impCredentials.has(item.id)
                         return h('li', { key: item.id, className: 'cb-row', 'data-selected': checked || undefined },
                           h('div', { className: 'cb-row-main' },
-                            h(Checkbox, { checked, label: '', onChange: next => toggleSet(setImpCredentials, item.id, next) }),
+                            h(Checkbox, { checked, label: h('span', { className: 'cb-sr-only' }, `~/.dsh/${item.relPath}`), onChange: next => toggleSet(setImpCredentials, item.id, next) }),
                             h('div', { className: 'cb-row-copy' },
                               h('div', { className: 'cb-row-top' },
                                 h('span', { className: 'cb-row-name cb-mono' }, `~/.dsh/${item.relPath}`),

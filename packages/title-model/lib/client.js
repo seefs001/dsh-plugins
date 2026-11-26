@@ -48,6 +48,7 @@ window.__ModuleLoader__.load({
 .dsh-title-model :is(button,select):focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .dsh-title-model__actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 .dsh-title-model .error{color:var(--dsw-alias-state-error-primary)}
+.dsh-title-model .warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
 .dsh-title-model .success{color:var(--dsw-alias-state-success-primary)}
 @media(hover:hover){.dsh-title-model button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dsh-title-model button.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}}
 @media(pointer:coarse){.dsh-title-model select{font-size:16px}}
@@ -68,7 +69,7 @@ window.__ModuleLoader__.load({
 .dtm-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
 .dtm-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .dtm-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.dtm-tv-inspect:focus-visible{opacity:1}
+.dtm-tv-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media(hover:hover){.dtm-tv:hover .dtm-tv-inspect{opacity:1}.dtm-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media(hover:none){.dtm-tv-inspect{opacity:1}}
 `
@@ -182,7 +183,7 @@ window.__ModuleLoader__.load({
             state.status === 'error' ? h('p', { className: 'error', role: 'alert' }, `${t('loadFailed')}${state.error}`) : null,
             state.status === 'ready' && state.generators.length === 0 ? h('p', { role: 'status' }, t('empty')) : null,
             catalog.error ? h('p', { className: 'error', role: 'alert' }, `${t('catalogFailed')}${catalog.error}`) : null,
-            catalog.partial ? h('p', null, t('partial')) : null,
+            catalog.partial ? h('p', { className: 'warn', role: 'status' }, t('partial')) : null,
             state.status !== 'ready' ? null : state.generators.map(generator => h(Generator, {
               key: `${epoch}:${generator.id}`, generator, catalog, saving: busy, onBusy: setBusy,
               onSaved: result => setState({ status: 'ready', generators: result.generators }),

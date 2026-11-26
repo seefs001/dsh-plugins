@@ -88,6 +88,8 @@ window.__ModuleLoader__.load({
       tvInput: 'IN',
       tvOutput: 'OUT',
       tvGroupsCount: '{n} groups',
+      tvPinned: 'Pinned',
+      tvUnpinned: 'Unpinned',
     }
     const ZH = {
       panel: '会话分组',
@@ -162,6 +164,8 @@ window.__ModuleLoader__.load({
       tvInput: '输入',
       tvOutput: '输出',
       tvGroupsCount: '{n} 个分组',
+      tvPinned: '已置顶',
+      tvUnpinned: '已取消置顶',
     }
 
     const COLLAPSED_KEY = 'dsh-session-groups.collapsed'
@@ -324,8 +328,11 @@ window.__ModuleLoader__.load({
 .sg-empty p{margin:0}
 .sg-dropzone{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 12px;border:1px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-md,10px);color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;transition:border-color .12s,background-color .12s,color .12s}
 .sg-dropzone.sg-dropping{border-color:var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+@container (max-width:560px){.sg-row{flex-wrap:wrap;align-items:flex-start;row-gap:8px}.sg-row-body{flex:1 1 calc(100% - 36px)}.sg-row-end{width:100%;justify-content:flex-end;flex-wrap:wrap;gap:6px}.sg-select{max-width:none;flex:1 1 120px}}
+.sg-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+@container (max-width:560px){.sg-row{flex-wrap:wrap}.sg-ractions{width:100%;justify-content:flex-end;padding-top:4px}}
 @media (hover:none){.sg-hint{display:none}}
-@media (pointer:coarse){.sg-rename,.sg-select{font-size:16px}}
+@media (pointer:coarse){.sg-rename,.sg-select{font-size:16px;height:36px;min-height:36px}}
 @media (prefers-reduced-motion:reduce){.sg-sp{animation:none}.sg-page *{transition:none!important}}
 `
 
@@ -352,8 +359,10 @@ window.__ModuleLoader__.load({
 .sgs-pinmark{display:inline-flex;color:var(--dsw-alias-label-caption,var(--dsw-alias-label-tertiary))}
 .sgs-actions{flex:none;display:none;align-items:center;gap:2px;margin-right:-4px}
 @media (hover:hover){.sgs-row:hover .sgs-actions,.sgs-row:focus-within .sgs-actions{display:inline-flex}.sgs-row:hover .sgs-rest,.sgs-row:focus-within .sgs-rest{display:none}}
-@media (hover:none){.sgs-head .sgs-actions{display:inline-flex}.sgs-head .sgs-rest{display:none}}
+@media (hover:none){.sgs-row .sgs-actions{display:inline-flex}.sgs-row .sgs-rest{display:none}}
 .sgs-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
+.sgs-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+@media (pointer:coarse){.sgs-row{min-height:38px;height:auto;padding-block:4px}.sgs-btn{width:30px;height:30px}}
 @media (hover:hover){.sgs-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}.sgs-btn.sgs-danger:hover{color:var(--dsw-alias-state-error-primary)}}
 .sgs-btn[aria-pressed=true]{color:var(--dsw-alias-label-primary)}
 .sgs-running{width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));animation:sgs-pulse 1.4s ease-in-out infinite}
@@ -381,7 +390,7 @@ window.__ModuleLoader__.load({
 .sg-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
 .sg-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .sg-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.sg-tv-inspect:focus-visible{opacity:1}
+.sg-tv-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (hover:hover){.sg-tv:hover .sg-tv-inspect{opacity:1}.sg-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.sg-tv-inspect{opacity:1}}
 `
@@ -606,8 +615,10 @@ window.__ModuleLoader__.load({
         function GroupName({ group, className = 'sg-rename' }) {
           const [value, setValue] = React.useState(group.name)
           const ref = React.useRef(null)
+          const cancelled = React.useRef(false)
           React.useLayoutEffect(() => { ref.current?.focus(); ref.current?.select() }, [])
           const commit = () => {
+            if (cancelled.current) return
             store.setView({ editing: null })
             const name = value.trim()
             if (name && name !== group.name) void op({ action: 'rename', groupId: group.id, name }).catch(() => {})
@@ -621,7 +632,7 @@ window.__ModuleLoader__.load({
             onKeyDown: e => {
               if (e.nativeEvent.isComposing || e.keyCode === 229) return
               if (e.key === 'Enter') { e.preventDefault(); commit() }
-              if (e.key === 'Escape') { e.preventDefault(); store.setView({ editing: null }) }
+              if (e.key === 'Escape') { e.preventDefault(); cancelled.current = true; store.setView({ editing: null }) }
             },
           })
         }
@@ -771,7 +782,7 @@ window.__ModuleLoader__.load({
               e.dataTransfer.setData('text/plain', id)
             } : undefined,
             onClick: open,
-            onKeyDown: e => { if (e.key === 'Enter' && e.target === e.currentTarget) open() },
+            onKeyDown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); open() } },
           },
           h('span', { className: 'sg-lead', 'data-pinned': pinned || undefined },
             summary?.running
@@ -896,7 +907,7 @@ window.__ModuleLoader__.load({
                 'aria-label': t('filterGroupSessions'),
                 onChange: e => setQuery(e.target.value),
               }),
-              filterChips.length > 1 ? h('div', { className: 'sg-chips', role: 'group' },
+              filterChips.length > 1 ? h('div', { className: 'sg-chips', role: 'group', 'aria-label': t('filterGroupSessions') },
                 filterChips.map(([key, label, n]) => h('button', {
                   key, type: 'button', className: 'sg-chip', 'aria-pressed': filter === key,
                   onClick: () => setFilter(key),
@@ -1018,11 +1029,12 @@ window.__ModuleLoader__.load({
                         e.dataTransfer.setData('text/plain', s.id)
                       },
                       onClick: () => ctx.uiWorkspace.openSession(s.id),
-                      onKeyDown: e => { if (e.key === 'Enter' && e.target === e.currentTarget) ctx.uiWorkspace.openSession(s.id) },
+                      onKeyDown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); ctx.uiWorkspace.openSession(s.id) } },
                     },
                     h('span', { onClick: e => e.stopPropagation() },
                       h(Checkbox, {
-                        checked, disabled: busy, label: '',
+                        checked, disabled: busy,
+                        label: h('span', { className: 'sg-sr-only' }, tf('selectSession', { title })),
                         title: tf('selectSession', { title }),
                         onChange: next => toggle(s.id, next),
                       })),
@@ -1465,7 +1477,7 @@ window.__ModuleLoader__.load({
             const parts = []
             if (typeof args.name === 'string' && args.name) parts.push(args.name)
             else if (typeof args.groupId === 'string' && args.groupId) parts.push(args.groupId)
-            if (typeof args.pinned === 'boolean') parts.push(args.pinned ? 'pinned' : 'unpinned')
+            if (typeof args.pinned === 'boolean') parts.push(t(args.pinned ? 'tvPinned' : 'tvUnpinned'))
             if (Array.isArray(payload?.groups)) parts.push(tf('tvGroupsCount', { n: payload.groups.length }))
             detail = parts.join(' · ')
           }

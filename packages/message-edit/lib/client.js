@@ -302,6 +302,7 @@ window.__ModuleLoader__.load({
         function Dialog({ sessionId, rpcId, onClose, onDone }) {
           useLocale()
           const ref = React.useRef(null)
+          const backdropPress = React.useRef(false)
           const alive = React.useRef(true)
           const [info, setInfo] = React.useState(null)
           const [text, setText] = React.useState('')
@@ -318,6 +319,7 @@ window.__ModuleLoader__.load({
             op({ action: 'inspect', sessionId, rpcId }, controller.signal).then(v => {
               if (controller.signal.aborted) return
               setInfo(v); setText(v.text)
+              if (!v.inContext && v.forkAt !== null && v.forkAt !== undefined) setMode('clear')
             }).catch(e => { if (!controller.signal.aborted) setError(e.message) })
             return () => {
               alive.current = false
@@ -354,6 +356,11 @@ window.__ModuleLoader__.load({
           return h('dialog', {
             ref, className: 'dme-dialog', 'aria-label': t('title'),
             onCancel: e => { e.preventDefault(); if (!busy) onClose() },
+            onPointerDown: e => { backdropPress.current = e.target === ref.current },
+            onClick: e => {
+              if (backdropPress.current && e.target === ref.current && !busy) onClose()
+              backdropPress.current = false
+            },
             onKeyDown: e => {
               e.stopPropagation()
               if (!e.nativeEvent.isComposing && e.keyCode !== 229 && e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !busy && info) { e.preventDefault(); void submit() }
@@ -362,7 +369,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'dme-head' }, h('h2', null, t('title')),
             h('button', { type: 'button', className: 'dme-btn dme-icon', onClick: onClose, disabled: busy, 'aria-label': t('close'), title: t('close') }, h(CloseIcon))),
           h('div', { className: 'dme-body' },
-            info ? h('textarea', { className: 'dme-text', value: text, autoFocus: true, disabled: busy, onChange: e => { setText(e.target.value); setError('') } })
+            info ? h('textarea', { className: 'dme-text', 'aria-label': t('title'), value: text, autoFocus: true, disabled: busy, onChange: e => { setText(e.target.value); setError('') } })
               : !error && h('p', { className: 'dme-note', role: 'status' }, t('loading')),
             info ? h('fieldset', { className: 'dme-modes' },
               mode_('keep', t('keep'), t('keepHint'), !canKeep, t('keepUnavailable')),
@@ -373,7 +380,7 @@ window.__ModuleLoader__.load({
             error ? h('p', { className: 'dme-error', role: 'alert' }, error) : null),
           h('div', { className: 'dme-foot' },
             h('button', { type: 'button', className: 'dme-btn', onClick: onClose, disabled: busy }, t('cancel')),
-            h('button', { type: 'button', className: 'dme-btn dme-primary', onClick: submit, disabled: busy || !info || (mode === 'clear' ? !canClear : !canKeep) },
+            h('button', { type: 'button', className: 'dme-btn dme-primary', title: '⌘↵ / Ctrl+↵', onClick: submit, disabled: busy || !info || (mode === 'clear' ? !canClear : !canKeep) },
               busy && info ? t('working') : t(mode === 'clear' ? 'submitClear' : clearLater ? 'submitTrim' : 'submitKeep'))))
         }
 
@@ -422,6 +429,11 @@ window.__ModuleLoader__.load({
             const timer = setTimeout(() => setCopied(false), 2000)
             return () => clearTimeout(timer)
           }, [copied])
+          React.useEffect(() => {
+            if (!copyError) return
+            const timer = setTimeout(() => setCopyError(false), 3500)
+            return () => clearTimeout(timer)
+          }, [copyError])
           const copy = async () => {
             try {
               await navigator.clipboard.writeText(content.text)

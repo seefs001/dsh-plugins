@@ -25,6 +25,7 @@ window.__ModuleLoader__.load({
 ::highlight(${HIGHLIGHT}){background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 30%,transparent)}
 [data-dqj-flash]{border-radius:6px;animation:dqj-flash ${HIGHLIGHT_MS}ms ease-out forwards}
 @keyframes dqj-flash{0%,60%{box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-brand-primary) 55%,transparent);background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 10%,transparent)}100%{box-shadow:0 0 0 3px transparent;background-color:transparent}}
+@media (prefers-reduced-motion:reduce){[data-dqj-flash]{animation:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--dsw-alias-brand-primary) 55%,transparent)}}
 `
 
     const isSpace = c => c === 32 || c === 160 || (c >= 9 && c <= 13) || c === 0x2028 || c === 0x2029 || c === 0x3000 || c === 0xFEFF || (c >= 0x2000 && c <= 0x200B)
@@ -200,7 +201,7 @@ window.__ModuleLoader__.load({
           const [missing, setMissing] = React.useState(false)
           React.useEffect(() => {
             if (!missing) return undefined
-            const timer = setTimeout(() => setMissing(false), 2000)
+            const timer = setTimeout(() => setMissing(false), 3500)
             return () => clearTimeout(timer)
           }, [missing])
           const text = node.data.text
@@ -223,6 +224,7 @@ window.__ModuleLoader__.load({
             role: 'button',
             tabIndex: 0,
             title: t('jump'),
+            'aria-label': t('jump'),
             onClick: activate,
             onKeyDown: event => {
               if (event.key !== 'Enter' && event.key !== ' ') return

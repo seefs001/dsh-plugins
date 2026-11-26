@@ -17,9 +17,9 @@ window.__ModuleLoader__.load({
 .dsh-diagram-tools button[aria-pressed=true] { color:var(--dsw-alias-label-primary); background:var(--dsw-alias-bg-base); border-color:var(--dsw-alias-border-l3); }
 .dsh-diagram-controls { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
 .dsh-diagram-tools select { font:inherit; padding:3px 6px; border:.5px solid var(--dsw-alias-border-l3); border-radius:var(--dsw-radius-xs,4px); color:var(--dsw-alias-label-primary); background:var(--dsw-alias-bg-base); cursor:pointer; }
-.dsh-diagram :is(button,select):focus-visible,.dsh-diagram-dialog :is(button,select):focus-visible { outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary)); outline-offset:1px; }
+.dsh-diagram :is(button,select):focus-visible,.dsh-diagram-modal :is(button,select):focus-visible { outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary)); outline-offset:1px; }
 .dsh-diagram-picture { padding:10px; background:var(--dsw-alias-bg-base); }
-.dsh-diagram [data-paper=true],.dsh-diagram-dialog [data-paper=true] { color-scheme:only light; background:Canvas; }
+.dsh-diagram [data-paper=true],.dsh-diagram-modal [data-paper=true] { color-scheme:only light; background:Canvas; }
 .dsh-diagram-open { display:block; width:100%; margin:0; padding:0; border:0; background:transparent; cursor:zoom-in; }
 .dsh-diagram-open img { display:block; margin:auto; width:78%; height:auto; max-height:24rem; object-fit:contain; }
 .dsh-diagram-open[data-size=small] img { width:52%; max-height:14rem; }
@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
 .dsh-diagram-modal-bar select{font:inherit;padding:3px 6px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-xs,4px);color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);cursor:pointer}
 .dsh-diagram-modal-bar button{font:inherit;cursor:pointer;background:transparent;color:var(--dsw-alias-label-secondary);border:.5px solid var(--dsw-alias-border-l3);padding:3px 8px;border-radius:var(--dsw-radius-xs,4px)}
 @media (hover:hover){.dsh-diagram-modal-bar button:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
-.dsh-diagram-viewport{flex:1;min-height:40vh;max-height:74dvh;container-type:size;overflow:auto;overscroll-behavior:contain;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l1)}
+.dsh-diagram-viewport{flex:1;min-height:40dvh;max-height:74dvh;container-type:size;overflow:auto;overscroll-behavior:contain;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l1)}
 .dsh-diagram-viewport[data-paper=true]{color-scheme:only light;background:Canvas}
 .dsh-diagram-sheet{display:grid;place-items:center;width:max-content;min-width:100%;min-height:100%;padding:12px;box-sizing:border-box}
 .dsh-diagram-sheet img{display:block;height:auto;max-width:none}
@@ -39,7 +39,7 @@ window.__ModuleLoader__.load({
 .dsh-diagram [data-failed] { color:var(--dsw-alias-state-warn-primary); }
 .dsh-diagram-stage iframe { position:absolute; left:0; top:0; width:760px; height:440px; border:0; visibility:hidden; pointer-events:none; }
 .dsh-diagram-stage { position:relative; height:0; overflow:hidden; }
-@media (pointer:coarse) { .dsh-diagram-tools select { font-size:16px; } }
+@media (pointer:coarse) { .dsh-diagram-tools select,.dsh-diagram-modal-bar select { font-size:16px; } }
 `
 
     function renderPictureToPngBlob(picture, paper) {
@@ -83,6 +83,12 @@ window.__ModuleLoader__.load({
       const [feedback, setFeedback] = React.useState('')
       const label = `${title} · ${t('enlarge')}`
       const ModalComp = primitives?.Modal
+
+      React.useEffect(() => {
+        if (!feedback) return undefined
+        const timer = setTimeout(() => setFeedback(''), 2500)
+        return () => clearTimeout(timer)
+      }, [feedback])
 
       const copyPng = async () => {
         setFeedback('')
@@ -427,13 +433,17 @@ window.__ModuleLoader__.load({
             h('header', { className: 'dsh-diagram-tools' }, h('strong', null, title), h('div', { className: 'dsh-diagram-controls' },
               !showCode && picture && h('select', { 'aria-label': t('size'), title: t('size'), value: size, onChange: e => setSize(e.target.value) },
                 ['small', 'medium', 'large'].map(s => h('option', { key: s, value: s }, t(s)))),
-              !showCode && picture && h('button', { type: 'button', onClick: () => triggerDownload(new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' }), `${engine}-diagram.svg`) }, 'SVG'),
+              !showCode && picture && h('button', { type: 'button', title: t('downloadSvg'), 'aria-label': t('downloadSvg'), onClick: () => triggerDownload(new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' }), `${engine}-diagram.svg`) }, 'SVG'),
               button(t('preview'), !showCode, preview), button(t('code'), showCode, () => setSource(true)))),
             error && h('div', { role: 'status', 'data-failed': '' }, `${t('failed')} ${error}`),
             showCode ? children : picture
               ? h('div', { className: 'dsh-diagram-picture', 'data-paper': paper },
                 h('button', { type: 'button', className: 'dsh-diagram-open', 'data-size': size, 'aria-haspopup': 'dialog',
-                  onClick: () => setOpenRatio(image.current.naturalWidth / image.current.naturalHeight || 1),
+                  onClick: () => {
+                    const w = image.current?.naturalWidth || 0
+                    const nh = image.current?.naturalHeight || 0
+                    setOpenRatio(w > 0 && nh > 0 ? w / nh : 1)
+                  },
                 }, h('img', { ref: image, src: picture, alt: title, onError: () => setError(t('invalid')) }), h('span', null, t('enlarge'))))
               : h('div', { role: 'status' }, t('loading')),
             openRatio !== null && h(LargePreview, { title, picture, svgText, engine, paper, ratio: openRatio, t, dismiss: () => setOpenRatio(null) }))

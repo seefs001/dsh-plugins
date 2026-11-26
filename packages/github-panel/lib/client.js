@@ -40,22 +40,26 @@ window.__ModuleLoader__.load({
 .ghp-icon-draft{color:var(--dsw-alias-label-tertiary)}
 .ghp-icon-merged{color:var(--dsw-alias-state-business-primary)}
 .ghp-icon-closed{color:var(--dsw-alias-state-error-primary)}
-.ghp-icon-warn{color:var(--dsw-alias-state-warning-primary)}
+.ghp-icon-warn{color:var(--dsw-alias-state-warn-primary)}
 .ghp-quiet{padding:4px 6px;color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
 .ghp-indicator{background:var(--dsw-alias-state-error-primary)}
 .ghp-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .ghp-cfg{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13)}
 .ghp-cfg h4{margin:0;font:var(--dsw-font-sm-14);font-weight:600}
 .ghp-cfg textarea{width:100%;min-height:76px;padding:8px;box-sizing:border-box;border-radius:var(--dsw-radius-sm,8px);border:1px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-base);color:inherit;font-family:var(--dsw-font-mono,ui-monospace,monospace);font-size:12px;resize:vertical}
+.ghp-cfg textarea:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+@media (pointer:coarse){.ghp-cfg textarea{font-size:16px}.ghp-locate-btn{width:28px;height:28px}}
 .ghp-cfg-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ghp-cfg-hint{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
 .ghp-cfg-err{color:var(--dsw-alias-state-error-primary);font:var(--dsw-font-xxs-12)}
-.ghp-locate-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;border-radius:var(--dsw-radius-xs);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;flex:none}
+.ghp-locate-btn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:var(--dsw-radius-xs);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;flex:none}
 @media (hover:hover){.ghp-locate-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}}
 .ghp-locate-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+@media (pointer:coarse){.ghp-cfg textarea{font-size:16px}.ghp-locate-btn{width:30px;height:30px}}
 ::highlight(${HIGHLIGHT_NAME}){background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 30%,transparent)}
 [data-ghp-flash]{border-radius:6px;animation:ghp-flash ${HIGHLIGHT_MS}ms ease-out forwards}
 @keyframes ghp-flash{0%,60%{box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-brand-primary) 55%,transparent);background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 10%,transparent)}100%{box-shadow:0 0 0 3px transparent;background-color:transparent}}
+@media (prefers-reduced-motion:reduce){[data-ghp-flash]{animation:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--dsw-alias-brand-primary) 55%,transparent)}}
 `
 
     const DICTS = {
@@ -528,6 +532,14 @@ window.__ModuleLoader__.load({
       return issue.state === 'CLOSED' ? 'ghp-icon-merged' : 'ghp-icon-open'
     }
 
+    function labelForCheck(state, t) {
+      const s = String(state || '').toUpperCase()
+      if (s === 'SUCCESS') return t('statusSuccess')
+      if (s === 'FAILURE' || s === 'ERROR') return t('statusFailure')
+      if (s === 'PENDING' || s === 'EXPECTED') return t('statusRunning')
+      return state
+    }
+
     function itemStatusInfo(item, t) {
       if (item.kind === 'run') {
         return { state: dotStateForRun(item.status, item.conclusion), label: statusLabelForRun(item.status, item.conclusion, t) }
@@ -536,7 +548,7 @@ window.__ModuleLoader__.load({
         if (item.state === 'MERGED') return { state: 'completed', label: t('merged') }
         if (item.state === 'CLOSED') return { state: 'failed', label: t('closed') }
         if (item.isDraft) return { state: 'idle', label: t('draft') }
-        if (item.checksState) return { state: dotStateForCheck(item.checksState), label: item.checksState }
+        if (item.checksState) return { state: dotStateForCheck(item.checksState), label: labelForCheck(item.checksState, t) }
         return { state: 'completed', label: t('open') }
       }
       if (item.state === 'CLOSED') return { state: 'idle', label: t('closed') }
@@ -1205,7 +1217,7 @@ window.__ModuleLoader__.load({
                       title: pr.title,
                       lines: prLines,
                       status: pr.isDraft ? { state: 'idle', label: t('draft') }
-                        : checkDot ? { state: checkDot, label: pr.checksState } : undefined,
+                        : checkDot ? { state: checkDot, label: labelForCheck(pr.checksState, t) } : undefined,
                     }),
                   })
                 }),
@@ -1436,10 +1448,10 @@ window.__ModuleLoader__.load({
           return h('div', { className: 'ghp-cfg' },
             h('h4', null, t('cfgTitle')),
             h('div', { className: 'ghp-cfg-hint' }, t('cfgHint')),
-            h('textarea', { value: text, disabled: busy, onChange: e => setText(e.target.value) }),
+            h('textarea', { value: text, disabled: busy, 'aria-label': t('cfgTitle'), onChange: e => setText(e.target.value) }),
             h('div', { className: 'ghp-cfg-foot' },
               h(Button, { size: 'sm', variant: 'primary', disabled: busy, onClick: () => void save() }, busy ? t('cfgSaving') : t('cfgSave')),
-              status.text && h('span', { className: status.tone === 'err' ? 'ghp-cfg-err' : 'ghp-cfg-hint', role: 'status' }, status.text)))
+              status.text && h('span', { className: status.tone === 'err' ? 'ghp-cfg-err' : 'ghp-cfg-hint', role: status.tone === 'err' ? 'alert' : 'status' }, status.text)))
         }
 
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({

@@ -26,6 +26,7 @@ window.__ModuleLoader__.load({
         changed: '草稿已变化或暂不可编辑。请关闭面板，重新定位光标后再试。', missing: '这条片段已被移除，请重新打开面板。',
         shortcutHint: '↑ ↓ 选择 · Enter 插入', replaceHint: '↑ ↓ 选择 · Enter 替换选中文字', saved: '已保存「{title}」。',
         exportBtn: '导出', importBtn: '导入', imported: '已导入 {n} 条片段。', importFailed: '导入文件格式无效。',
+        loading: '正在加载片段…',
         cmdDesc: '打开常用片段面板并插入到光标处',
       },
       en: {
@@ -42,6 +43,7 @@ window.__ModuleLoader__.load({
         changed: 'The draft changed or is busy. Close this panel, place the cursor, then try again.', missing: 'This snippet was removed. Reopen the panel to refresh.',
         shortcutHint: '↑ ↓ choose · Enter to insert', replaceHint: '↑ ↓ choose · Enter to replace selection', saved: 'Saved “{title}”.',
         exportBtn: 'Export', importBtn: 'Import', imported: 'Imported {n} snippets.', importFailed: 'Invalid snippet JSON file.',
+        loading: 'Loading snippets…',
         cmdDesc: 'Open Prompt shortcuts and insert at cursor',
       },
     }
@@ -56,6 +58,7 @@ window.__ModuleLoader__.load({
       .ps-trigger:focus-visible,.ps-panel :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
       .ps-seat{position:absolute;inset:0 0 auto;height:0;min-width:0;z-index:1}
       .ps-panel{position:absolute;inset:auto 0 calc(100% + 6px);box-sizing:border-box;width:100%;max-width:none;max-height:min(25rem,45dvh,var(--ps-headroom,100dvh));margin:0;padding:4px;overflow:auto;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);color:var(--ps-ink);font:inherit;font-size:12px;line-height:1.45;--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent)}
+      @media (max-width:768px),(pointer:coarse){.ps-panel{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
       .ps-panel[open]{display:flex;flex-direction:column}.ps-panel[data-below]{inset:var(--ps-drop) 0 auto}
       @media(prefers-reduced-motion:no-preference){.ps-panel[open]{animation:ps-reveal 110ms ease-out}@keyframes ps-reveal{from{opacity:0;translate:0 3px}to{opacity:1;translate:0 0}}}
       .ps-panel::backdrop{background:transparent}.ps-panel[data-sheet]{position:fixed;inset:auto 0 var(--ps-mobile-bottom,0px);width:100%;max-height:var(--ps-mobile-height,75dvh);border-radius:16px 16px 0 0;padding-bottom:max(4px,env(safe-area-inset-bottom))}
@@ -288,6 +291,18 @@ window.__ModuleLoader__.load({
         if (ready) (editing ? bodyField.current : primary.current)?.focus()
       }, [editing, hasItems, ready, sheet])
 
+      useEffect(() => {
+        if (!saved) return undefined
+        const timer = setTimeout(() => setSaved(''), 3000)
+        return () => clearTimeout(timer)
+      }, [saved])
+
+      useEffect(() => {
+        if (!statusMsg) return undefined
+        const timer = setTimeout(() => setStatusMsg(''), 3000)
+        return () => clearTimeout(timer)
+      }, [statusMsg])
+
       async function mutate(payload, localTransform) {
         setSaved('')
         setStatusMsg('')
@@ -467,28 +482,38 @@ window.__ModuleLoader__.load({
             }), button(t('edit'), () => begin(row)), button(t('remove'), () => void remove(row), { className: 'ps-danger' })))
       }
 
-      const list = rows !== null && h(React.Fragment, null,
-        hasItems && h('div', { className: 'ps-searchbar' }, h(Icon, { name: 'search' }), h('input', { type: 'search', className: 'ps-search', ref: primary, value: query, placeholder: t('search'), 'aria-label': t('search'),
-          onChange: e => { setQuery(e.target.value); setMore(null); setHighlight(null) }, onKeyDown: onListKey })),
-        h('div', { className: 'ps-scroll' }, hasItems ? (visible.length ? groups.map(([name, items]) => h('section', { key: name },
-          h('h3', { className: 'ps-group' }, t(name)), items.map(r => renderRow(r)))) : h('div', { className: 'ps-empty' }, h('p', null, t('noMatches')),
-          button(t('clear'), () => { setQuery(''); primary.current?.focus() }))) : h(React.Fragment, null,
-          h('div', { className: 'ps-empty' }, h('p', null, t('empty')),
-            button(t(draft.trim() ? 'fromDraft' : 'first'), () => begin(null, draft), { className: 'ps-primary', ref: primary })),
-          !sampleHidden && h(React.Fragment, null, h('h3', { className: 'ps-group' }, t('sample')), renderRow(sample, true)))),
-        h('footer', { className: 'ps-foot' }, h('span', null, `${insertLabel} · ${t('noSend')}`),
-          h('div', { className: 'ps-foot-tools' },
-            hasItems && draft.trim() && button(t('fromDraftShort'), () => begin(null, draft)),
-            hasItems && button(t('exportBtn'), exportJson),
-            button(t('importBtn'), () => fileInput.current?.click()),
-            h('input', { ref: fileInput, type: 'file', accept: 'application/json,.json', style: { display: 'none' }, onChange: e => void handleImportFile(e) }),
-            hasItems && !draft.trim() && h('span', { className: 'ps-keys' }, t(replace ? 'replaceHint' : 'shortcutHint')))))
+      const list = rows === null
+        ? h('div', { className: 'ps-empty', role: 'status' }, h('p', null, t('loading')))
+        : h(React.Fragment, null,
+          hasItems && h('div', { className: 'ps-searchbar' }, h(Icon, { name: 'search' }), h('input', { type: 'search', className: 'ps-search', ref: primary, value: query, placeholder: t('search'), 'aria-label': t('search'),
+            onChange: e => { setQuery(e.target.value); setMore(null); setHighlight(null) }, onKeyDown: onListKey })),
+          h('div', { className: 'ps-scroll' }, hasItems ? (visible.length ? groups.map(([name, items]) => h('section', { key: name },
+            h('h3', { className: 'ps-group' }, t(name)), items.map(r => renderRow(r)))) : h('div', { className: 'ps-empty' }, h('p', null, t('noMatches')),
+            button(t('clear'), () => { setQuery(''); primary.current?.focus() }))) : h(React.Fragment, null,
+            h('div', { className: 'ps-empty' }, h('p', null, t('empty')),
+              button(t(draft.trim() ? 'fromDraft' : 'first'), () => begin(null, draft), { className: 'ps-primary', ref: primary })),
+            !sampleHidden && h(React.Fragment, null, h('h3', { className: 'ps-group' }, t('sample')), renderRow(sample, true)))),
+          h('footer', { className: 'ps-foot' }, h('span', null, `${insertLabel} · ${t('noSend')}`),
+            h('div', { className: 'ps-foot-tools' },
+              hasItems && draft.trim() && button(t('fromDraftShort'), () => begin(null, draft)),
+              hasItems && button(t('exportBtn'), exportJson),
+              button(t('importBtn'), () => fileInput.current?.click()),
+              h('input', { ref: fileInput, type: 'file', accept: 'application/json,.json', style: { display: 'none' }, onChange: e => void handleImportFile(e) }),
+              hasItems && !draft.trim() && h('span', { className: 'ps-keys' }, t(replace ? 'replaceHint' : 'shortcutHint')))))
 
       const editor = editing && h('form', { className: 'ps-editor', onSubmit: e => void save(e) },
-        h('label', null, t('body'), h('textarea', { ref: bodyField, rows: 4, value: form.body, required: true, placeholder: t('bodyHint'), onChange: e => setForm({ ...form, body: e.target.value }) })),
+        h('label', null, t('body'), h('textarea', {
+          ref: bodyField, rows: 4, value: form.body, required: true, placeholder: t('bodyHint'),
+          onChange: e => setForm({ ...form, body: e.target.value }),
+          onKeyDown: e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !e.nativeEvent.isComposing && e.nativeEvent.keyCode !== 229) {
+              if (form.body.trim()) void save(e)
+            }
+          },
+        })),
         h('label', null, t('name'), h('input', { value: form.title ?? suggestTitle(form.body), placeholder: t('nameHint'), onChange: e => setForm({ ...form, title: e.target.value }) })),
         h('small', null, t(hostSynced ? 'synced' : 'local')), h('div', { className: 'ps-actions' }, button(t('cancel'), () => { setForm(null); setError('') }),
-          h('button', { type: 'submit', className: 'ps-primary', disabled: !form.body.trim() }, t('save'))))
+          h('button', { type: 'submit', className: 'ps-primary', disabled: !form.body.trim(), title: '⌘↵ / Ctrl+↵' }, t('save'))))
 
       return createPortal(h('dialog', { ref: dialog, className: 'ps-panel', 'data-sheet': sheet || undefined, 'aria-labelledby': headingId,
         onKeyDown: e => {
@@ -551,6 +576,7 @@ window.__ModuleLoader__.load({
           name: 'snippets',
           label: () => translate('title'),
           description: () => translate('cmdDesc'),
+          available: () => true,
           ui: {
             kind: 'action',
             run: session => {

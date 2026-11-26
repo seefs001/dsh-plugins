@@ -24,6 +24,9 @@ window.__ModuleLoader__.load({
       keyStatusEnv: 'Using DSH_BARK_KEY ({masked})',
       keyStatusNone: 'No device key configured yet',
       clearKey: 'Clear saved key',
+      clearKeyConfirm: 'Confirm clear',
+      cancel: 'Cancel',
+      loading: 'Loading settings…',
       method: 'Request mode',
       methodGet: 'GET path template (/<key>/<title>/<content>)',
       methodPost: 'POST JSON (/<key>)',
@@ -66,6 +69,9 @@ window.__ModuleLoader__.load({
       keyStatusEnv: '当前读取环境变量 DSH_BARK_KEY（{masked}）',
       keyStatusNone: '尚未配置 Device Key',
       clearKey: '清除已存 Key',
+      clearKeyConfirm: '确认清除',
+      cancel: '取消',
+      loading: '正在读取配置…',
       method: '请求方式',
       methodGet: 'GET 路径模板 (/<key>/<title>/<content>)',
       methodPost: 'POST JSON (/<key>)',
@@ -198,6 +204,7 @@ window.__ModuleLoader__.load({
           const [draft, setDraft] = React.useState(null)
           const [deviceKey, setDeviceKey] = React.useState('')
           const [importText, setImportText] = React.useState('')
+          const [confirmingClear, setConfirmingClear] = React.useState(false)
           const [status, setStatus] = React.useState({ kind: 'idle' })
 
           const load = React.useCallback(() => {
@@ -244,12 +251,13 @@ window.__ModuleLoader__.load({
           }
 
           const clearKey = async () => {
+            setConfirmingClear(false)
             setStatus({ kind: 'saving' })
             try {
-              const payload = { ...Object.fromEntries(FIELDS.map(f => [f, val[f]])), clearKey: true }
+              const base = saved ?? DEFAULTS
+              const payload = { ...Object.fromEntries(FIELDS.map(f => [f, base[f]])), clearKey: true }
               const next = normalize(await getJson('bark-notify/set', { method: 'POST', body: JSON.stringify(payload) }))
               setSaved(next)
-              setDraft(next)
               setDeviceKey('')
               setStatus({ kind: 'ok', message: t('saved') })
             } catch (e) {
@@ -271,11 +279,13 @@ window.__ModuleLoader__.load({
             }
           }
 
-          const keyStatus = saved?.keySource === 'credentials'
-            ? t('keyStatusCreds', { masked: saved.maskedKey })
-            : saved?.keySource === 'env'
-              ? t('keyStatusEnv', { masked: saved.maskedKey })
-              : t('keyStatusNone')
+          const keyStatus = saved === null
+            ? t('loading')
+            : saved.keySource === 'credentials'
+              ? t('keyStatusCreds', { masked: saved.maskedKey })
+              : saved.keySource === 'env'
+                ? t('keyStatusEnv', { masked: saved.maskedKey })
+                : t('keyStatusNone')
 
           return h('div', { className: 'bn' },
             h('h4', { className: 'bn-title' }, t('title')),
@@ -288,8 +298,15 @@ window.__ModuleLoader__.load({
                   type: 'text',
                   value: importText,
                   disabled: busy,
+                  'aria-label': t('importTitle'),
                   placeholder: t('importPlaceholder'),
                   onChange: e => setImportText(e.target.value),
+                  onKeyDown: e => {
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229 && importText.trim() !== '') {
+                      e.preventDefault()
+                      applyImport()
+                    }
+                  },
                 }),
                 h('button', { type: 'button', className: 'bn-btn', disabled: busy || importText.trim() === '', onClick: applyImport }, t('importApply')))),
 
@@ -311,8 +328,14 @@ window.__ModuleLoader__.load({
                   onChange: e => { setDeviceKey(e.target.value); setStatus({ kind: 'idle' }) },
                 })),
               h('div', { className: 'bn-actions' },
-                h('span', { className: `bn-note ${saved?.hasKey ? 'ok' : 'warn'}` }, keyStatus),
-                saved?.keySource === 'credentials' ? h('button', { type: 'button', className: 'bn-btn', disabled: busy, onClick: clearKey }, t('clearKey')) : null),
+                h('span', { className: `bn-note${saved === null ? '' : saved.hasKey ? ' ok' : ' warn'}` }, keyStatus),
+                saved?.keySource === 'credentials'
+                  ? (confirmingClear
+                    ? h(React.Fragment, null,
+                      h('button', { type: 'button', className: 'bn-btn', disabled: busy, onClick: () => void clearKey() }, t('clearKeyConfirm')),
+                      h('button', { type: 'button', className: 'bn-btn', disabled: busy, onClick: () => setConfirmingClear(false) }, t('cancel')))
+                    : h('button', { type: 'button', className: 'bn-btn', disabled: busy, onClick: () => setConfirmingClear(true) }, t('clearKey')))
+                  : null),
               h('label', { className: 'bn-row' },
                 h('span', null, t('method')),
                 h('select', { value: val.method, disabled: busy, onChange: e => patch({ method: e.target.value }) },

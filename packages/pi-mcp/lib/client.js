@@ -53,7 +53,7 @@ window.__ModuleLoader__.load({
 .pm-row-main{display:flex;flex-direction:column;gap:3px;min-width:0}
 .pm-row-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pm-name{font-weight:500}
-.pm-reason{font-size:12px;color:var(--dsw-alias-state-warning-primary)}
+.pm-reason{font-size:12px;color:var(--dsw-alias-state-warn-primary)}
 .pm-error{font-size:12px;color:var(--dsw-alias-state-error-primary)}
 `
 

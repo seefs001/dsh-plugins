@@ -609,9 +609,10 @@ window.__ModuleLoader__.load({
           ? [...selected, ...names.filter(name => !selectedSet.has(name))]
           : selected.filter(name => !changed.has(name)))
       }
-      const close = () => { if (!saving && !busy) setOpen(false) }
+      const locked = saving || Boolean(busy)
+      const close = () => { if (!locked) setOpen(false) }
       const run = async (kind, body, describe) => {
-        if (!ready || saving || busy) return
+        if (!ready || locked) return
         setBusy(kind)
         setError(undefined)
         setNotice(undefined)
@@ -627,14 +628,14 @@ window.__ModuleLoader__.load({
       const resetDefaults = () => run('defaults', { action: 'save-defaults', tools: null }, () => t('defaultsReset'))
       const refreshMcp = () => run('mcp', { action: 'refresh-mcp' }, result => mcpSummary(result?.servers ?? [], t))
       const extraActions = h(React.Fragment, null,
-        h(Button, { variant: 'ghost', size: 'sm', disabled: saving || !!busy, onClick: saveDefaults }, t('saveDefaults')),
+        h(Button, { variant: 'ghost', size: 'sm', disabled: locked, onClick: saveDefaults }, t('saveDefaults')),
         catalog?.customDefaults
-          ? h(Button, { variant: 'ghost', size: 'sm', disabled: saving || !!busy, onClick: resetDefaults, title: t('customDefaults') }, t('resetDefaults'))
+          ? h(Button, { variant: 'ghost', size: 'sm', disabled: locked, onClick: resetDefaults, title: t('customDefaults') }, t('resetDefaults'))
           : null,
-        h(Button, { variant: 'ghost', size: 'sm', disabled: saving || !!busy, onClick: refreshMcp },
+        h(Button, { variant: 'ghost', size: 'sm', disabled: locked, onClick: refreshMcp },
           t(busy === 'mcp' ? 'refreshingMcp' : 'refreshMcp')))
       const commit = async () => {
-        if (!ready || saving) return
+        if (!ready || locked) return
         setSaving(true)
         setError(undefined)
         try {
@@ -652,7 +653,7 @@ window.__ModuleLoader__.load({
         return h('label', { key: section.id, className: 'pi-tools-simple-row',
           title: section.tools.map(tool => tool.name).join(', ') },
         h(SectionCheckbox, {
-          rows: section.tools, selected: selectedSet, disabled: saving, onChange: setMany,
+          rows: section.tools, selected: selectedSet, disabled: locked, onChange: setMany,
           labels: { select: t('selectSection', { section: section.label }), clear: t('clearSection', { section: section.label }) },
         }),
         h('span', { className: 'pi-tools-section-family', 'aria-hidden': true }, t(section.family)),
@@ -671,7 +672,7 @@ window.__ModuleLoader__.load({
         return h('section', { key: section.id, className: 'pi-tools-section', 'aria-labelledby': headId },
           h('div', { className: 'pi-tools-section-head' },
             h(SectionCheckbox, {
-              rows: section.rows, selected: selectedSet, disabled: saving, onChange: setMany,
+              rows: section.rows, selected: selectedSet, disabled: locked, onChange: setMany,
               labels: partial
                 ? { select: t('selectMatches', { count: section.rows.length, section: section.label }),
                     clear: t('clearMatches', { count: section.rows.length, section: section.label }) }
@@ -694,7 +695,7 @@ window.__ModuleLoader__.load({
               const descriptionId = `${uid}-desc-${tool.name}`
               return h('li', { key: tool.name, className: 'pi-tools-option' },
                 h('label', { className: 'pi-tools-option-label' },
-                  h('input', { type: 'checkbox', className: 'pi-tools-check', checked: selectedSet.has(tool.name), disabled: saving,
+                  h('input', { type: 'checkbox', className: 'pi-tools-check', checked: selectedSet.has(tool.name), disabled: locked,
                     'aria-describedby': tool.description ? descriptionId : undefined,
                     onChange: event => setMany([tool.name], event.target.checked) }),
                   h('span', { className: 'pi-tools-option-text' },
@@ -712,15 +713,15 @@ window.__ModuleLoader__.load({
           open, onClose: close, title: t('chooseTools'), closeLabel: t('cancel'),
           description: t('toolsHint'), className: 'pi-tools-picker',
           footer: h(React.Fragment, null,
-            h(Button, { variant: 'ghost', onClick: close, disabled: saving }, t('cancel')),
-            h(Button, { variant: 'primary', onClick: commit, disabled: !ready || saving || !!busy },
+            h(Button, { variant: 'ghost', onClick: close, disabled: locked }, t('cancel')),
+            h(Button, { variant: 'primary', onClick: commit, disabled: !ready || locked },
               t(saving ? 'saving' : 'save'))),
         },
         !ready ? h('p', { role: 'status' }, t('unavailable')) : simple ? h(React.Fragment, null,
           h('p', { className: 'pi-tools-simple-hint' }, t('simpleHint')),
           h('div', { className: 'pi-tools-options-actions' },
-            h(Button, { variant: 'outline', size: 'sm', disabled: saving, onClick: () => setDraft([...catalog.defaults]) }, t('defaults')),
-            h(Button, { variant: 'ghost', size: 'sm', disabled: saving, onClick: () => setView('detailed') }, t('showDetails')),
+            h(Button, { variant: 'outline', size: 'sm', disabled: locked, onClick: () => setDraft([...catalog.defaults]) }, t('defaults')),
+            h(Button, { variant: 'ghost', size: 'sm', disabled: locked, onClick: () => setView('detailed') }, t('showDetails')),
             extraActions,
             h('span', { className: 'pi-tools-options-count', role: 'status' }, status)),
           noGateway ? h('p', { className: 'pi-tools-options-warning' }, t('noGateway')) : null,
@@ -732,15 +733,15 @@ window.__ModuleLoader__.load({
               icon: h(IconSearchOutlineRegular, { size: 16 }),
               'aria-label': t('searchTools'), placeholder: t('searchTools'), 'data-modal-autofocus': true,
               onChange: event => setQuery(event.target.value) }),
-            h(Checkbox, { label: t('selectedOnly'), checked: selectedOnly, disabled: saving, onChange: setSelectedOnly })),
+            h(Checkbox, { label: t('selectedOnly'), checked: selectedOnly, disabled: locked, onChange: setSelectedOnly })),
           h('div', { className: 'pi-tools-options-actions' },
-            h(Button, { variant: 'outline', size: 'sm', disabled: saving, onClick: () => setDraft([...catalog.defaults]) }, t('defaults')),
-            h(Button, { variant: 'ghost', size: 'sm', disabled: saving, onClick: () => setDraft(tools.map(tool => tool.name)) }, t('all')),
-            h(Button, { variant: 'ghost', size: 'sm', disabled: saving, onClick: () => setDraft([]) }, t('none')),
-            h(Button, { variant: 'ghost', size: 'sm', disabled: filtering || sections.length < 2,
+            h(Button, { variant: 'outline', size: 'sm', disabled: locked, onClick: () => setDraft([...catalog.defaults]) }, t('defaults')),
+            h(Button, { variant: 'ghost', size: 'sm', disabled: locked, onClick: () => setDraft(tools.map(tool => tool.name)) }, t('all')),
+            h(Button, { variant: 'ghost', size: 'sm', disabled: locked, onClick: () => setDraft([]) }, t('none')),
+            h(Button, { variant: 'ghost', size: 'sm', disabled: locked || filtering || sections.length < 2,
               onClick: () => setCollapsed(Object.fromEntries(sections.map(section => [section.id, !anyFolded]))) },
             t(anyFolded ? 'expandAll' : 'collapseAll')),
-            h(Button, { variant: 'ghost', size: 'sm', disabled: saving,
+            h(Button, { variant: 'ghost', size: 'sm', disabled: locked,
               onClick: () => { setQuery(''); setSelectedOnly(false); setView('simple') } }, t('showSimple')),
             extraActions,
             h('span', { className: 'pi-tools-options-count', role: 'status' }, status)),

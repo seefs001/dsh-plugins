@@ -23,7 +23,7 @@ const ZH = {
   action: 'Wait, what?', title: 'Wait, what?', close: '关闭', settings: '模型设置', hideSettings: '收起设置',
   actionHint: '解释这条回复',
   source: '查看原回复', user: '上一条用户消息',
-  generate: '重新解释', regenerate: '重新生成', stop: '停止', generating: '正在生成…', loading: '正在加载…', retry: '重试',
+  generate: '解释', regenerate: '重新生成', stop: '停止', generating: '正在生成…', loading: '正在加载…', retry: '重试',
   result: '解释',
   stopped: '已停止', copy: '复制', copied: '已复制', copyFailed: '复制失败，请选中文字手动复制。',
   settingsTitle: '解释模型',
@@ -118,7 +118,7 @@ const CSS = `
 .dma-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
 .dma-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .dma-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.dma-tv-inspect:focus-visible{opacity:1}
+.dma-tv-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media(hover:hover){.dma-tv:hover .dma-tv-inspect{opacity:1}.dma-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media(hover:none){.dma-tv-inspect{opacity:1}}
 `
@@ -331,6 +331,11 @@ export default {
       const [notice, setNotice] = React.useState('')
       const [stream, setStream] = React.useState('')
       const [copied, setCopied] = React.useState(false)
+      React.useEffect(() => {
+        if (!copied) return undefined
+        const timer = setTimeout(() => setCopied(false), 2000)
+        return () => clearTimeout(timer)
+      }, [copied])
       const busy = phase === 'loading' || phase === 'generating' || saving
       const result = data?.result
       const op = async (body, onDelta) => {

@@ -242,6 +242,8 @@ window.__ModuleLoader__.load({
       tvCount: '{n} roles',
       hashTitle: 'Reference a role',
       hashAria: 'Roles',
+      fast: 'Fast',
+      dismiss: 'Dismiss',
     }
     const zh = {
       panel: '角色',
@@ -358,6 +360,8 @@ window.__ModuleLoader__.load({
       tvCount: '{n} 个角色',
       hashTitle: '引用角色',
       hashAria: '角色',
+      fast: '快速',
+      dismiss: '关闭',
     }
 
     const ROLES_SYNC_CHANNEL = 'dsh-roles-sync'
@@ -466,7 +470,7 @@ window.__ModuleLoader__.load({
 
     const MENU_CSS = `
 .rl-cell{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:auto;min-width:100%;height:34px;padding:0 8px;border:none;border-radius:var(--dsw-radius-md,10px);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer}
-.rl-cell:focus-visible{outline:none;background:var(--dsw-alias-interactive-bg-hover)}
+.rl-cell:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px;background:var(--dsw-alias-interactive-bg-hover)}
 @media (hover:hover){.rl-cell:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
 .rl-cell:disabled{opacity:.5;cursor:default}
 .rl-cell-label{flex:0 0 auto;white-space:nowrap}
@@ -483,7 +487,9 @@ window.__ModuleLoader__.load({
 .rl-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .rl-chip b{font-weight:500;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis}
 .mh-anchor{display:none}
-.mh-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:100;box-sizing:border-box;display:flex;flex-direction:column;max-height:320px;overflow-y:auto;padding:4px;border-radius:12px;background:var(--dsw-specific-menu);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);backdrop-filter:var(--dsw-menu-backdrop-filter);box-shadow:var(--dsw-elevation-prominent);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1)}
+.mh-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:100;box-sizing:border-box;display:flex;flex-direction:column;max-height:min(320px,45dvh);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:12px;background:var(--dsw-specific-menu);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);backdrop-filter:var(--dsw-menu-backdrop-filter);box-shadow:var(--dsw-elevation-prominent);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1)}
+@media (max-width:768px),(pointer:coarse){.mh-menu{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
+@media (max-width:768px),(pointer:coarse){.mh-menu{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .mh-title{padding:5px 8px 2px;font-size:11px;line-height:15px;color:var(--dsw-alias-label-tertiary)}
 .mh-title:not(:first-child){margin-top:4px;padding-top:7px;border-top:.5px solid var(--dsw-alias-border-l1)}
 .mh-item{display:flex;align-items:center;gap:6px;width:100%;min-height:34px;padding:6px 8px;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-align:left;cursor:pointer}
@@ -517,7 +523,7 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.rlp-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 .rlp-chip[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-2));border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font-weight:500}
 .rlp-chip-n{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
-.rlp-list{display:flex;flex-direction:column;gap:4px;list-style:none;margin:0;padding:0;max-height:calc(100vh - 260px);overflow-y:auto}
+.rlp-list{display:flex;flex-direction:column;gap:4px;list-style:none;margin:0;padding:0;max-height:calc(100dvh - 260px);overflow-y:auto}
 @container (max-width:760px){.rlp-list{max-height:300px}}
 .rlp-item{display:flex;align-items:flex-start;gap:10px;width:100%;padding:9px 10px;border:.5px solid transparent;border-radius:var(--dsw-radius-md,12px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s,border-color .15s}
 @media (hover:hover){.rlp-item:hover{background:var(--dsw-alias-interactive-bg-hover)}}
@@ -553,9 +559,9 @@ window.__ModuleLoader__.load({
 .rlp-field{display:flex;flex-direction:column;gap:5px;min-width:0}
 .rlp-field>label,.rlp-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
 .rlp-page textarea{width:100%;padding:12px 14px;border:.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:12.5px/1.65 var(--rlp-mono);resize:vertical;tab-size:2}
-.rlp-page textarea:focus{outline:0;border-color:var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary))}
+.rlp-page textarea:focus{border-color:var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary))}
 .rlp-page textarea[aria-invalid=true]{border-color:var(--dsw-alias-state-error-primary)}
-.rlp-page textarea.rlp-prompt{min-height:max(300px,calc(100vh - 420px))}
+.rlp-page textarea.rlp-prompt{min-height:max(300px,calc(100dvh - 420px))}
 .rlp-err{margin:0;color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}
 .rlp-meter{display:flex;justify-content:space-between;gap:12px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
 .rlp-meter b{font-weight:400;font-variant-numeric:tabular-nums}
@@ -590,7 +596,10 @@ window.__ModuleLoader__.load({
 .rlp-cat-row:first-child{border-top:0}
 .rlp-cat-row code{font-family:var(--rlp-mono)}
 .rlp-pop-anchor{position:relative}
-.rlp-pop{position:absolute;z-index:20;top:calc(100% + 6px);min-width:180px;padding:4px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent)}
+.rlp-pop{position:absolute;z-index:20;top:calc(100% + 6px);min-width:180px;max-width:calc(100vw - 24px);padding:4px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent)}
+@media (max-width:768px),(pointer:coarse){.rlp-pop{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
+.rlp-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+@media (max-width:768px),(pointer:coarse){.rlp-pop{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .rlp-pop.right{right:0}
 .rlp-pop.left{left:0}
 .rlp-menu-item{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;cursor:pointer;white-space:nowrap}
@@ -599,7 +608,7 @@ window.__ModuleLoader__.load({
 .rlp-menu-item.danger{color:var(--dsw-alias-state-error-primary)}
 @media (hover:hover){.rlp-menu-item.danger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-danger,var(--dsw-alias-interactive-bg-hover))}}
 .rlp-menu-sep{height:.5px;margin:4px 6px;background:var(--dsw-alias-border-l1)}
-.rlp-emoji{width:264px;padding:8px}
+.rlp-emoji{width:min(264px,calc(100vw - 32px));max-width:calc(100vw - 32px);padding:8px}
 .rlp-emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px}
 .rlp-emoji-grid button{height:30px;border:0;border-radius:6px;background:transparent;font-size:18px;line-height:1;cursor:pointer}
 @media (hover:hover){.rlp-emoji-grid button:hover{background:var(--dsw-alias-interactive-bg-hover)}}
@@ -629,7 +638,7 @@ window.__ModuleLoader__.load({
 .rl-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
 .rl-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .rl-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.rl-tv-inspect:focus-visible{opacity:1}
+.rl-tv-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (hover:hover){.rl-tv:hover .rl-tv-inspect{opacity:1}.rl-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.rl-tv-inspect{opacity:1}}
 `
@@ -718,6 +727,7 @@ window.__ModuleLoader__.load({
 
         function HashMenuBody({ sessionId, useInput, inputActions, bus: activeBus, busRev }) {
           const localeSnap = useLocale()
+          const listId = React.useId()
           const draftRev = useInput(s => s.draftRev)
           const phase = useInput(s => s.phase)
           const anchorRef = React.useRef(null)
@@ -814,19 +824,19 @@ window.__ModuleLoader__.load({
           }, [visible, flat, index, pick, dismiss])
 
           React.useEffect(() => {
-            if (visible) document.getElementById(`mh-opt-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
-          }, [visible, activeIndex])
+            if (visible) document.getElementById(`${listId}-opt-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
+          }, [visible, activeIndex, listId])
 
           return h(React.Fragment, null,
             h('span', { ref: anchorRef, className: 'mh-anchor' }),
-            visible ? h('div', { className: 'mh-menu', role: 'listbox', 'aria-label': t('hashAria'), 'aria-activedescendant': `mh-opt-${activeIndex}` },
+            visible ? h('div', { className: 'mh-menu', role: 'listbox', 'aria-label': t('hashAria'), 'aria-activedescendant': `${listId}-opt-${activeIndex}` },
               sections.map(sec => h(React.Fragment, { key: sec.id },
                 h('div', { className: 'mh-title', role: 'presentation' }, sec.title),
                 sec.items.map(entry => {
                   const it = entry.item
                   const i = entry.flatIndex
                   return h('button', {
-                    key: it.key, id: `mh-opt-${i}`, type: 'button', role: 'option',
+                    key: it.key, id: `${listId}-opt-${i}`, type: 'button', role: 'option',
                     className: 'mh-item', 'aria-selected': i === activeIndex,
                     onMouseDown: ev => { ev.preventDefault(); pick(entry) },
                     onMouseMove: i === activeIndex ? undefined : () => setIndex(i),
@@ -835,7 +845,7 @@ window.__ModuleLoader__.load({
                   h('span', { className: 'mh-name' }, it.name),
                   it.meta || it.fast ? h('span', { className: 'mh-meta' },
                     it.meta ? h('span', null, it.meta) : null,
-                    it.fast ? h('span', { className: 'mh-bolt', role: 'img', 'aria-label': 'fast' }, h(Bolt)) : null) : null,
+                    it.fast ? h('span', { className: 'mh-bolt', role: 'img', 'aria-label': t('fast') }, h(Bolt)) : null) : null,
                   it.desc ? h('span', { className: 'mh-desc' }, it.desc) : null)
                 })))) : null)
         }
@@ -1200,6 +1210,7 @@ window.__ModuleLoader__.load({
                   h('span', { className: 'rlp-label' }, t('localCwd')),
                   h(Input, {
                     className: 'rlp-mono-input',
+                    'aria-label': t('localCwd'),
                     value: cwd, placeholder: workspacePaths[0] || '/path/to/project',
                     list: workspacePaths.length ? 'rlp-workspace-paths' : undefined,
                     onChange: e => setCwd(e.target.value),
@@ -1224,7 +1235,7 @@ window.__ModuleLoader__.load({
                 const checked = selected.includes(skill.name)
                 const disabled = !checked && (selected.length >= 20 || inlineNames.includes(skill.name))
                 return h('div', { key: skill.name, className: 'rlp-local-option' },
-                  h(Checkbox, { checked, disabled, label: '', onChange: () => toggle(skill.name) }),
+                  h(Checkbox, { checked, disabled, label: h('span', { className: 'rlp-sr-only' }, skill.name), onChange: () => toggle(skill.name) }),
                   h('div', { className: 'rlp-local-body' },
                     h('span', { className: 'rlp-local-name' },
                       h('strong', null, skill.name),
@@ -1583,7 +1594,7 @@ window.__ModuleLoader__.load({
 
               note ? h('div', { className: 'rlp-banner', role: 'status' },
                 h('span', { className: 'rlp-banner-text' }, note),
-                h(Button, { size: 'sm', variant: 'ghost', icon: h(IconCloseOutlineRegular, { size: 12 }), onClick: () => setNote(null) })) : null,
+                h(Button, { size: 'sm', variant: 'ghost', 'aria-label': t('dismiss'), title: t('dismiss'), icon: h(IconCloseOutlineRegular, { size: 12 }), onClick: () => setNote(null) })) : null,
 
               status === 'loading'
                 ? h('div', { className: 'rlp-empty', role: 'status' },
@@ -1602,7 +1613,7 @@ window.__ModuleLoader__.load({
                         value: query, placeholder: t('search'), 'aria-label': t('search'),
                         onChange: e => ui.set({ query: e.target.value }),
                       }) : null,
-                      filterChips.length > 1 ? h('div', { className: 'rlp-chips', role: 'group' },
+                      filterChips.length > 1 ? h('div', { className: 'rlp-chips', role: 'group', 'aria-label': t('panel') },
                         filterChips.map(([key, label, n]) => h('button', {
                           key, type: 'button', className: 'rlp-chip', 'aria-pressed': filter === key,
                           onClick: () => ui.set({ filter: key }),

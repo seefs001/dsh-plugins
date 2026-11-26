@@ -45,6 +45,7 @@ window.__ModuleLoader__.load({
 .st-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .st-btn[data-active=true]{color:var(--dsw-alias-state-warn-primary)}
 .st-pop{position:fixed;inset:auto;margin:0;box-sizing:border-box;width:min(168px,calc(100vw - 16px));padding:4px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);color:var(--dsw-alias-label-primary);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);font-size:13px;overflow:auto}
+@media (max-width:768px),(pointer:coarse){.st-pop{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .st-option{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:32px;padding:4px 10px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .st-option[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-active)}
 .st-option:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
@@ -57,13 +58,14 @@ window.__ModuleLoader__.load({
     }
 
     function Bolt({ on, double = false }) {
-      const width = double ? 28 : 16
+      const viewWidth = double ? 26 : 16
+      const width = double ? 22 : 16
       const path = {
         d: 'M9.2 1.5 3.5 9h4l-.8 5.5L12.5 7h-4z',
         fill: on ? 'currentColor' : 'none', stroke: 'currentColor', strokeWidth: 1.3, strokeLinejoin: 'round',
       }
-      return h('svg', { viewBox: `0 0 ${width} 16`, width, height: 16, 'aria-hidden': true },
-        h('path', path), double ? h('path', { ...path, transform: 'translate(12 0)' }) : null)
+      return h('svg', { viewBox: `0 0 ${viewWidth} 16`, width, height: 15, 'aria-hidden': true },
+        h('path', path), double ? h('path', { ...path, transform: 'translate(10 0)' }) : null)
     }
 
     const CHOICES = [[null, 'default'], ['priority', 'label'], ['ultrafast', 'ultrafast']]
@@ -71,6 +73,7 @@ window.__ModuleLoader__.load({
     function TierPicker({ tier, saving, setTier, t }) {
       const button = React.useRef(null)
       const popup = React.useRef(null)
+      const [open, setOpen] = React.useState(false)
       const id = React.useId()
       const selected = t(tier === 'ultrafast' ? 'ultrafast' : tier === 'priority' ? 'label' : 'default')
       const label = `${t('speed')}: ${selected}`
@@ -92,9 +95,19 @@ window.__ModuleLoader__.load({
         h('button', {
           ref: button, type: 'button', className: 'st-btn', disabled: saving, 'aria-busy': saving,
           'data-active': tier !== undefined, 'aria-label': label, title: saving ? t('saving') : label,
-          'aria-haspopup': 'dialog', popovertarget: id, onClick: position,
+          'aria-haspopup': 'dialog', 'aria-expanded': open, popovertarget: id, onClick: position,
         }, h(Bolt, { on: tier !== undefined, double: tier === 'ultrafast' })),
-        h('div', { ref: popup, id, className: 'st-pop', popover: 'auto', role: 'dialog', 'aria-label': t('speed') },
+        h('div', {
+          ref: popup, id, className: 'st-pop', popover: 'auto', role: 'dialog', 'aria-label': t('speed'),
+          onToggle: event => { if (event.target === event.currentTarget) setOpen(event.newState === 'open') },
+          onKeyDown: event => {
+            const items = [...(popup.current?.querySelectorAll('.st-option:not(:disabled)') ?? [])]
+            if (!items.length) return
+            const at = items.indexOf(document.activeElement)
+            if (event.key === 'ArrowDown') { event.preventDefault(); items[(at + 1 + items.length) % items.length]?.focus() }
+            else if (event.key === 'ArrowUp') { event.preventDefault(); items[(at - 1 + items.length) % items.length]?.focus() }
+          },
+        },
           CHOICES.map(([value, key]) => {
             const active = value === (tier ?? null)
             return h('button', {
@@ -126,6 +139,11 @@ window.__ModuleLoader__.load({
           const { tiers, providers, ultrafastModels, saving, failure } = useTiers()
           const dir = React.useSyncExternalStore(directory.subscribe.bind(directory), directory.getSnapshot.bind(directory))
           React.useEffect(() => { store.load() }, [])
+          React.useEffect(() => {
+            if (!failure) return undefined
+            const timer = setTimeout(() => store.set({ failure: null }), 5000)
+            return () => clearTimeout(timer)
+          }, [failure])
           const current = dir?.current
           if (!current || !providers.includes(current.provider)) return null
           const route = `${current.provider}/${current.model}`

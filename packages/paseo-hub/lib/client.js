@@ -482,9 +482,9 @@ window.__ModuleLoader__.load({
 .ph-hero-title{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 240px}
 .ph-hero-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .ph-hero-h2{margin:0;font-size:15px;line-height:22px;font-weight:600;overflow-wrap:anywhere}
-.ph-box{display:flex;flex-direction:column;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);min-width:0;overflow:hidden}
+.ph-box{display:flex;flex-direction:column;border-radius:var(--dsw-radius-md,12px);border:.5px solid var(--dsw-alias-border-l2);min-width:0}
 .ph-box-pad{padding:16px 18px;gap:12px}
-.ph-box-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}
+.ph-box-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:.5px solid var(--dsw-alias-border-l1);border-top-left-radius:inherit;border-top-right-radius:inherit;background:var(--dsw-alias-bg-layer-1)}
 .ph-box-title{display:flex;align-items:center;gap:8px;min-width:0}
 .ph-box-title h2,.ph-box-title h3{margin:0;font-size:14px;line-height:20px;font-weight:500}
 .ph-note{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
@@ -557,6 +557,7 @@ window.__ModuleLoader__.load({
 .ph-detail-span{grid-column:1 / -1}
 .ph-menuwrap{position:relative}
 .ph-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:184px;padding:4px;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.18))}
+@media (max-width:768px),(pointer:coarse){.ph-menu{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .ph-menuitem{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border:0;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;text-align:left;cursor:pointer;white-space:nowrap}
 @media (hover:hover){.ph-menuitem:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
 .ph-menuitem:disabled{opacity:.4;cursor:default}
@@ -596,7 +597,8 @@ window.__ModuleLoader__.load({
 .ph-usercode-box{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-base);border:.5px solid var(--dsw-alias-border-l2)}
 .ph-usercode{margin:0;font-family:var(--ph-mono);font-size:26px;line-height:34px;letter-spacing:4px;font-weight:600}
 .ph-editor{width:100%;min-height:320px;padding:12px 14px;border:.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:12px/1.6 var(--ph-mono);resize:vertical;tab-size:2;white-space:pre}
-.ph-editor:focus{outline:0;border-color:var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary))}
+.ph-editor:focus{border-color:var(--dsw-focus-ring-color,var(--dsw-alias-brand-primary))}
+.ph-editor:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
 .ph-editor-short{min-height:120px;white-space:pre-wrap}
 .ph-api-split{display:grid;grid-template-columns:minmax(260px,330px) minmax(0,1fr);gap:16px;align-items:start}
 @container (max-width:780px){.ph-api-split{grid-template-columns:minmax(0,1fr)}}
@@ -620,7 +622,10 @@ window.__ModuleLoader__.load({
 .ph-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .ph-mono-input input{font-family:var(--ph-mono);font-size:12.5px}
 @media (max-width:640px){.ph-rowmeta>span:not(:first-child),.ph-rowmeta>.ph-sep,.ph-kbd{display:none}}
-@media (pointer:coarse){.ph-editor,.ph-select{font-size:16px}}
+.ph-page [role=tablist]{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.ph-page [role=tablist]::-webkit-scrollbar{display:none}
+.ph-page [role=tab]{white-space:nowrap;flex:none}
+@media (pointer:coarse){.ph-editor,.ph-select{font-size:16px}.ph-select{min-height:36px;height:36px}}
 .ph-tv{display:flex;flex-direction:column}
 .ph-tv-row{min-width:0}
 .ph-tv-sep{flex:none;width:2px;height:2px;margin:0 8px;border-radius:1px;background:var(--dsw-alias-label-caption)}
@@ -637,7 +642,7 @@ window.__ModuleLoader__.load({
 .ph-tv-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
 .ph-tv-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .ph-tv-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.ph-tv-inspect:focus-visible{opacity:1}
+.ph-tv-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (hover:hover){.ph-tv:hover .ph-tv-inspect{opacity:1}.ph-tv-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.ph-tv-inspect{opacity:1}}
 `
@@ -1403,7 +1408,7 @@ window.__ModuleLoader__.load({
                   h('div', { className: 'ph-switch-copy' },
                     h('strong', null, t('apiToolWrites')),
                     h('span', { className: 'ph-note' }, t('apiToolHint'))),
-                  h(Switch, { checked: toolWrites, onChange: setToolWrites, label: '' })),
+                  h(Switch, { checked: toolWrites, onChange: setToolWrites, label: t('apiToolWrites') })),
                 h('div', { className: 'ph-actions' },
                   h(Button, { type: 'submit', size: 'sm', variant: 'primary', disabled: busy }, t('apiSave')),
                   saved.configured ? h(Button, {
@@ -1491,7 +1496,7 @@ window.__ModuleLoader__.load({
                       h('textarea', { id: 'ph-disp-input', className: 'ph-editor ph-editor-short', value: input, onChange: e => setInput(e.target.value) })),
                     h('div', { className: 'ph-switch-row' },
                       h('div', { className: 'ph-switch-copy' }, h('strong', null, t('apiInputJson'))),
-                      h(Switch, { checked: inputJson, onChange: setInputJson, label: '' })),
+                      h(Switch, { checked: inputJson, onChange: setInputJson, label: t('apiInputJson') })),
                     h('div', { className: 'ph-field' },
                       h('label', { htmlFor: 'ph-disp-dk' }, t('apiDeliveryKey')),
                       h('div', { className: 'ph-inline-row' },
@@ -1604,7 +1609,12 @@ window.__ModuleLoader__.load({
             }, 30_000)
             return () => clearInterval(id)
           }, [])
-          React.useEffect(() => { if (!toast) return undefined; const id = setTimeout(() => setToast(null), 1600); return () => clearTimeout(id) }, [toast])
+          React.useEffect(() => {
+            if (!toast) return undefined
+            const ms = toast.tone === 'error' ? 5000 : 2200
+            const id = setTimeout(() => setToast(null), ms)
+            return () => clearTimeout(id)
+          }, [toast])
 
           const refresh = React.useCallback(() => setNonce(n => n + 1), [])
           const app = React.useMemo(() => {
@@ -1615,17 +1625,17 @@ window.__ModuleLoader__.load({
                 return null
               } catch (error) {
                 const message = String(error?.message ?? error)
-                setToast(`${t('opFailed')}: ${message}`)
+                setToast({ tone: 'error', text: `${t('opFailed')}: ${message}` })
                 return message
               }
             }
             return {
               nonce,
               op,
-              runOp: async (action, sessionId) => { const failed = await op({ action, sessionId }); if (!failed) setToast(t('done')); return failed },
+              runOp: async (action, sessionId) => { const failed = await op({ action, sessionId }); if (!failed) setToast({ tone: 'ok', text: t('done') }); return failed },
               confirm: setDialog,
               copy: async text => {
-                try { await navigator.clipboard.writeText(text); setToast(t('copied')) } catch { setToast(t('opFailed')) }
+                try { await navigator.clipboard.writeText(text); setToast({ tone: 'ok', text: t('copied') }) } catch { setToast({ tone: 'error', text: t('opFailed') }) }
               },
               goto: (next, args = null) => { if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('paseo-hub:tab', next); setTab(next); setTabArgs(args) },
             }
@@ -1670,7 +1680,7 @@ window.__ModuleLoader__.load({
                 current === 'activity' ? h(ActivityTab, { initial: tabArgs }) : null,
                 current === 'api' ? h(ApiConsole, { data }) : null,
                 current === 'setup' ? h(SetupTab, { data }) : null) : null,
-              toast ? h('div', { className: 'ph-toast', role: 'status' }, toast) : null),
+              toast ? h('div', { className: 'ph-toast', role: toast.tone === 'error' ? 'alert' : 'status' }, toast.text) : null),
             dialog ? h(ConfirmModal, { ...dialog, onClose: () => setDialog(null) }) : null))
         }
 

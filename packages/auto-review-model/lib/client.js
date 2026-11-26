@@ -187,6 +187,7 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
 .arm-chip-count{min-width:16px;padding:0 5px;border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.15));font-size:11px;line-height:16px;text-align:center}
 .arm-chip-count.err{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-label-on-color,#fff)}
 .arm-pop{position:fixed;z-index:200;display:flex;flex-direction:column;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-primary);font-size:12px;line-height:18px;overflow:hidden}
+@media (max-width:768px),(pointer:coarse){.arm-pop{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .arm-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 12px;border-bottom:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1)}
 .arm-pop-title{font-size:13px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arm-pop-actions{display:flex;gap:4px;flex:none}
@@ -392,7 +393,8 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
                 h('span', { className: `arm-log-verdict ${v.tone}` }, v.text)),
               target ? h('button', {
                 type: 'button', className: 'arm-log-jump', onClick: jump,
-                title: t(entry.mode === 'ptc-inner' ? 'logJumpPtc' : 'logJump'), 'aria-label': t('logJump'),
+                title: t(entry.mode === 'ptc-inner' ? 'logJumpPtc' : 'logJump'),
+                'aria-label': t(entry.mode === 'ptc-inner' ? 'logJumpPtc' : 'logJump'),
               }, '↗') : null),
             missing ? h('div', { className: 'arm-log-reason warn' }, t('logJumpMissing')) : null,
             detail === undefined || open ? null : h('div', { className: 'arm-log-reason' }, detail),
@@ -416,7 +418,13 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
               const r = anchor.current?.getBoundingClientRect()
               if (!r) return
               const width = Math.min(440, window.innerWidth - 16)
-              setPos({ left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)), bottom: window.innerHeight - r.top + 6, width, maxHeight: Math.min(PANEL_MAX_HEIGHT, Math.max(160, r.top - 16)) })
+              const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8))
+              const above = r.top - 16
+              const below = window.innerHeight - r.bottom - 16
+              const openBelow = above < 180 && below > above
+              setPos(openBelow
+                ? { left, top: r.bottom + 6, bottom: undefined, width, maxHeight: Math.min(PANEL_MAX_HEIGHT, Math.max(160, below)) }
+                : { left, top: undefined, bottom: window.innerHeight - r.top + 6, width, maxHeight: Math.min(PANEL_MAX_HEIGHT, Math.max(160, above)) })
             }
             place()
             window.addEventListener('resize', place)
@@ -428,7 +436,12 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
               if (ref.current?.contains(e.target) || anchor.current?.contains(e.target)) return
               onClose()
             }
-            const onKey = e => { if (e.key === 'Escape') onClose() }
+            const onKey = e => {
+              if (e.key === 'Escape') {
+                onClose()
+                anchor.current?.focus?.()
+              }
+            }
             document.addEventListener('pointerdown', onDown, true)
             document.addEventListener('keydown', onKey)
             return () => { document.removeEventListener('pointerdown', onDown, true); document.removeEventListener('keydown', onKey) }
@@ -454,7 +467,7 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
           if (pos === null) return null
           return h(React.Fragment, null, ReactDOM.createPortal(h('div', {
             ref, className: 'arm-pop', role: 'dialog', 'aria-label': t('logTitle'),
-            style: { left: pos.left, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight },
+            style: { left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight },
           },
             h('div', { className: 'arm-pop-head' },
               h('div', { className: 'arm-pop-title' }, t('logTitle'),
@@ -627,7 +640,7 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
               h('span', null, t('effort')),
               h('select', { value: value.reasoningEffort, onChange: onEffort, disabled: busy || (efforts.length === 0 && value.reasoningEffort === '') }, effortOptions)),
             catalog.status === 'loading' ? h('div', { className: 'arm-note' }, t('loading')) : null,
-            catalog.status === 'error' ? h('div', { className: 'arm-note err' }, t('loadFailed'), ' ',
+            catalog.status === 'error' ? h('div', { className: 'arm-note err', role: 'alert' }, t('loadFailed'), ' ',
               h('button', { type: 'button', className: 'arm-btn', onClick: loadCatalog }, t('retry'))) : null,
             catalog.partial ? h('div', { className: 'arm-note warn' }, t('partial')) : null,
             value.provider === '' ? null : h('div', { className: 'arm-note warn' }, t('warning')),
@@ -643,6 +656,8 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
                 t(value.promptMode === 'replace' ? 'replaceHint' : 'appendHint')),
               value.promptMode === 'default' ? null : h('textarea', {
                 value: value.prompt, onChange: onPrompt, disabled: busy, spellCheck: false,
+                'aria-label': t('promptTitle'),
+                'aria-invalid': replaceEmpty || undefined,
                 placeholder: value.promptMode === 'append' ? t('appendPlaceholder') : '',
                 rows: value.promptMode === 'replace' ? 18 : 8,
               }),
@@ -650,10 +665,10 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
                 h('button', { type: 'button', className: 'arm-btn', disabled: busy || !saved?.defaultPrompt, onClick: loadDefault }, t('loadDefault')),
                 saved?.defaultPrompt ? null : h('span', { className: 'arm-note' }, t('defaultUnknown')))),
             h('div', { className: 'arm-actions' },
-              h('button', { type: 'button', className: 'arm-btn primary', disabled: busy || !dirty || replaceEmpty, onClick: save },
+              h('button', { type: 'button', className: 'arm-btn primary', disabled: busy || !dirty || replaceEmpty, title: replaceEmpty ? t('replaceHint') : undefined, onClick: save },
                 status.kind === 'saving' ? t('saving') : t('save')),
-              status.kind === 'ok' ? h('span', { className: 'arm-note ok' }, t('saved')) : null,
-              status.kind === 'err' ? h('span', { className: 'arm-note err' }, t('saveFailed') + status.message) : null))
+              status.kind === 'ok' ? h('span', { className: 'arm-note ok', role: 'status' }, t('saved')) : null,
+              status.kind === 'err' ? h('span', { className: 'arm-note err', role: 'alert' }, t('saveFailed') + status.message) : null))
         }
 
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({

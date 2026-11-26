@@ -126,7 +126,7 @@ window.__ModuleLoader__.load({
 .wa-io-text{min-width:0;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-secondary)}
 .wa-io-text[data-error]{color:var(--dsw-alias-state-error-primary)}
 .wa-inspect{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin:4px 0 2px 4px;padding:2px 8px;border:.5px solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;opacity:0;transition:opacity 100ms ease}
-.wa-inspect:focus-visible{opacity:1}
+.wa-inspect:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (hover:hover){.wa-card:hover .wa-inspect{opacity:1}.wa-inspect:hover{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.wa-inspect{opacity:1}}
 `
@@ -222,9 +222,10 @@ window.__ModuleLoader__.load({
         const ct = ctx.locale.bind('conversation')
 
         function SearchRow({ toolName, phase, block, inspect, useDisclosure }) {
+          const localeSnap = React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
           const { expanded, toggle } = useDisclosure()
           const parsed = parseSearchBlock(toolName, phase, block)
-          const labels = React.useMemo(() => webLabels(ct), [])
+          const labels = React.useMemo(() => webLabels(ct), [localeSnap])
           const title = toolName === 'grok_search' ? t('searchGrok') : t('searchOpenai')
           const running = parsed.state === 'preparing' || parsed.state === 'running'
           const channel = Array.isArray(parsed.channels) && parsed.channels.length === 1
@@ -395,17 +396,17 @@ window.__ModuleLoader__.load({
             h('h4', { className: 'wa-title' }, t('title')),
             h('div', { className: 'wa-hint' }, t('hint'), ' ', t('onlyResponses')),
             catalog.status === 'loading' ? h('div', { className: 'wa-note' }, t('loading')) : null,
-            catalog.status === 'error' ? h('div', { className: 'wa-note err' }, t('loadFailed'), ' ',
+            catalog.status === 'error' ? h('div', { className: 'wa-note err', role: 'alert' }, t('loadFailed'), ' ',
               h('button', { type: 'button', className: 'wa-btn', onClick: loadCatalog }, t('retry'))) : null,
             section('grok'),
             section('openai'),
             h('div', { className: 'wa-actions' },
               h('button', { type: 'button', className: 'wa-btn primary', disabled: busy || !dirty, onClick: save },
                 status.kind === 'saving' ? t('saving') : t('save')),
-              status.kind === 'ok' ? h('span', { className: 'wa-note ok' }, t('saved')) : null,
+              status.kind === 'ok' ? h('span', { className: 'wa-note ok', role: 'status' }, t('saved')) : null,
               status.kind === 'loadError' ? h('span', { className: 'wa-note err', role: 'alert' }, t('loadFailed'), ' ', status.message, ' ',
                 h('button', { type: 'button', className: 'wa-btn', onClick: loadState }, t('retry'))) : null,
-              status.kind === 'err' ? h('span', { className: 'wa-note err' }, t('saveFailed') + status.message) : null))
+              status.kind === 'err' ? h('span', { className: 'wa-note err', role: 'alert' }, t('saveFailed') + status.message) : null))
         }
 
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({

@@ -13,8 +13,8 @@ window.__ModuleLoader__.load({
     const localAddress = sessionId => `dsh-resource://forge-changes/${encodeURIComponent(sessionId)}/local`
 
     const CSS_TEXT = `
-.dgc-anchor{min-width:0;display:inline-flex;font-size:calc(var(--dsh-content-font-size-secondary,13px) - 1px);line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px))}
-.dgc-pill{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;margin:0;padding:1px 8px;border:none;border-radius:var(--dsw-radius-sm);
+.dgc-anchor{min-width:0;max-width:100%;overflow:hidden;display:inline-flex;font-size:calc(var(--dsh-content-font-size-secondary,13px) - 1px);line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px))}
+.dgc-pill{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;overflow:hidden;margin:0;padding:1px 8px;border:none;border-radius:var(--dsw-radius-sm);
   background:0 0;color:var(--dsw-alias-label-tertiary);font:inherit;font-variant-numeric:tabular-nums;line-height:inherit;white-space:nowrap;cursor:pointer}
 .dgc-pill svg{flex:none;width:14px;height:14px}
 @media (hover:hover){.dgc-pill:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}}
@@ -23,6 +23,7 @@ window.__ModuleLoader__.load({
 .dgc-sep{color:var(--dsw-alias-label-caption)}
 .dgc-add{color:var(--dsw-alias-state-success-primary)}
 .dgc-del{color:var(--dsw-alias-state-error-primary)}
+@media (max-width:600px){.dgc-anchor{flex:0 1 auto;max-width:96px}.dgc-pill{gap:3px;padding:1px 4px;font-size:11px}.dgc-branch,.dgc-sep,.dgc-files,.dgc-omitted{display:none}}
 `
 
     const IconBranch = () => h('svg', { viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round', 'aria-hidden': true },
@@ -201,15 +202,16 @@ window.__ModuleLoader__.load({
               h('span', { key: 'a', className: 'dgc-add' }, `+${sum.additions}`),
               h('span', { key: 'd', className: 'dgc-del' }, `−${sum.deletions}`),
               h('span', { key: 's', className: 'dgc-sep', 'aria-hidden': true }, '·'),
-              h('span', { key: 'f' }, sum.files === 1 ? t('file') : t('files').replace('{n}', String(sum.files))),
+              h('span', { key: 'f', className: 'dgc-files' }, sum.files === 1 ? t('file') : t('files').replace('{n}', String(sum.files))),
             )
           }
-          if (sum?.omitted > 0) parts.push(h('span', { key: 'omitted' }, t('omitted').replace('{n}', String(sum.omitted))))
+          if (sum?.omitted > 0) parts.push(h('span', { key: 'omitted', className: 'dgc-omitted' }, t('omitted').replace('{n}', String(sum.omitted))))
           return h('span', { className: 'dgc-anchor', 'data-git-changes': true },
             h('button', {
               type: 'button',
               className: 'dgc-pill',
-              title: `${t('open')} (${t('scope')})`,
+              title: `${branch} · ${t('open')} (${t('scope')})`,
+              'aria-label': `${branch} · ${t('open')} (${t('scope')})`,
               onClick: () => open(sessionId),
             },
             h(IconBranch),

@@ -75,14 +75,17 @@ window.__ModuleLoader__.load({
 .oid-main{gap:4px;min-width:24px;padding:3px 6px;max-width:132px}
 .oid-arrow{min-width:22px;padding:3px 4px 3px 3px;border-left:.5px solid var(--dsw-alias-border-l4,var(--dsw-alias-border-l3));color:var(--dsw-alias-label-secondary)}
 .oid-main:disabled,.oid-arrow:disabled{cursor:default;opacity:.55}
-.oid-main:focus-visible,.oid-arrow:focus-visible{outline:none;background:var(--dsw-alias-interactive-bg-hover)}
+.oid-main:focus-visible,.oid-arrow:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px;background:var(--dsw-alias-interactive-bg-hover)}
 @media (hover:hover){.oid-main:hover:not(:disabled),.oid-arrow:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
 .oid-arrow[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .oid-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@container (max-width:460px){.oid-label{display:none}}
 .oid-icon{width:13px;height:13px;flex:none;border-radius:2px;object-fit:contain}
-.oid-menu{position:fixed;z-index:9999;min-width:196px;max-width:260px;padding:4px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));box-shadow:var(--dsw-elevation-medium,0 8px 24px rgba(0,0,0,.18));display:flex;flex-direction:column;gap:2px}
+.oid-menu{position:fixed;z-index:9999;min-width:196px;max-width:min(260px,calc(100vw - 16px));max-height:min(360px,calc(100dvh - 16px));overflow-y:auto;overscroll-behavior:contain;padding:4px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));box-shadow:var(--dsw-elevation-medium,0 8px 24px rgba(0,0,0,.18));display:flex;flex-direction:column;gap:2px}
+@media (pointer:coarse){.oid-split{height:30px}.oid-main{min-width:30px;padding:4px 8px}.oid-arrow{min-width:28px;padding:4px 6px}.oid-item{min-height:38px;padding:8px 10px}}
 .oid-menu-hint{padding:4px 8px 6px;font-size:11px;line-height:15px;color:var(--dsw-alias-label-tertiary);border-bottom:.5px solid var(--dsw-alias-border-l1);margin-bottom:2px}
 .oid-item{display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:16px;text-align:left;cursor:pointer}
+.oid-item:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px;background:var(--dsw-alias-interactive-bg-hover)}
 .oid-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .oid-item-tag{flex:none;font-size:10px;padding:1px 5px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-interactive-bg-hover));color:var(--dsw-alias-label-secondary)}
 @media (hover:hover){.oid-item:hover{background:var(--dsw-alias-interactive-bg-hover)}}
@@ -226,14 +229,25 @@ window.__ModuleLoader__.load({
         }
 
         const useSource = source => React.useSyncExternalStore(fn => source.subscribe(fn), () => source.getSnapshot())
+        const subscribePathSources = onStoreChange => {
+          const offSessions = ctx.sessions.list.subscribe(onStoreChange)
+          const offWorkspaces = ctx.workspaces.list.subscribe(onStoreChange)
+          return () => {
+            if (typeof offSessions === 'function') offSessions()
+            if (typeof offWorkspaces === 'function') offWorkspaces()
+          }
+        }
 
         function OpenInDefaultButton({ sessionId }) {
           const localeSnap = useSource(ctx.locale)
-          const list = useSource(ctx.sessions.list)
-          const workspaces = useSource(ctx.workspaces.list)
+          const path = React.useSyncExternalStore(
+            subscribePathSources,
+            () => resolveSessionPath(sessionId, ctx.sessions.list.getSnapshot(), ctx.workspaces.list.getSnapshot()),
+          )
           const view = useSource(store)
           const [menuRect, setMenuRect] = React.useState(null)
           const anchorRef = React.useRef(null)
+          const arrowRef = React.useRef(null)
           const menuRef = React.useRef(null)
 
           React.useEffect(() => {
@@ -242,7 +256,12 @@ window.__ModuleLoader__.load({
               if (menuRef.current?.contains(e.target) || anchorRef.current?.contains(e.target)) return
               setMenuRect(null)
             }
-            const onKey = e => { if (e.key === 'Escape') setMenuRect(null) }
+            const onKey = e => {
+              if (e.key === 'Escape') {
+                setMenuRect(null)
+                arrowRef.current?.focus?.()
+              }
+            }
             const onScroll = () => setMenuRect(null)
             window.addEventListener('pointerdown', onDown, true)
             window.addEventListener('keydown', onKey)
@@ -254,7 +273,6 @@ window.__ModuleLoader__.load({
             }
           }, [menuRect !== null])
 
-          const path = resolveSessionPath(sessionId, list, workspaces)
           const apps = view.apps
           const preferred = resolvePreferred(apps, view.choice)
           if (!path || !preferred) return null
@@ -283,6 +301,7 @@ window.__ModuleLoader__.load({
               h(AppIcon, { appId: preferred, size: 14 }),
               h('span', { className: 'oid-label' }, preferredName)),
               apps.length > 1 && h('button', {
+                ref: arrowRef,
                 type: 'button',
                 className: 'oid-arrow',
                 disabled: view.busy,
@@ -298,9 +317,18 @@ window.__ModuleLoader__.load({
                 className: 'oid-menu',
                 role: 'menu',
                 'aria-label': t('chooseDefault'),
+                onKeyDown: e => {
+                  const list = [...(menuRef.current?.querySelectorAll('[role=menuitemradio]:not(:disabled)') ?? [])]
+                  if (!list.length) return
+                  const at = list.indexOf(document.activeElement)
+                  if (e.key === 'ArrowDown') { e.preventDefault(); list[(at + 1 + list.length) % list.length]?.focus() }
+                  else if (e.key === 'ArrowUp') { e.preventDefault(); list[(at - 1 + list.length) % list.length]?.focus() }
+                  else if (e.key === 'Home') { e.preventDefault(); list[0]?.focus() }
+                  else if (e.key === 'End') { e.preventDefault(); list[list.length - 1]?.focus() }
+                },
                 style: {
-                  top: `${Math.min(window.innerHeight - 240, Math.max(8, menuRect.bottom + 6))}px`,
-                  left: `${Math.min(window.innerWidth - 220, Math.max(8, menuRect.right - 208))}px`,
+                  top: `${Math.max(8, Math.min(menuRect.bottom + 6, window.innerHeight - 240))}px`,
+                  left: `${Math.max(8, Math.min(menuRect.right - 220, window.innerWidth - 268))}px`,
                 },
               },
               h('div', { className: 'oid-menu-hint' }, t('menuHint')),
