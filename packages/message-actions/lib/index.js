@@ -6,11 +6,11 @@ export const OP_PATH = '/message-actions/op'
 const MAX_RESULTS = 200
 
 export const WAIT_WHAT_PROMPT = [
-  "Wait, I don't understand where you've got to here. Re-pitch that: give me a little bit of context, talk in ASD-STE100 Simplified Technical English, and use the ubiquitous language from `GLOSSARY.md` (follow `GLOSSARY-MAP.md` to the right one if the repo has more than one).",
+  'Restate the original reply in plain human language, like one colleague talking to another. Cut the jargon and make the logic easy to follow on the first read.',
   '',
-  'Apply that request to the original reply below. Explain the missing premise and connections; do not merely shorten the reply or answer the user question again.',
-  "Respond in the original reply's language. Use ASD-STE100 for English and equivalent plain technical language for other languages.",
-  'You have only the supplied text, without tools or project-file access. Keep project terms from the source; do not invent glossary entries or imply that you read project files.',
+  'Lead with the main point, then fill in the missing premise and show how the pieces connect. Keep real symbol, file, and command names from the source, and explain unfamiliar terms plainly.',
+  'Use short, direct sentences. Skip framing labels, metaphors, em dashes, "not X, but Y" phrasing, and chatbot wrappers. Work only from the supplied text and say plainly if context is missing.',
+  "Respond in the original reply's language. Output only the explanation.",
   '',
   'Previous user message (context only):',
   '{{user}}',
