@@ -3,6 +3,9 @@ const FLUSH_DEBOUNCE_MS = 1000
 const MAX_DIFF_PAIR_CHARS = 32 * 1024
 const MAX_DIFF_SIDE_CHARS = 32 * 1024
 const MAX_NEW_TEXT_CHARS = 64 * 1024
+const MAX_TOOL_TEXT_CHARS = 16 * 1024
+const MAX_TOOL_FIELD_CHARS = 16 * 1024
+const MAX_COMPACT_DEPTH = 6
 const DIFF_CONTEXT_LINES = 5
 const DEFAULT_CHUNK_RETENTION_DAYS = 30
 const DEFAULT_ARCHIVED_CHUNK_RETENTION_DAYS = 7
@@ -13,6 +16,28 @@ function truncateText(text, limit) {
   if (typeof text !== 'string' || text.length <= limit) return text
   const omitted = text.length - limit
   return `${text.slice(0, limit)}\n… [truncated ${omitted} chars]`
+}
+
+function compactValue(value, limit, depth = 0) {
+  if (typeof value === 'string') return truncateText(value, limit)
+  if (!value || typeof value !== 'object' || depth >= MAX_COMPACT_DEPTH) return value
+  if (Array.isArray(value)) {
+    let changed = false
+    const next = value.map(item => {
+      const compacted = compactValue(item, limit, depth + 1)
+      if (compacted !== item) changed = true
+      return compacted
+    })
+    return changed ? next : value
+  }
+  let changed = false
+  const next = {}
+  for (const [k, v] of Object.entries(value)) {
+    const compacted = compactValue(v, limit, depth + 1)
+    if (compacted !== v) changed = true
+    next[k] = compacted
+  }
+  return changed ? next : value
 }
 
 function compactDiffWindow(oldText, newText) {
@@ -55,23 +80,54 @@ function compactDiffBlock(item) {
   return item
 }
 
+function compactContentItem(item) {
+  if (!item || typeof item !== 'object') return item
+  if (item.type === 'diff') return compactDiffBlock(item)
+  if (item.type === 'content' && typeof item.content?.text === 'string' && item.content.text.length > MAX_TOOL_TEXT_CHARS) {
+    return {
+      ...item,
+      content: { ...item.content, text: truncateText(item.content.text, MAX_TOOL_TEXT_CHARS) },
+      compacted: true,
+    }
+  }
+  if (typeof item.text === 'string' && item.text.length > MAX_TOOL_TEXT_CHARS) {
+    return { ...item, text: truncateText(item.text, MAX_TOOL_TEXT_CHARS), compacted: true }
+  }
+  return item
+}
+
 function compactEventData(type, clonedData) {
   if (type !== 'notification' || clonedData?.method !== 'session/update') return clonedData
   const update = clonedData.params?.update
   if (!update || (update.sessionUpdate !== 'tool_call_update' && update.sessionUpdate !== 'tool_call')) return clonedData
-  if (!Array.isArray(update.content) || !update.content.some(item => item?.type === 'diff')) return clonedData
+  let nextUpdate = update
   let changed = false
-  const nextContent = update.content.map(item => {
-    const compacted = compactDiffBlock(item)
-    if (compacted !== item) changed = true
-    return compacted
-  })
+  if (Array.isArray(update.content)) {
+    let contentChanged = false
+    const nextContent = update.content.map(item => {
+      const compacted = compactContentItem(item)
+      if (compacted !== item) contentChanged = true
+      return compacted
+    })
+    if (contentChanged) {
+      nextUpdate = { ...nextUpdate, content: nextContent }
+      changed = true
+    }
+  }
+  for (const field of ['args', 'rawInput', 'rawOutput', 'result']) {
+    if (update[field] === undefined) continue
+    const compacted = compactValue(update[field], MAX_TOOL_FIELD_CHARS)
+    if (compacted !== update[field]) {
+      nextUpdate = { ...nextUpdate, [field]: compacted }
+      changed = true
+    }
+  }
   if (!changed) return clonedData
   return {
     ...clonedData,
     params: {
       ...clonedData.params,
-      update: { ...update, content: nextContent },
+      update: nextUpdate,
     },
   }
 }

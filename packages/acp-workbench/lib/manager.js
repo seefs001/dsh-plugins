@@ -43,6 +43,7 @@ const CLIENT_CAPABILITY_META = { parameterizedModelPicker: true }
 const ASYNC_WAKEUP_SETTLE_MS = 1_500
 const ASYNC_WAKEUP_SILENT_SETTLE_MS = 15_000
 const ASYNC_WAKEUP_IDLE_TIMEOUT_MS = 120_000
+const CHUNK_PRUNE_INTERVAL_MS = 15 * 60 * 1000
 const BACKGROUND_TASK_PROMOTE_MS = 5_000
 const MAX_BACKGROUND_TASKS = 40
 const MAX_TASK_LABEL_CHARS = 200
@@ -301,6 +302,9 @@ export class Workbench {
     this.streamNotifyTimers = new Map()
     this.localUsageCache = null
     this.localUsageCacheAt = 0
+    this.chunkPruneTimer = null
+    this.pruningChunks = false
+    this.lastChunkPruneAt = 0
     this.closed = false
     this.store = new WorkbenchStore(domain, error => {
       this.log?.(`ACP storage: ${error.message}`)
@@ -326,14 +330,32 @@ export class Workbench {
       }
     }
     await this.store.flush()
-    const pruned = await this.store.pruneChunks({
-      ...(this.chunkRetentionDays !== undefined ? { maxAgeDays: this.chunkRetentionDays } : {}),
-      ...(this.archivedChunkRetentionDays !== undefined ? { archivedMaxAgeDays: this.archivedChunkRetentionDays } : {}),
-      ...(this.maxChunkBytes !== undefined ? { maxTotalBytes: this.maxChunkBytes } : {}),
-      activeSessionIds: new Set(this.runtimes.keys()),
-    })
-    if (pruned.deletedChunks > 0) {
-      this.log?.(`ACP storage pruned ${pruned.deletedChunks} chunk(s) across ${pruned.deletedSessions} session(s) (${Math.round(pruned.freedBytes / 1024)} KiB)`)
+    await this.pruneStorageChunks()
+    if (!this.closed && !this.chunkPruneTimer) {
+      this.chunkPruneTimer = setInterval(() => {
+        void this.pruneStorageChunks().catch(error => this.log?.(`ACP storage prune: ${error.message}`))
+      }, CHUNK_PRUNE_INTERVAL_MS)
+      this.chunkPruneTimer.unref?.()
+    }
+  }
+
+  async pruneStorageChunks() {
+    if (this.closed || this.pruningChunks) return null
+    this.pruningChunks = true
+    try {
+      const pruned = await this.store.pruneChunks({
+        ...(this.chunkRetentionDays !== undefined ? { maxAgeDays: this.chunkRetentionDays } : {}),
+        ...(this.archivedChunkRetentionDays !== undefined ? { archivedMaxAgeDays: this.archivedChunkRetentionDays } : {}),
+        ...(this.maxChunkBytes !== undefined ? { maxTotalBytes: this.maxChunkBytes } : {}),
+        activeSessionIds: new Set(this.runtimes.keys()),
+      })
+      if (pruned.deletedChunks > 0) {
+        this.log?.(`ACP storage pruned ${pruned.deletedChunks} chunk(s) across ${pruned.deletedSessions} session(s) (${Math.round(pruned.freedBytes / 1024)} KiB)`)
+      }
+      return pruned
+    } finally {
+      this.pruningChunks = false
+      this.lastChunkPruneAt = Date.now()
     }
   }
 
@@ -2191,6 +2213,9 @@ export class Workbench {
         this.clearStreamNotify(session.id)
         if (this.runtimes.get(session.id) === runtime) this.runtimes.delete(session.id)
         this.changed(session.id, undefined, { workbench: true })
+        if (!this.closed && Date.now() - this.lastChunkPruneAt >= CHUNK_PRUNE_INTERVAL_MS) {
+          void this.pruneStorageChunks().catch(error => this.log?.(`ACP storage prune: ${error.message}`))
+        }
       }
     })()
     return runtime.shutdown
@@ -2198,6 +2223,8 @@ export class Workbench {
 
   async close() {
     this.closed = true
+    clearInterval(this.chunkPruneTimer)
+    this.chunkPruneTimer = null
     for (const timer of this.streamNotifyTimers.values()) clearTimeout(timer)
     this.streamNotifyTimers.clear()
     const results = await Promise.allSettled([

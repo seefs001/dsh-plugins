@@ -480,9 +480,11 @@ window.__ModuleLoader__.load({
 .aw-field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .aw-field>span:first-child{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .aw-field .aw-input{width:100%}
-.aw-textarea{width:100%;min-height:60px;resize:vertical;padding:8px 12px;border-radius:var(--dsw-radius-lg,12px);border:.5px solid var(--dsw-alias-border-l4);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:18px;outline:none;transition:border-color 120ms ease}
+.aw-textarea{width:100%;min-height:60px;resize:vertical;padding:8px 12px;border-radius:var(--dsw-radius-lg,12px);border:.5px solid var(--dsw-alias-border-l4);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:18px;transition:border-color 120ms ease}
 .aw-textarea:focus{border-color:var(--dsw-alias-state-business-primary)}
+.aw-danger-text{color:var(--dsw-alias-state-error-primary)}
 .aw-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
+@media (pointer:coarse){.aw-select,.aw-textarea{font-size:16px}}
 .aw-confirm-body{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);max-height:50vh;overflow:auto}
 
 .aw-dock{container-type:inline-size;display:flex;flex-direction:column;gap:var(--dsh-composer-stack-gap,6px);flex:none;margin:0 auto;
@@ -490,6 +492,7 @@ window.__ModuleLoader__.load({
   max-width:calc(var(--dsh-composer-card-max-width,760px) - 4 * var(--dsh-composer-dock-inset,8px))}
 .aw-card{position:relative;isolation:isolate;border-radius:var(--dsw-radius-lg,12px);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-panel);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}
 .aw-card::before{content:'';position:absolute;z-index:-1;inset:0;border-radius:inherit;pointer-events:none;background:var(--dsw-specific-menu,var(--dsw-alias-bg-base));backdrop-filter:var(--dsw-menu-backdrop-filter)}
+@media (max-width:768px),(pointer:coarse){.aw-card::before{background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .aw-card[data-tone=warn]{--dsw-elevation-stroke-color:var(--dsw-alias-state-warn-secondary)}
 .aw-bar{display:flex;align-items:center;gap:8px;min-height:36px;padding:4px 6px 4px 12px;min-width:0}
 .aw-bar-title{font-weight:500;white-space:nowrap}
@@ -872,6 +875,8 @@ button.aw-child-trigger:focus-visible{outline:none}
   --dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);
   overflow:auto;overscroll-behavior:contain;pointer-events:auto}
 .aw-options:not(:popover-open){display:none}
+@supports not (position-area:top span-left){.aw-options{left:50%;right:auto;top:auto;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(420px,calc(100vw - 24px));max-height:min(24rem,calc(100dvh - 32px));margin:0}}
+@media (pointer:coarse){.aw-select,.aw-textarea,.aw-q-field>*{font-size:16px}.aw-select{min-height:36px;height:36px}.aw-icon-btn,.aw-sp-btn,.aw-child-action{width:32px;height:32px}}
 .aw-found li{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:var(--dsw-radius-sm,8px);min-width:0}
 @media (hover:hover){.aw-found li:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .aw-empty{padding:24px 12px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px}
@@ -886,9 +891,12 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-tb-btn[data-tone=plan]{background:var(--dsw-alias-state-business-tertiary);color:var(--dsw-alias-state-business-primary);font-weight:500}
 @media (hover:hover){.aw-tb-btn[data-tone=plan]:hover:not(:disabled),.aw-tb-btn[data-active=true]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-business-tertiary),var(--dsw-alias-state-business-primary) 6%)}.aw-tb-btn[data-active=true][data-tone=fast]:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-warn-tertiary),var(--dsw-alias-state-warn-primary) 8%)}}
 .aw-tb-icon{width:28px;padding:0}
+.aw-tb-glyph{display:none;flex:none;align-items:center;justify-content:center}
+.aw-tb-glyph>svg{width:14px;height:14px}
 .aw-tb-chev{display:inline-flex;flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms ease}
 .aw-tb-btn[data-tone=plan] .aw-tb-chev{color:currentColor}
 .aw-tb-chev[data-open=true]{transform:rotate(180deg)}
+@container (max-width:460px){.aw-tb{gap:2px}.aw-tb-btn{max-width:120px;padding:0 5px;gap:3px}.aw-tb-btn[data-has-icon=true] .aw-tb-glyph{display:inline-flex}.aw-tb-btn[data-has-icon=true] .aw-tb-label{display:none}}
 .aw-ctx-root{display:inline-flex;align-items:center;flex:none}
 .aw-ctx-btn{--aw-ctx-tint:var(--dsw-alias-label-secondary)}
 .aw-ctx-btn[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover);--aw-ctx-tint:var(--dsw-alias-label-primary)}
@@ -898,6 +906,7 @@ button.aw-child-trigger:focus-visible{outline:none}
 .aw-ctx-track{fill:none;stroke:var(--dsw-alias-border-l3);stroke-width:2}
 .aw-ctx-fill{fill:none;stroke:var(--aw-ctx-tint);stroke-width:2;stroke-linecap:round;transition:stroke 120ms ease,stroke-dasharray 180ms ease}
 .aw-ctx-pop{position:fixed;inset:auto;margin:0;box-sizing:border-box;width:min(280px,calc(100vw - 24px));padding:12px;border:0;border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;overflow:auto;overscroll-behavior:contain;--aw-ctx-tint:var(--dsw-alias-label-secondary)}
+@media (max-width:768px),(pointer:coarse){.aw-options,.aw-ctx-pop{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-overlay,var(--dsw-alias-bg-base)));backdrop-filter:none;-webkit-backdrop-filter:none}}
 .aw-ctx-pop:not(:popover-open){display:none}
 .aw-ctx-pop[data-tone=warn]{--aw-ctx-tint:var(--dsw-alias-state-warn-primary)}
 .aw-ctx-pop[data-tone=danger]{--aw-ctx-tint:var(--dsw-alias-state-error-primary)}
@@ -3024,7 +3033,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               descriptionText ? h('p', { className: 'aw-q-desc' }, descriptionText) : null,
               page ? h('div', {
                 className: 'aw-q-options',
-                role: page.kind === 'multiple' ? 'group' : page.kind === 'single' ? 'radiogroup' : undefined,
+                role: page.kind === 'multiple' ? 'group' : (page.kind === 'single' || page.kind === 'boolean') ? 'radiogroup' : undefined,
               },
               page.kind === 'single' || page.kind === 'multiple'
                 ? h(React.Fragment, null,
@@ -3111,6 +3120,11 @@ button.aw-child-trigger:focus-visible{outline:none}
                         updateValues(next => next.set(page.id, boolVal))
                         if (safeIndex < pages.length - 1) goTo(safeIndex + 1)
                       },
+                      onKeyDown: event => {
+                        if (event.key !== 'Enter') return
+                        event.preventDefault()
+                        handleContinue()
+                      },
                     },
                     h('span', { className: 'aw-q-num', 'aria-hidden': true }, String(idx + 1)),
                     h('span', { className: 'aw-q-copy' }, h('span', { className: 'aw-q-line' }, h('span', { className: 'aw-q-label' }, tt(boolVal ? 'qYes' : 'qNo'))))))
@@ -3133,6 +3147,11 @@ button.aw-child-trigger:focus-visible{outline:none}
                             const parsed = Number(raw)
                             next.set(page.id, Number.isFinite(parsed) ? parsed : raw)
                           })
+                        },
+                        onKeyDown: event => {
+                          if (event.key !== 'Enter' || event.shiftKey || isImeComposing(event)) return
+                          event.preventDefault()
+                          handleContinue()
                         },
                       }))
                     : h(AnswerField, {
@@ -3170,7 +3189,7 @@ button.aw-child-trigger:focus-visible{outline:none}
                   disabled: disabled || safeIndex >= pages.length - 1,
                   onClick: () => goTo(safeIndex + 1),
                 }, h(IconChevronRightOutlineRegular, { size: 15 }))) : h('div'),
-              h('div', { className: 'aw-q-feedback', role: 'status' }, feedback ? tt(feedback) : null),
+              h('div', { className: 'aw-q-feedback', role: feedback ? 'alert' : 'status' }, feedback ? tt(feedback) : null),
               h('div', { className: 'aw-q-actions' },
                 h(Button, { variant: 'outline', disabled, onClick: handleSkip },
                   tt(isForm && (!page || page.required) ? 'formDecline' : 'skip')),
@@ -4030,10 +4049,12 @@ button.aw-child-trigger:focus-visible{outline:none}
             h(Button, { type: 'submit', size: 'sm', variant: 'outline', disabled: disabled || !text.trim() }, tt('steerSend')))
         }
 
+        const projectedModelOf = projection => projection?.next ?? projection?.lastUsed ?? (typeof projection?.provider === 'string' ? projection : null)
+
         function NativeDock(props) {
           const canWrite = props.useAccess('session/prompt')
           const archivedIds = useArchivedSessionIds()
-          const modelSelection = typeof props.useProjection === 'function' ? props.useProjection('modelSelection') : undefined
+          const modelSelection = projectedModelOf(typeof props.useProjection === 'function' ? props.useProjection('modelSelection') : undefined)
           const modelKey = modelSelection ? `${modelSelection.provider ?? ''}/${modelSelection.model ?? ''}` : undefined
           const view = useNative(props.sessionId, modelKey)
           const data = view.data
@@ -5299,7 +5320,14 @@ button.aw-child-trigger:focus-visible{outline:none}
             }))
         }
 
-        function ToolbarSelect({ label, description, value, options, disabled, tone, onSelect }) {
+        function ModeGlyph({ plan }) {
+          if (plan && IconChecklistOutlineRegular) return h(IconChecklistOutlineRegular, { size: 14 })
+          return h('svg', { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+            h('path', { d: 'M8 1.75 13 3.75v3.8c0 3.1-2.1 5.65-5 6.7-2.9-1.05-5-3.6-5-6.7v-3.8L8 1.75Z' }),
+            h('path', { d: 'M8 5.25v3.1M8 10.6h.01' }))
+        }
+
+        function ToolbarSelect({ label, description, value, options, disabled, tone, icon, onSelect }) {
           const [open, setOpen] = React.useState(false)
           const current = options.find(item => item.value === value) ?? options[0]
           const display = current?.name ?? value ?? ''
@@ -5324,6 +5352,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               type: 'button',
               className: 'aw-tb-btn',
               'data-tone': tone || undefined,
+              'data-has-icon': icon ? 'true' : undefined,
               disabled,
               'aria-label': `${label}: ${display}`,
               'aria-haspopup': 'menu',
@@ -5331,21 +5360,32 @@ button.aw-child-trigger:focus-visible{outline:none}
               title: tooltip,
               onClick: () => setOpen(v => !v),
             },
-            h('span', { className: 'aw-ellipsis' }, display),
+            icon ? h('span', { className: 'aw-tb-glyph', 'aria-hidden': true }, icon) : null,
+            h('span', { className: 'aw-tb-label aw-ellipsis' }, display),
             h('span', { className: 'aw-tb-chev', 'data-open': open && !disabled, 'aria-hidden': true },
               h(IconChevronDownOutlineRegular, { size: 12 }))),
           })
         }
 
-        function NativePermissionGuard({ useProjection }) {
-          const modelSelection = typeof useProjection === 'function' ? useProjection('modelSelection') : undefined
-          if (typeof modelSelection?.provider !== 'string' || !modelSelection.provider.startsWith('acp-')) return null
+        function NativePermissionFallback({ sessionId }) {
+          const provider = useNativeSelector(sessionId, snap => snap.data?.selected?.provider ?? '')
+          if (typeof provider !== 'string' || !provider.startsWith('acp-')) return null
           return h('span', { className: 'aw-acp-permission-guard', 'data-acp-permission-hidden': 'true', hidden: true, 'aria-hidden': true })
+        }
+
+        function NativePermissionGuard({ sessionId, useProjection }) {
+          const modelSelection = projectedModelOf(typeof useProjection === 'function' ? useProjection('modelSelection') : undefined)
+          if (typeof modelSelection?.provider === 'string') {
+            if (!modelSelection.provider.startsWith('acp-')) return null
+            return h('span', { className: 'aw-acp-permission-guard', 'data-acp-permission-hidden': 'true', hidden: true, 'aria-hidden': true })
+          }
+          if (!sessionId) return null
+          return h(NativePermissionFallback, { sessionId })
         }
 
         function NativeModelControls({ sessionId, useAccess, useProjection }) {
           const tt = useT()
-          const modelSelection = typeof useProjection === 'function' ? useProjection('modelSelection') : undefined
+          const modelSelection = projectedModelOf(typeof useProjection === 'function' ? useProjection('modelSelection') : undefined)
           const modelKey = modelSelection ? `${modelSelection.provider ?? ''}/${modelSelection.model ?? ''}` : undefined
           const view = useNative(sessionId, modelKey)
           const canWrite = useAccess('session/prompt')
@@ -5392,6 +5432,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               options: modes.options,
               disabled,
               tone: isPlanMode ? 'plan' : undefined,
+              icon: h(ModeGlyph, { plan: isPlanMode }),
               onSelect: modeId => view.run({ action: 'native-set-option', dshSessionId: sessionId, route: controls.route, modeId }),
             }) : null,
             contextOpt ? h(ToolbarSelect, {
@@ -5423,7 +5464,7 @@ button.aw-child-trigger:focus-visible{outline:none}
 
         function NativeContextRing({ sessionId, useProjection }) {
           const tt = useT()
-          const modelSelection = typeof useProjection === 'function' ? useProjection('modelSelection') : undefined
+          const modelSelection = projectedModelOf(typeof useProjection === 'function' ? useProjection('modelSelection') : undefined)
           const modelKey = modelSelection ? `${modelSelection.provider ?? ''}/${modelSelection.model ?? ''}` : undefined
           const report = useNativeSelector(
             sessionId,
@@ -5600,12 +5641,24 @@ button.aw-child-trigger:focus-visible{outline:none}
           const tt = useT()
           const labels = useToolLabels()
           const { expanded, toggle } = props.useDisclosure()
-          const { phase, block, inspect } = props
+          const { phase, block, inspect, sessionId } = props
           const meta = isPlainObj(block?.meta) ? block.meta : null
           const isPathsResult = phase === 'result' && 'kind' in block && !block.isError && meta?.shape === 'paths' && Array.isArray(meta.paths)
+          const base = isPathsResult ? undefined : findBaseToolView('grep', GrepPathsRow, GREP_PATHS_PRIORITY)
+          const baseProps = React.useMemo(() => {
+            if (!base) return null
+            const injectFn = base.inject ?? base.options?.inject
+            const injected = typeof injectFn === 'function' ? injectFn(sessionId) : undefined
+            const baseLocale = base.locale ?? base.options?.locale
+            const baseT = baseLocale && baseLocale !== 'conversation' ? ctx.locale.bind(baseLocale) : undefined
+            if (!injected && !baseT) return null
+            return {
+              ...(injected && typeof injected === 'object' ? injected : undefined),
+              ...(baseT ? { t: baseT } : undefined),
+            }
+          }, [base, sessionId])
           if (!isPathsResult) {
-            const base = findBaseToolView('grep', GrepPathsRow, GREP_PATHS_PRIORITY)
-            return base ? h(base.component, props) : null
+            return base ? h(base.component, baseProps ? { ...props, ...baseProps } : props) : null
           }
           const { args } = tvParseArgs(block)
           const pattern = firstText(args?.pattern)
@@ -6103,6 +6156,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               canLogout && onLogout ? h(Button, {
                 size: 'sm',
                 variant: 'ghost',
+                className: 'aw-danger-text',
                 disabled: busy || authBusy,
                 onClick: onLogout,
               }, authBusy === 'logout' ? tt('authSigningOut') : tt('authSignOut')) : null) : null,
@@ -6117,7 +6171,7 @@ button.aw-child-trigger:focus-visible{outline:none}
                   h('div', { className: 'aw-quota-top' },
                     h('span', { className: 'aw-quota-label' }, formatQuotaWindowLabel(win, tt)),
                     pct !== null ? h('span', { className: 'aw-quota-pct', 'data-tone': tone }, `${pct}%`) : null),
-                  pct !== null ? h('div', { className: 'aw-quota-track', role: 'progressbar', 'aria-valuenow': pct, 'aria-valuemin': 0, 'aria-valuemax': 100 },
+                  pct !== null ? h('div', { className: 'aw-quota-track', role: 'progressbar', 'aria-label': formatQuotaWindowLabel(win, tt), 'aria-valuenow': pct, 'aria-valuemin': 0, 'aria-valuemax': 100 },
                     h('span', { className: 'aw-quota-fill', 'data-tone': tone, style: { width: `${pct}%` } })) : null,
                   (resetLabel || statusBadge) ? h('div', { className: 'aw-quota-meta' },
                     h('span', null, resetLabel),
@@ -6306,8 +6360,8 @@ button.aw-child-trigger:focus-visible{outline:none}
                   h(Switch, { checked: policy.systemPromptAppend, disabled: busy, label: tt('ctxPolicySystemPromptAppend'), onChange: checked => onPolicyChange('systemPromptAppend', checked) })))) : null,
             h('div', { className: 'aw-row' },
               h(Button, { type: 'submit', size: 'sm', variant: 'primary', disabled: busy }, tt('save')),
-              saved ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy, onClick: onRemove }, tt('remove')) : null,
-              notice ? h('span', { className: notice === tt('saved') ? 'aw-note' : 'aw-error', role: 'status' }, notice) : null))
+              saved ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', className: 'aw-danger-text', disabled: busy, onClick: onRemove }, tt('remove')) : null,
+              notice ? h('span', { className: notice === tt('saved') ? 'aw-note' : 'aw-error', role: notice === tt('saved') ? 'status' : 'alert' }, notice) : null))
         }
 
         function ModelRow({ model, hidden, busy, onToggle }) {
@@ -6626,7 +6680,7 @@ button.aw-child-trigger:focus-visible{outline:none}
                         allModels.length ? h(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy || !visibleCount, onClick: () => setHiddenModels(allModels.map(m => m.id)) }, tt('hideAllModels')) : null),
                       allModels.length ? h('div', { className: 'aw-catalog-bar' },
                         h(Input, { type: 'search', className: 'aw-input', value: modelQuery, placeholder: tt('modelSearch'), 'aria-label': tt('modelSearch'), onChange: event => setModelQuery(event.target.value) }),
-                        h('div', { className: 'aw-chips', role: 'group' },
+                        h('div', { className: 'aw-chips', role: 'group', 'aria-label': tt('visibleModels') },
                           filterChips.map(([key, label, count]) => h('button', {
                             key, type: 'button', className: 'aw-chip', 'aria-pressed': modelFilter === key,
                             onClick: () => setModelFilter(key),

@@ -137,6 +137,7 @@ export async function apply(ctx, config = {}) {
       if (res.destroyed || res.writableEnded) { clearInterval(heartbeat); streams.delete(res); return }
       res.write(': heartbeat\n\n')
     }, 25_000)
+    heartbeat.unref?.()
     res.on('close', () => { clearInterval(heartbeat); streams.delete(res) })
   })
 
