@@ -190,9 +190,21 @@ async function readBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
+// external: DSH reload can overlap storageDomain close and open
+async function openDomain(ctx) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await ctx.storageDomain.open(DOMAIN_SPEC)
+    } catch (error) {
+      if (error?.code !== 'already-open' || attempt >= 20) throw error
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+  }
+}
+
 export function apply(ctx, config) {
   const lifetime = new AbortController()
-  const ready = ctx.storageDomain.open(DOMAIN_SPEC).then(domain => new MessageActions(ctx, domain, config))
+  const ready = openDomain(ctx).then(domain => new MessageActions(ctx, domain, config))
   ready.catch(error => ctx.logger.warn(`message-actions storage: ${error.message}`))
   const tasks = new Set()
   const run = (op, sessionId, signal, onText) => {

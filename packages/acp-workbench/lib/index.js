@@ -23,6 +23,18 @@ async function body(req) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
+// external: DSH reload can overlap storageDomain close and open
+async function openDomain(ctx) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await ctx.storageDomain.open(DOMAIN_SPEC)
+    } catch (error) {
+      if (error?.code !== 'already-open' || attempt >= 20) throw error
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+  }
+}
+
 export async function apply(ctx, config = {}) {
   let revision = 0
   let changeTimer
@@ -63,7 +75,7 @@ export async function apply(ctx, config = {}) {
       }
     }, 80)
   }
-  const domain = await ctx.storageDomain.open(DOMAIN_SPEC)
+  const domain = await openDomain(ctx)
   const bridge = { native: null }
   const manager = new Workbench({ domain, subprocess: ctx.subprocess, changed,
     modelsChanged: providerId => bridge.native && ctx.emit('llm/models-updated', bridge.native.route(providerId)),

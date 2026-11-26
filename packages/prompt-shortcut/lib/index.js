@@ -150,7 +150,7 @@ async function openDomain(storageDomain) {
     try {
       return await storageDomain.open(DOMAIN_SPEC)
     } catch (error) {
-      if (attempt >= 8 || !/already open|lock|busy/i.test(String(error?.message ?? error))) throw error
+      if (attempt >= 20 || (error?.code !== 'already-open' && !/already open|lock|busy/i.test(String(error?.message ?? error)))) throw error
       await new Promise(resolve => setTimeout(resolve, 60 * (attempt + 1)))
     }
   }

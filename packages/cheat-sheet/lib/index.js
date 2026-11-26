@@ -40,8 +40,20 @@ async function readOp(req) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')) } catch { throw new InputError('Invalid JSON') }
 }
 
+// external: DSH reload can overlap storageDomain close and open
+async function openDomain(ctx) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await ctx.storageDomain.open(DOMAIN_SPEC)
+    } catch (error) {
+      if (error?.code !== 'already-open' || attempt >= 20) throw error
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+  }
+}
+
 export async function apply(ctx) {
-  const domain = await ctx.storageDomain.open(DOMAIN_SPEC)
+  const domain = await openDomain(ctx)
   let tail = Promise.resolve()
   const write = change => {
     const result = tail.then(async () => {

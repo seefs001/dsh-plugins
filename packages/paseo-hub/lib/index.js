@@ -532,6 +532,18 @@ const matches = (query, ...fields) => {
   return needle === '' || fields.some(field => typeof field === 'string' && field.toLowerCase().includes(needle))
 }
 
+// external: DSH reload can overlap storageDomain close and open
+async function openDomain(ctx) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await ctx.storageDomain.open(DOMAIN_SPEC)
+    } catch (error) {
+      if (error?.code !== 'already-open' || attempt >= 20) throw error
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+  }
+}
+
 export function apply(ctx, config) {
   void primeHostMachineKind()
   let connector
@@ -542,7 +554,7 @@ export function apply(ctx, config) {
   const toolCalls = new WeakMap()
   const outcomeWrites = new Map()
   let closing = false
-  const ready = ctx.storageDomain.open(DOMAIN_SPEC).then(async domain => {
+  const ready = openDomain(ctx).then(async domain => {
     if (closing) return domain
     store = new RunStore(domain)
     journal = new Journal(domain, (level, msg) => ctx.logger?.[level]?.(`paseo-hub: ${msg}`))

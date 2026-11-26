@@ -20,9 +20,21 @@ export async function writeDefaults(agentPreset, changes) {
   else await table.put(agentPreset, changes)
 }
 
+// external: DSH reload can overlap storageDomain close and open
+async function openDefaultsDomain(storageDomain) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await storageDomain.open(DEFAULTS_DOMAIN)
+    } catch (error) {
+      if (error?.code !== 'already-open' || attempt >= 20) throw error
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+  }
+}
+
 export function openDefaults(ctx, onChange) {
   ctx.inject(['storageDomain'], scope => {
-    const ready = scope.storageDomain.open(DEFAULTS_DOMAIN).then(opened => {
+    const ready = openDefaultsDomain(scope.storageDomain).then(opened => {
       domain = opened
       onChange()
       return opened
