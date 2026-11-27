@@ -46,6 +46,7 @@ const entries: Entry[] = [
   { slug: 'message-edit', category: 'conversation', surface: 'Host + Web', summary: '悬停自己的消息即可就地改写或分叉重发。' },
   { slug: 'ai-mascot', category: 'conversation', surface: 'Web', summary: '右下角可拖拽的 GPT / Claude 小伙伴，跟随当前对话状态活动。', requires: ['可访问外部素材站点'] },
   { slug: 'acp-workbench', category: 'conversation', surface: 'Host + Web', summary: '在 DSH 会话中直接运行 Cursor、Antigravity、Claude Code 等本机 ACP CLI，或委派可续聊子代理。', requires: ['已安装并登录的本机 ACP CLI'] },
+  { slug: 'mobile-boost', category: 'conversation', surface: 'Web', summary: '在窄屏与触屏设备上用离屏跳过、模糊降级与抽屉过渡止损，缓解切页和点击输入框卡顿。' },
   { slug: 'prompt-shortcut', category: 'tools', surface: 'Host + Web', summary: '在 DSH Host 跨浏览器收藏常用话术，支持导入导出与 /snippets，搜索后插入输入框光标处。' },
   { slug: 'cheat-sheet', category: 'tools', surface: 'Host + Web', summary: '搜索会话技能、置顶常用项、按实际使用次数排序，直接插入 /命令。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'web-access', category: 'tools', surface: 'Host + Web', summary: '提供 grok_search 和 openai_search，复用已有 Responses provider 的托管搜索。', requires: ['支持托管搜索的 Responses provider'] },

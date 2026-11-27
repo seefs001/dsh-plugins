@@ -1,0 +1,57 @@
+{
+  "name": "dsh-mobile-boost",
+  "version": "1.0.0",
+  "description": "Reduce mobile layout, blur, and transition overhead when switching pages or focusing the composer in DSH Web.",
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "deepseek-harness",
+    "mobile",
+    "performance",
+    "composer",
+    "css"
+  ],
+  "license": "MIT",
+  "author": "seefs001",
+  "homepage": "https://github.com/seefs001/dsh-plugins/tree/main/packages/mobile-boost#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seefs001/dsh-plugins.git",
+    "directory": "packages/mobile-boost"
+  },
+  "bugs": {
+    "url": "https://github.com/seefs001/dsh-plugins/issues"
+  },
+  "type": "module",
+  "icon": "icon.svg",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": "^24.22.3 || >=26.13.1",
+    "dsh": ">=0.2.3-alpha.2 <0.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  }
+}

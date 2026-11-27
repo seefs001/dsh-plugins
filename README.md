@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-35 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
+36 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation (中文)](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -61,6 +61,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | [`dsh-message-edit`](packages/message-edit) | Hover your own messages to edit in place or fork and resend. | Host + Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | Draggable GPT / Claude companions reacting to the active conversation. Artwork carries separate non-commercial terms. | Web |
 | [`dsh-acp-workbench`](packages/acp-workbench) | Run Cursor, Antigravity, Claude Code, or other local ACP CLIs in DSH conversations or as continuable subagents. External CLIs run outside the DSH sandbox. | Host + Web |
+| [`dsh-mobile-boost`](packages/mobile-boost) | Reduce mobile layout, blur, and transition overhead when switching pages or focusing the composer. | Web |
 
 ### Tools and integrations
 

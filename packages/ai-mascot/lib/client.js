@@ -85,7 +85,10 @@ window.__ModuleLoader__.load({
       let timer
       const listeners = new Set()
       function set(next) {
-        if (JSON.stringify(snapshot) === JSON.stringify(next)) return
+        if (
+          snapshot === next
+          || (snapshot && next && snapshot.sessionId === next.sessionId && snapshot.character === next.character && snapshot.activity === next.activity)
+        ) return
         snapshot = next
         for (const listener of listeners) listener()
       }
@@ -200,7 +203,7 @@ window.__ModuleLoader__.load({
 @keyframes dsh-mascot-shake{25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
 @keyframes dsh-mascot-blink{50%{opacity:.4}}
 @media(prefers-reduced-motion:reduce){.dsh-mascot *,.dsh-mascot *::before,.dsh-mascot *::after{animation:none!important}}
-@media(max-width:768px),(pointer:coarse){.dsh-mascot-bubble,.dsh-mascot-control,.dsh-mascot-panel,.dsh-mascot-mini{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
+@media(max-width:768px),(pointer:coarse){.dsh-mascot-bubble,.dsh-mascot-control,.dsh-mascot-panel,.dsh-mascot-mini{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}.dsh-mascot[data-activity=idle] .dsh-mascot-portrait{animation:none}}
 @media(pointer:coarse){.dsh-mascot-control{width:32px;height:32px}}
 @media(max-width:600px){.dsh-mascot{--mascot-right:max(12px,env(safe-area-inset-right));bottom:calc(96px + env(safe-area-inset-bottom));--mascot-scale:.7;width:116px}.dsh-mascot[data-size=small]{--mascot-scale:.6;width:106px}.dsh-mascot-bubble{font-size:11px;max-width:120px;padding:6px 9px}}
 `
@@ -306,16 +309,36 @@ window.__ModuleLoader__.load({
             try { localStorage.setItem(PREF_KEY, JSON.stringify(next)) } catch {}
             return next
           })
+          const hasPosition = position !== null
+          const activeCharacter = facts?.character ?? null
           React.useLayoutEffect(() => {
-            const fit = () => setPosition(previous => {
-              if (!previous || !element.current) return previous
-              const next = constrain(previous, element.current)
-              return next.right === previous.right && next.bottom === previous.bottom ? previous : next
-            })
+            if (!hasPosition || !activeCharacter || panel !== null) return undefined
+            let frame = 0
+            let lastWidth = typeof window !== 'undefined' ? window.innerWidth : 0
+            const fit = () => {
+              frame = 0
+              setPosition(previous => {
+                if (!previous || !element.current) return previous
+                const next = constrain(previous, element.current)
+                return next.right === previous.right && next.bottom === previous.bottom ? previous : next
+              })
+            }
+            const onResize = () => {
+              const width = window.innerWidth
+              const active = typeof document !== 'undefined' ? document.activeElement : null
+              const editing = active instanceof HTMLElement && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
+              const widthChanged = width !== lastWidth
+              lastWidth = width
+              if (editing && !widthChanged) return
+              if (!frame) frame = requestAnimationFrame(fit)
+            }
             fit()
-            window.addEventListener('resize', fit)
-            return () => window.removeEventListener('resize', fit)
-          }, [preferences.size, preferences.compact, facts?.character, facts?.activity, panel])
+            window.addEventListener('resize', onResize)
+            return () => {
+              window.removeEventListener('resize', onResize)
+              if (frame) cancelAnimationFrame(frame)
+            }
+          }, [hasPosition, preferences.size, preferences.compact, activeCharacter, panel])
           React.useEffect(() => {
             if (facts?.character && panel === null) return
             const current = drag.current

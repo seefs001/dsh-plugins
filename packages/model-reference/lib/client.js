@@ -52,10 +52,12 @@ window.__ModuleLoader__.load({
 
     function detectHash(card) {
       const sel = window.getSelection()
-      if (!card || !sel || sel.rangeCount === 0 || !sel.isCollapsed) return null
+      if (!card || !sel || sel.rangeCount === 0 || !sel.isCollapsed || sel.anchorOffset <= 0) return null
       const node = sel.anchorNode
-      if (!node || node.nodeType !== 3 || !card.contains(node)) return null
-      const m = /(^|\s)#([^\s#]*)$/u.exec((node.textContent ?? '').slice(0, sel.anchorOffset))
+      if (!node || node.nodeType !== 3) return null
+      const text = node.textContent ?? ''
+      if (!text.includes('#') || !card.contains(node)) return null
+      const m = /(^|\s)#([^\s#]*)$/u.exec(text.slice(0, sel.anchorOffset))
       return m ? { query: m[2], length: m[2].length + 1 } : null
     }
 
@@ -296,24 +298,54 @@ window.__ModuleLoader__.load({
           const draftRev = useInput(s => s.draftRev)
           const phase = useInput(s => s.phase)
           const anchorRef = React.useRef(null)
+          const cardRef = React.useRef(null)
+          const frameRef = React.useRef(0)
           const [hit, setHit] = React.useState(null)
+          const openRef = React.useRef(false)
+          openRef.current = hit !== null
           const [index, setIndex] = React.useState(0)
           const [sourceTick, setSourceTick] = React.useState(0)
           const dismissed = React.useRef(null)
 
-          const card = () => anchorRef.current?.closest('[data-composer-card]') ?? null
+          const card = React.useCallback(() => {
+            if (cardRef.current?.isConnected) return cardRef.current
+            const next = anchorRef.current?.closest('[data-composer-card]') ?? null
+            cardRef.current = next
+            return next
+          }, [])
+          React.useLayoutEffect(() => {
+            cardRef.current = anchorRef.current?.closest('[data-composer-card]') ?? null
+          }, [])
           const recompute = React.useCallback(() => {
+            frameRef.current = 0
             if (phase !== 'plain' && phase !== 'claimed') { setHit(null); return }
             const found = detectHash(card())
             if (!found) { dismissed.current = null; setHit(null); return }
             if (dismissed.current === found.query) { setHit(null); return }
             setHit(prev => prev && prev.query === found.query && prev.length === found.length ? prev : found)
-          }, [phase])
-          React.useEffect(() => { const id = requestAnimationFrame(recompute); return () => cancelAnimationFrame(id) }, [recompute, draftRev])
-          React.useEffect(() => {
-            document.addEventListener('selectionchange', recompute)
-            return () => document.removeEventListener('selectionchange', recompute)
+          }, [phase, card])
+          const scheduleRecompute = React.useCallback(() => {
+            if (frameRef.current) return
+            frameRef.current = requestAnimationFrame(recompute)
           }, [recompute])
+          React.useEffect(() => {
+            scheduleRecompute()
+          }, [scheduleRecompute, draftRev])
+          React.useEffect(() => {
+            const onSelectionChange = () => {
+              if (!openRef.current) {
+                const c = card()
+                const active = typeof document !== 'undefined' ? document.activeElement : null
+                if (!c || !active || !c.contains(active)) return
+              }
+              scheduleRecompute()
+            }
+            document.addEventListener('selectionchange', onSelectionChange)
+            return () => {
+              document.removeEventListener('selectionchange', onSelectionChange)
+              if (frameRef.current) { cancelAnimationFrame(frameRef.current); frameRef.current = 0 }
+            }
+          }, [card, scheduleRecompute])
 
           const open = hit !== null
           const sources = React.useMemo(() => activeBus.listSources(), [activeBus, busRev])

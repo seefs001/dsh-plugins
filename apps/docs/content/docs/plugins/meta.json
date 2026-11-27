@@ -5,7 +5,7 @@
     "index",
     "---模型与审查---", "model-favorites", "model-reference", "service-tier", "remember-model", "title-model", "subagent-model", "auto-review-model", "roles",
     "---会话与工作区---", "recent-sessions", "session-groups", "workspace-manager", "open-in-default", "branch-switcher", "git-changes", "github-panel", "keep-awake",
-    "---对话阅读---", "diagram-preview", "canvas", "side-chat", "quote-jump", "tool-lens", "subagent-peek", "message-actions", "message-edit", "ai-mascot", "acp-workbench",
+    "---对话阅读---", "diagram-preview", "canvas", "side-chat", "quote-jump", "tool-lens", "subagent-peek", "message-actions", "message-edit", "ai-mascot", "acp-workbench", "mobile-boost",
     "---工具与集成---", "prompt-shortcut", "cheat-sheet", "web-access", "image-gen", "pi-tools", "pi-mcp", "paseo-hub", "bark-notify", "config-backup"
   ]
 }

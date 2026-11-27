@@ -1,0 +1,20 @@
+---
+title: 移动端加速
+description: 在窄屏与触屏设备上降低切页与点击输入框时的重排、毛玻璃滤镜与过渡开销。
+---
+
+<PluginFacts slug="mobile-boost" />
+
+纯前端样式缓解插件，仅在 `@media (max-width: 768px), (pointer: coarse)` 下生效，不影响桌面端视觉与交互。
+
+## 安装
+
+<InstallCommand slug="mobile-boost" />
+
+## 缓解项
+
+- **历史消息离屏跳过**：为较早的聊天节点启用 `content-visibility: auto; contain-intrinsic-size: auto 96px`，跳过屏幕外节点的布局与绘制；保留末尾 4 条节点、折叠节点和压缩分隔标记不受影响。
+- **收起抽屉隔离**：为收起状态的移动端侧栏列表启用 `content-visibility: auto`，减少隐藏侧栏的布局成本，滑出时自动恢复。
+- **抽屉网格过渡止损**：屏蔽 `[data-sidebar-drawer][data-animating]` 上无效的列宽过渡。
+- **宿主毛玻璃降级**：将 `--dsw-menu-backdrop-filter` 与 `--dsw-mask-blur` 置为 `none`，并将 `--dsw-specific-menu` 回退为不透明图层背景。
+- **输入框触控与绘制减负**：为输入框与侧栏行添加 `touch-action: manipulation`，并简化移动端输入框阴影与消息列表 `margin-top` 过渡。

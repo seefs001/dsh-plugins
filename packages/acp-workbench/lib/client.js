@@ -1959,18 +1959,44 @@ button.aw-child-trigger:focus-visible{outline:none}
             || (s.interactions?.length ?? 0) > 0
             || (s.backgroundTasks?.some(item => item.status === 'running') ?? false))),
         )
+        const MAX_NATIVE_CACHE = 8
+        const NATIVE_CACHE_TTL_MS = 120_000
+        const NATIVE_REVALIDATE_MS = 15_000
+        const nativeCache = new Map()
+        const rememberNative = (sessionId, entry) => {
+          nativeCache.delete(sessionId)
+          nativeCache.set(sessionId, entry)
+          while (nativeCache.size > MAX_NATIVE_CACHE) {
+            const oldest = nativeCache.keys().next().value
+            if (oldest === undefined) break
+            nativeCache.delete(oldest)
+          }
+        }
+        const readNativeCache = sessionId => {
+          const cached = nativeCache.get(sessionId)
+          if (!cached) return null
+          if (Date.now() - cached.at > NATIVE_CACHE_TTL_MS) {
+            nativeCache.delete(sessionId)
+            return null
+          }
+          nativeCache.delete(sessionId)
+          nativeCache.set(sessionId, cached)
+          return cached
+        }
         const nativeSources = new Map()
         function nativeSource(sessionId) {
           const existing = nativeSources.get(sessionId)
           if (existing) return existing
+          const cached = readNativeCache(sessionId)
           const listeners = new Set()
-          let current = { data: null, error: '' }
+          let current = { data: cached?.data ?? null, error: '' }
           let controller = null
           let unsubscribe = null
           let loading = false
           let again = false
           let staleWhileHidden = false
-          let lastModelKey
+          let lastModelKey = cached?.modelKey
+          let lastFetchedAt = cached?.at ?? 0
           const onVisibility = () => {
             if (typeof document !== 'undefined' && !document.hidden && staleWhileHidden) {
               staleWhileHidden = false
@@ -2005,6 +2031,8 @@ button.aw-child-trigger:focus-visible{outline:none}
                 try {
                   const data = await api({ action: 'native-snapshot', dshSessionId: sessionId }, own.signal)
                   if (!own.signal.aborted) {
+                    lastFetchedAt = Date.now()
+                    rememberNative(sessionId, { data, at: lastFetchedAt, modelKey: lastModelKey })
                     if (needsNativeLive(data)) ensureLive()
                     else dropLive()
                     publish({ data, error: '', optionsRoute: current.optionsRoute === data.selected?.provider ? current.optionsRoute : null })
@@ -2021,9 +2049,12 @@ button.aw-child-trigger:focus-visible{outline:none}
             lastModelKey = modelKey
             void refresh()
           }
-          const stop = () => {
+          const stop = (preserveCache = true) => {
             controller?.abort(); controller = null; dropLive()
             staleWhileHidden = false
+            if (preserveCache && current.data && lastFetchedAt > 0) {
+              rememberNative(sessionId, { data: current.data, at: lastFetchedAt, modelKey: lastModelKey })
+            }
             lastModelKey = undefined
             if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
             current = { data: null, error: '' }
@@ -2041,16 +2072,18 @@ button.aw-child-trigger:focus-visible{outline:none}
                 nativeSources.set(sessionId, source)
                 controller = new AbortController()
                 if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
-                if (needsNativeLive(current.data)) ensureLive()
-                void refresh()
+                const liveNeeded = needsNativeLive(current.data)
+                if (liveNeeded) ensureLive()
+                const freshIdle = !liveNeeded && current.data !== null && (Date.now() - lastFetchedAt < NATIVE_REVALIDATE_MS)
+                if (!freshIdle) void refresh()
               }
-              return () => { listeners.delete(listener); if (!listeners.size) stop() }
+              return () => { listeners.delete(listener); if (!listeners.size) stop(true) }
             },
           }
           nativeSources.set(sessionId, source)
           return source
         }
-        ctx.effect(() => () => { for (const source of nativeSources.values()) source.stop(); nativeSources.clear() }, 'acp-workbench: native subscriptions')
+        ctx.effect(() => () => { for (const source of nativeSources.values()) source.stop(false); nativeSources.clear(); nativeCache.clear() }, 'acp-workbench: native subscriptions')
 
         function useNativeSelector(sessionId, selector, isEqual = Object.is, modelKey) {
           const source = React.useMemo(() => nativeSource(sessionId), [sessionId])

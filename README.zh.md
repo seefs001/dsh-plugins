@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-35 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
+36 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [在线文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -61,6 +61,7 @@
 | [`dsh-message-edit`](packages/message-edit) | 悬停自己的消息即可就地改写或分叉重发。 | Host + Web |
 | [`dsh-ai-mascot`](packages/ai-mascot) | 右下角可拖拽的 GPT / Claude 小伙伴，跟随当前对话状态活动。角色素材另有非商业条款。 | Web |
 | [`dsh-acp-workbench`](packages/acp-workbench) | 在 DSH 会话中直接运行 Cursor、Antigravity、Claude Code 等本机 ACP CLI，或委派可续聊子代理。外部 CLI 不受 DSH 沙箱限制。 | Host + Web |
+| [`dsh-mobile-boost`](packages/mobile-boost) | 在窄屏与触屏设备上降低切页与点击输入框时的重排、毛玻璃滤镜与过渡开销。 | Web |
 
 ### 工具与集成
 
