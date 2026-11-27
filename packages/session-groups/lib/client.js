@@ -4,7 +4,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const ReactDOM = require('react-dom')
     const {
-      Button, Checkbox, DisclosureRow, Input, Modal, StateDot, Tag, TextShimmer,
+      Button, Checkbox, DisclosureRow, Input, Menu, Modal, StateDot, Tag, TextShimmer,
       IconChevronDownOutlineRegular, IconChevronUpOutlineRegular,
       IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderCloseRegular, IconFolderOpenRegular,
       IconInspectOutlineRegular, IconPinFillRegular, IconPinOutlineRegular, IconPlusOutlineRegular, IconSearchOutlineRegular,
@@ -345,15 +345,10 @@ window.__ModuleLoader__.load({
 .sgs-row{position:relative;display:flex;align-items:center;height:32px;border-radius:var(--dsw-radius-md,8px);border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;background-clip:padding-box;box-sizing:border-box;padding:0 8px 0 calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));cursor:pointer;user-select:none;-webkit-user-select:none;color:var(--dsw-alias-label-primary);outline:none}
 .sgs-row:focus-visible{box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 .sgs-row.sgs-selected{background-color:var(--dsw-alias-interactive-bg-hover)}
-.sgs-row.sgs-bulk-selected{background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dsw-alias-state-business-primary) 42%,transparent)}
-.sgs-bulk{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:0 4px 6px;padding:6px 8px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);font-size:11.5px;line-height:16px}
-.sgs-bulk-count{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
-.sgs-bulk-select,.sgs-bulk-btn{height:24px;border:.5px solid var(--dsw-alias-border-l3);border-radius:6px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:11.5px;cursor:pointer}
-.sgs-bulk-select{max-width:112px;min-width:0;padding:0 6px}
-.sgs-bulk-btn{padding:0 7px}
-.sgs-bulk-btn:disabled,.sgs-bulk-select:disabled{opacity:.45;cursor:default}
-@media (hover:hover){.sgs-bulk-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
-@media (pointer:coarse){.sgs-bulk-select{font-size:16px;height:30px}}
+.sgs-row.sgs-bulk-selected{background-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 10%,var(--dsw-alias-interactive-bg-hover));box-shadow:inset 2px 0 0 var(--dsw-alias-state-business-primary)}
+.sgs-bulk{display:flex;align-items:center;gap:4px;height:32px;border-radius:var(--dsw-radius-md,8px);border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;background-clip:padding-box;box-sizing:border-box;padding:0 6px 0 calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));background-color:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
+.sgs-bulk-count{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-variant-numeric:tabular-nums}
+.sgs-bulk-actions{flex:none;display:inline-flex;align-items:center;gap:2px}
 @media (hover:hover){.sgs-row:hover{background-color:var(--dsw-alias-interactive-bg-hover)}}
 .sgs-slot{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:20px;color:var(--dsw-alias-label-tertiary)}
 .sgs-folder-icon.sgs-active{color:var(--dsw-alias-state-business-primary)}
@@ -370,6 +365,7 @@ window.__ModuleLoader__.load({
 @media (hover:hover){.sgs-row:hover .sgs-actions,.sgs-row:focus-within .sgs-actions{display:inline-flex}.sgs-row:hover .sgs-rest,.sgs-row:focus-within .sgs-rest{display:none}}
 @media (hover:none){.sgs-row .sgs-actions{display:inline-flex}.sgs-row .sgs-rest{display:none}}
 .sgs-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
+.sgs-btn:disabled{opacity:.4;cursor:default}
 .sgs-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 @media (pointer:coarse){.sgs-row{min-height:38px;height:auto;padding-block:4px}.sgs-btn{width:30px;height:30px}}
 @media (hover:hover){.sgs-btn:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}.sgs-btn.sgs-danger:hover{color:var(--dsw-alias-state-error-primary)}}
@@ -591,7 +587,7 @@ window.__ModuleLoader__.load({
                 }
               }
             }
-            let changed = prev.currentId !== currentId || Object.keys(prev.byId).length !== tracked.ids.length
+            let changed = prev.currentId !== currentId
             const nextById = {}
             for (const id of tracked.ids) {
               const s = rawById[id]
@@ -1366,7 +1362,7 @@ window.__ModuleLoader__.load({
               e.dataTransfer.setData(MEMBER_MIME, id)
             },
             onClick: e => {
-              if (e.shiftKey || e.metaKey || e.ctrlKey) { e.preventDefault(); e.stopPropagation(); onBulkToggle(id, e.shiftKey); return }
+              if (e.shiftKey || e.metaKey || e.ctrlKey) { e.preventDefault(); e.stopPropagation(); window.getSelection?.()?.removeAllRanges?.(); onBulkToggle(id, e.shiftKey); return }
               if (hasBulkSelection) onBulkToggle(null, false)
               open()
             },
@@ -1486,24 +1482,19 @@ window.__ModuleLoader__.load({
           const view = store.view()
           const dragging = useDocumentDragging()
           const [bulkBusy, setBulkBusy] = React.useState(false)
+          const [bulkMenu, setBulkMenu] = React.useState(false)
           const visibleMemberIds = React.useMemo(() => groups.flatMap(g =>
             view.collapsed.has(g.id) ? [] : orderedMembers(g, byId).filter(id => byId[id] && byId[id].origin !== 'subagent')), [groups, byId, view.collapsed])
           const validMember = React.useCallback(id => Boolean(byId[id] && byId[id].origin !== 'subagent'), [byId])
           const { ids: activeBulkIds, set: activeBulkSet, toggle: toggleBulk, clear: clearBulk } = useRangeSelect(visibleMemberIds, validMember)
-          const onBulkToggle = React.useCallback((id, shiftKey) => toggleBulk(id, undefined, shiftKey), [toggleBulk])
-          const moveBulkTo = async targetGroupId => {
-            if (!targetGroupId || !activeBulkIds.length || bulkBusy) return
-            setBulkBusy(true)
-            try { await addMany(targetGroupId, activeBulkIds); clearBulk() } catch {} finally { setBulkBusy(false) }
-          }
-          const removeBulk = async () => {
+          const onBulkToggle = React.useCallback((id, shiftKey) => { if (id === null) setBulkMenu(false); toggleBulk(id, undefined, shiftKey) }, [toggleBulk])
+          const runBulk = async fn => {
             if (!activeBulkIds.length || bulkBusy) return
-            setBulkBusy(true)
-            try {
-              for (const sessionId of activeBulkIds) await op({ action: 'remove', sessionId })
-              clearBulk()
-            } catch {} finally { setBulkBusy(false) }
+            setBulkBusy(true); setBulkMenu(false)
+            try { await fn(); clearBulk() } catch {} finally { setBulkBusy(false) }
           }
+          const moveBulkTo = target => { if (target) void runBulk(() => addMany(target, activeBulkIds)) }
+          const removeBulk = () => runBulk(async () => { for (const sessionId of activeBulkIds) await op({ action: 'remove', sessionId }) })
           const host = React.useMemo(() => {
             const el = document.createElement('div')
             el.className = 'sgs-host'
@@ -1587,15 +1578,15 @@ window.__ModuleLoader__.load({
               },
               activeBulkIds.length > 0 ? h('div', { className: 'sgs-bulk', role: 'region', 'aria-live': 'polite' },
                 h('span', { className: 'sgs-bulk-count' }, tf('selectedCount', { n: activeBulkIds.length })),
-                groups.length > 1 ? h('select', {
-                  className: 'sgs-bulk-select', value: '', disabled: bulkBusy,
-                  'aria-label': t('moveTo'),
-                  onChange: e => { const target = e.target.value; e.target.value = ''; if (target) void moveBulkTo(target) },
-                },
-                h('option', { value: '' }, t('moveToPick')),
-                groups.map(g => h('option', { key: g.id, value: g.id }, g.name))) : null,
-                h('button', { type: 'button', className: 'sgs-bulk-btn', disabled: bulkBusy, onClick: () => void removeBulk() }, t('remove')),
-                h('button', { type: 'button', className: 'sgs-bulk-btn', disabled: bulkBusy, onClick: () => onBulkToggle(null, false) }, t('clearSelection'))) : null,
+                h('span', { className: 'sgs-bulk-actions' },
+                  groups.length > 1 ? h(Menu, {
+                    open: bulkMenu, onClose: () => setBulkMenu(false), portal: true, align: 'end',
+                    items: groups.map(g => ({ id: g.id, label: g.name, icon: h(IconFolderOpenRegular, { size: 14 }) })),
+                    onSelect: moveBulkTo,
+                    anchor: h('button', { type: 'button', className: 'sgs-btn', disabled: bulkBusy, title: t('moveTo'), 'aria-label': t('moveTo'), 'aria-haspopup': 'menu', 'aria-expanded': bulkMenu, onClick: () => setBulkMenu(v => !v) }, h(IconFolderOpenRegular, { size: 13 })),
+                  }) : null,
+                  h('button', { type: 'button', className: 'sgs-btn sgs-danger', disabled: bulkBusy, title: t('remove'), 'aria-label': t('remove'), onClick: () => void removeBulk() }, h(IconTrashOutlineRegular, { size: 13 })),
+                  h('button', { type: 'button', className: 'sgs-btn', disabled: bulkBusy, title: t('clearSelection'), 'aria-label': t('clearSelection'), onClick: () => onBulkToggle(null, false) }, h(IconCloseOutlineRegular, { size: 13 })))) : null,
               groups.map((group, index) => h(SidebarFolder, {
                 key: group.id, group, index, groups, byId, view, currentId,
                 bulkSet: activeBulkSet, hasBulkSelection: activeBulkIds.length > 0, onBulkToggle, locale: loc.active,

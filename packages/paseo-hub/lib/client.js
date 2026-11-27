@@ -672,6 +672,19 @@ window.__ModuleLoader__.load({
 
     const qs = params => Object.entries(params).filter(([, v]) => v !== '' && v != null && v !== 'all').map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')
 
+    function randomUuid() {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+      if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const b = new Uint8Array(16)
+        crypto.getRandomValues(b)
+        b[6] = (b[6] & 0x0f) | 0x40
+        b[8] = (b[8] & 0x3f) | 0x80
+        const hex = Array.from(b, x => x.toString(16).padStart(2, '0')).join('')
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+      }
+      return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+    }
+
     const IconHub = ({ size = 16 }) => h('svg', {
       width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
       strokeWidth: 1.6, strokeLinecap: 'round', 'aria-hidden': true,
@@ -1300,8 +1313,12 @@ window.__ModuleLoader__.load({
           const [input, setInput] = React.useState('')
           const [inputJson, setInputJson] = React.useState(false)
           const [expectedVersionId, setExpectedVersionId] = React.useState('')
-          const [deliveryKey, setDeliveryKey] = React.useState(() => sessionStorage.getItem('paseo-hub:deliveryKey') || crypto.randomUUID())
-          React.useEffect(() => { sessionStorage.setItem('paseo-hub:deliveryKey', deliveryKey) }, [deliveryKey])
+          const [deliveryKey, setDeliveryKey] = React.useState(() => {
+            try { return sessionStorage.getItem('paseo-hub:deliveryKey') || randomUuid() } catch { return randomUuid() }
+          })
+          React.useEffect(() => {
+            try { sessionStorage.setItem('paseo-hub:deliveryKey', deliveryKey) } catch {}
+          }, [deliveryKey])
           const [bundle, setBundle] = React.useState('{\n  "projectSlug": "default",\n  "files": []\n}')
           const [validatedBundle, setValidatedBundle] = React.useState(null)
           const inputRef = React.useRef(null)
@@ -1525,7 +1542,7 @@ window.__ModuleLoader__.load({
                       h('label', { htmlFor: 'ph-disp-dk' }, t('apiDeliveryKey')),
                       h('div', { className: 'ph-inline-row' },
                         h(Input, { id: 'ph-disp-dk', className: 'ph-mono-input', required: true, value: deliveryKey, onChange: e => setDeliveryKey(e.target.value) }),
-                        h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => { setDeliveryKey(crypto.randomUUID()); setResult(null) } }, t('apiNewDeliveryKey'))),
+                        h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => { setDeliveryKey(randomUuid()); setResult(null) } }, t('apiNewDeliveryKey'))),
                       h('p', { className: 'ph-note' }, t('apiDeliveryHint'))),
                     h('div', { className: 'ph-actions' },
                       h(Button, { type: 'submit', size: 'sm', variant: 'primary', disabled: busy }, t('apiDispatch'))))) : null,

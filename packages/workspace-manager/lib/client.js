@@ -766,6 +766,7 @@ window.__ModuleLoader__.load({
                         if (disabled || e.target?.closest?.('button,input,a,select,label')) return
                         if (e.shiftKey) {
                           e.preventDefault()
+                          window.getSelection?.()?.removeAllRanges?.()
                           toggleSelect(row.workspaceId, !checked, true)
                         } else if (e.metaKey || e.ctrlKey) {
                           e.preventDefault()

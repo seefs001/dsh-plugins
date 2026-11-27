@@ -2,6 +2,7 @@ window.__ModuleLoader__.load({
   id: 'dsh-quote-jump',
   factory(require) {
     const React = require('react')
+    const { IconCheckOutlineRegular, IconCopyOutlineRegular } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'quoteJump'
     const HIGHLIGHT = 'dsh-quote-jump'
@@ -11,14 +12,14 @@ window.__ModuleLoader__.load({
     const SKIP = '[data-quote-jump],script,style,textarea,[contenteditable="true"],[data-composer-seat],.katex-mathml,[data-text-interaction-exclude],.sr-only,[aria-hidden="true"]:not(.katex-html),button:not(code button)'
 
     const CSS_TEXT = `
-.dqj-quote{display:block;position:relative;margin:2px 0 6px;padding:5px 34px 5px 14px;border-radius:8px;
+.dqj-quote{display:block;position:relative;margin:2px 0 6px;padding:5px 32px 5px 14px;border-radius:var(--dsw-radius-md,8px);
   background:color-mix(in srgb,var(--dsw-alias-label-primary) 5%,transparent);color:var(--dsw-alias-label-secondary);
   font-size:.93em;line-height:1.55;text-align:left;cursor:pointer;transition:background-color .12s}
 .dqj-quote::before{content:"";position:absolute;left:5px;top:7px;bottom:7px;width:2.5px;border-radius:2px;
   background:var(--dsw-alias-brand-primary);opacity:.75}
-.dqj-copy{position:absolute;top:4px;right:5px;display:inline-flex;align-items:center;justify-content:center;
-  min-width:24px;height:22px;padding:0 5px;border:0;border-radius:6px;background:transparent;
-  color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s,background-color .12s,color .12s}
+.dqj-copy{position:absolute;top:5px;right:5px;display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;
+  color:var(--dsw-alias-label-tertiary);cursor:pointer;opacity:0;transition:opacity .12s,background-color .12s,color .12s}
 .dqj-quote:hover .dqj-copy,.dqj-quote:focus-within .dqj-copy,.dqj-copy[data-copied="true"]{opacity:1}
 .dqj-copy[data-copied="true"]{color:var(--dsw-alias-state-success-primary)}
 @media (hover:hover){.dqj-copy:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
@@ -296,7 +297,7 @@ window.__ModuleLoader__.load({
             title: copied ? t('copied') : t('copy'),
             'aria-label': copied ? t('copied') : t('copy'),
             onClick: onCopy,
-          }, copied ? '✓' : '⧉'),
+          }, h(copied ? IconCheckOutlineRegular : IconCopyOutlineRegular, { size: 13 })),
           missing ? h('span', { className: 'dqj-hint', role: 'status' }, t('notFound')) : null)
         }
 
