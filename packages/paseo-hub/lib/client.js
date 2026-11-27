@@ -55,6 +55,10 @@ window.__ModuleLoader__.load({
       apiInstallTitle: 'Activate this configuration?',
       apiInstallText: 'Creates or replaces the trigger immediately. Verify name, filters, target directory, and mode.',
       apiInstalled: 'Installed and activated.',
+      apiRotateWebhookSecret: 'Rotate webhook secret',
+      apiRotateWebhookSecretTitle: 'Rotate webhook secret?',
+      apiRotateWebhookSecretText: 'Replaces the current Bearer secret immediately and shows the new secret once.',
+      apiWebhookSecretRotated: 'Webhook secret rotated. Copy it from the API response now.',
       apiDispatch: 'Dispatch run',
       apiDispatchTitle: 'Dispatch a Hub run?',
       apiDispatchText: 'Starts a real run on the target daemon. The actor must match trigger filters.',
@@ -279,6 +283,10 @@ window.__ModuleLoader__.load({
       apiInstallTitle: '激活这份配置？',
       apiInstallText: '按名称新建或覆盖触发器并立即生效，请核对名称、筛选条件、目录与 mode。',
       apiInstalled: '已安装并激活。',
+      apiRotateWebhookSecret: '轮换 Webhook Secret',
+      apiRotateWebhookSecretTitle: '轮换 Webhook Secret？',
+      apiRotateWebhookSecretText: '将立即替换当前 Bearer secret 并仅展示一次新 secret。',
+      apiWebhookSecretRotated: '已轮换 Webhook secret，请立即从下方 API 响应中复制保存。',
       apiDispatch: '触发运行',
       apiDispatchTitle: '触发 Hub 运行？',
       apiDispatchText: '将在目标 daemon 上启动真实任务，actor 需符合触发器筛选条件。',
@@ -1350,6 +1358,19 @@ window.__ModuleLoader__.load({
               setNotice(t('apiInstalled')); await reloadList()
             }),
           })
+          const rotateWebhookSecret = () => {
+            if (!selectedTrigger) return
+            confirm({
+              title: t('apiRotateWebhookSecretTitle'),
+              text: `${saved.origin}\n${selectedTrigger.name}\n${t('apiRotateWebhookSecretText')}`,
+              confirmLabel: t('apiRotateWebhookSecret'),
+              destructive: true,
+              onConfirm: () => job(async () => {
+                setResult(await apiRequest({ action: 'rotate-webhook-secret', triggerId: selectedTrigger.id }))
+                setNotice(t('apiWebhookSecretRotated'))
+              }),
+            })
+          }
           const dispatch = e => {
             e.preventDefault()
             let parsed = input
@@ -1467,7 +1488,10 @@ window.__ModuleLoader__.load({
                     h('p', { className: 'ph-note' }, t('apiYamlHint')),
                     h('div', { className: 'ph-actions' },
                       h(Button, { size: 'sm', variant: 'outline', disabled: busy || !yaml.trim(), onClick: () => void validate() }, t('apiValidate')),
-                      h(Button, { size: 'sm', variant: 'primary', disabled: busy || validated !== yaml, onClick: install }, t('apiInstall'))))
+                      h(Button, { size: 'sm', variant: 'primary', disabled: busy || validated !== yaml, onClick: install }, t('apiInstall')),
+                      selectedTrigger && /\bwebhook\.received\b/u.test(yaml)
+                        ? h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: rotateWebhookSecret }, t('apiRotateWebhookSecret'))
+                        : null))
                     : h('div', { className: 'ph-empty' },
                       h('p', null, t('apiSelectHint')),
                       h(Button, { size: 'sm', variant: 'outline', icon: h(IconPlusOutlineRegular, { size: 13 }), disabled: busy, onClick: makeTemplate }, t('apiNew')))) : null,
@@ -1711,10 +1735,11 @@ window.__ModuleLoader__.load({
           }
           const { args, payload } = parsed
           const parts = []
-          const target = args.trigger || args.name || args.projectSlug || args.query
+          const target = args.trigger || args.name || args.triggerId || args.projectSlug || args.query
           if (typeof target === 'string' && target) parts.push(target)
           if (payload && typeof payload === 'object') {
             if (typeof payload.triggerRunId === 'string') parts.push(`run ${payload.triggerRunId.slice(0, 8)}`)
+            else if (typeof payload.path === 'string') parts.push(payload.path)
             else if (typeof payload.total === 'number') parts.push(`${payload.total}`)
             else if (Array.isArray(payload.items)) parts.push(`${payload.items.length}`)
             else if (typeof payload.valid === 'boolean') parts.push(payload.valid ? 'valid' : 'invalid')

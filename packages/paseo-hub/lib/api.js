@@ -1,8 +1,8 @@
 import { normalizeHubOrigin } from './hub.js'
 
 const CREDENTIAL_KEY = 'paseo-hub/api'
-const WRITE_ACTIONS = new Set(['install-trigger', 'install-configuration', 'dispatch'])
-export const API_ACTIONS = ['status', 'check', 'projects', 'triggers', 'get-trigger', 'resources', 'setup-resources', 'validate-trigger', 'install-trigger', 'validate-configuration', 'install-configuration', 'dispatch']
+const WRITE_ACTIONS = new Set(['install-trigger', 'install-configuration', 'dispatch', 'rotate-webhook-secret'])
+export const API_ACTIONS = ['status', 'check', 'projects', 'triggers', 'get-trigger', 'resources', 'setup-resources', 'validate-trigger', 'install-trigger', 'rotate-webhook-secret', 'validate-configuration', 'install-configuration', 'dispatch']
 const ENDPOINTS = {
   projects: ['GET', '/api/v1/projects', 'projects:read'],
   triggers: ['GET', '/api/v1/triggers', 'configuration:validate'],
@@ -10,6 +10,7 @@ const ENDPOINTS = {
   'setup-resources': ['GET', '/api/v1/setup-resources', 'configuration:validate'],
   'validate-trigger': ['POST', '/api/v1/triggers/validate', 'configuration:validate'],
   'install-trigger': ['POST', '/api/v1/triggers/install', 'configuration:install'],
+  'rotate-webhook-secret': ['POST', '/api/v1/triggers/webhook-secret', 'configuration:install'],
   'validate-configuration': ['POST', '/api/v1/configurations/validate', 'configuration:validate'],
   'install-configuration': ['POST', '/api/v1/configurations/install', 'configuration:install'],
   dispatch: ['POST', '/api/v1/manual-runs', 'runs:dispatch'],
@@ -126,6 +127,8 @@ export class HubApi {
         if (typeof file.content !== 'string' || file.content.length > 1_000_000) throw new Error('file.content: expected a string up to 1,000,000 characters')
         return { path: file.path, content: file.content }
       }) }
+    } else if (action === 'rotate-webhook-secret') {
+      body = { triggerId: text(args.triggerId, 'triggerId', 100) }
     } else if (action === 'dispatch') {
       body = {
         projectSlug: text(args.projectSlug, 'projectSlug', 100), trigger: text(args.trigger, 'trigger'),
@@ -151,7 +154,8 @@ export class HubApi {
         return { origin: saved.origin, trigger }
       }
       if (WRITE_ACTIONS.has(action) || action.startsWith('validate-')) {
-        this.journal.add({ kind: `api.${action}`, message: `${source}: ${action} ${result.name ?? result.configuredTriggerName ?? result.projectSlug ?? ''}`, detail: action === 'dispatch' ? { triggerRunId: result.triggerRunId, deliveryKey: body.deliveryKey } : null })
+        const label = result.name ?? result.configuredTriggerName ?? result.projectSlug ?? (action === 'rotate-webhook-secret' ? body.triggerId : '')
+        this.journal.add({ kind: `api.${action}`, message: `${source}: ${action} ${label}`, detail: action === 'dispatch' ? { triggerRunId: result.triggerRunId, deliveryKey: body.deliveryKey } : null })
       }
       return { origin: saved.origin, ...result }
     } catch (error) {
@@ -167,6 +171,7 @@ export function registerApiTools(ctx, api, ready) {
     query: { type: 'string', description: 'Case-insensitive list filter.' },
     page: { type: 'integer', minimum: 1 }, pageSize: { type: 'integer', minimum: 1, maximum: 100 },
     name: { type: 'string', description: 'get-trigger: trigger name or ID.' },
+    triggerId: { type: 'string', description: 'rotate-webhook-secret: webhook trigger UUID.' },
     yaml: { type: 'string', description: 'Complete trigger YAML to validate or install.' },
     projectSlug: { type: 'string', description: 'Project slug for legacy configurations or manual dispatch.' },
     files: { type: 'array', description: 'Legacy configuration bundle (.paseo/hub.yml, workflows, partials).', items: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'], additionalProperties: false } },
@@ -178,11 +183,11 @@ export function registerApiTools(ctx, api, ready) {
   }
   for (const write of [false, true]) {
     const actions = API_ACTIONS.filter(a => WRITE_ACTIONS.has(a) === write)
-    const keys = write ? ['action', 'yaml', 'projectSlug', 'files', 'trigger', 'actor', 'deliveryKey', 'expectedVersionId', 'input'] : ['action', 'query', 'page', 'pageSize', 'name', 'yaml', 'projectSlug', 'files']
+    const keys = write ? ['action', 'triggerId', 'yaml', 'projectSlug', 'files', 'trigger', 'actor', 'deliveryKey', 'expectedVersionId', 'input'] : ['action', 'query', 'page', 'pageSize', 'name', 'yaml', 'projectSlug', 'files']
     ctx.effect(() => ctx.tools.register({
       name: write ? 'paseo_hub_write' : 'paseo_hub',
       description: write
-        ? 'Install a Paseo Hub trigger or legacy configuration, or dispatch a manual run. Requires agent writes enabled in Paseo Hub → Hub API. Validate before installing; check Hub before retrying ambiguous writes.'
+        ? 'Install a Paseo Hub trigger or legacy configuration, rotate a webhook secret, or dispatch a manual run. Requires agent writes enabled in Paseo Hub → Hub API. Validate before installing; check Hub before retrying ambiguous writes.'
         : 'Read-only Paseo Hub organization API queries and validation (status, check, projects, triggers, get-trigger, resources, setup-resources, validate-trigger, validate-configuration).',
       parameters: { type: 'object', properties: { ...Object.fromEntries(keys.map(k => [k, properties[k]])), action: { type: 'string', enum: actions } }, required: ['action'], additionalProperties: false },
       output: { schema: { type: 'object' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },

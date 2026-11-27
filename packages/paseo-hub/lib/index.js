@@ -654,6 +654,7 @@ export function apply(ctx, config) {
     return {
       sessionId: run.sessionId,
       title: run.title,
+      background: run.background === true,
       cwd: run.cwd,
       model: run.model,
       thinkingOptionId: run.thinkingOptionId ?? null,
