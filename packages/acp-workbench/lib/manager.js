@@ -44,6 +44,7 @@ const CLIENT_CAPABILITY_META = { parameterizedModelPicker: true }
 const ASYNC_WAKEUP_SETTLE_MS = 1_500
 const ASYNC_WAKEUP_SILENT_SETTLE_MS = 15_000
 const ASYNC_WAKEUP_IDLE_TIMEOUT_MS = 120_000
+const ASYNC_WAKEUP_TERMINAL_ALERT_RE = /^\s*(?:⚠|⚠️)\s*(?:individual\s+quota\s+reached|quota\s+(?:reached|exceeded|limit)|rate\s+limit)/iu
 const DEFAULT_PROBE_TIMEOUT_MS = 90_000
 const AGY_VERSION_TIMEOUT_MS = 8_000
 const AGY_VERSION_CACHE_LIMIT = 32
@@ -1685,12 +1686,7 @@ export class Workbench {
     else if (normalized === 'cursor/create_plan') kind = 'plan'
     else throw new RpcError(`Unsupported client method: ${method}`, -32601)
     if (!runtime.turnId) throw new RpcError('Interactive requests require an active prompt', -32600)
-    if (runtime.deferredEnd) {
-      clearTimeout(runtime.deferredEnd.settleTimer)
-      clearTimeout(runtime.deferredEnd.wakeupTimer)
-      runtime.deferredEnd.settleTimer = null
-      runtime.deferredEnd.wakeupTimer = null
-    }
+    if (runtime.deferredEnd) this.clearDeferredTimers(runtime.deferredEnd)
     const id = randomUUID()
     const interaction = { id, kind, method, params, turnId: runtime.turnId, createdAt: now() }
     const launch = kind === 'permission' && runtime.callStarts?.get(params.toolCall?.toolCallId)
@@ -1756,6 +1752,7 @@ export class Workbench {
     runtime.interactions.delete(op.interactionId)
     try { this.onInteractionClose?.({ id: op.interactionId, session }) } catch {}
     pending.resolve(result)
+    if (runtime.deferredEnd) this.syncDeferredIdleTimer(session, runtime, runtime.deferredEnd)
     await this.transition(session, runtime.interactions.size ? 'waiting' : 'running')
     return { answered: op.interactionId }
   }
@@ -1782,6 +1779,15 @@ export class Workbench {
       if (runtime.interactions.size > 0 || (runtime.openBackgroundCalls?.size ?? 0) > 0) return
       void state.finish()
     }, delayMs)
+  }
+
+  syncDeferredIdleTimer(session, runtime, state, delayMs = this.asyncWakeupIdleTimeoutMs) {
+    if (!state) return
+    if ((runtime.openBackgroundCalls?.size ?? 0) === 0 && runtime.interactions.size === 0) {
+      this.armDeferredTimer(session, runtime, state, 'wakeupTimer', delayMs)
+    } else {
+      this.clearDeferredTimers(state)
+    }
   }
 
   clearBackgroundTaskTimers(runtime) {
@@ -2004,37 +2010,32 @@ export class Workbench {
     switch (update.sessionUpdate) {
       case 'tool_call':
         if (callId && open) {
-          if (isDaemonToolCall(update) || update.status === 'completed' || update.status === 'failed') open.delete(callId)
+          if (isDaemonToolCall(update) || update.status === 'completed' || update.status === 'failed' || update.status === 'cancelled') open.delete(callId)
           else open.add(callId)
         }
         if (state) {
-          this.clearDeferredTimers(state)
           state.hasMessageOutput = false
+          this.syncDeferredIdleTimer(session, runtime, state)
         }
         break
       case 'tool_call_update':
-        if (callId && open && (update.status === 'completed' || update.status === 'failed' || isDaemonToolCall(update))) {
+        if (callId && open && (update.status === 'completed' || update.status === 'failed' || update.status === 'cancelled' || isDaemonToolCall(update))) {
           open.delete(callId)
         }
         if (state) {
-          this.clearDeferredTimers(state)
           state.hasMessageOutput = false
-          if (
-            (update.status === 'completed' || update.status === 'failed')
-            && (open?.size ?? 0) === 0
-            && runtime.interactions.size === 0
-          ) {
-            this.armDeferredTimer(session, runtime, state, 'wakeupTimer', this.asyncWakeupIdleTimeoutMs)
-          }
+          this.syncDeferredIdleTimer(session, runtime, state)
         }
         break
       case 'agent_thought_chunk':
-        if (state) this.clearDeferredTimers(state)
+        if (state) this.syncDeferredIdleTimer(session, runtime, state)
         break
       case 'agent_message_chunk':
         if (state) {
-          this.clearDeferredTimers(state)
           state.hasMessageOutput = true
+          const text = update.content?.type === 'text' && typeof update.content.text === 'string' ? update.content.text : ''
+          const delay = ASYNC_WAKEUP_TERMINAL_ALERT_RE.test(text) ? this.asyncWakeupSettleMs : this.asyncWakeupIdleTimeoutMs
+          this.syncDeferredIdleTimer(session, runtime, state, delay)
         }
         break
       case 'usage_update':
