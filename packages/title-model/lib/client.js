@@ -41,7 +41,7 @@ window.__ModuleLoader__.load({
 .dsh-title-model__form{display:flex;flex-direction:column;gap:12px;padding-top:14px;border-top:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1)}
 .dsh-title-model label{display:grid;grid-template-columns:132px minmax(0,380px);gap:8px;align-items:center}
 .dsh-title-model label>span{color:var(--dsw-alias-label-secondary)}
-.dsh-title-model select{width:100%;height:32px;min-width:0;padding:0 10px;border:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-base);color:inherit;font:inherit;cursor:pointer}
+.dsh-title-model select{width:100%;height:32px;min-width:0;padding:0 26px 0 10px;border:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-module-platform) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center/12px 12px;color:inherit;font:inherit;cursor:pointer;appearance:none}
 .dsh-title-model button{height:30px;padding:0 14px;border:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:transparent;color:inherit;font:inherit;cursor:pointer;transition:background-color .15s}
 .dsh-title-model button.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}
 .dsh-title-model :is(button,select):disabled{opacity:.4;cursor:default}

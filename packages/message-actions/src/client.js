@@ -56,6 +56,7 @@ const CSS = `
 .dma-fields.has-effort{grid-template-columns:minmax(0,2fr) minmax(140px,1fr)}
 .dma-field{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:13px;line-height:20px;font-weight:500;color:var(--dsw-alias-label-secondary)}
 .dma-input{width:100%;min-width:0;height:32px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);padding:0 10px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-overflow:ellipsis}
+select.dma-input{padding:0 26px 0 10px;background:var(--dsw-alias-bg-module-platform) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center/12px 12px;cursor:pointer;appearance:none}
 .dma-input:disabled{opacity:.55}
 .dma-buttons{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 .dma-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;height:30px;padding:0 12px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;white-space:nowrap}

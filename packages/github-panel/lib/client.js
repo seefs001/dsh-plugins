@@ -44,11 +44,10 @@ window.__ModuleLoader__.load({
 .ghp-quiet{padding:4px 6px;color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
 .ghp-indicator{background:var(--dsw-alias-state-error-primary)}
 .ghp-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.ghp-cfg{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:var(--dsw-radius-md,10px);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13)}
-.ghp-cfg h4{margin:0;font:var(--dsw-font-sm-14);font-weight:600}
-.ghp-cfg textarea{width:100%;min-height:76px;padding:8px;box-sizing:border-box;border-radius:var(--dsw-radius-sm,8px);border:1px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-base);color:inherit;font-family:var(--dsw-font-mono,ui-monospace,monospace);font-size:12px;resize:vertical}
+.ghp-cfg{display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13)}
+.ghp-cfg h4{margin:0;font:var(--dsw-font-sm-14);font-weight:500}
+.ghp-cfg textarea{width:100%;min-height:76px;padding:8px 10px;box-sizing:border-box;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-module-platform));color:inherit;font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:1.6;resize:vertical}
 .ghp-cfg textarea:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
-@media (pointer:coarse){.ghp-cfg textarea{font-size:16px}.ghp-locate-btn{width:28px;height:28px}}
 .ghp-cfg-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ghp-cfg-hint{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
 .ghp-cfg-err{color:var(--dsw-alias-state-error-primary);font:var(--dsw-font-xxs-12)}

@@ -113,6 +113,7 @@ window.__ModuleLoader__.load({
 .bn-row{display:grid;grid-template-columns:132px minmax(0,380px);gap:8px;align-items:center}
 .bn-row>span{color:var(--dsw-alias-label-secondary)}
 .bn input[type=text],.bn input[type=password],.bn input[type=number],.bn input[type=url],.bn select{height:32px;min-width:0;padding:0 10px;border:var(--bn-line);border-radius:var(--bn-r);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit}
+.bn select{padding:0 26px 0 10px;background:var(--dsw-alias-bg-module-platform) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center/12px 12px;cursor:pointer;appearance:none}
 .bn input:disabled,.bn select:disabled{opacity:.6;cursor:default}
 .bn-switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:520px;min-height:28px;cursor:pointer}
 .bn-row:has([role=switch]){cursor:pointer}
