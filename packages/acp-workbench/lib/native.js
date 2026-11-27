@@ -5,7 +5,7 @@ import { agySubagentIdOf, applyLateCompactions, cliParentOf, createTrace, cursor
 import { connectionNotices } from './notices.js'
 import { installContinuations } from './continuations.js'
 import { DelegationHub } from './delegation.js'
-import { computeTps, diffSessionTotals, sessionTotals, toDshTokenUsage } from './usage.js'
+import { computeTps, contextWindow as usageContextWindow, diffSessionTotals, estimateStepUsage, isPerTurnUsage, reconcileFinalStepUsage, sessionTotals, toDshTokenUsage } from './usage.js'
 import {
   BYPASS_MODE_ID,
   advertisedModes,
@@ -434,6 +434,12 @@ class AcpTurn {
     this.decodeMs = 0
     this.turnUsage = null
     this.turnTps = undefined
+    this.turnStepWindows = []
+    this.pendingStepWindows = []
+    this.prevStepPrompt = 0
+    this.prevStepAt = 0
+    this.hasEmittedStepUsage = false
+    this.emittedUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, totalTokens: 0 }
   }
 
   hasQueued() {
@@ -785,6 +791,18 @@ class AcpTurn {
 
     if (parent) { this.wake(); return }
 
+    if (kind === 'usage_update') {
+      const window = usageContextWindow(update)
+      const sameRemote = !this.session?.remoteId || event.data.params?.sessionId === this.session.remoteId
+      if (window && window.used > 0 && sameRemote) {
+        const sample = { used: window.used, size: window.size, at: Date.parse(event.at) || Date.now() }
+        this.turnStepWindows.push(sample)
+        this.pendingStepWindows.push(sample)
+      }
+      this.wake()
+      return
+    }
+
     if (kind === 'agent_thought_chunk') {
       const content = update.content
       const text = content?.type === 'text' ? content.text
@@ -916,6 +934,9 @@ class AcpTurn {
     await this.native.manager.store.saveSession(this.session)
     signal.throwIfAborted()
     this.installExecutor()
+    const prevCtx = this.session.lastContext?.remoteId === this.session.remoteId ? this.session.lastContext : null
+    this.prevStepPrompt = prevCtx?.window?.used ?? 0
+    this.prevStepAt = prevCtx?.at ? Date.parse(prevCtx.at) || 0 : 0
     this.unsubscribe = this.native.manager.subscribe(this.session.id, event => this.onEvent(event))
     await this.native.manager.prompt(this.session, input.text, { content: input.prompt, turnId: this.turnId })
     const runtime = this.native.manager.runtimes.get(this.session.id)
@@ -937,6 +958,61 @@ class AcpTurn {
       from: this.run.from,
       to: this.run.to ?? this.session.eventSeq,
     }
+  }
+
+  adapterForSession() {
+    if (!this.session) return null
+    const runtime = this.native.manager.runtimes.get(this.session.id)
+    if (runtime?.adapter) return runtime.adapter
+    const providerRecord = this.native.manager.store.providers.get(this.session.providerId)
+    return resolveAdapter({
+      providerId: this.session.providerId,
+      command: providerRecord?.command,
+      capabilities: this.session.capabilities,
+    })
+  }
+
+  recordTurnUsage() {
+    if (this.turnUsage || !this.result || !this.session) return this.turnUsage
+    const rawTotals = sessionTotals(this.result.usage)
+    if (!rawTotals) return null
+    const prevTotals = this.session.lastPromptUsage?.remoteId === this.session.remoteId
+      ? this.session.lastPromptUsage.totals
+      : null
+    const turnUsedSum = this.turnStepWindows.reduce((sum, item) => sum + item.used, 0)
+    const perTurn = isPerTurnUsage(rawTotals, prevTotals, {
+      adapter: this.adapterForSession(),
+      turnUsedSum,
+      stepCount: this.turnStepWindows.length,
+    })
+    const turnTotals = perTurn ? rawTotals : diffSessionTotals(rawTotals, prevTotals)
+    const dshUsage = toDshTokenUsage(turnTotals)
+    if (!perTurn) this.session.lastPromptUsage = { remoteId: this.session.remoteId, totals: rawTotals }
+    if (dshUsage) {
+      this.turnUsage = dshUsage
+      this.turnTps = computeTps(dshUsage.outputTokens, this.decodeMs)
+    }
+    return this.turnUsage
+  }
+
+  consumePendingStepUsage() {
+    if (!this.pendingStepWindows.length || !this.adapterForSession()?.stepUsageFromWindow) return null
+    const windows = this.pendingStepWindows.splice(0)
+    const estimated = estimateStepUsage(windows, {
+      prevPrompt: this.prevStepPrompt,
+      prevAt: this.prevStepAt,
+      isFirstOfTurn: !this.hasEmittedStepUsage,
+    })
+    if (!estimated) return null
+    this.hasEmittedStepUsage = true
+    this.prevStepPrompt = estimated.nextPrompt
+    this.prevStepAt = estimated.nextAt
+    this.emittedUsage.inputTokens += estimated.usage.inputTokens
+    this.emittedUsage.outputTokens += estimated.usage.outputTokens
+    this.emittedUsage.cacheReadTokens += estimated.usage.cacheReadTokens ?? 0
+    this.emittedUsage.cacheWriteTokens += estimated.usage.cacheWriteTokens ?? 0
+    this.emittedUsage.totalTokens += estimated.usage.totalTokens
+    return estimated.usage
   }
 
   async finalizeTurn() {
@@ -1130,7 +1206,10 @@ class AcpTurn {
     if (!this.settled && !this.hasQueued()) await Promise.resolve()
     const concluded = this.settled && !this.failure && !signal.aborted && !this.controller.signal.aborted
       && this.result?.stopReason !== 'cancelled' && !this.hasQueued()
-    if (concluded) await this.finalizeTurn()
+    if (concluded) {
+      this.recordTurnUsage()
+      await this.finalizeTurn()
+    }
     return {
       results: entries.map(entry => ({ callId: entry.block.id, result: entry.result })),
       additionalContexts: [],
@@ -1321,7 +1400,8 @@ class AcpTurn {
       }
 
       if (pendingCalls.length > 0) {
-        // external: ACP session/prompt.usage is only returned at turn end, not per intermediate tool step
+        const stepUsage = this.consumePendingStepUsage()
+        if (stepUsage) yield { type: 'usage', usage: stepUsage }
         yield { type: 'finish', reason: { kind: 'stop' }, replayState: { response: { acp: this.acpCheckpoint() } } }
         return
       }
@@ -1331,21 +1411,12 @@ class AcpTurn {
         throw stepSignal?.reason ?? this.controller.signal.reason ?? new Error('Native request canceled')
       }
       if (!this.result) throw new Error('External execution ended without a completion result')
-      const rawTotals = sessionTotals(this.result.usage)
-      if (rawTotals && this.session) {
-        const prevTotals = this.session.lastPromptUsage?.remoteId === this.session.remoteId
-          ? this.session.lastPromptUsage.totals
-          : null
-        const delta = diffSessionTotals(rawTotals, prevTotals)
-        const dshUsage = toDshTokenUsage(delta)
-        this.session.lastPromptUsage = { remoteId: this.session.remoteId, totals: rawTotals }
-        if (dshUsage) {
-          this.turnUsage = dshUsage
-          this.turnTps = computeTps(dshUsage.outputTokens, this.decodeMs)
-        }
-      }
+      const turnUsage = this.recordTurnUsage()
+      const emittedUsage = turnUsage
+        ? reconcileFinalStepUsage(turnUsage, this.emittedUsage)
+        : this.consumePendingStepUsage()
       await this.finalizeTurn()
-      if (this.turnUsage) yield { type: 'usage', usage: this.turnUsage }
+      if (emittedUsage) yield { type: 'usage', usage: emittedUsage }
       const reason = this.result.stopReason === 'cancelled'
         ? { kind: 'aborted', failure: { code: 'ABORTED', message: 'The external agent canceled this turn' } }
         : { kind: this.result.stopReason === 'max_tokens' ? 'max-tokens' : 'stop' }

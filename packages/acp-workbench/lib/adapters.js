@@ -32,6 +32,8 @@ const ADAPTERS = {
     probePerModelConfig: false,
     asyncToolWakeup: true,
     compactMcpBridge: true,
+    promptUsageScope: 'turn',
+    stepUsageFromWindow: true,
     nativeInstructionFiles: ['AGENTS.md'],
   },
   'claude-code': {

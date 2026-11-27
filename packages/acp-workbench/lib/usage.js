@@ -117,6 +117,92 @@ function toDshTokenUsage(usage) {
   }
 }
 
+const CACHE_WARM_WINDOW_MS = 240_000
+
+function isPerTurnUsage(current, previous, { adapter, turnUsedSum = 0, stepCount = 0 } = {}) {
+  if (!current) return false
+  if (adapter?.promptUsageScope === 'turn') return true
+  if (stepCount > 0 && turnUsedSum > 0 && current.totalTokens === turnUsedSum) {
+    if (!previous || current.totalTokens !== previous.totalTokens + turnUsedSum) return true
+  }
+  return false
+}
+
+function estimateStepUsage(windows, { prevPrompt = 0, prevAt = 0, isFirstOfTurn = true } = {}) {
+  if (!Array.isArray(windows) || !windows.length) return null
+  let inputTokens = 0
+  let cacheReadTokens = 0
+  let currentPrev = tokenCount(prevPrompt) ? prevPrompt : 0
+  let currentAt = Number.isFinite(prevAt) && prevAt > 0 ? prevAt : 0
+  let first = Boolean(isFirstOfTurn)
+  for (const item of windows) {
+    const used = item?.used
+    if (!tokenCount(used) || used <= 0) continue
+    const at = Number.isFinite(item?.at) && item.at > 0 ? item.at : 0
+    const gapMs = first && currentAt > 0 && at >= currentAt ? at - currentAt : 0
+    const cacheBase = first ? (currentPrev > 0 && gapMs <= CACHE_WARM_WINDOW_MS ? currentPrev : 0) : currentPrev
+    const cached = Math.min(used, cacheBase)
+    inputTokens += used - cached
+    cacheReadTokens += cached
+    currentPrev = used
+    if (at > 0) currentAt = at
+    first = false
+  }
+  const totalTokens = inputTokens + cacheReadTokens
+  if (totalTokens <= 0) return null
+  return {
+    usage: {
+      inputTokens,
+      outputTokens: 0,
+      totalTokens,
+      cacheReadTokens,
+      cacheWriteTokens: 0,
+    },
+    nextPrompt: currentPrev,
+    nextAt: currentAt,
+  }
+}
+
+function reconcileFinalStepUsage(turnUsage, emitted) {
+  if (!turnUsage) return null
+  if (!emitted || !tokenCount(emitted.totalTokens) || emitted.totalTokens <= 0) return turnUsage
+  const remTotal = Math.max(0, turnUsage.totalTokens - emitted.totalTokens)
+  if (remTotal <= 0) return null
+  const rawRemOut = Math.max(0, turnUsage.outputTokens - (emitted.outputTokens ?? 0))
+  const outputTokens = rawRemOut <= remTotal ? rawRemOut : (remTotal > 1 ? Math.floor(remTotal / 2) : remTotal)
+  const remPrompt = remTotal - outputTokens
+  const wantIn = Math.max(0, turnUsage.inputTokens - (emitted.inputTokens ?? 0))
+  const wantCR = Math.max(0, (turnUsage.cacheReadTokens ?? 0) - (emitted.cacheReadTokens ?? 0))
+  const wantCW = Math.max(0, (turnUsage.cacheWriteTokens ?? 0) - (emitted.cacheWriteTokens ?? 0))
+  const wantSum = wantIn + wantCR + wantCW
+  let inputTokens
+  let cacheReadTokens
+  let cacheWriteTokens
+  if (wantSum === remPrompt) {
+    inputTokens = wantIn
+    cacheReadTokens = wantCR
+    cacheWriteTokens = wantCW
+  } else if (wantSum > 0) {
+    cacheReadTokens = Math.min(remPrompt, Math.round(remPrompt * (wantCR / wantSum)))
+    cacheWriteTokens = Math.min(remPrompt - cacheReadTokens, Math.round(remPrompt * (wantCW / wantSum)))
+    inputTokens = remPrompt - cacheReadTokens - cacheWriteTokens
+  } else {
+    inputTokens = remPrompt
+    cacheReadTokens = 0
+    cacheWriteTokens = 0
+  }
+  const hasCacheRead = turnUsage.cacheReadTokens !== undefined || (emitted.cacheReadTokens ?? 0) > 0
+  const hasCacheWrite = turnUsage.cacheWriteTokens !== undefined || (emitted.cacheWriteTokens ?? 0) > 0
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: remTotal,
+    ...(hasCacheRead ? { cacheReadTokens } : {}),
+    ...(hasCacheWrite ? { cacheWriteTokens } : {}),
+    ...(turnUsage.reasoningTokens !== undefined ? { reasoningTokens: Math.min(turnUsage.reasoningTokens, outputTokens) } : {}),
+  }
+}
+
 function computeTps(outputTokens, decodeMs) {
   if (!tokenCount(outputTokens) || outputTokens <= 0 || typeof decodeMs !== 'number' || !Number.isFinite(decodeMs) || decodeMs <= 0) return undefined
   return Math.round((outputTokens / (decodeMs / 1000)) * 10) / 10
@@ -131,4 +217,15 @@ function recordWindow(rows, windows, key, event, window) {
   row.window = window; row.at = event.at
 }
 
-export { contextWindow, rateLimitInfo, sessionTotals, diffSessionTotals, toDshTokenUsage, computeTps, recordWindow }
+export {
+  contextWindow,
+  rateLimitInfo,
+  sessionTotals,
+  diffSessionTotals,
+  isPerTurnUsage,
+  toDshTokenUsage,
+  estimateStepUsage,
+  reconcileFinalStepUsage,
+  computeTps,
+  recordWindow,
+}
