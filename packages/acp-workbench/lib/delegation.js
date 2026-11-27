@@ -566,6 +566,7 @@ export class DelegationHub {
       const latestAcp = acpBindings.at(-1)
       const runtime = latestAcp ? this.manager.runtimes.get(latestAcp.id) : null
       const pendingInteractions = runtime ? [...runtime.interactions.values()].filter(item => !item.responding).length : 0
+      const bg = this.native.pendingBackgroundWorkFor?.(sessionId) ?? { backgroundCalls: 0, deferredEnd: false, hasPending: false }
       const archived = archivedIds.has(sessionId)
       return {
         name: fallbackName,
@@ -578,6 +579,8 @@ export class DelegationHub {
         model: selection?.model ?? null,
         cwd: live ? this.native.cwd(live) : (latestAcp?.cwd ?? null),
         pendingInteractions,
+        pendingBackgroundWork: bg.hasPending,
+        ...(bg.backgroundCalls > 0 ? { openBackgroundCalls: bg.backgroundCalls } : {}),
         self: sessionId === caller.id,
       }
     }
@@ -675,6 +678,7 @@ export class DelegationHub {
       }
     }
 
+    const bg = this.native.pendingBackgroundWorkFor?.(targetId) ?? { backgroundCalls: 0, deferredEnd: false, hasPending: false }
     return {
       agent: targetName,
       sessionId: targetId,
@@ -683,6 +687,8 @@ export class DelegationHub {
       model: live?.model.current()?.model ?? null,
       cwd: live ? this.native.cwd(live) : (latestAcp?.cwd ?? null),
       pendingInteractions,
+      pendingBackgroundWork: bg.hasPending,
+      ...(bg.backgroundCalls > 0 ? { openBackgroundCalls: bg.backgroundCalls } : {}),
       replies,
     }
   }

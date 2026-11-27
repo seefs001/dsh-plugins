@@ -130,6 +130,7 @@ export class HubBridge {
         }
         case 'get_providers_snapshot_request': return await this.providersSnapshot(message)
         case 'refresh_providers_snapshot_request': return this.reply('refresh_providers_snapshot_response', requestId, { acknowledged: true })
+        case 'provider.controls.list.request': return await this.providerControls(message)
         case 'hub.execution.agent.validate.request': return await this.validate(message)
         case 'create_agent_request': return await this.create(message)
         case 'fetch_agent_request': return this.reply('fetch_agent_response', requestId, { agent: this.fetchAgent(message.agentId) })
@@ -177,6 +178,36 @@ export class HubBridge {
       entries: [providerSnapshotEntry({ catalog, modes, now })],
       generatedAt: now.toISOString(),
     })
+  }
+
+  async providerControls(message) {
+    const draft = message.draftConfig ?? {}
+    const provider = typeof draft.provider === 'string' && draft.provider ? draft.provider : HUB_PROVIDER
+    const fetchedAt = new Date().toISOString()
+    if (provider !== HUB_PROVIDER) {
+      this.reply('provider.controls.list.response', message.requestId, {
+        provider,
+        error: `This DeepSeek Harness host runs only provider '${HUB_PROVIDER}'`,
+        fetchedAt,
+      })
+      return
+    }
+    try {
+      await this.catalogs(draft.cwd)
+      this.reply('provider.controls.list.response', message.requestId, {
+        provider,
+        controls: [],
+        options: {},
+        error: null,
+        fetchedAt,
+      })
+    } catch (error) {
+      this.reply('provider.controls.list.response', message.requestId, {
+        provider,
+        error: error?.message ?? String(error),
+        fetchedAt,
+      })
+    }
   }
 
   async validate(message) {

@@ -2,6 +2,28 @@ import { randomUUID } from 'node:crypto'
 
 const COALESCE_QUIET_MS = 2_000
 const COALESCE_MAX_MS = 4_000
+const FOLLOW_LIMIT_MS = 30 * 60_000
+const FOLLOW_REPLY_MAX_CHARS = 1_600
+
+function latestAssistantReply(session) {
+  if (!session || typeof session.snapshotEvents !== 'function') return ''
+  const events = session.snapshotEvents()
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i]
+    if (event?.type !== 'assistant/message') continue
+    const parts = []
+    for (const block of event.data?.message?.content ?? []) {
+      if (block?.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
+        parts.push(block.text.trim())
+      }
+    }
+    if (parts.length > 0) {
+      const joined = parts.join('\n\n')
+      return joined.length > FOLLOW_REPLY_MAX_CHARS ? `${joined.slice(0, FOLLOW_REPLY_MAX_CHARS - 1)}…` : joined
+    }
+  }
+  return ''
+}
 
 function isSubagentDelivery(message) {
   const kind = message?.source?.kind
@@ -91,10 +113,93 @@ export function installContinuations(native, isRoute) {
   const { ctx, disposers } = native
   const coalescedIds = new Set()
   const pendingCleanups = new Set()
+  const following = new Map()
+
+  const stopFollowing = childId => {
+    const entry = following.get(childId)
+    if (!entry) return
+    clearTimeout(entry.timer)
+    following.delete(childId)
+  }
+
+  const pendingWorkOf = childId => {
+    const reasons = []
+    if (native.pendingBackgroundWorkFor?.(childId)?.hasPending) reasons.push('background work')
+    const live = ctx.agents.get(childId)
+    if (live) {
+      if (native.hasRunningChildren(live)) reasons.push('delegated agents')
+      if ((live.inbox?.nextStep?.length ?? 0) > 0 || (live.inbox?.nextTurn?.length ?? 0) > 0) reasons.push('queued messages')
+    }
+    return reasons
+  }
+
+  const deliverFollowNotice = (parentId, summary, text) => {
+    const parent = ctx.agents.get(parentId)
+    if (!parent || typeof parent.followup !== 'function') return
+    parent.followup({
+      id: randomUUID(),
+      role: 'user',
+      source: { kind: 'acp-delivery', form: 'notice', summary },
+      content: [{ type: 'text', text }],
+    })
+  }
+
   disposers.push(() => {
     for (const cleanup of Array.from(pendingCleanups)) cleanup()
     pendingCleanups.clear()
+    for (const childId of Array.from(following.keys())) stopFollowing(childId)
   })
+
+  disposers.push(ctx.on('subagent/end', info => {
+    const childId = info?.childId
+    const parentId = info?.parentId
+    if (!childId || !parentId) return
+    stopFollowing(childId)
+    if (info?.stopReason !== 'completed') return
+    const pending = pendingWorkOf(childId)
+    if (pending.length === 0) return
+    const childName = info.name ?? info.path ?? childId
+    const timer = setTimeout(() => {
+      if (!following.has(childId)) return
+      stopFollowing(childId)
+      deliverFollowNotice(
+        parentId,
+        `Subagent ${childName} still had pending work after follow timeout`,
+        `Subagent ${childName} (${childId}) ended an earlier turn with pending ${pending.join(', ')} and did not finish settling within 30 minutes. Use list_agents or read_agent_result to inspect its current state.`,
+      )
+    }, FOLLOW_LIMIT_MS)
+    timer.unref?.()
+    following.set(childId, { childId, parentId, childName, sawRunning: false, timer })
+  }))
+
+  disposers.push(ctx.on('agent/status', ({ agent, status }) => {
+    const entry = following.get(agent?.id)
+    if (!entry) return
+    if (status === 'running') {
+      entry.sawRunning = true
+      return
+    }
+    if (status !== 'idle' || !entry.sawRunning) return
+    const pending = pendingWorkOf(agent.id)
+    if (pending.length > 0) {
+      entry.sawRunning = false
+      return
+    }
+    stopFollowing(agent.id)
+    const reply = latestAssistantReply(agent.session)
+    const body = reply
+      ? `Subagent ${entry.childName} (${entry.childId}) finished its pending background work and settled.\n\nLatest response:\n${reply}`
+      : `Subagent ${entry.childName} (${entry.childId}) finished its pending background work and is now idle.`
+    deliverFollowNotice(entry.parentId, `Subagent ${entry.childName} finished background work`, body)
+  }))
+
+  disposers.push(ctx.on('agent/disposed', ({ agent }) => {
+    if (!agent?.id) return
+    stopFollowing(agent.id)
+    for (const [childId, entry] of following) {
+      if (entry.parentId === agent.id) stopFollowing(childId)
+    }
+  }))
 
   // external: DSH send_message and subagent settlements target the next step, while an open ACP request only drains output there.
   disposers.push(ctx.on('agent/pre-step', async ({ agent, turn, modelSelection, signal, messages }, next) => {

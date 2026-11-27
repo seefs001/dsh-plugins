@@ -586,13 +586,42 @@ window.__ModuleLoader__.load({
               if (typeof requestAnimationFrame === 'function') requestAnimationFrame(syncQuery)
               else syncQuery()
             }
+            const onKeyDown = event => {
+              if (!event || event.isComposing || event.keyCode === 229) return
+              const key = event.key
+              if (key !== 'ArrowDown' && key !== 'ArrowUp' && key !== 'Home' && key !== 'End' && key !== 'Enter') return
+              const items = Array.from(groupsEl.querySelectorAll?.('button[role="menuitemradio"]:not([disabled])') ?? [])
+              if (items.length === 0) return
+              const target = event.target
+              const isSearch = target?.getAttribute?.('role') === 'searchbox'
+              const currentIndex = items.indexOf(target)
+              if (!isSearch && currentIndex < 0) return
+              if (key === 'Enter') {
+                if (!isSearch) return
+                event.preventDefault()
+                items[0]?.click()
+                return
+              }
+              if (isSearch && (key === 'Home' || key === 'End')) return
+              event.preventDefault()
+              let nextIndex = 0
+              if (key === 'Home') nextIndex = 0
+              else if (key === 'End') nextIndex = items.length - 1
+              else if (isSearch) nextIndex = key === 'ArrowUp' ? items.length - 1 : 0
+              else nextIndex = (currentIndex + (key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
+              const nextEl = items[nextIndex]
+              nextEl?.focus?.()
+              nextEl?.scrollIntoView?.({ block: 'nearest' })
+            }
             menuEl.addEventListener?.('input', onInput, true)
             menuEl.addEventListener?.('click', onClick, true)
+            menuEl.addEventListener?.('keydown', onKeyDown, true)
             return () => {
               menuEl.removeEventListener?.('input', onInput, true)
               menuEl.removeEventListener?.('click', onClick, true)
+              menuEl.removeEventListener?.('keydown', onKeyDown, true)
             }
-          }, [menuEl])
+          }, [menuEl, groupsEl])
 
           const accountName = accountProviderName()
           const resolved = React.useMemo(

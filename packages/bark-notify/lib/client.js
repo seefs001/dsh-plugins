@@ -33,6 +33,9 @@ window.__ModuleLoader__.load({
       triggersTitle: 'Notify on',
       notifyQuestions: 'Questions, plan reviews, and UI approvals (user-questions/request)',
       notifyApprovals: 'Tool permission approvals (approval/request)',
+      notifyErrors: 'Agent turn errors (agent/error)',
+      notifyFinished: 'Top-level turn completions (turn/end)',
+      notifyAcp: 'External ACP CLI approvals and questions (dsh-acp-workbench)',
       delayMs: 'Delay (ms)',
       delayHint: '0 sends immediately. If > 0 and you answer or cancel before the timer fires, no notification is sent.',
       sound: 'Sound',
@@ -78,6 +81,9 @@ window.__ModuleLoader__.load({
       triggersTitle: '触发场景',
       notifyQuestions: '提问、计划审阅与界面授权（user-questions/request）',
       notifyApprovals: '工具权限审批（approval/request）',
+      notifyErrors: 'Agent 运行出错（agent/error）',
+      notifyFinished: '主会话轮次完成（turn/end）',
+      notifyAcp: '外部 ACP CLI 审批与提问（dsh-acp-workbench）',
       delayMs: '延迟推送（毫秒）',
       delayHint: '0 表示立即推送；设为如 3000 时，若你在 3 秒内处理完或取消，则不发通知。',
       sound: '铃声 (sound)',
@@ -155,6 +161,9 @@ window.__ModuleLoader__.load({
       method: 'get',
       notifyQuestions: true,
       notifyApprovals: true,
+      notifyErrors: true,
+      notifyFinished: false,
+      notifyAcp: true,
       delayMs: 0,
       sound: 'alarm',
       group: 'dsh',
@@ -173,6 +182,9 @@ window.__ModuleLoader__.load({
         method: s.method === 'post' ? 'post' : 'get',
         notifyQuestions: s.notifyQuestions !== false,
         notifyApprovals: s.notifyApprovals !== false,
+        notifyErrors: s.notifyErrors !== false,
+        notifyFinished: s.notifyFinished === true,
+        notifyAcp: s.notifyAcp !== false,
         delayMs: Number.isInteger(s.delayMs) && s.delayMs >= 0 ? s.delayMs : 0,
         sound: typeof s.sound === 'string' ? s.sound : DEFAULTS.sound,
         group: typeof s.group === 'string' ? s.group : DEFAULTS.group,
@@ -184,7 +196,7 @@ window.__ModuleLoader__.load({
       }
     }
 
-    const FIELDS = ['enabled', 'serverUrl', 'method', 'notifyQuestions', 'notifyApprovals', 'delayMs', 'sound', 'group', 'includeContent', 'openUrl']
+    const FIELDS = ['enabled', 'serverUrl', 'method', 'notifyQuestions', 'notifyApprovals', 'notifyErrors', 'notifyFinished', 'notifyAcp', 'delayMs', 'sound', 'group', 'includeContent', 'openUrl']
 
     return {
       inject: ['slots', 'locale'],
@@ -350,6 +362,15 @@ window.__ModuleLoader__.load({
               h('label', { className: 'bn-switch-row' },
                 h('span', null, t('notifyApprovals')),
                 h(Switch, { checked: val.notifyApprovals, disabled: busy, label: t('notifyApprovals'), onChange: notifyApprovals => patch({ notifyApprovals }) })),
+              h('label', { className: 'bn-switch-row' },
+                h('span', null, t('notifyErrors')),
+                h(Switch, { checked: val.notifyErrors, disabled: busy, label: t('notifyErrors'), onChange: notifyErrors => patch({ notifyErrors }) })),
+              h('label', { className: 'bn-switch-row' },
+                h('span', null, t('notifyFinished')),
+                h(Switch, { checked: val.notifyFinished, disabled: busy, label: t('notifyFinished'), onChange: notifyFinished => patch({ notifyFinished }) })),
+              h('label', { className: 'bn-switch-row' },
+                h('span', null, t('notifyAcp')),
+                h(Switch, { checked: val.notifyAcp, disabled: busy, label: t('notifyAcp'), onChange: notifyAcp => patch({ notifyAcp }) })),
               h('label', { className: 'bn-switch-row' },
                 h('span', null, t('includeContent')),
                 h(Switch, { checked: val.includeContent, disabled: busy, label: t('includeContent'), onChange: includeContent => patch({ includeContent }) })),

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { isAbsolute } from 'node:path'
+import { basename, isAbsolute } from 'node:path'
+import { StringDecoder } from 'node:string_decoder'
 import { AcpConnection, RpcError } from './transport.js'
 import { WorkbenchStore } from './store.js'
 import { advertisedModels, advertisedModes, inputModalities, resolveInitialConfigOptions, resolveModeId } from './models.js'
@@ -43,6 +44,34 @@ const CLIENT_CAPABILITY_META = { parameterizedModelPicker: true }
 const ASYNC_WAKEUP_SETTLE_MS = 1_500
 const ASYNC_WAKEUP_SILENT_SETTLE_MS = 15_000
 const ASYNC_WAKEUP_IDLE_TIMEOUT_MS = 120_000
+const DEFAULT_PROBE_TIMEOUT_MS = 90_000
+const AGY_VERSION_TIMEOUT_MS = 8_000
+const AGY_VERSION_CACHE_LIMIT = 32
+const MIN_AGY_VERSION = [1, 5, 1]
+const MIN_AGY_VERSION_LABEL = '1.5.1'
+
+function parseSemverTriplet(text) {
+  const match = /\b(\d+)\.(\d+)\.(\d+)\b/u.exec(String(text ?? ''))
+  if (!match) return null
+  return [Number(match[1]), Number(match[2]), Number(match[3])]
+}
+
+function isVersionAtLeast(actual, minimum) {
+  for (let i = 0; i < 3; i++) {
+    if (actual[i] !== minimum[i]) return actual[i] > minimum[i]
+  }
+  return true
+}
+
+async function statSignature(filePath) {
+  if (typeof filePath !== 'string' || !filePath) return null
+  try {
+    const info = await stat(filePath)
+    return `${info.mtimeMs}:${info.size}`
+  } catch {
+    return null
+  }
+}
 const CHUNK_PRUNE_INTERVAL_MS = 15 * 60 * 1000
 const BACKGROUND_TASK_PROMOTE_MS = 5_000
 const MAX_BACKGROUND_TASKS = 40
@@ -270,6 +299,8 @@ export class Workbench {
     autoApprove,
     mcpServersFor,
     hostBridgePromptFor,
+    onInteractionOpen,
+    onInteractionClose,
     asyncWakeup,
     backgroundTaskPromoteMs,
     idleDisconnectMs,
@@ -285,6 +316,10 @@ export class Workbench {
     this.autoApprove = autoApprove
     this.mcpServersFor = mcpServersFor
     this.hostBridgePromptFor = hostBridgePromptFor
+    this.onInteractionOpen = onInteractionOpen
+    this.onInteractionClose = onInteractionClose
+    this.agyVersionCache = new Map()
+    this.agyVersionInFlight = new Map()
     this.asyncWakeupSettleMs = asyncWakeup?.settleMs ?? ASYNC_WAKEUP_SETTLE_MS
     this.asyncWakeupSilentSettleMs = asyncWakeup?.silentSettleMs ?? ASYNC_WAKEUP_SILENT_SETTLE_MS
     this.asyncWakeupIdleTimeoutMs = asyncWakeup?.idleTimeoutMs ?? ASYNC_WAKEUP_IDLE_TIMEOUT_MS
@@ -943,12 +978,103 @@ export class Workbench {
     return new AcpConnection(child, handlers)
   }
 
+  async readAgyVersion(command, prefix, cwd) {
+    const binarySig = await statSignature(command)
+    const scriptSig = prefix[0] ? await statSignature(prefix[0]) : null
+    const cacheKey = binarySig ? JSON.stringify([command, binarySig, prefix, scriptSig]) : null
+    if (cacheKey && this.agyVersionCache.has(cacheKey)) return this.agyVersionCache.get(cacheKey)
+    if (cacheKey && this.agyVersionInFlight.has(cacheKey)) return this.agyVersionInFlight.get(cacheKey)
+
+    const task = (async () => {
+      let child
+      try {
+        child = this.subprocess.spawn({
+          argv: [command, ...prefix, '--version'],
+          cwd,
+          stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' },
+          graceMs: 1000,
+        })
+      } catch {
+        return undefined
+      }
+      const decoder = new StringDecoder('utf8')
+      let out = ''
+      let timedOut = false
+      const timer = setTimeout(() => {
+        timedOut = true
+        try { child.terminate?.() } catch {}
+      }, AGY_VERSION_TIMEOUT_MS)
+      timer.unref?.()
+      child.stdout?.on('data', chunk => {
+        if (out.length < 4096) out += decoder.write(chunk)
+      })
+      child.stdout?.on('error', () => {})
+      child.stderr?.on('error', () => {})
+      child.stderr?.resume?.()
+      try {
+        const outcome = await Promise.race([
+          Promise.resolve(child.done).catch(() => null),
+          new Promise(resolve => {
+            const guard = setTimeout(() => resolve(null), AGY_VERSION_TIMEOUT_MS + 1500)
+            guard.unref?.()
+          }),
+        ])
+        out += decoder.end()
+        if (timedOut || !outcome || outcome.exitCode !== 0) return undefined
+        const line = out.split(/\r?\n/u).map(s => s.trim()).find(Boolean)
+        return line || undefined
+      } finally {
+        clearTimeout(timer)
+        try { child.terminate?.() } catch {}
+      }
+    })()
+
+    if (cacheKey) {
+      this.agyVersionInFlight.set(cacheKey, task)
+    }
+    try {
+      const version = await task
+      if (cacheKey && version !== undefined) {
+        if (this.agyVersionCache.size >= AGY_VERSION_CACHE_LIMIT) {
+          const oldest = this.agyVersionCache.keys().next().value
+          if (oldest !== undefined) this.agyVersionCache.delete(oldest)
+        }
+        this.agyVersionCache.set(cacheKey, version)
+      }
+      return version
+    } finally {
+      if (cacheKey) this.agyVersionInFlight.delete(cacheKey)
+    }
+  }
+
+  async assertAntigravityVersion(provider, cwd) {
+    const adapter = resolveAdapter({ providerId: provider.id, command: provider.command })
+    if (adapter.id !== 'antigravity') return
+    const args = Array.isArray(provider.args) ? provider.args : []
+    const acpIndex = args.lastIndexOf('acp')
+    if (acpIndex < 0 && basename(provider.command).toLowerCase() !== 'agy') return
+    const prefix = acpIndex >= 0 ? args.slice(0, acpIndex) : []
+    let command
+    try {
+      command = await this.subprocess.resolveExecutable(provider.command, undefined, AbortSignal.timeout(10_000))
+    } catch {
+      return
+    }
+    const version = await this.readAgyVersion(command, prefix, cwd)
+    const parsed = version ? parseSemverTriplet(version) : null
+    if (parsed && !isVersionAtLeast(parsed, MIN_AGY_VERSION)) {
+      throw new Error(`Antigravity CLI ${version} is below the minimum supported ACP version ${MIN_AGY_VERSION_LABEL}. Upgrade agy and try again.`)
+    }
+  }
+
   async withProbe(providerId, rawCwd, use, options = {}) {
     const provider = this.provider(providerId)
     const cwd = await this.directory(typeof rawCwd === 'string' && rawCwd.trim() ? rawCwd : homedir())
     const startedAt = performance.now()
+    const probeTimeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0 ? options.timeoutMs : DEFAULT_PROBE_TIMEOUT_MS
     let connection
     try {
+      await this.assertAntigravityVersion(provider, cwd)
       connection = await this.spawn(provider, cwd, {
         onNotification: (method, params) => {
           if (method === 'auth/status_update' || method === '_auth/status_update') this.recordAuthStatus(provider.id, params)
@@ -961,7 +1087,17 @@ export class Workbench {
       throw error
     }
     this.probes.add(connection)
-    try {
+    let probeTimer = null
+    const deadline = new Promise((_, reject) => {
+      probeTimer = setTimeout(() => {
+        const timeoutError = new Error(`ACP probe for ${provider.id} timed out after ${probeTimeoutMs} ms`)
+        this.recordProbeStatus(provider.id, { status: 'error', latencyMs: performance.now() - startedAt, error: timeoutError.message })
+        void connection.stop()
+        reject(timeoutError)
+      }, probeTimeoutMs)
+      probeTimer.unref?.()
+    })
+    const runProbe = async () => {
       if (this.closed) throw new Error('ACP Workbench is unloading')
       let info
       try {
@@ -986,7 +1122,13 @@ export class Workbench {
       const meta = extractAgentMeta(info, null)
       this.recordProbeStatus(provider.id, { status: 'ready', latencyMs, agentLabel: meta?.agentLabel })
       return await use({ connection, info, provider, cwd, latencyMs })
-    } finally { try { await connection.stop() } finally { this.probes.delete(connection) } }
+    }
+    try {
+      return await Promise.race([runProbe(), deadline])
+    } finally {
+      clearTimeout(probeTimer)
+      try { await connection.stop() } finally { this.probes.delete(connection) }
+    }
   }
 
   async historyPage(connection, info, cwd, cursor) {
@@ -1443,6 +1585,7 @@ export class Workbench {
       if (match) {
         const [id, pending] = match
         runtime.interactions.delete(id)
+        try { this.onInteractionClose?.({ id, session }) } catch {}
         pending.resolve({ action: 'cancel' })
         this.record(session, 'interaction-expired', { id, reason: 'withdrawn' })
         if (runtime.turnId && !runtime.canceling) await this.transition(session, runtime.interactions.size ? 'waiting' : 'running')
@@ -1455,6 +1598,7 @@ export class Workbench {
       if (match) {
         const [id, pending] = match
         runtime.interactions.delete(id)
+        try { this.onInteractionClose?.({ id, session }) } catch {}
         pending.resolve({ action: 'accept' })
         this.record(session, 'interaction-result', { id, result: { action: 'accept' }, completedExternally: true })
         if (runtime.turnId && !runtime.canceling) await this.transition(session, runtime.interactions.size ? 'waiting' : 'running')
@@ -1568,6 +1712,7 @@ export class Workbench {
     const urlInfo = kind === 'url' ? urlElicitation(params) : null
     runtime.interactions.set(id, { public: interaction, fields, urlInfo, wireId, resolve })
     interaction.requestSeq = this.record(session, 'interaction', interaction).seq
+    try { this.onInteractionOpen?.({ id, session, interaction }) } catch {}
     await this.transition(session, 'waiting')
     return answer
   }
@@ -1609,6 +1754,7 @@ export class Workbench {
     }
     if (!this.isCurrent(session, runtime) || runtime.canceling || !runtime.interactions.has(op.interactionId)) throw new Error('Interaction expired while saving the response')
     runtime.interactions.delete(op.interactionId)
+    try { this.onInteractionClose?.({ id: op.interactionId, session }) } catch {}
     pending.resolve(result)
     await this.transition(session, runtime.interactions.size ? 'waiting' : 'running')
     return { answered: op.interactionId }
@@ -1909,6 +2055,7 @@ export class Workbench {
 
   expire(session, runtime, reason) {
     for (const [id, pending] of runtime.interactions) {
+      try { this.onInteractionClose?.({ id, session }) } catch {}
       pending.resolve(pending.public.kind === 'form' || pending.public.kind === 'url' ? { action: 'cancel' } : { outcome: { outcome: 'cancelled' } })
       if (!this.store.failure) this.record(session, 'interaction-expired', { id, reason })
     }

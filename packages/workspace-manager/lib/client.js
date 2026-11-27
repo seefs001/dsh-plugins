@@ -582,14 +582,39 @@ window.__ModuleLoader__.load({
           const disabled = view.busy || list.phase !== 'ready' || list.state !== 'idle'
           const hasFilters = Boolean(search) || filter !== 'all'
 
-          const toggleSelect = (id, checked) => {
+          const [anchorId, setAnchorId] = React.useState(null)
+
+          const toggleSelect = (id, checked, shiftKey = false) => {
             setSelected(prev => {
               const next = new Set(prev)
+              if (shiftKey && anchorId !== null) {
+                const order = rows.map(row => row.workspaceId)
+                const from = order.indexOf(anchorId)
+                const to = order.indexOf(id)
+                if (from >= 0 && to >= 0) {
+                  const [lo, hi] = from <= to ? [from, to] : [to, from]
+                  for (let i = lo; i <= hi; i++) {
+                    if (checked) next.add(order[i])
+                    else next.delete(order[i])
+                  }
+                  return next
+                }
+              }
               if (checked) next.add(id)
               else next.delete(id)
               return next
             })
+            setAnchorId(id)
           }
+
+          React.useEffect(() => {
+            if (selectedIds.length === 0) return undefined
+            const onKey = e => {
+              if (e.key === 'Escape') setSelected(new Set())
+            }
+            window.addEventListener('keydown', onKey)
+            return () => window.removeEventListener('keydown', onKey)
+          }, [selectedIds.length])
 
           const removeSelected = async () => {
             const targets = list.items.filter(item => selected.has(item.workspaceId))
@@ -733,15 +758,38 @@ window.__ModuleLoader__.load({
                     const status = check?.path === row.path ? check.status : 'unchecked'
                     const checked = selected.has(row.workspaceId)
                     const sessionCount = row.sessionIds.length
-                    return h('li', { key: row.workspaceId, className: 'wm-row', 'data-selected': checked || undefined },
+                    return h('li', {
+                      key: row.workspaceId,
+                      className: 'wm-row',
+                      'data-selected': checked || undefined,
+                      onClick: e => {
+                        if (disabled || e.target?.closest?.('button,input,a,select,label')) return
+                        if (e.shiftKey) {
+                          e.preventDefault()
+                          toggleSelect(row.workspaceId, !checked, true)
+                        } else if (e.metaKey || e.ctrlKey) {
+                          e.preventDefault()
+                          toggleSelect(row.workspaceId, !checked, false)
+                        }
+                      },
+                    },
+                      h('span', {
+                        onClick: e => {
+                          if (!disabled && e.shiftKey) {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            toggleSelect(row.workspaceId, !checked, true)
+                          }
+                        },
+                      },
                       h(Checkbox, {
                         className: 'wm-check',
                         checked,
                         disabled,
                         label: h('span', { className: 'wm-sr-only' }, tf('selectRow', { title: row.title })),
                         title: tf('selectRow', { title: row.title }),
-                        onChange: next => toggleSelect(row.workspaceId, next),
-                      }),
+                        onChange: next => toggleSelect(row.workspaceId, next, false),
+                      })),
                       h('div', { className: 'wm-details' },
                         h('div', { className: 'wm-row-top' },
                           h('span', { className: 'wm-name' }, row.title),

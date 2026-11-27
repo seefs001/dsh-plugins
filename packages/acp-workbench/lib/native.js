@@ -1506,6 +1506,19 @@ export class NativeAcp {
     }
   }
 
+  pendingBackgroundWorkFor(sessionId) {
+    const bindings = this.sessions(sessionId, false).filter(s => !s.native.retired && !s.archived)
+    let backgroundCalls = 0
+    let deferredEnd = false
+    for (const binding of bindings) {
+      const runtime = this.manager.runtimes.get(binding.id)
+      if (!runtime || runtime.closing) continue
+      backgroundCalls += runtime.openBackgroundCalls?.size ?? 0
+      if (runtime.deferredEnd) deferredEnd = true
+    }
+    return { backgroundCalls, deferredEnd, hasPending: backgroundCalls > 0 || deferredEnd }
+  }
+
   preferenceKey(sessionId, route) { return `${sessionId}:${route}` }
 
   isTopLevelSession(sessionId, binding) {

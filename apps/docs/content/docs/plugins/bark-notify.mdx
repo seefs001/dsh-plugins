@@ -13,10 +13,11 @@ description: 智能体提问、提交计划审阅或请求权限审批时发送 
 
 ## 触发范围
 
-- `user-questions/request`：`ask_user_question`、`exit_plan_mode` 计划审阅及界面授权卡片。
-- `approval/request`：工具权限审批。
-
-> `dsh-acp-workbench` 中的外部 ACP CLI 使用独立交互通道，不触发本插件。
+- `user-questions/request`：`ask_user_question`、`exit_plan_mode` 计划审阅及界面授权卡片（默认开启）。
+- `approval/request`：工具权限审批（默认开启）。
+- `agent/error`：Agent 运行出错提醒（默认开启）。
+- `session/event`（`turn/end`）：主会话轮次完成提醒，跳过子代理与报错轮次（默认关闭）。
+- `acp-workbench/interaction-open` / `interaction-close`：`dsh-acp-workbench` 外部 ACP CLI 的权限审批、提问与计划审阅，延迟内已处理则自动取消（默认开启）。
 
 ## 配置
 

@@ -345,6 +345,15 @@ window.__ModuleLoader__.load({
 .sgs-row{position:relative;display:flex;align-items:center;height:32px;border-radius:var(--dsw-radius-md,8px);border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;background-clip:padding-box;box-sizing:border-box;padding:0 8px 0 calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));cursor:pointer;user-select:none;-webkit-user-select:none;color:var(--dsw-alias-label-primary);outline:none}
 .sgs-row:focus-visible{box-shadow:inset 0 0 0 1.5px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
 .sgs-row.sgs-selected{background-color:var(--dsw-alias-interactive-bg-hover)}
+.sgs-row.sgs-bulk-selected{background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dsw-alias-state-business-primary) 42%,transparent)}
+.sgs-bulk{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:0 4px 6px;padding:6px 8px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);font-size:11.5px;line-height:16px}
+.sgs-bulk-count{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.sgs-bulk-select,.sgs-bulk-btn{height:24px;border:.5px solid var(--dsw-alias-border-l3);border-radius:6px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:11.5px;cursor:pointer}
+.sgs-bulk-select{max-width:112px;min-width:0;padding:0 6px}
+.sgs-bulk-btn{padding:0 7px}
+.sgs-bulk-btn:disabled,.sgs-bulk-select:disabled{opacity:.45;cursor:default}
+@media (hover:hover){.sgs-bulk-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}}
+@media (pointer:coarse){.sgs-bulk-select{font-size:16px;height:30px}}
 @media (hover:hover){.sgs-row:hover{background-color:var(--dsw-alias-interactive-bg-hover)}}
 .sgs-slot{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:20px;color:var(--dsw-alias-label-tertiary)}
 .sgs-folder-icon.sgs-active{color:var(--dsw-alias-state-business-primary)}
@@ -554,6 +563,74 @@ window.__ModuleLoader__.load({
           fn => ctx.sessions.list.subscribe(fn),
           () => ctx.sessions.list.getSnapshot(),
         )
+        const useSidebarSessions = (groups, showCurrent) => {
+          const tracked = React.useMemo(() => {
+            const ids = []
+            const seen = new Set()
+            for (const g of groups) {
+              for (const id of g.sessionIds) {
+                if (seen.has(id)) continue
+                seen.add(id)
+                ids.push(id)
+              }
+            }
+            return { ids, seen }
+          }, [groups])
+          const cacheRef = React.useRef({ byId: {}, currentId: undefined })
+          const getSnapshot = React.useCallback(() => {
+            const raw = ctx.sessions.list.getSnapshot()
+            const rawById = raw?.byId ?? {}
+            const prev = cacheRef.current
+            let currentId
+            if (showCurrent) {
+              for (const id of tracked.ids) {
+                const s = rawById[id]
+                if (s && (s.retainedBy?.mainView ?? 0) > 0) {
+                  currentId = id
+                  break
+                }
+              }
+            }
+            let changed = prev.currentId !== currentId || Object.keys(prev.byId).length !== tracked.ids.length
+            const nextById = {}
+            for (const id of tracked.ids) {
+              const s = rawById[id]
+              const prevEntry = prev.byId[id]
+              if (!s) {
+                if (prevEntry !== undefined) changed = true
+                continue
+              }
+              if (
+                prevEntry
+                && prevEntry.displayTitle === s.displayTitle
+                && prevEntry.title === s.title
+                && prevEntry.running === s.running
+                && prevEntry.updatedAt === s.updatedAt
+                && prevEntry.origin === s.origin
+              ) {
+                nextById[id] = prevEntry
+              } else {
+                changed = true
+                nextById[id] = {
+                  id: s.id,
+                  displayTitle: s.displayTitle,
+                  title: s.title,
+                  running: s.running,
+                  updatedAt: s.updatedAt,
+                  origin: s.origin,
+                }
+              }
+            }
+            if (!changed && Object.keys(nextById).length === Object.keys(prev.byId).length) return prev
+            const next = { byId: nextById, currentId }
+            cacheRef.current = next
+            return next
+          }, [tracked, showCurrent])
+          return React.useSyncExternalStore(
+            fn => ctx.sessions.list.subscribe(fn),
+            getSnapshot,
+          )
+        }
 
         const MEMBER_MIME = 'application/x-dsh-session-group-member'
         const GROUP_MIME = 'application/x-dsh-session-group'
@@ -602,7 +679,8 @@ window.__ModuleLoader__.load({
               depth.current = 0
               setOver(false)
               const id = e.dataTransfer?.getData('text/plain')?.trim()
-              const summary = id ? latest.current.list.byId[id] : undefined
+              const source = latest.current.list ?? ctx.sessions.list.getSnapshot()
+              const summary = id ? source?.byId?.[id] : undefined
               if (!summary || summary.blank) return
               e.preventDefault()
               e.stopPropagation()
@@ -929,9 +1007,43 @@ window.__ModuleLoader__.load({
                   }))))
         }
 
+        function useRangeSelect(order, valid) {
+          const [selected, setSelected] = React.useState(() => new Set())
+          const [anchor, setAnchor] = React.useState(null)
+          const ids = React.useMemo(() => [...selected].filter(id => valid(id)), [selected, valid])
+          const set = React.useMemo(() => new Set(ids), [ids])
+          const clear = React.useCallback(() => { setSelected(new Set()); setAnchor(null) }, [])
+          const selectAll = React.useCallback(list => setSelected(new Set(list)), [])
+          const toggle = React.useCallback((id, checked, shiftKey = false) => {
+            if (id === null) { clear(); return }
+            setSelected(prev => {
+              const next = new Set(prev)
+              const flag = checked === undefined ? !next.has(id) : checked
+              if (shiftKey && anchor !== null) {
+                const from = order.indexOf(anchor), to = order.indexOf(id)
+                if (from >= 0 && to >= 0) {
+                  for (let i = Math.min(from, to), end = Math.max(from, to); i <= end; i++) {
+                    if (flag) next.add(order[i]); else next.delete(order[i])
+                  }
+                  return next
+                }
+              }
+              if (flag) next.add(id); else next.delete(id)
+              return next
+            })
+            setAnchor(id)
+          }, [anchor, clear, order])
+          React.useEffect(() => {
+            if (ids.length === 0) return undefined
+            const onKey = e => { if (e.key === 'Escape') clear() }
+            window.addEventListener('keydown', onKey)
+            return () => window.removeEventListener('keydown', onKey)
+          }, [ids.length, clear])
+          return { ids, set, toggle, clear, selectAll }
+        }
+
         function UngroupedWorkspace({ sessions, groups, locale, onCreateWith }) {
           const [query, setQuery] = React.useState('')
-          const [selected, setSelected] = React.useState(() => new Set())
           const [targetGroup, setTargetGroup] = React.useState(groups[0]?.id ?? '')
           const [busy, setBusy] = React.useState(false)
 
@@ -940,38 +1052,25 @@ window.__ModuleLoader__.load({
           }, [groups, targetGroup])
 
           const validIds = React.useMemo(() => new Set(sessions.map(s => s.id)), [sessions])
-          const selectedIds = React.useMemo(() => [...selected].filter(id => validIds.has(id)), [selected, validIds])
           const q = query.trim().toLowerCase()
           const filtered = React.useMemo(() => sessions.filter(s => {
             if (!q) return true
             return `${s.displayTitle ?? ''} ${s.title ?? ''} ${dirName(s.cwd)} ${s.id}`.toLowerCase().includes(q)
           }), [sessions, q])
-
-          const toggle = (id, checked) => {
-            setSelected(prev => {
-              const next = new Set(prev)
-              if (checked) next.add(id)
-              else next.delete(id)
-              return next
-            })
-          }
+          const order = React.useMemo(() => filtered.map(s => s.id), [filtered])
+          const isValid = React.useCallback(id => validIds.has(id), [validIds])
+          const { ids: selectedIds, set: selected, toggle, clear: clearSel, selectAll } = useRangeSelect(order, isValid)
 
           const addSelected = async () => {
             if (!selectedIds.length || !targetGroup || busy) return
             setBusy(true)
-            try {
-              await addMany(targetGroup, selectedIds)
-              setSelected(new Set())
-            } catch {} finally { setBusy(false) }
+            try { await addMany(targetGroup, selectedIds); clearSel() } catch {} finally { setBusy(false) }
           }
 
           const createSelected = async () => {
             if (!selectedIds.length || busy) return
             setBusy(true)
-            try {
-              await onCreateWith(selectedIds)
-              setSelected(new Set())
-            } finally { setBusy(false) }
+            try { await onCreateWith(selectedIds); clearSel() } finally { setBusy(false) }
           }
 
           return h('div', { className: 'sg-stack' },
@@ -993,7 +1092,7 @@ window.__ModuleLoader__.load({
               }),
               filtered.length > 0 ? h(Button, {
                 size: 'sm', variant: 'ghost', disabled: busy,
-                onClick: () => setSelected(new Set(filtered.map(s => s.id))),
+                onClick: () => selectAll(order),
               }, t('selectShown')) : null) : null,
 
             selectedIds.length > 0 ? h('div', { className: 'sg-batch', role: 'region', 'aria-live': 'polite' },
@@ -1005,7 +1104,7 @@ window.__ModuleLoader__.load({
               }, groups.map(g => h('option', { key: g.id, value: g.id }, g.name))) : null,
               groups.length > 0 ? h(Button, { size: 'sm', variant: 'primary', disabled: busy || !targetGroup, onClick: () => void addSelected() }, t('addSelectedTo')) : null,
               h(Button, { size: 'sm', variant: 'outline', disabled: busy, onClick: () => void createSelected() }, t('createWithSelected')),
-              h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: () => setSelected(new Set()) }, t('clearSelection'))) : null,
+              h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: clearSel }, t('clearSelection'))) : null,
 
             sessions.length === 0
               ? h('div', { className: 'sg-empty' },
@@ -1028,16 +1127,19 @@ window.__ModuleLoader__.load({
                         e.dataTransfer.effectAllowed = 'move'
                         e.dataTransfer.setData('text/plain', s.id)
                       },
-                      onClick: () => ctx.uiWorkspace.openSession(s.id),
+                      onClick: e => {
+                        if (e.shiftKey || e.metaKey || e.ctrlKey) { e.preventDefault(); toggle(s.id, !checked, e.shiftKey); return }
+                        ctx.uiWorkspace.openSession(s.id)
+                      },
                       onKeyDown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); ctx.uiWorkspace.openSession(s.id) } },
                     },
-                    h('span', { onClick: e => e.stopPropagation() },
-                      h(Checkbox, {
-                        checked, disabled: busy,
-                        label: h('span', { className: 'sg-sr-only' }, tf('selectSession', { title })),
-                        title: tf('selectSession', { title }),
-                        onChange: next => toggle(s.id, next),
-                      })),
+                    h('span', { onClick: e => { e.stopPropagation(); if (e.shiftKey) { e.preventDefault(); toggle(s.id, !checked, true) } } },
+                    h(Checkbox, {
+                      checked, disabled: busy,
+                      label: h('span', { className: 'sg-sr-only' }, tf('selectSession', { title })),
+                      title: tf('selectSession', { title }),
+                      onChange: next => toggle(s.id, next, false),
+                    })),
                     h('div', { className: 'sg-row-body' },
                       h('div', { className: 'sg-row-top' },
                         s.running ? h(StateDot, { state: 'ongoing', size: 10 }) : null,
@@ -1167,9 +1269,9 @@ window.__ModuleLoader__.load({
                       : h(UngroupedWorkspace, { sessions: ungrouped, groups, locale: loc.active, onCreateWith: create }))))
         }
 
-        const usePanelInfo = () => React.useSyncExternalStore(
+        const useConversationActive = () => React.useSyncExternalStore(
           fn => ctx.layout.panelInfo.subscribe(fn),
-          () => ctx.layout.panelInfo.getSnapshot(),
+          () => ctx.layout.panelInfo.getSnapshot().activePanelId == null,
         )
 
         function useListArea() {
@@ -1231,8 +1333,12 @@ window.__ModuleLoader__.load({
               setFound(prev => prev.area === area && prev.searching === searching ? prev : { area, searching })
             }
             const schedule = () => { if (!frame) frame = requestAnimationFrame(check) }
+            const onPanelChange = () => {
+              if (watchedArea?.isConnected && watchedInput?.isConnected) return
+              schedule()
+            }
             check()
-            const offLayout = ctx.layout.panelInfo.subscribe(schedule)
+            const offLayout = ctx.layout.panelInfo.subscribe(onPanelChange)
             return () => {
               offLayout()
               detachBody()
@@ -1244,21 +1350,26 @@ window.__ModuleLoader__.load({
           return found
         }
 
-        function SidebarMember({ id, summary, group, pinned, current, locale }) {
+        const SidebarMember = React.memo(function SidebarMember({ id, summary, group, pinned, current, bulkSelected, hasBulkSelection, onBulkToggle, locale }) {
           const title = summary.displayTitle || summary.title || id
           const stop = fn => e => { e.preventDefault(); e.stopPropagation(); fn() }
           const open = () => ctx.uiWorkspace.openSession(id)
           return h('div', {
-            className: `sgs-row sgs-member${current ? ' sgs-selected' : ''}`,
+            className: `sgs-row sgs-member${current ? ' sgs-selected' : ''}${bulkSelected ? ' sgs-bulk-selected' : ''}`,
             'data-group-session-id': id,
-            role: 'treeitem', 'aria-selected': current, tabIndex: 0, title,
+            'data-bulk-selected': bulkSelected || undefined,
+            role: 'treeitem', 'aria-selected': bulkSelected || current, tabIndex: 0, title,
             draggable: true,
             onDragStart: e => {
               e.dataTransfer.effectAllowed = 'move'
               e.dataTransfer.setData('text/plain', id)
               e.dataTransfer.setData(MEMBER_MIME, id)
             },
-            onClick: open,
+            onClick: e => {
+              if (e.shiftKey || e.metaKey || e.ctrlKey) { e.preventDefault(); e.stopPropagation(); onBulkToggle(id, e.shiftKey); return }
+              if (hasBulkSelection) onBulkToggle(null, false)
+              open()
+            },
             onKeyDown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); open() } },
             onContextMenu: e => {
               e.preventDefault()
@@ -1282,9 +1393,9 @@ window.__ModuleLoader__.load({
               title: `${t('remove')} · ${group.name}`, 'aria-label': t('remove'),
               onClick: stop(() => void op({ action: 'remove', sessionId: id }).catch(() => {})),
             }, h(IconCloseOutlineRegular, { size: 13 }))))
-        }
+        })
 
-        function SidebarFolder({ group, index, groups, list, view, currentId, locale }) {
+        const SidebarFolder = React.memo(function SidebarFolder({ group, index, groups, byId, view, currentId, bulkSet, hasBulkSelection, onBulkToggle, locale }) {
           const collapsed = view.collapsed.has(group.id)
           const editing = view.editing === `sidebar:${group.id}`
           const [over, setOver] = React.useState(false)
@@ -1294,8 +1405,8 @@ window.__ModuleLoader__.load({
             if (value) next.add(group.id); else next.delete(group.id)
             store.setView({ collapsed: next })
           }
-          const members = orderedMembers(group, list.byId)
-            .filter(id => list.byId[id] && list.byId[id].origin !== 'subagent')
+          const members = orderedMembers(group, byId)
+            .filter(id => byId[id] && byId[id].origin !== 'subagent')
           const pinned = new Set(group.pinned)
           const containsCurrent = currentId !== undefined && group.sessionIds.includes(currentId)
           const accepts = e => hasType(e, GROUP_MIME) || hasType(e, 'text/plain')
@@ -1316,7 +1427,7 @@ window.__ModuleLoader__.load({
                 return
               }
               const id = e.dataTransfer.getData('text/plain')?.trim()
-              const summary = id ? list.byId[id] : undefined
+              const summary = id ? ctx.sessions.list.getSnapshot()?.byId?.[id] : undefined
               if (!summary || summary.blank) return
               e.preventDefault(); e.stopPropagation()
               if (collapsed) setCollapsed(false)
@@ -1361,28 +1472,75 @@ window.__ModuleLoader__.load({
             collapsed ? null : members.length === 0
               ? h('div', { className: 'sgs-hint' }, t('dropInto'))
               : members.map(id => h(SidebarMember, {
-                key: id, id, summary: list.byId[id], group, pinned: pinned.has(id), current: id === currentId, locale,
+                key: id, id, summary: byId[id], group, pinned: pinned.has(id), current: id === currentId,
+                bulkSelected: bulkSet.has(id), hasBulkSelection, onBulkToggle, locale,
               })))
-        }
+        })
 
         function SidebarGroups() {
           const { area, searching } = useListArea()
           const loc = useLocale()
           const { groups } = useGroups()
-          const list = useSessions()
-          const panel = usePanelInfo()
+          const showCurrent = useConversationActive()
+          const { byId, currentId } = useSidebarSessions(groups, showCurrent)
           const view = store.view()
           const dragging = useDocumentDragging()
+          const [bulkBusy, setBulkBusy] = React.useState(false)
+          const visibleMemberIds = React.useMemo(() => groups.flatMap(g =>
+            view.collapsed.has(g.id) ? [] : orderedMembers(g, byId).filter(id => byId[id] && byId[id].origin !== 'subagent')), [groups, byId, view.collapsed])
+          const validMember = React.useCallback(id => Boolean(byId[id] && byId[id].origin !== 'subagent'), [byId])
+          const { ids: activeBulkIds, set: activeBulkSet, toggle: toggleBulk, clear: clearBulk } = useRangeSelect(visibleMemberIds, validMember)
+          const onBulkToggle = React.useCallback((id, shiftKey) => toggleBulk(id, undefined, shiftKey), [toggleBulk])
+          const moveBulkTo = async targetGroupId => {
+            if (!targetGroupId || !activeBulkIds.length || bulkBusy) return
+            setBulkBusy(true)
+            try { await addMany(targetGroupId, activeBulkIds); clearBulk() } catch {} finally { setBulkBusy(false) }
+          }
+          const removeBulk = async () => {
+            if (!activeBulkIds.length || bulkBusy) return
+            setBulkBusy(true)
+            try {
+              for (const sessionId of activeBulkIds) await op({ action: 'remove', sessionId })
+              clearBulk()
+            } catch {} finally { setBulkBusy(false) }
+          }
           const host = React.useMemo(() => {
             const el = document.createElement('div')
             el.className = 'sgs-host'
             return el
           }, [])
+          const hideCss = React.useMemo(() => {
+            if (searching) return ''
+            const hidden = groups.flatMap(g => g.sessionIds).filter(id => /^[\w.:-]+$/.test(id))
+            return hidden.length === 0 ? ''
+              : `${hidden.map(id => `[data-sidebar-list-area] [data-row-key="session:${id}"]`).join(',')}{display:none!important}`
+          }, [searching, groups])
+          const hideStyleRef = React.useRef(null)
           React.useLayoutEffect(() => {
             if (!area) return undefined
             if (area.firstChild !== host) area.insertBefore(host, area.firstChild)
             return () => host.remove()
           }, [area, host])
+          React.useLayoutEffect(() => {
+            if (!area || !hideCss) {
+              hideStyleRef.current?.remove()
+              hideStyleRef.current = null
+              return undefined
+            }
+            let el = hideStyleRef.current
+            if (!el) {
+              el = document.createElement('style')
+              el.dataset.plugin = 'dsh-session-groups-hide'
+              hideStyleRef.current = el
+            }
+            if (el.textContent !== hideCss) el.textContent = hideCss
+            if (el.parentNode !== host) host.insertBefore(el, host.firstChild)
+            return undefined
+          }, [area, host, hideCss])
+          React.useEffect(() => () => {
+            hideStyleRef.current?.remove()
+            hideStyleRef.current = null
+          }, [])
           React.useEffect(() => {
             if (!area) return undefined
             const outside = e => hasType(e, MEMBER_MIME) && !host.contains(e.target)
@@ -1398,7 +1556,7 @@ window.__ModuleLoader__.load({
             area.addEventListener('drop', drop)
             return () => { area.removeEventListener('dragover', over); area.removeEventListener('drop', drop) }
           }, [area, host])
-          const newDrop = useSessionDrop(list, sessionId => {
+          const newDrop = useSessionDrop(null, sessionId => {
             void op({ action: 'create', name: t('defaultName'), sessionId })
               .then(({ groupId }) => store.setView({ editing: `sidebar:${groupId}` }))
               .catch(() => {})
@@ -1421,25 +1579,30 @@ window.__ModuleLoader__.load({
               }, t('delete'))),
           }) : null
           if (!area) return confirmModal
-          const currentId = panel.activePanelId == null
-            ? Object.values(list.byId).find(s => (s.retainedBy?.mainView ?? 0) > 0)?.id
-            : undefined
-          const hidden = searching ? [] : groups.flatMap(g => g.sessionIds).filter(id => /^[\w.:-]+$/.test(id))
-          const hideCss = hidden.length === 0 ? ''
-            : `${hidden.map(id => `[data-sidebar-list-area] [data-row-key="session:${id}"]`).join(',')}{display:none!important}`
           const showDropNew = !searching && (dragging || newDrop.over)
           return h(React.Fragment, null,
-            ReactDOM.createPortal(h(React.Fragment, null,
-              hideCss && h('style', null, hideCss),
+            ReactDOM.createPortal(
               searching || (groups.length === 0 && !showDropNew) ? null : h('div', {
                 className: 'sgs-root', role: 'tree', 'aria-label': t('panel'),
               },
+              activeBulkIds.length > 0 ? h('div', { className: 'sgs-bulk', role: 'region', 'aria-live': 'polite' },
+                h('span', { className: 'sgs-bulk-count' }, tf('selectedCount', { n: activeBulkIds.length })),
+                groups.length > 1 ? h('select', {
+                  className: 'sgs-bulk-select', value: '', disabled: bulkBusy,
+                  'aria-label': t('moveTo'),
+                  onChange: e => { const target = e.target.value; e.target.value = ''; if (target) void moveBulkTo(target) },
+                },
+                h('option', { value: '' }, t('moveToPick')),
+                groups.map(g => h('option', { key: g.id, value: g.id }, g.name))) : null,
+                h('button', { type: 'button', className: 'sgs-bulk-btn', disabled: bulkBusy, onClick: () => void removeBulk() }, t('remove')),
+                h('button', { type: 'button', className: 'sgs-bulk-btn', disabled: bulkBusy, onClick: () => onBulkToggle(null, false) }, t('clearSelection'))) : null,
               groups.map((group, index) => h(SidebarFolder, {
-                key: group.id, group, index, groups, list, view, currentId, locale: loc.active,
+                key: group.id, group, index, groups, byId, view, currentId,
+                bulkSet: activeBulkSet, hasBulkSelection: activeBulkIds.length > 0, onBulkToggle, locale: loc.active,
               })),
               showDropNew ? h('div', { className: `sgs-row sgs-dropnew${newDrop.over ? ' sgs-dropping' : ''}`, ...newDrop.props },
                 h('span', { className: 'sgs-slot' }, h(IconPlusOutlineRegular, { size: 14 })),
-                h('span', { className: 'sgs-title' }, t('dropNew'))) : null)), host),
+                h('span', { className: 'sgs-title' }, t('dropNew'))) : null), host),
             confirmModal)
         }
 

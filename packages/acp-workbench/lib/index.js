@@ -83,6 +83,8 @@ export async function apply(ctx, config = {}) {
     autoApprove: (session, params) => bridge.native?.autoApprove(session, params) ?? null,
     mcpServersFor: (session, adapter) => bridge.native?.mcpServersFor(session, adapter) ?? [],
     hostBridgePromptFor: (session, adapter) => bridge.native?.hostBridgePromptFor(session, adapter) ?? '',
+    onInteractionOpen: payload => ctx.emit('acp-workbench/interaction-open', payload),
+    onInteractionClose: payload => ctx.emit('acp-workbench/interaction-close', payload),
     chunkRetentionDays: config.chunkRetentionDays,
     archivedChunkRetentionDays: config.archivedChunkRetentionDays,
     maxChunkBytes: config.maxChunkBytes })

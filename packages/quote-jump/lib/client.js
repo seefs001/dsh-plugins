@@ -11,11 +11,19 @@ window.__ModuleLoader__.load({
     const SKIP = '[data-quote-jump],script,style,textarea,[contenteditable="true"],[data-composer-seat],.katex-mathml,[data-text-interaction-exclude],.sr-only,[aria-hidden="true"]:not(.katex-html),button:not(code button)'
 
     const CSS_TEXT = `
-.dqj-quote{display:block;position:relative;margin:2px 0 6px;padding:5px 10px 5px 14px;border-radius:8px;
+.dqj-quote{display:block;position:relative;margin:2px 0 6px;padding:5px 34px 5px 14px;border-radius:8px;
   background:color-mix(in srgb,var(--dsw-alias-label-primary) 5%,transparent);color:var(--dsw-alias-label-secondary);
   font-size:.93em;line-height:1.55;text-align:left;cursor:pointer;transition:background-color .12s}
 .dqj-quote::before{content:"";position:absolute;left:5px;top:7px;bottom:7px;width:2.5px;border-radius:2px;
   background:var(--dsw-alias-brand-primary);opacity:.75}
+.dqj-copy{position:absolute;top:4px;right:5px;display:inline-flex;align-items:center;justify-content:center;
+  min-width:24px;height:22px;padding:0 5px;border:0;border-radius:6px;background:transparent;
+  color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s,background-color .12s,color .12s}
+.dqj-quote:hover .dqj-copy,.dqj-quote:focus-within .dqj-copy,.dqj-copy[data-copied="true"]{opacity:1}
+.dqj-copy[data-copied="true"]{color:var(--dsw-alias-state-success-primary)}
+@media (hover:hover){.dqj-copy:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+@media (hover:none){.dqj-copy{opacity:.85}}
+.dqj-copy:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .dqj-text{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
 .dqj-hint{display:block;margin-top:2px;font-size:12px;color:var(--dsw-alias-state-error-primary)}
 .dqj-quote[data-state=missing]::before{background:var(--dsw-alias-state-error-primary)}
@@ -179,12 +187,46 @@ window.__ModuleLoader__.load({
     }
 
     const oneLine = text => text.replace(/\s+/gu, ' ').trim()
+    const plainQuoteBody = text => String(text ?? '').replace(/^>[ \t]?/gmu, '').trim()
+
+    async function copyText(text) {
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(text)
+          return true
+        } catch {}
+      }
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.setAttribute('readonly', '')
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        const ok = document.execCommand('copy')
+        ta.remove()
+        return ok
+      } catch {
+        return false
+      }
+    }
 
     return {
       inject: ['slots', 'locale'],
       apply(ctx) {
-        ctx.effect(() => ctx.locale.register(NS, 'en', { jump: 'Jump to the quoted text', notFound: 'The quoted text is not in the loaded conversation' }), 'quote-jump: en')
-        ctx.effect(() => ctx.locale.register(NS, 'zh', { jump: '跳转到原文', notFound: '原文不在当前已加载的对话里' }), 'quote-jump: zh')
+        ctx.effect(() => ctx.locale.register(NS, 'en', {
+          jump: 'Jump to the quoted text',
+          notFound: 'The quoted text is not in the loaded conversation',
+          copy: 'Copy quote',
+          copied: 'Copied',
+        }), 'quote-jump: en')
+        ctx.effect(() => ctx.locale.register(NS, 'zh', {
+          jump: '跳转到原文',
+          notFound: '原文不在当前已加载的对话里',
+          copy: '复制引用',
+          copied: '已复制',
+        }), 'quote-jump: zh')
         const t = ctx.locale.bind(NS)
 
         ctx.effect(() => {
@@ -199,11 +241,17 @@ window.__ModuleLoader__.load({
           React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
           const ref = React.useRef(null)
           const [missing, setMissing] = React.useState(false)
+          const [copied, setCopied] = React.useState(false)
           React.useEffect(() => {
             if (!missing) return undefined
             const timer = setTimeout(() => setMissing(false), 3500)
             return () => clearTimeout(timer)
           }, [missing])
+          React.useEffect(() => {
+            if (!copied) return undefined
+            const timer = setTimeout(() => setCopied(false), 1500)
+            return () => clearTimeout(timer)
+          }, [copied])
           const text = node.data.text
 
           if (!interactive) return h('span', { className: 'dqj-inline', 'data-quote-jump': '' }, `❝ ${oneLine(text)} `)
@@ -216,6 +264,13 @@ window.__ModuleLoader__.load({
             const ok = jumpTo(ref.current, text)
             setMissing(!ok)
           }
+          const onCopy = event => {
+            event.preventDefault()
+            event.stopPropagation()
+            const body = plainQuoteBody(text)
+            if (!body) return
+            void copyText(body).then(ok => { if (ok) setCopied(true) })
+          }
           return h('span', {
             ref,
             className: 'dqj-quote',
@@ -227,11 +282,21 @@ window.__ModuleLoader__.load({
             'aria-label': t('jump'),
             onClick: activate,
             onKeyDown: event => {
+              if (event.target !== event.currentTarget) return
               if (event.key !== 'Enter' && event.key !== ' ') return
               event.preventDefault()
               activate(event)
             },
-          }, h('span', { className: 'dqj-text' }, text),
+          },
+          h('span', { className: 'dqj-text' }, text),
+          h('button', {
+            type: 'button',
+            className: 'dqj-copy',
+            'data-copied': copied ? 'true' : undefined,
+            title: copied ? t('copied') : t('copy'),
+            'aria-label': copied ? t('copied') : t('copy'),
+            onClick: onCopy,
+          }, copied ? '✓' : '⧉'),
           missing ? h('span', { className: 'dqj-hint', role: 'status' }, t('notFound')) : null)
         }
 

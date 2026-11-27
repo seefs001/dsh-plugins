@@ -21,6 +21,9 @@ export const DEFAULTS = {
   method: 'get',
   notifyQuestions: true,
   notifyApprovals: true,
+  notifyErrors: true,
+  notifyFinished: false,
+  notifyAcp: true,
   delayMs: 0,
   sound: 'alarm',
   group: 'dsh',
@@ -67,6 +70,9 @@ export function settingsOf(config) {
     method: c.method === 'post' ? 'post' : 'get',
     notifyQuestions: c.notifyQuestions === undefined ? DEFAULTS.notifyQuestions : c.notifyQuestions === true,
     notifyApprovals: c.notifyApprovals === undefined ? DEFAULTS.notifyApprovals : c.notifyApprovals === true,
+    notifyErrors: c.notifyErrors === undefined ? DEFAULTS.notifyErrors : c.notifyErrors === true,
+    notifyFinished: c.notifyFinished === undefined ? DEFAULTS.notifyFinished : c.notifyFinished === true,
+    notifyAcp: c.notifyAcp === undefined ? DEFAULTS.notifyAcp : c.notifyAcp === true,
     delayMs,
     sound: clip(singleLine(c.sound ?? DEFAULTS.sound), 128),
     group: clip(singleLine(c.group ?? DEFAULTS.group), 128),
@@ -79,7 +85,7 @@ export function parseSettings(raw) {
   if (!isRecord(raw)) return { error: 'expected a JSON object' }
   const bool = (v, field) => (typeof v === 'boolean' ? v : new Error(`${field} must be a boolean`))
   const fields = {}
-  for (const k of ['enabled', 'notifyQuestions', 'notifyApprovals', 'includeContent']) {
+  for (const k of ['enabled', 'notifyQuestions', 'notifyApprovals', 'notifyErrors', 'notifyFinished', 'notifyAcp', 'includeContent']) {
     const v = raw[k] === undefined ? DEFAULTS[k] : bool(raw[k], k)
     if (v instanceof Error) return { error: v.message }
     fields[k] = v
@@ -218,6 +224,63 @@ export function formatApprovalNotification(ctx, request, includeContent) {
   return { title, content: clip(body, 240) }
 }
 
+function sessionObjectLabel(ctx, session) {
+  if (!session) return 'DSH'
+  try {
+    const title = ctx.get('sessionTitle')?.get?.(session)?.title
+    if (typeof title === 'string' && title.trim() !== '') return clip(singleLine(title), 32)
+  } catch {}
+  const cwd = session?.header?.cwd ?? session?.cwd
+  if (typeof cwd === 'string' && cwd.trim() !== '') {
+    const base = basename(cwd.trim())
+    if (base) return clip(singleLine(base), 32)
+  }
+  const id = session?.id
+  return typeof id === 'string' && id !== '' ? clip(id, 16) : 'DSH'
+}
+
+export function formatErrorNotification(ctx, payload, includeContent) {
+  const label = sessionLabel(ctx, payload?.agent)
+  const title = `[DSH] 运行出错 · ${label}`
+  if (!includeContent) {
+    return { title, content: `会话「${label}」运行出错，请回 DSH 查看` }
+  }
+  const err = payload?.error
+  const detail = singleLine(err instanceof Error ? err.message : typeof err === 'string' ? err : err?.message ?? '')
+  return { title, content: clip(detail || `会话「${label}」运行出错`, 240) }
+}
+
+export function formatFinishedNotification(ctx, session, includeContent) {
+  const label = sessionObjectLabel(ctx, session)
+  const title = `[DSH] 轮次完成 · ${label}`
+  return { title, content: includeContent ? `会话「${label}」已完成本轮回复` : `会话「${label}」已就绪` }
+}
+
+export function formatAcpInteractionNotification(ctx, payload, includeContent) {
+  const acpSession = payload?.session
+  const interaction = payload?.interaction
+  const nativeId = acpSession?.native?.rootSessionId ?? acpSession?.native?.sessionId
+  const nativeSession = nativeId ? ctx.get('sessions')?.get?.(nativeId) : undefined
+  const label = nativeSession
+    ? sessionObjectLabel(ctx, nativeSession)
+    : acpSession?.title
+      ? clip(singleLine(acpSession.title), 32)
+      : acpSession?.cwd
+        ? clip(singleLine(basename(acpSession.cwd)), 32)
+        : clip(singleLine(acpSession?.providerId || 'ACP'), 32)
+  const kind = interaction?.kind
+  const kindLabel = kind === 'permission' ? 'ACP 需要审批' : kind === 'plan' ? 'ACP 审阅计划' : 'ACP 需要回答'
+  const title = `[DSH] ${kindLabel} · ${label}`
+  if (!includeContent) {
+    return { title, content: `外部 CLI 会话「${label}」等待你的处理` }
+  }
+  const params = interaction?.params ?? {}
+  const summary = kind === 'permission'
+    ? singleLine(params.toolCall?.title || params.toolCall?.name || params.title || '')
+    : singleLine(params.message || params.title || params.questions?.[0]?.question || '')
+  return { title, content: clip(summary || `外部 CLI 会话「${label}」等待你的处理`, 240) }
+}
+
 async function resolveKey(ctx) {
   try {
     const record = await ctx.credentials.readRecord(CREDENTIAL_KEY)
@@ -259,6 +322,8 @@ export async function apply(ctx, config) {
   const settings = settingsOf(config)
   const life = new AbortController()
   const activeTimers = new Set()
+  const acpPending = new Map()
+  const erroredTurns = new Map()
   const recent = new Map()
   let closed = false
 
@@ -392,11 +457,90 @@ export async function apply(ctx, config) {
     )
   }, { prepend: true })
 
+  const fireStandalone = (dedupeKey, buildPayload) => {
+    if (closed || !settings.enabled || shouldDedupe(dedupeKey)) return
+    let payload
+    try { payload = buildPayload() } catch { return }
+    void pushBark(payload).catch(error => {
+      if (!closed && error?.name !== 'AbortError') {
+        ctx.logger?.warn?.(`bark-notify: failed to send notification: ${error?.message ?? error}`)
+      }
+    })
+  }
+
+  ctx.on('agent/error', payload => {
+    const sid = payload?.agent?.session?.id ?? payload?.agent?.id ?? ''
+    if (sid && typeof payload?.turn === 'number') {
+      erroredTurns.set(sid, payload.turn)
+      if (erroredTurns.size > DEDUPE_MAX) {
+        const oldest = erroredTurns.keys().next().value
+        if (oldest !== undefined) erroredTurns.delete(oldest)
+      }
+    }
+    if (!settings.enabled || !settings.notifyErrors) return
+    const dedupeKey = sid ? `e:${sid}:${payload?.turn ?? ''}:${payload?.step ?? ''}` : ''
+    fireStandalone(dedupeKey, () => formatErrorNotification(ctx, payload, settings.includeContent))
+  })
+
+  ctx.on('session/event', (session, event) => {
+    if (!settings.enabled || !settings.notifyFinished) return
+    if (event?.type !== 'turn/end') return
+    if (session?.header?.origin === 'subagent') return
+    const sid = session?.id ?? ''
+    const turn = event?.turn ?? event?.data?.turn
+    if (sid && turn !== undefined && erroredTurns.get(sid) === turn) {
+      erroredTurns.delete(sid)
+      return
+    }
+    const dedupeKey = sid ? `f:${sid}:${event?.seq ?? turn ?? ''}` : ''
+    fireStandalone(dedupeKey, () => formatFinishedNotification(ctx, session, settings.includeContent))
+  })
+
+  ctx.on('acp-workbench/interaction-open', payload => {
+    if (closed || !settings.enabled || !settings.notifyAcp) return
+    const id = typeof payload?.id === 'string' ? payload.id : ''
+    const dedupeKey = id ? `acp:${id}` : ''
+    if (shouldDedupe(dedupeKey)) return
+    const sendNow = () => {
+      if (closed) return
+      let body
+      try { body = formatAcpInteractionNotification(ctx, payload, settings.includeContent) } catch { return }
+      void pushBark(body).catch(error => {
+        if (!closed && error?.name !== 'AbortError') {
+          ctx.logger?.warn?.(`bark-notify: failed to send notification: ${error?.message ?? error}`)
+        }
+      })
+    }
+    if (settings.delayMs <= 0) {
+      sendNow()
+      return
+    }
+    const timer = setTimeout(() => {
+      activeTimers.delete(timer)
+      if (id) acpPending.delete(id)
+      sendNow()
+    }, settings.delayMs)
+    timer.unref?.()
+    activeTimers.add(timer)
+    if (id) acpPending.set(id, timer)
+  })
+
+  ctx.on('acp-workbench/interaction-close', payload => {
+    const id = typeof payload?.id === 'string' ? payload.id : ''
+    const timer = id ? acpPending.get(id) : undefined
+    if (timer === undefined) return
+    clearTimeout(timer)
+    activeTimers.delete(timer)
+    acpPending.delete(id)
+  })
+
   ctx.effect(() => () => {
     closed = true
     life.abort(new Error('bark-notify unloading'))
     for (const timer of activeTimers) clearTimeout(timer)
     activeTimers.clear()
+    acpPending.clear()
+    erroredTurns.clear()
   }, 'bark-notify: lifetime')
 
   ctx.effect(() => ctx.webServer.register({

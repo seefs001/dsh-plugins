@@ -10,10 +10,13 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/ba
 
 ## 触发范围
 
-- `user-questions/request`：`ask_user_question`、`exit_plan_mode` 计划审阅与界面授权卡片。
-- `approval/request`：工具权限审批。
+- `user-questions/request`：`ask_user_question`、`exit_plan_mode` 计划审阅与界面授权卡片（默认开启）。
+- `approval/request`：工具权限审批（默认开启）。
+- `agent/error`：Agent 运行出错提醒（默认开启）。
+- `session/event`（`turn/end`）：主会话轮次完成提醒，跳过子代理与报错轮次（默认关闭）。
+- `acp-workbench/interaction-open` / `interaction-close`：外部 ACP CLI（`dsh-acp-workbench`）发起的权限审批、提问与计划审阅，延迟内已处理则自动取消（默认开启，同仓零硬依赖）。
 
-推送采用异步旁路触发，不阻塞原生交互与超时计时。外部 ACP CLI（`dsh-acp-workbench`）使用独立通道，不触发本插件。
+推送采用异步旁路触发，不阻塞原生交互与超时计时。
 
 ## 配置
 
