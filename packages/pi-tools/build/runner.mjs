@@ -18,7 +18,7 @@ const lib = import.meta.resolve('@earendil-works/pi-codemode')
 const { PRELUDE_SOURCE } = await import(new URL('./runtime/prelude-source.js', lib))
 const src = new URL('extensions/codemode/execute.js', pi)
 const version = JSON.parse(await readFile(new URL('../package.json', pi))).version
-if (version !== '1.6.0') throw new Error(`Review the executor adapter for Pi ${version}`)
+if (version !== '1.7.0') throw new Error(`Review the executor adapter for Pi ${version}`)
 let body = await readFile(src, 'utf8')
 function replace(from, to) {
   if (body.split(from).length !== 2) throw new Error(`Pi executor changed: ${from}`)

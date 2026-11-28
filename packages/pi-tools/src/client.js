@@ -10,7 +10,6 @@ window.__ModuleLoader__.load({
       IconEditOutlineRegular, IconInspectOutlineRegular, IconSearchOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const NS = 'pi-tools'
-    const PI_VERSION = '1.6.0'
     const DIRECT_KEYS = ['codemode', 'tool_search', 'find', 'ls']
     const WRAPPED_KEYS = ['edit', 'write', 'read', 'grep', 'bash']
     const KILOBYTE = 1024
@@ -143,7 +142,7 @@ window.__ModuleLoader__.load({
 
     function isPiCall(owner) {
       if (DIRECT_KEYS.includes(owner.toolName)) return true
-      if (owner.phase === 'result') return owner.block?.meta?.piVersion === PI_VERSION
+      if (owner.phase === 'result') return typeof owner.block?.meta?.piVersion === 'string' && owner.block.meta.piVersion.length > 0
       const args = owner.block?.args
       if (!args) return false
       if (owner.toolName === 'edit' || owner.toolName === 'write' || owner.toolName === 'read') {
