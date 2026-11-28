@@ -12,13 +12,7 @@ const FORBIDDEN_PACKAGE_DOCS = ['DESIGN.md', 'ARCHITECTURE.md', 'PASEO-PARITY.md
 const LEGACY_TEXT = /\b(?:dsh[-_]inbox|llm-pi-ai\/model-defaults)\b/
 const DEFAULT_CLIENT_MAX_BYTES = 64 * 1024
 const CLIENT_SIZE_BUDGETS = {
-  'acp-workbench': 560 * 1024,
-  'paseo-hub': 128 * 1024,
-  roles: 112 * 1024,
-  'session-groups': 96 * 1024,
-  canvas: 96 * 1024,
-  'github-panel': 84 * 1024,
-  'config-backup': 80 * 1024,
+  'acp-workbench': 360 * 1024,
 }
 const LEGACY_MISSING_CLIENT_TEST = new Set([
   'ai-mascot',
@@ -137,6 +131,26 @@ for (const dir of packageDirs) {
       }
       if (dir in CLIENT_SIZE_BUDGETS && bytes <= DEFAULT_CLIENT_MAX_BYTES) {
         fail(id, `${clientRel} is now ${(bytes / 1024).toFixed(1)} KiB (<= 64 KiB); remove "${dir}" from CLIENT_SIZE_BUDGETS`)
+      }
+
+      const srcDir = join(base, 'src')
+      if (dir !== 'message-actions' && existsSync(srcDir)) {
+        const outDir = join(clientPath, '..')
+        for (const name of readdirSync(srcDir).toSorted()) {
+          if (!/^client(?:\.[A-Za-z0-9][A-Za-z0-9._-]*)?\.js$/.test(name)) continue
+          const builtChunkPath = join(outDir, name)
+          if (!existsSync(builtChunkPath)) {
+            fail(id, `src/${name} has no built output at ${builtChunkPath.slice(ROOT.length)} (run pnpm run build:clients)`)
+            continue
+          }
+          if (name !== 'client.js') {
+            const chunkSrc = readFileSync(builtChunkPath, 'utf8')
+            const chunkId = /__ModuleLoader__\.load\(\{\s*id:\s*['"]([^'"]+)['"]/.exec(chunkSrc)?.[1]
+            const chunkName = /chunk:\s*['"]([^'"]+)['"]/.exec(chunkSrc)?.[1]
+            if (chunkId !== pkg.name) fail(id, `${name} bundle id "${chunkId}" should be "${pkg.name}"`)
+            if (chunkName !== name) fail(id, `${name} chunk "${chunkName}" should be "${name}"`)
+          }
+        }
       }
     }
 

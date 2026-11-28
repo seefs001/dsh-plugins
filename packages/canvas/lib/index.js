@@ -19,7 +19,7 @@ import {
   SKILL_WHEN_TO_USE,
   STARTER_TEMPLATE,
 } from './skill.js'
-import { appendRevision, DOMAIN_SPEC, MAX_STATE_JSON_BYTES, MAX_STATE_KEYS } from './store.js'
+import { appendRevision, DOMAIN_SPEC, MAX_STATE_JSON_BYTES, MAX_STATE_KEYS, storageKeyOf } from './store.js'
 import {
   computeLineDiff,
   createWorkspaceWatcher,
@@ -138,9 +138,9 @@ export function apply(ctx) {
   const watchedDataDirs = new Set()
 
   const ready = openDomain(ctx).then(domain => {
-    for (const [id, entry] of domain.table('sessions').entries()) sessionMap.set(id, entry)
-    for (const [path, entry] of domain.table('states').entries()) stateMap.set(path, entry)
-    for (const [path, entry] of domain.table('revisions').entries()) revisionMap.set(path, entry)
+    for (const [key, entry] of domain.table('sessions').entries()) sessionMap.set(entry?.sessionId || key, entry)
+    for (const [key, entry] of domain.table('states').entries()) stateMap.set(entry?.path || key, entry)
+    for (const [key, entry] of domain.table('revisions').entries()) revisionMap.set(entry?.path || key, entry)
     return domain
   })
   ready.catch(error => ctx.logger?.warn?.(`canvas: cannot open storage: ${error?.message ?? error}`))
@@ -185,12 +185,13 @@ export function apply(ctx) {
     const domain = await ready
     const prev = sessionMap.get(sessionId) ?? { enabled: false, cwd: '', activePath: '', updatedAt: 0 }
     const next = {
+      sessionId,
       enabled: patch.enabled !== undefined ? Boolean(patch.enabled) : prev.enabled,
       cwd: patch.cwd !== undefined ? patch.cwd : prev.cwd,
       activePath: patch.activePath !== undefined ? patch.activePath : prev.activePath,
       updatedAt: Date.now(),
     }
-    await domain.table('sessions').put(sessionId, next)
+    await domain.table('sessions').put(storageKeyOf(sessionId), next)
     sessionMap.set(sessionId, next)
     return next
   }
@@ -202,8 +203,8 @@ export function apply(ctx) {
     if (Buffer.byteLength(JSON.stringify(values), 'utf8') > MAX_STATE_JSON_BYTES) {
       throw new OpError(`Canvas state exceeds ${MAX_STATE_JSON_BYTES} bytes`)
     }
-    const next = { values, updatedAt: Date.now() }
-    await domain.table('states').put(filePath, next)
+    const next = { path: filePath, values, updatedAt: Date.now() }
+    await domain.table('states').put(storageKeyOf(filePath), next)
     stateMap.set(filePath, next)
     return next
   }
@@ -213,8 +214,10 @@ export function apply(ctx) {
     const existing = revisionMap.get(filePath)
     const { changed, entry } = appendRevision(existing, { source, reason, errorCount })
     if (changed) {
-      await domain.table('revisions').put(filePath, entry)
-      revisionMap.set(filePath, entry)
+      const stored = { ...entry, path: filePath }
+      await domain.table('revisions').put(storageKeyOf(filePath), stored)
+      revisionMap.set(filePath, stored)
+      return stored
     }
     return entry
   }
@@ -865,8 +868,8 @@ export function apply(ctx) {
         const full = await deleteCanvasFile(cwd, op.path)
         clearCompileCache(full)
         const domain = await ready
-        await domain.table('states').delete(full)
-        await domain.table('revisions').delete(full)
+        await domain.table('states').delete(storageKeyOf(full))
+        await domain.table('revisions').delete(storageKeyOf(full))
         stateMap.delete(full)
         revisionMap.delete(full)
         if (sessionMap.get(sessionId)?.activePath === full) {
@@ -899,7 +902,7 @@ export function apply(ctx) {
         if (!cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
         const full = resolveCanvasPath(cwd, op.path)
         const domain = await ready
-        await domain.table('states').delete(full)
+        await domain.table('states').delete(storageKeyOf(full))
         stateMap.delete(full)
         const rel = relativeDisplayPath(cwd, full)
         const summary = `User reset canvas state for ${rel}`

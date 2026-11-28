@@ -1,8 +1,4 @@
-window.__ModuleLoader__.load({
-  id: 'dsh-mobile-boost',
-  factory() {
-    const STYLE_ATTR = 'dsh-mobile-boost'
-    const CSS = `@media (max-width:768px),(pointer:coarse){
+window.__ModuleLoader__.load({id:"dsh-mobile-boost",factory(){const n="dsh-mobile-boost",o=`@media (max-width:768px),(pointer:coarse){
 :root,body{--dsw-menu-backdrop-filter:none;--dsw-mask-blur:none;--dsw-specific-menu:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base))}
 [data-sidebar-drawer][data-animating]{transition:none!important}
 [data-sidebar-drawer][data-sidebar-collapsed] [data-sidebar-list-area]{content-visibility:auto;contain-intrinsic-size:auto 320px}
@@ -10,23 +6,4 @@ window.__ModuleLoader__.load({
 [data-chat-flow][data-chat-motion]>*{transition:none!important}
 [data-composer-card],[data-composer-input],[data-sidebar-list-area] [data-row-key]{touch-action:manipulation}
 [data-composer-card]{box-shadow:0 0 0 .5px var(--dsw-alias-border-l2)}
-}`
-
-    function mountStyles(doc = typeof document !== 'undefined' ? document : null) {
-      if (!doc?.head) return undefined
-      const style = doc.createElement('style')
-      style.dataset.plugin = STYLE_ATTR
-      style.textContent = CSS
-      doc.head.appendChild(style)
-      return () => style.remove()
-    }
-
-    return {
-      inject: [],
-      apply(ctx) {
-        ctx.effect(() => mountStyles(), 'mobile-boost: styles')
-      },
-      _internal: { STYLE_ATTR, CSS, mountStyles },
-    }
-  },
-})
+}`;function e(a=typeof document<"u"?document:null){if(!a?.head)return;const t=a.createElement("style");return t.dataset.plugin=n,t.textContent=o,a.head.appendChild(t),()=>t.remove()}return{inject:[],apply(a){a.effect(()=>e(),"mobile-boost: styles")},_internal:{STYLE_ATTR:n,CSS:o,mountStyles:e}}}});

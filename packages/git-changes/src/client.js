@@ -1,0 +1,288 @@
+window.__ModuleLoader__.load({
+  id: 'dsh-git-changes',
+  factory(require) {
+    const React = require('react')
+    const h = React.createElement
+    const NS = 'gitChanges'
+    const SLOT = 'conversation.composer.dock'
+    const DEBOUNCE_MS = 1200
+    const MAX_CACHE = 32
+    const TAB_SLOT = 'sidebar.right.pane.tab'
+    const TOOLBAR_SLOT = 'forge.changes.toolbar'
+    const CHANGES_ID = '@deepseek-ai/dsh-experimental-client-ui-forge/changes'
+    const MAX_SEEDED = 128
+    const localAddress = sessionId => `dsh-resource://forge-changes/${encodeURIComponent(sessionId)}/local`
+
+    const CSS_TEXT = `
+.dgc-anchor{min-width:0;max-width:100%;overflow:hidden;display:inline-flex;font-size:calc(var(--dsh-content-font-size-secondary,13px) - 1px);line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px))}
+.dgc-pill{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;overflow:hidden;margin:0;padding:1px 8px;border:none;border-radius:var(--dsw-radius-sm);
+  background:0 0;color:var(--dsw-alias-label-tertiary);font:inherit;font-variant-numeric:tabular-nums;line-height:inherit;white-space:nowrap;cursor:pointer}
+.dgc-pill svg{flex:none;width:14px;height:14px}
+@media (hover:hover){.dgc-pill:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}}
+.dgc-pill:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.dgc-branch{min-width:0;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.dgc-sep{color:var(--dsw-alias-label-caption)}
+.dgc-add{color:var(--dsw-alias-state-success-primary)}
+.dgc-del{color:var(--dsw-alias-state-error-primary)}
+@media (max-width:600px){.dgc-anchor{flex:0 1 auto;max-width:96px}.dgc-pill{gap:3px;padding:1px 4px;font-size:11px}.dgc-branch,.dgc-sep,.dgc-files,.dgc-omitted{display:none}}
+`
+
+    const IconBranch = () => h('svg', { viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round', 'aria-hidden': true },
+      h('circle', { cx: 4.5, cy: 3.5, r: 1.5 }),
+      h('circle', { cx: 4.5, cy: 12.5, r: 1.5 }),
+      h('circle', { cx: 11.5, cy: 5.5, r: 1.5 }),
+      h('path', { d: 'M4.5 5v6M11.5 7c0 2.5-2.5 3-5 3.5' }))
+
+    const DICTS = {
+      en: {
+        files: '{n} files',
+        file: '1 file',
+        clean: 'No changes',
+        loading: 'Reading changes…',
+        unavailable: 'Diff unavailable',
+        omitted: '{n} more untracked',
+        detached: 'Detached',
+        open: 'Open changes in the side panel',
+        scope: 'Uncommitted, including untracked files',
+      },
+      zh: {
+        files: '{n} 个文件',
+        file: '1 个文件',
+        clean: '无改动',
+        loading: '正在读取改动…',
+        unavailable: '无法读取差异',
+        omitted: '另有 {n} 个未跟踪文件',
+        detached: '游离 HEAD',
+        open: '在右侧打开变更',
+        scope: '未提交，含未跟踪文件',
+      },
+    }
+
+    function totals(files, omitted = 0) {
+      if (files === null || files === undefined) return null
+      let additions = 0
+      let deletions = 0
+      for (const file of files) { additions += file.additions; deletions += file.deletions }
+      return { additions, deletions, files: files.length, omitted }
+    }
+
+    function trigger(panel) {
+      if (panel == null || panel.checkout?.state !== 'ready') return null
+      const { checkout } = panel.checkout
+      const localFiles = Array.isArray(panel.local?.files) ? panel.local.files : null
+      const local = localFiles === null ? '' : localFiles.map(f => `${f.path}:${f.additions}:${f.deletions}`).join('|')
+      return `${checkout.root}\n${checkout.branch}\n${checkout.commit}\n${local}`
+    }
+
+    function createFollower(ctx) {
+      return function usePanel(sessionId) {
+        const [state, setState] = React.useState(null)
+        const [generation, setGeneration] = React.useState(0)
+        React.useEffect(() => ctx.on('connection/reset', () => setGeneration(n => n + 1)), [])
+        React.useEffect(() => {
+          if (sessionId === undefined) return undefined
+          const controller = new AbortController()
+          let stream
+          try {
+            stream = ctx.remote.forgePanel.follow(sessionId, controller.signal)
+          } catch (error) {
+            console.warn('[dsh-git-changes] cannot follow the forge panel:', error)
+            return undefined
+          }
+          ;(async () => {
+            try {
+              for await (const frame of stream) {
+                if (controller.signal.aborted) return
+                setState(frame)
+              }
+            } catch {}
+          })()
+          return () => {
+            controller.abort()
+            stream?.dispose?.()
+          }
+        }, [sessionId, generation])
+        return state
+      }
+    }
+
+    function createUncommitted(ctx) {
+      const cache = new Map()
+      const remember = (sessionId, entry) => {
+        cache.delete(sessionId)
+        cache.set(sessionId, entry)
+        if (cache.size > MAX_CACHE) {
+          const oldest = cache.keys().next().value
+          if (oldest !== undefined) cache.delete(oldest)
+        }
+      }
+      return function useUncommitted(sessionId, key) {
+        const cached = sessionId !== undefined ? cache.get(sessionId) : undefined
+        const [summary, setResult] = React.useState(() => (cached?.key === key ? cached : null))
+        React.useEffect(() => {
+          if (sessionId === undefined || key === null) { setResult(null); return undefined }
+          const hit = cache.get(sessionId)
+          if (hit?.key === key) { setResult(hit); return undefined }
+          const controller = new AbortController()
+          let timer = null
+          const schedule = () => {
+            if (controller.signal.aborted) return
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+            clearTimeout(timer)
+            timer = setTimeout(async () => {
+              timer = null
+              if (controller.signal.aborted) return
+              if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+              try {
+                const result = await ctx.remote.forgePanel.localDiff(sessionId, { kind: 'uncommitted' }, controller.signal)
+                if (controller.signal.aborted) return
+                const value = result?.ok ? result.value : null
+                const next = { key, sum: totals(value?.files, value?.omitted) }
+                remember(sessionId, next)
+                setResult(next)
+              } catch (error) {
+                if (!controller.signal.aborted) {
+                  console.warn('[dsh-git-changes] uncommitted diff failed:', error)
+                  setResult({ key, sum: null })
+                }
+              }
+            }, DEBOUNCE_MS)
+          }
+          const onVisibility = () => {
+            if (document.visibilityState !== 'hidden' && cache.get(sessionId)?.key !== key) schedule()
+          }
+          schedule()
+          if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+          return () => {
+            clearTimeout(timer)
+            controller.abort()
+            if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+          }
+        }, [sessionId, key])
+        return summary?.key === key ? summary.sum : (cached?.key === key ? cached.sum : undefined)
+      }
+    }
+
+    return {
+      inject: ['slots', 'locale', 'sidebarRight', 'remote', 'remote.forgePanel'],
+      apply(ctx) {
+        for (const [lang, dict] of Object.entries(DICTS)) {
+          ctx.effect(() => ctx.locale.register(NS, lang, dict), `git-changes: ${lang}`)
+        }
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.dataset.plugin = 'dsh-git-changes'
+          style.textContent = CSS_TEXT
+          document.head.appendChild(style)
+          return () => style.remove()
+        }, 'git-changes: styles')
+
+        const usePanel = createFollower(ctx)
+        const useUncommitted = createUncommitted(ctx)
+        const open = sessionId => {
+          try {
+            ctx.sidebarRight.openResource(localAddress(sessionId))
+          } catch (error) {
+            console.error('[dsh-git-changes] open changes failed:', error)
+          }
+        }
+
+        function GitChangesPill({ sessionId, t }) {
+          const panel = usePanel(sessionId)
+          const sum = useUncommitted(sessionId, trigger(panel))
+          if (panel == null || panel.checkout?.state !== 'ready') return null
+          const { checkout } = panel.checkout
+          const branch = checkout.branch || (checkout.commit ? checkout.commit.slice(0, 7) : t('detached'))
+          const parts = []
+          if (sum == null) {
+            parts.push(h('span', { key: 'state' }, t(sum === undefined ? 'loading' : 'unavailable')))
+          } else if (sum.files === 0 && sum.omitted === 0) {
+            parts.push(h('span', { key: 'clean' }, t('clean')))
+          } else {
+            parts.push(
+              h('span', { key: 'a', className: 'dgc-add' }, `+${sum.additions}`),
+              h('span', { key: 'd', className: 'dgc-del' }, `−${sum.deletions}`),
+              h('span', { key: 's', className: 'dgc-sep', 'aria-hidden': true }, '·'),
+              h('span', { key: 'f', className: 'dgc-files' }, sum.files === 1 ? t('file') : t('files').replace('{n}', String(sum.files))),
+            )
+          }
+          if (sum?.omitted > 0) parts.push(h('span', { key: 'omitted', className: 'dgc-omitted' }, t('omitted').replace('{n}', String(sum.omitted))))
+          return h('span', { className: 'dgc-anchor', 'data-git-changes': true },
+            h('button', {
+              type: 'button',
+              className: 'dgc-pill',
+              title: `${branch} · ${t('open')} (${t('scope')})`,
+              'aria-label': `${branch} · ${t('open')} (${t('scope')})`,
+              onClick: () => open(sessionId),
+            },
+            h(IconBranch),
+            h('span', { className: 'dgc-branch' }, branch),
+            ...parts))
+        }
+
+        ctx.slots.inject(SLOT, () => ctx.slots.register({
+          name: SLOT,
+          id: 'git-changes',
+          order: 2,
+          locale: NS,
+        }, props => h(GitChangesPill, { ...props, key: props.sessionId })))
+
+        // external: DSH forge changes tab defaults to Branch scope with no setting
+        const seeded = new Set()
+        const findChangesStore = () => {
+          for (const entry of ctx.slots.entries(TAB_SLOT)) {
+            if (entry.options?.key === CHANGES_ID && entry.store !== undefined) return entry.store
+          }
+          return undefined
+        }
+        function UncommittedFirst({ sessionId, target, form, useStore, actions }) {
+          const isLocalBar = form === 'bar' && target?.source?.kind === 'local'
+          const branchIds = useStore(store => {
+            if (!isLocalBar) return ''
+            const byTab = store?.byTab
+            if (!byTab) return ''
+            let ids = ''
+            for (const [tabId, tabState] of Object.entries(byTab)) {
+              if (tabState?.scope === 'branch') ids = ids ? `${ids}\n${tabId}` : tabId
+            }
+            return ids
+          })
+          React.useEffect(() => {
+            if (!isLocalBar || !branchIds) return
+            const openTabs = ctx.sidebarRight.openTabs?.getSnapshot?.()
+            const localTabIds = Array.isArray(openTabs)
+              ? new Set(
+                openTabs
+                  .filter(tab => tab.sessionId === sessionId && typeof tab.contentId === 'string' && tab.contentId.endsWith('/local'))
+                  .map(tab => tab.tabId),
+              )
+              : null
+            for (const tabId of branchIds.split('\n')) {
+              if (localTabIds !== null && !localTabIds.has(tabId)) continue
+              const id = `${sessionId}:${tabId}`
+              if (seeded.has(id)) continue
+              seeded.add(id)
+              if (seeded.size > MAX_SEEDED) {
+                const oldest = seeded.values().next().value
+                if (oldest !== undefined) seeded.delete(oldest)
+              }
+              actions.scoped(tabId, 'uncommitted')
+            }
+          }, [isLocalBar, branchIds, sessionId, actions])
+          return null
+        }
+        ctx.slots.inject(TOOLBAR_SLOT, () => {
+          const store = findChangesStore()
+          if (store === undefined) return () => {}
+          try {
+            return ctx.slots.register({ name: TOOLBAR_SLOT, id: 'git-changes-uncommitted', store }, UncommittedFirst)
+          } catch (error) {
+            console.warn('[dsh-git-changes] cannot default the changes tab to Uncommitted:', error)
+            return () => {}
+          }
+        })
+      },
+      _internal: { totals, localAddress, trigger },
+    }
+  },
+})

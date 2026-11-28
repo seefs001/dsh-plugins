@@ -24,15 +24,15 @@ const SYNC_FS_METHODS = new Set([
 ])
 
 const ALLOWED_EVENTSOURCE_FILES = new Set([
-  'packages/acp-workbench/lib/client.js',
-  'packages/auto-review-model/lib/client.js',
-  'packages/canvas/lib/client.js',
+  'packages/acp-workbench/src/client.js',
+  'packages/auto-review-model/src/client.js',
+  'packages/canvas/src/client.js',
 ])
 const ALLOWED_BODY_OBSERVER_FILES = new Set([
-  'packages/session-groups/lib/client.js',
+  'packages/session-groups/src/client.js',
 ])
 const ALLOWED_FULL_SESSION_LIST_FILES = new Set([
-  'packages/session-groups/lib/client.js',
+  'packages/session-groups/src/client.js',
 ])
 
 function getRelPath(context) {
@@ -50,7 +50,7 @@ function isPackageFile(rel) {
 }
 
 function isClientFile(rel) {
-  return isPackageFile(rel) && !isTestFile(rel) && /(?:^|\/)(?:lib\/client|src\/client|client)\.js$/.test(rel)
+  return isPackageFile(rel) && !isTestFile(rel) && /(?:^|\/)(?:lib\/client|src\/client|client)(?:\.[A-Za-z0-9._-]+)?\.js$/.test(rel)
 }
 
 function isServerFile(rel) {

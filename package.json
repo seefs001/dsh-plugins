@@ -15,6 +15,7 @@
   },
   "scripts": {
     "check": "pnpm run lint && pnpm run validate && pnpm run test",
+    "build:clients": "node scripts/build-clients.mjs",
     "lint": "oxlint --deny-warnings packages scripts test-utils apps/docs/app apps/docs/components apps/docs/lib",
     "validate": "node scripts/validate.mjs",
     "test": "node --test \"packages/*/test/*.test.js\"",

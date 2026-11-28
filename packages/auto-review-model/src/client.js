@@ -1,0 +1,682 @@
+window.__ModuleLoader__.load({
+  id: 'dsh-auto-review-model',
+  factory(require) {
+    const React = require('react')
+    const ReactDOM = require('react-dom')
+    const { Button, Modal } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const h = React.createElement
+    const MAX_LOG = 200
+    const PAGE_SIZE = 20
+    const PANEL_MAX_HEIGHT = 360
+    const NS = 'auto-review-model'
+    const KEY = 'dsh-auto-review-model'
+    const PACKAGE = 'dsh-auto-review-model'
+    const SEP = '\u0000'
+
+    const en = {
+      title: 'Auto review model',
+      hint: 'Pick the model that judges Auto review tool calls. "Same as session" keeps the built-in behavior.',
+      model: 'Model',
+      effort: 'Reasoning effort',
+      sameAsSession: 'Same as session',
+      modelDefault: 'Model default',
+      unavailable: '(unavailable)',
+      loading: 'Loading models…',
+      loadFailed: 'Could not load the model list.',
+      partial: 'Some providers failed to load their models.',
+      retry: 'Retry',
+      save: 'Save',
+      saving: 'Saving…',
+      saved: 'Saved.',
+      saveFailed: 'Save failed: ',
+      warning: 'The reviewer must return strict JSON; invalid output blocks the tool call.',
+      promptTitle: 'Review prompt',
+      promptMode: 'Mode',
+      modeDefault: 'Built-in',
+      modeAppend: 'Append rules',
+      modeReplace: 'Replace',
+      appendHint: 'Appended to the built-in policy while keeping risk levels and JSON output rules.',
+      replaceHint: 'Replaces the built-in policy. Output must strictly be {"risk":"low|medium","decision":"allow"} or {"risk":"medium|high","decision":"deny","reason":"..."}.',
+      appendPlaceholder: 'For example:\n- Treat git push as medium risk unless I named the branch.\n- Deleting files under /tmp is low risk.',
+      loadDefault: 'Load built-in prompt',
+      defaultUnknown: 'Available after Auto review runs once.',
+      chipPrefix: 'Review',
+      chipSession: 'Same as session',
+      chipTitle: 'Auto review model: {model}',
+      chipTitleSession: 'Auto review uses this session\'s model.',
+      chipMissing: 'Provider "{provider}" is unavailable; falling back to the session model.',
+      chipPrompt: 'Review prompt: {mode}',
+      chipOpenLog: 'Click to inspect this session\'s reviews.',
+      logTitle: 'Auto reviews in this session',
+      logSummary: '{allow} allowed · {deny} denied · {fail} failed',
+      logSettings: 'Review settings',
+      logClear: 'Clear',
+      logClearConfirm: 'Delete the stored review records of this session?',
+      cancel: 'Cancel',
+      logLoading: 'Loading…',
+      logEmpty: 'No reviews yet.',
+      logUnavailable: 'Review log unavailable.',
+      logClearFailed: 'Could not clear the review log: ',
+      logLimit: 'Keeps the latest {n} reviews per session locally.',
+      logAllow: 'Allowed',
+      logDeny: 'Denied',
+      logFailed: 'Review failed',
+      logInvalid: 'Invalid answer',
+      logRaw: 'Reviewer said:',
+      logSessionModel: 'session model',
+      logMore: 'Show older ({n} more)',
+      logJump: 'Jump to this tool call',
+      logJumpPtc: 'Jump to the run_code call that made this call',
+      logJumpMissing: 'This call is not in the loaded conversation. Scroll up to load older messages, then try again.',
+      risk_low: 'low',
+      risk_medium: 'medium',
+      risk_high: 'high',
+    }
+    const zh = {
+      title: '自动审查模型',
+      hint: '选择负责 Auto review 工具调用审查的模型；「跟随会话」沿用默认行为。',
+      model: '模型',
+      effort: '推理强度',
+      sameAsSession: '跟随会话',
+      modelDefault: '模型默认',
+      unavailable: '（不可用）',
+      loading: '正在加载模型…',
+      loadFailed: '无法加载模型列表。',
+      partial: '部分 provider 的模型加载失败。',
+      retry: '重试',
+      save: '保存',
+      saving: '保存中…',
+      saved: '已保存。',
+      saveFailed: '保存失败：',
+      warning: '审查模型必须严格输出 JSON；回复不合规时会拦截工具调用。',
+      promptTitle: '审查提示词',
+      promptMode: '模式',
+      modeDefault: '内置',
+      modeAppend: '追加规则',
+      modeReplace: '替换',
+      appendHint: '接在内置规则末尾，沿用原有风险分级和 JSON 格式要求。',
+      replaceHint: '整段替换内置规则；必须严格输出 {"risk":"low|medium","decision":"allow"} 或 {"risk":"medium|high","decision":"deny","reason":"..."}。',
+      appendPlaceholder: '例如：\n- git push 一律视为 medium，除非我点名了分支。\n- 删除 /tmp 下的文件视为低风险。',
+      loadDefault: '载入内置提示词',
+      defaultUnknown: '自动审查运行过一次后即可载入。',
+      chipPrefix: '审查',
+      chipSession: '跟随会话',
+      chipTitle: '自动审查模型：{model}',
+      chipTitleSession: '自动审查使用当前会话的模型。',
+      chipMissing: 'Provider「{provider}」不可用，已回退到会话模型。',
+      chipPrompt: '审查提示词：{mode}',
+      chipOpenLog: '点击查看本会话的审查记录。',
+      logTitle: '本会话的自动审查',
+      logSummary: '放行 {allow} · 拒绝 {deny} · 失败 {fail}',
+      logSettings: '审查设置',
+      logClear: '清空',
+      logClearConfirm: '删除本会话已保存的审查记录？',
+      cancel: '取消',
+      logLoading: '加载中…',
+      logEmpty: '暂无审查记录。',
+      logUnavailable: '暂时无法读取审查记录。',
+      logClearFailed: '未能清空审查记录：',
+      logLimit: '每个会话本地保留最近 {n} 条。',
+      logAllow: '放行',
+      logDeny: '拒绝',
+      logFailed: '审查失败',
+      logInvalid: '回复不合规',
+      logRaw: '审查模型回复：',
+      logSessionModel: '会话模型',
+      logMore: '显示更早的（还有 {n} 条）',
+      logJump: '跳转到这次工具调用',
+      logJumpPtc: '跳转到发起这次调用的 run_code',
+      logJumpMissing: '这次调用不在已加载的对话里，向上滚动加载更早消息后再试。',
+      risk_low: '低风险',
+      risk_medium: '中风险',
+      risk_high: '高风险',
+    }
+
+    const CSS = `
+.arm{--arm-line:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);--arm-r:var(--dsw-radius-sm,8px);display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.arm-title{margin:0;font-size:14px;line-height:20px;font-weight:500}
+.arm-hint,.arm-note{color:var(--dsw-alias-label-secondary);line-height:20px}
+.arm-note.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.arm-note.err{color:var(--dsw-alias-state-error-primary)}
+.arm-note.ok{color:var(--dsw-alias-state-success-primary)}
+.arm-row{display:grid;grid-template-columns:132px minmax(0,360px);gap:8px;align-items:center}
+.arm-row>span{color:var(--dsw-alias-label-secondary)}
+.arm select{height:32px;min-width:0;padding:0 26px 0 10px;border:var(--arm-line);border-radius:var(--arm-r);background:var(--dsw-alias-bg-module-platform) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center/12px 12px;color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;appearance:none}
+.arm select:disabled,.arm textarea:disabled{opacity:.6;cursor:default}
+.arm textarea{min-height:160px;padding:8px 10px;border:var(--arm-line);border-radius:var(--arm-r);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-module-platform));color:var(--dsw-alias-label-primary);font:12px/1.6 var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);resize:vertical}
+.arm select:focus-visible,.arm textarea:focus-visible,.arm-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.arm-section{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1)}
+.arm-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.arm-btn{height:30px;padding:0 14px;border:var(--arm-line);border-radius:999px;corner-shape:round;background:transparent;color:var(--dsw-alias-label-primary);cursor:pointer;font:inherit;transition:background-color .15s}
+.arm-btn.primary{border-color:transparent;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground)}
+.arm-danger-fill{--dsw-alias-button-primary-fill:var(--dsw-alias-state-error-primary);--dsw-alias-button-primary-hover:var(--dsw-alias-state-error-primary);--dsw-alias-label-primary-foreground:var(--dsw-alias-label-on-color,#fff);color:var(--dsw-alias-label-on-color,#fff)}
+.arm-btn:disabled{opacity:.4;cursor:default}
+@media (hover:hover){.arm-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.arm-btn.primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-button-primary-fill))}}
+@media (pointer:coarse){.arm select,.arm textarea{font-size:16px}}
+@media (max-width:560px){.arm-row{grid-template-columns:1fr}}
+`
+
+    async function getJson(path, init) {
+      const r = await fetch(path, { ...init, headers: { accept: 'application/json', ...(init?.body ? { 'content-type': 'application/json' } : {}) } })
+      let data = null
+      try { data = await r.json() } catch {}
+      if (!r.ok) throw new Error(data?.message ?? `HTTP ${r.status}`)
+      return data
+    }
+
+    const MODES = ['default', 'append', 'replace']
+    function normalize(s) {
+      const text = v => (typeof v === 'string' ? v : '')
+      return {
+        provider: text(s?.provider),
+        model: text(s?.model),
+        reasoningEffort: text(s?.reasoningEffort),
+        promptMode: MODES.includes(s?.promptMode) ? s.promptMode : 'default',
+        prompt: text(s?.prompt),
+        defaultPrompt: text(s?.defaultPrompt),
+      }
+    }
+
+    const CHIP_CSS = `
+.arm-chip{display:inline-flex;align-items:center;gap:5px;max-width:220px;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;cursor:default;user-select:none}
+button.arm-chip{background:transparent;font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background-color .15s,color .15s}
+button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.arm-chip b{font-weight:500;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis}
+.arm-chip.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.arm-chip.warn b{color:inherit}
+.arm-chip-count{min-width:16px;padding:0 5px;border-radius:999px;corner-shape:round;background:var(--dsw-alias-bg-module-platform);font-size:11px;line-height:16px;text-align:center}
+.arm-chip-count.err{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-label-on-color,#fff)}
+.arm-pop{position:fixed;z-index:200;display:flex;flex-direction:column;border:0;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-2));backdrop-filter:var(--dsw-menu-backdrop-filter);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-primary);font-size:12px;line-height:18px;overflow:hidden}
+@media (max-width:768px),(pointer:coarse){.arm-pop{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
+.arm-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 12px;border-bottom:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1)}
+.arm-pop-title{font-size:13px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arm-pop-actions{display:flex;gap:4px;flex:none}
+.arm-pop-btn{height:24px;padding:0 10px;border:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l3);border-radius:999px;corner-shape:round;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}
+.arm-pop-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.arm-pop-btn:disabled{opacity:.4;cursor:default}
+.arm-pop-empty{padding:16px 12px;color:var(--dsw-alias-label-secondary)}
+.arm-pop-foot{padding:6px 12px;border-top:var(--dsh-hairline-width,.5px) solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));font-size:11px}
+.arm-log{margin:0;padding:4px 0;list-style:none;overflow-y:auto;min-height:0;flex:1}
+.arm-log-row{padding:0 4px}
+.arm-log-line{display:flex;align-items:center;gap:2px}
+.arm-log-more{display:flex;justify-content:center;padding:6px 0 4px}
+.arm-log-detail .arm-log-args{max-height:96px}
+.arm-log-line>.arm-log-head{flex:1;min-width:0}
+.arm-log-jump{flex:none;width:24px;height:24px;border:0;border-radius:var(--dsw-radius-xs,4px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer}
+.arm-log-jump:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}
+.arm-log-reason.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+[data-arm-flash]{border-radius:8px;animation:arm-flash 1600ms ease-out forwards}
+@keyframes arm-flash{0%,40%{box-shadow:0 0 0 2px var(--dsw-alias-state-business-primary)}100%{box-shadow:0 0 0 2px transparent}}
+.arm-log-head{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:5px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.arm-log-time,.arm-log-dim{color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
+.arm-log-tool{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arm-log-verdict{white-space:nowrap}
+.arm-log-verdict.ok{color:var(--dsw-alias-state-success-primary)}
+.arm-log-verdict.warn{color:var(--dsw-alias-state-warn-label,var(--dsw-alias-state-warn-primary))}
+.arm-log-verdict.err{color:var(--dsw-alias-state-error-primary)}
+.arm-log-reason{padding:0 8px 4px 74px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arm-log-reason.full{padding:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.arm-log-detail{display:flex;flex-direction:column;gap:4px;padding:2px 8px 8px 74px}
+.arm-log-meta{color:var(--dsw-alias-label-secondary)}
+.arm-log-args{margin:0;max-height:160px;overflow:auto;padding:6px 8px;border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-layer-2));font:11px/1.5 var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);white-space:pre-wrap;overflow-wrap:anywhere}
+@media (hover:hover){button.arm-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.arm-pop-btn:hover:not(:disabled),.arm-log-head:hover{background:var(--dsw-alias-interactive-bg-hover)}.arm-log-jump:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+`
+
+    return {
+      inject: ['slots', 'locale', 'remote', 'remote.session'],
+      apply(ctx) {
+        ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'auto-review-model: dictionaries')
+        ctx.effect(() => {
+          const style = document.createElement('style')
+          style.textContent = CSS + CHIP_CSS
+          document.head.append(style)
+          return () => style.remove()
+        }, 'auto-review-model: styles')
+        const t = ctx.locale.bind(NS)
+
+        let shared = { config: null, groups: [] }
+        const listeners = new Set()
+        const publish = next => { shared = { ...shared, ...next }; listeners.forEach(fn => fn()) }
+        let configRead = 0
+        let catalogRead = 0
+        const refreshConfig = async () => {
+          const id = ++configRead
+          try {
+            const raw = await getJson('auto-review-model/state')
+            if (id === configRead) publish({ config: normalize(raw) })
+          } catch {}
+        }
+        const refreshCatalog = async () => {
+          const id = ++catalogRead
+          try {
+            const res = await ctx.remote.session.modelCatalog()
+            if (res.ok && id === catalogRead) publish({ groups: res.value.groups })
+          } catch {}
+        }
+        const refreshAll = () => { refreshConfig(); refreshCatalog() }
+        const subscribe = fn => {
+          if (listeners.size === 0) refreshAll()
+          listeners.add(fn)
+          return () => listeners.delete(fn)
+        }
+        ctx.effect(() => {
+          const offs = [
+            ctx.remote.$on('llm/adapters-updated', refreshCatalog),
+            ctx.remote.$on('settings/document-updated', refreshAll),
+          ]
+          window.addEventListener('focus', refreshConfig)
+          return () => { offs.forEach(off => { try { off() } catch {} }); window.removeEventListener('focus', refreshConfig) }
+        }, 'auto-review-model: chip data')
+
+        function useReviewLog(sessionId, enabled, live) {
+          const [log, setLog] = React.useState({ status: 'loading', entries: [] })
+          React.useEffect(() => {
+            if (!enabled || !sessionId) return undefined
+            const controller = new AbortController()
+            let lastFetchedAt = 0
+            const fetchLog = (force = false) => {
+              if (!force && Date.now() - lastFetchedAt < 15_000) return
+              lastFetchedAt = Date.now()
+              fetch(`auto-review-model/log?session=${encodeURIComponent(sessionId)}`, {
+                headers: { accept: 'application/json' },
+                cache: 'no-store',
+                signal: controller.signal,
+              })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+                .then(data => {
+                  if (!controller.signal.aborted && data && Array.isArray(data.entries)) {
+                    setLog({ status: 'ready', entries: data.entries })
+                  }
+                })
+                .catch(() => {
+                  if (!controller.signal.aborted) setLog(l => (l.status === 'ready' ? l : { ...l, status: 'unavailable' }))
+                })
+            }
+            if (live) {
+              const es = new EventSource(`auto-review-model/log/events?session=${encodeURIComponent(sessionId)}`)
+              es.addEventListener('message', e => {
+                let data = null
+                try { data = JSON.parse(e.data) } catch {}
+                if (data && Array.isArray(data.entries)) {
+                  lastFetchedAt = Date.now()
+                  setLog({ status: 'ready', entries: data.entries })
+                }
+              })
+              es.addEventListener('error', () => setLog(l => ({ ...l, status: 'unavailable' })))
+              return () => { controller.abort(); es.close() }
+            }
+            fetchLog(true)
+            const onWake = () => {
+              if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+              fetchLog(false)
+            }
+            window.addEventListener('focus', onWake)
+            document.addEventListener('visibilitychange', onWake)
+            return () => {
+              controller.abort()
+              window.removeEventListener('focus', onWake)
+              document.removeEventListener('visibilitychange', onWake)
+            }
+          }, [sessionId, enabled, live])
+          return log
+        }
+
+        const fmtTime = at => {
+          const d = new Date(at)
+          const p = n => String(n).padStart(2, '0')
+          return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+        }
+        const fmtMs = ms => (ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`)
+
+        function verdictOf(e) {
+          if (e.status === 'error') return { tone: 'err', text: t('logFailed') }
+          if (e.status === 'invalid') return { tone: 'err', text: t('logInvalid') }
+          return { tone: e.decision === 'allow' ? (e.risk === 'low' ? 'ok' : 'warn') : 'err', text: `${t(e.decision === 'allow' ? 'logAllow' : 'logDeny')} · ${t(`risk_${e.risk}`)}` }
+        }
+
+        function reveal(el) {
+          let changed = false
+          for (let p = el.parentElement; p !== null; p = p.parentElement) {
+            if (p.hidden || p.getAttribute('hidden') === 'until-found') { p.dispatchEvent(new Event('beforematch', { bubbles: true })); changed = true }
+            if (p.tagName === 'DETAILS' && !p.open) { p.open = true; changed = true }
+          }
+          return changed
+        }
+
+        const findCard = id => document.querySelector(`[data-chat-call-id="${CSS.escape(id)}"]`)
+
+        // external: DSH chat tail-follow overrides smooth scroll, so jump instantly and re-land once
+        function land(card) {
+          const scroller = card.closest('[data-conversation-scroll]')
+          if (scroller !== null) {
+            const rect = card.getBoundingClientRect()
+            const box = scroller.getBoundingClientRect()
+            scroller.scrollTop += rect.height > box.height * 0.6
+              ? rect.top - box.top - 80
+              : rect.top + rect.height / 2 - (box.top + box.height / 2)
+          } else card.scrollIntoView({ block: 'center', behavior: 'instant' })
+        }
+
+        let flashed = null
+        let flashTimer = null
+        function jumpToCall(id) {
+          let card = findCard(id)
+          if (card === null) return false
+          if (reveal(card)) card = findCard(id) ?? card
+          land(card)
+          setTimeout(() => { const again = findCard(id); if (again !== null) land(again) }, 150)
+          if (flashed !== null) flashed.removeAttribute('data-arm-flash')
+          if (flashTimer !== null) clearTimeout(flashTimer)
+          flashed = card
+          card.removeAttribute('data-arm-flash')
+          void card.offsetWidth
+          card.setAttribute('data-arm-flash', '')
+          flashTimer = setTimeout(() => { card.removeAttribute('data-arm-flash'); flashed = null; flashTimer = null }, 1600)
+          return true
+        }
+
+        function ReviewRow({ entry, onJump }) {
+          const [open, setOpen] = React.useState(false)
+          const [missing, setMissing] = React.useState(false)
+          const v = verdictOf(entry)
+          const detail = entry.reason ?? entry.error ?? (entry.raw !== undefined ? `${t('logRaw')} ${entry.raw}` : undefined)
+          const target = entry.rootCallId || entry.callId
+          const jump = () => {
+            if (onJump(target)) setMissing(false)
+            else setMissing(true)
+          }
+          return h('li', { className: 'arm-log-row' },
+            h('div', { className: 'arm-log-line' },
+              h('button', { type: 'button', className: 'arm-log-head', onClick: () => setOpen(!open), 'aria-expanded': open },
+                h('span', { className: 'arm-log-time' }, fmtTime(entry.at)),
+                h('span', { className: 'arm-log-tool' }, entry.tool || '?', entry.mode === 'ptc-inner' ? h('span', { className: 'arm-log-dim' }, ' (PTC)') : null),
+                h('span', { className: `arm-log-verdict ${v.tone}` }, v.text)),
+              target ? h('button', {
+                type: 'button', className: 'arm-log-jump', onClick: jump,
+                title: t(entry.mode === 'ptc-inner' ? 'logJumpPtc' : 'logJump'),
+                'aria-label': t(entry.mode === 'ptc-inner' ? 'logJumpPtc' : 'logJump'),
+              }, '↗') : null),
+            missing ? h('div', { className: 'arm-log-reason warn' }, t('logJumpMissing')) : null,
+            detail === undefined || open ? null : h('div', { className: 'arm-log-reason' }, detail),
+            open ? h('div', { className: 'arm-log-detail' },
+              detail === undefined ? null : h('div', { className: 'arm-log-reason full' }, detail),
+              h('div', { className: 'arm-log-meta' },
+                `${entry.provider}/${entry.model}${entry.effort ? ` (${entry.effort})` : ''}`,
+                entry.routed ? '' : ` · ${t('logSessionModel')}`,
+                ` · ${fmtMs(entry.ms)}`),
+              entry.args ? h('pre', { className: 'arm-log-args' }, entry.args) : null) : null)
+        }
+
+        function ReviewPanel({ anchor, log, sessionId, onClose }) {
+          const ref = React.useRef(null)
+          const [pos, setPos] = React.useState(null)
+          const [clearing, setClearing] = React.useState(false)
+          const [confirmClear, setConfirmClear] = React.useState(false)
+          const [clearError, setClearError] = React.useState('')
+          React.useLayoutEffect(() => {
+            const place = () => {
+              const r = anchor.current?.getBoundingClientRect()
+              if (!r) return
+              const width = Math.min(440, window.innerWidth - 16)
+              const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8))
+              const above = r.top - 16
+              const below = window.innerHeight - r.bottom - 16
+              const openBelow = above < 180 && below > above
+              setPos(openBelow
+                ? { left, top: r.bottom + 6, bottom: undefined, width, maxHeight: Math.min(PANEL_MAX_HEIGHT, Math.max(160, below)) }
+                : { left, top: undefined, bottom: window.innerHeight - r.top + 6, width, maxHeight: Math.min(PANEL_MAX_HEIGHT, Math.max(160, above)) })
+            }
+            place()
+            window.addEventListener('resize', place)
+            return () => window.removeEventListener('resize', place)
+          }, [anchor])
+          React.useEffect(() => {
+            if (confirmClear) return undefined
+            const onDown = e => {
+              if (ref.current?.contains(e.target) || anchor.current?.contains(e.target)) return
+              onClose()
+            }
+            const onKey = e => {
+              if (e.key === 'Escape') {
+                onClose()
+                anchor.current?.focus?.()
+              }
+            }
+            document.addEventListener('pointerdown', onDown, true)
+            document.addEventListener('keydown', onKey)
+            return () => { document.removeEventListener('pointerdown', onDown, true); document.removeEventListener('keydown', onKey) }
+          }, [anchor, onClose, confirmClear])
+          const nav = ctx.get('pluginNavigation')
+          const [shown, setShown] = React.useState(PAGE_SIZE)
+          const entries = log.entries.toReversed()
+          const visible = entries.slice(0, shown)
+          const hidden = entries.length - visible.length
+          const counts = { allow: 0, deny: 0, fail: 0 }
+          for (const e of log.entries) {
+            if (e.status !== 'ok') counts.fail++
+            else if (e.decision === 'allow') counts.allow++
+            else counts.deny++
+          }
+          const runClear = async () => {
+            setConfirmClear(false)
+            setClearing(true); setClearError('')
+            try { await getJson(`auto-review-model/log/clear?session=${encodeURIComponent(sessionId)}`, { method: 'POST', body: '{}' }) }
+            catch (error) { setClearError(error.message) }
+            finally { setClearing(false) }
+          }
+          if (pos === null) return null
+          return h(React.Fragment, null, ReactDOM.createPortal(h('div', {
+            ref, className: 'arm-pop', role: 'dialog', 'aria-label': t('logTitle'),
+            style: { left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight },
+          },
+            h('div', { className: 'arm-pop-head' },
+              h('div', { className: 'arm-pop-title' }, t('logTitle'),
+                log.status === 'ready' ? h('span', { className: 'arm-log-dim' }, ` ${t('logSummary', { allow: counts.allow, deny: counts.deny, fail: counts.fail })}`) : null),
+              h('div', { className: 'arm-pop-actions' },
+                nav === undefined ? null : h('button', { type: 'button', className: 'arm-pop-btn', onClick: () => { onClose(); nav.openBundle(PACKAGE) } }, t('logSettings')),
+                entries.length === 0 ? null : h('button', { type: 'button', className: 'arm-pop-btn', disabled: clearing, onClick: () => setConfirmClear(true) }, t('logClear')))),
+            clearError ? h('div', { className: 'arm-pop-empty', role: 'alert' }, t('logClearFailed') + clearError) : null,
+            log.status === 'unavailable' ? h('div', { className: 'arm-pop-empty', role: 'status' }, t('logUnavailable')) : null,
+            log.status === 'loading' ? h('div', { className: 'arm-pop-empty' }, t('logLoading'))
+              : entries.length === 0 ? log.status === 'ready' && h('div', { className: 'arm-pop-empty' }, t('logEmpty'))
+              : h('ul', { className: 'arm-log' },
+                visible.map(e => h(ReviewRow, { key: e.id, entry: e, onJump: id => { const ok = jumpToCall(id); if (ok) onClose(); return ok } })),
+                hidden === 0 ? null : h('li', { className: 'arm-log-more' },
+                  h('button', { type: 'button', className: 'arm-pop-btn', onClick: () => setShown(n => n + PAGE_SIZE) }, t('logMore', { n: hidden })))),
+            h('div', { className: 'arm-pop-foot' }, t('logLimit', { n: MAX_LOG }))), document.body),
+          confirmClear ? h(Modal, {
+            open: true,
+            onClose: () => setConfirmClear(false),
+            title: t('logClear'),
+            closeLabel: t('cancel'),
+            description: t('logClearConfirm'),
+            footer: h(React.Fragment, null,
+              h(Button, { variant: 'outline', 'data-modal-autofocus': true, onClick: () => setConfirmClear(false) }, t('cancel')),
+              h(Button, { variant: 'primary', className: 'arm-danger-fill', onClick: () => void runClear() }, t('logClear'))),
+          }) : null)
+        }
+
+        function ReviewChip({ useProjection, sessionId }) {
+          React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
+          const data = React.useSyncExternalStore(subscribe, () => shared)
+          const permissions = useProjection('permissions')
+          const auto = permissions?.currentValue === 'auto'
+          const [open, setOpen] = React.useState(false)
+          const log = useReviewLog(sessionId, auto, open)
+          const anchor = React.useRef(null)
+          const close = React.useCallback(() => setOpen(false), [])
+          if (!auto || data.config === null) return null
+          const { provider, model, reasoningEffort, promptMode } = data.config
+          const group = data.groups.find(g => g.id === provider)
+          const found = group?.models.find(m => m.id === model)
+          const missing = provider !== '' && data.groups.length > 0 && group === undefined
+          const name = provider === '' ? t('chipSession') : (found?.name ?? model) + (reasoningEffort ? ` · ${reasoningEffort}` : '')
+          const lines = [provider === '' ? t('chipTitleSession') : t('chipTitle', { model: `${group?.name ?? provider} / ${found?.name ?? model}${reasoningEffort ? ` (${reasoningEffort})` : ''}` })]
+          if (missing) lines.push(t('chipMissing', { provider }))
+          if (promptMode !== 'default') lines.push(t('chipPrompt', { mode: t(promptMode === 'append' ? 'modeAppend' : 'modeReplace') }))
+          lines.push(t('chipOpenLog'))
+          const total = log.entries.length
+          const denied = log.entries.filter(e => e.status !== 'ok' || e.decision === 'deny').length
+          return h(React.Fragment, null,
+            h('button', {
+              ref: anchor, type: 'button', onClick: () => setOpen(!open), 'aria-expanded': open, 'aria-haspopup': 'dialog',
+              className: missing ? 'arm-chip warn' : 'arm-chip', title: lines.join('\n'), 'aria-label': lines.join(' '),
+            },
+              h('span', null, t('chipPrefix')),
+              h('b', null, name),
+              total === 0 ? null : h('span', { className: denied > 0 ? 'arm-chip-count err' : 'arm-chip-count' }, denied > 0 ? `${denied}/${total}` : String(total))),
+            open ? h(ReviewPanel, { anchor, log, sessionId, onClose: close }) : null)
+        }
+
+        ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
+          name: 'conversation.input.left',
+          id: 'auto-review-model.chip',
+          order: 100,
+          locale: NS,
+        }, props => h(ReviewChip, { ...props, key: props.sessionId })))
+
+        function Settings() {
+          React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
+          const [catalog, setCatalog] = React.useState({ status: 'loading', groups: [], partial: false })
+          const [saved, setSaved] = React.useState(null)
+          const [draft, setDraft] = React.useState(null)
+          const [status, setStatus] = React.useState({ kind: 'idle' })
+
+          const loadCatalog = React.useCallback(async () => {
+            setCatalog(c => ({ ...c, status: 'loading' }))
+            try {
+              const res = await ctx.remote.session.modelCatalog()
+              if (!res.ok) throw res.error ?? new Error('catalog')
+              setCatalog({ status: 'ready', groups: res.value.groups, partial: res.value.failures.length > 0 })
+            } catch {
+              setCatalog(c => ({ ...c, status: 'error' }))
+            }
+          }, [])
+
+          React.useEffect(() => {
+            loadCatalog()
+            getJson('auto-review-model/state')
+              .then(raw => { const s = normalize(raw); setSaved(s); setDraft(s) })
+              .catch(e => setStatus({ kind: 'err', message: e.message }))
+            const offs = [
+              ctx.remote.$on('llm/adapters-updated', loadCatalog),
+              ctx.remote.$on('settings/document-updated', loadCatalog),
+            ]
+            return () => offs.forEach(off => { try { off() } catch {} })
+          }, [loadCatalog])
+
+          const value = draft ?? { provider: '', model: '', reasoningEffort: '', promptMode: 'default', prompt: '' }
+          const key = value.provider === '' ? '' : `${value.provider}${SEP}${value.model}`
+          const found = catalog.groups.find(g => g.id === value.provider)?.models.find(m => m.id === value.model)
+          const efforts = found?.reasoning?.efforts ?? []
+          const dirty = saved !== null && ['provider', 'model', 'reasoningEffort', 'promptMode', 'prompt'].some(f => saved[f] !== value[f])
+          const replaceEmpty = value.promptMode === 'replace' && value.prompt.trim() === ''
+
+          const onModel = e => {
+            const [provider = '', model = ''] = e.target.value === '' ? [] : e.target.value.split(SEP)
+            setDraft({ ...value, provider, model, reasoningEffort: '' })
+            setStatus({ kind: 'idle' })
+          }
+          const onEffort = e => {
+            setDraft({ ...value, reasoningEffort: e.target.value })
+            setStatus({ kind: 'idle' })
+          }
+          const onMode = e => {
+            const promptMode = e.target.value
+            const prompt = promptMode === 'replace' && value.prompt.trim() === '' && saved?.defaultPrompt ? saved.defaultPrompt : value.prompt
+            setDraft({ ...value, promptMode, prompt })
+            setStatus({ kind: 'idle' })
+          }
+          const onPrompt = e => {
+            setDraft({ ...value, prompt: e.target.value })
+            setStatus({ kind: 'idle' })
+          }
+          const loadDefault = () => {
+            if (saved?.defaultPrompt) setDraft({ ...value, prompt: saved.defaultPrompt })
+          }
+          const save = async () => {
+            setStatus({ kind: 'saving' })
+            try {
+              const body = {
+                provider: value.provider,
+                model: value.model,
+                reasoningEffort: value.reasoningEffort,
+                promptMode: value.promptMode,
+                prompt: value.prompt,
+              }
+              const s = normalize(await getJson('auto-review-model/set', { method: 'POST', body: JSON.stringify(body) }))
+              setSaved(s)
+              setDraft(s)
+              configRead++
+              publish({ config: s })
+              setStatus({ kind: 'ok' })
+            } catch (e) {
+              setStatus({ kind: 'err', message: e.message })
+            }
+          }
+
+          const modelOptions = [h('option', { key: '', value: '' }, t('sameAsSession'))]
+          for (const g of catalog.groups) {
+            modelOptions.push(h('optgroup', { key: g.id, label: g.name },
+              g.models.map(m => h('option', { key: m.id, value: `${g.id}${SEP}${m.id}` }, m.name))))
+          }
+          if (key !== '' && found === undefined) {
+            modelOptions.push(h('option', { key: 'missing', value: key }, `${value.provider}/${value.model} ${t('unavailable')}`))
+          }
+          const effortOptions = [h('option', { key: '', value: '' }, t('modelDefault'))]
+            .concat(efforts.map(ef => h('option', { key: ef.id, value: ef.id }, ef.name)))
+          if (value.reasoningEffort !== '' && !efforts.some(ef => ef.id === value.reasoningEffort)) {
+            effortOptions.push(h('option', { key: 'missing', value: value.reasoningEffort }, `${value.reasoningEffort} ${t('unavailable')}`))
+          }
+
+          const busy = status.kind === 'saving' || saved === null
+          return h('div', { className: 'arm' },
+            h('h4', { className: 'arm-title' }, t('title')),
+            h('div', { className: 'arm-hint' }, t('hint')),
+            h('label', { className: 'arm-row' },
+              h('span', null, t('model')),
+              h('select', { value: key, onChange: onModel, disabled: busy }, modelOptions)),
+            value.provider === '' ? null : h('label', { className: 'arm-row' },
+              h('span', null, t('effort')),
+              h('select', { value: value.reasoningEffort, onChange: onEffort, disabled: busy || (efforts.length === 0 && value.reasoningEffort === '') }, effortOptions)),
+            catalog.status === 'loading' ? h('div', { className: 'arm-note' }, t('loading')) : null,
+            catalog.status === 'error' ? h('div', { className: 'arm-note err', role: 'alert' }, t('loadFailed'), ' ',
+              h('button', { type: 'button', className: 'arm-btn', onClick: loadCatalog }, t('retry'))) : null,
+            catalog.partial ? h('div', { className: 'arm-note warn' }, t('partial')) : null,
+            value.provider === '' ? null : h('div', { className: 'arm-note warn' }, t('warning')),
+            h('div', { className: 'arm-section' },
+              h('h4', { className: 'arm-title' }, t('promptTitle')),
+              h('label', { className: 'arm-row' },
+                h('span', null, t('promptMode')),
+                h('select', { value: value.promptMode, onChange: onMode, disabled: busy },
+                  h('option', { value: 'default' }, t('modeDefault')),
+                  h('option', { value: 'append' }, t('modeAppend')),
+                  h('option', { value: 'replace' }, t('modeReplace')))),
+              value.promptMode === 'default' ? null : h('div', { className: value.promptMode === 'replace' ? 'arm-note warn' : 'arm-hint' },
+                t(value.promptMode === 'replace' ? 'replaceHint' : 'appendHint')),
+              value.promptMode === 'default' ? null : h('textarea', {
+                value: value.prompt, onChange: onPrompt, disabled: busy, spellCheck: false,
+                'aria-label': t('promptTitle'),
+                'aria-invalid': replaceEmpty || undefined,
+                placeholder: value.promptMode === 'append' ? t('appendPlaceholder') : '',
+                rows: value.promptMode === 'replace' ? 18 : 8,
+              }),
+              value.promptMode !== 'replace' ? null : h('div', { className: 'arm-actions' },
+                h('button', { type: 'button', className: 'arm-btn', disabled: busy || !saved?.defaultPrompt, onClick: loadDefault }, t('loadDefault')),
+                saved?.defaultPrompt ? null : h('span', { className: 'arm-note' }, t('defaultUnknown')))),
+            h('div', { className: 'arm-actions' },
+              h('button', { type: 'button', className: 'arm-btn primary', disabled: busy || !dirty || replaceEmpty, title: replaceEmpty ? t('replaceHint') : undefined, onClick: save },
+                status.kind === 'saving' ? t('saving') : t('save')),
+              status.kind === 'ok' ? h('span', { className: 'arm-note ok', role: 'status' }, t('saved')) : null,
+              status.kind === 'err' ? h('span', { className: 'arm-note err', role: 'alert' }, t('saveFailed') + status.message) : null))
+        }
+
+        ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
+          name: 'plugins.bundle.config',
+          key: KEY,
+          locale: NS,
+        }, Settings))
+      },
+    }
+  },
+})

@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import vm from 'node:vm'
+
+const CLIENT_CHUNK_RE = /^client\.[A-Za-z0-9][A-Za-z0-9._-]*\.js$/
 
 const CORDIS_CTX_BUILTINS = new Set([
   'accessor',
@@ -91,15 +94,41 @@ function guardContext(ctx, allowed) {
 
 export function loadClient(file, modules = {}) {
   let registered
+  const baseDir = dirname(file)
+  const chunkCache = new Map()
   const window = { __ModuleLoader__: { load: record => { registered = record } } }
   const sandbox = { window, atob, btoa, TextDecoder, TextEncoder, URL, URLSearchParams, AbortController, Uint8Array, JSON, Date }
   vm.runInNewContext(readFileSync(file, 'utf8'), sandbox, { filename: file })
   if (!registered) throw new Error(`${file} did not call window.__ModuleLoader__.load`)
+  const loadChunkSync = spec => {
+    if (typeof spec !== 'string' || !spec.startsWith('./')) {
+      throw new Error(`unexpected chunk specifier "${spec}"`)
+    }
+    const fileName = spec.slice(2)
+    if (!CLIENT_CHUNK_RE.test(fileName)) {
+      throw new Error(`invalid package-local chunk "${spec}"`)
+    }
+    if (chunkCache.has(fileName)) return chunkCache.get(fileName)
+    const chunkPath = join(baseDir, fileName)
+    let chunkReg
+    const chunkWindow = { __ModuleLoader__: { load: record => { chunkReg = record } } }
+    const chunkSandbox = { window: chunkWindow, atob, btoa, TextDecoder, TextEncoder, URL, URLSearchParams, AbortController, Uint8Array, JSON, Date }
+    vm.runInNewContext(readFileSync(chunkPath, 'utf8'), chunkSandbox, { filename: chunkPath })
+    if (!chunkReg) throw new Error(`${chunkPath} did not call window.__ModuleLoader__.load`)
+    if (chunkReg.id !== registered.id || chunkReg.chunk !== fileName) {
+      throw new Error(`${chunkPath} registered id="${chunkReg.id}" chunk="${chunkReg.chunk}", expected id="${registered.id}" chunk="${fileName}"`)
+    }
+    const exports = chunkReg.factory(require)
+    chunkCache.set(fileName, exports)
+    return exports
+  }
   const require = id => {
     if (id in modules) return modules[id]
     if (id === 'react') return { createElement: () => null }
     throw new Error(`unexpected require(${id})`)
   }
+  require.syncChunk = loadChunkSync
+  require.async = spec => Promise.resolve().then(() => loadChunkSync(spec))
   const rawPlugin = registered.factory(require)
   if (!rawPlugin || typeof rawPlugin !== 'object' || typeof rawPlugin.apply !== 'function') {
     return { id: registered.id, plugin: rawPlugin }
