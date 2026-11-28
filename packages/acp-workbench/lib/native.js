@@ -1524,6 +1524,10 @@ export class NativeAcp {
     return this.delegation.mcpServersFor(session, adapter)
   }
 
+  spawnEnv() {
+    return this.delegation.spawnEnv()
+  }
+
   hostBridgePromptFor(session, adapter) {
     return this.delegation.buildHostBridgePrompt(session, adapter)
   }

@@ -299,6 +299,7 @@ export class Workbench {
     log,
     autoApprove,
     mcpServersFor,
+    spawnEnvFor,
     hostBridgePromptFor,
     onInteractionOpen,
     onInteractionClose,
@@ -316,6 +317,7 @@ export class Workbench {
     this.log = log
     this.autoApprove = autoApprove
     this.mcpServersFor = mcpServersFor
+    this.spawnEnvFor = spawnEnvFor
     this.hostBridgePromptFor = hostBridgePromptFor
     this.onInteractionOpen = onInteractionOpen
     this.onInteractionClose = onInteractionClose
@@ -974,7 +976,9 @@ export class Workbench {
   async spawn(provider, cwd, handlers) {
     const command = await this.subprocess.resolveExecutable(provider.command, undefined, AbortSignal.timeout(10_000))
     if (this.closed) throw new Error('ACP Workbench is unloading')
+    const extraEnv = typeof this.spawnEnvFor === 'function' ? this.spawnEnvFor(provider) : undefined
     const child = this.subprocess.spawn({ argv: [command, ...provider.args], cwd,
+      ...(extraEnv ? { env: extraEnv } : {}),
       stdio: { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' }, graceMs: 3000 })
     return new AcpConnection(child, handlers)
   }

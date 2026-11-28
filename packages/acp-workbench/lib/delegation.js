@@ -1,6 +1,8 @@
 import { execFile } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
+import { isIP } from 'node:net'
+import { networkInterfaces } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
@@ -32,7 +34,72 @@ const MAX_BODY_BYTES = 1024 * 1024
 const MAX_RESULT_CHARS = 12_000
 const AGENT_NAME_RE = /^[a-z][a-z0-9-]{0,31}$/u
 const BRANCH_RE = /^[a-zA-Z0-9._/-]{1,80}$/u
-const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
+
+function normalizeIpAddress(raw) {
+  if (typeof raw !== 'string') return ''
+  let text = raw.trim().toLowerCase()
+  if (!text) return ''
+  if (text.startsWith('[') && text.endsWith(']')) text = text.slice(1, -1)
+  const zoneAt = text.indexOf('%')
+  if (zoneAt !== -1) text = text.slice(0, zoneAt)
+  if (text.startsWith('::ffff:')) {
+    const mapped = text.slice(7)
+    if (isIP(mapped) === 4) return mapped
+  }
+  return text
+}
+
+function isLoopbackIp(normalized) {
+  if (!normalized) return false
+  if (normalized === '::1') return true
+  return isIP(normalized) === 4 && normalized.startsWith('127.')
+}
+
+function isLocalInterfaceIp(normalized) {
+  if (!normalized) return false
+  const tables = networkInterfaces()
+  for (const entries of Object.values(tables)) {
+    if (!Array.isArray(entries)) continue
+    for (const entry of entries) {
+      if (normalizeIpAddress(entry?.address) === normalized) return true
+    }
+  }
+  return false
+}
+
+function isLocalPeer(req) {
+  const remote = normalizeIpAddress(req?.socket?.remoteAddress)
+  if (!remote) return false
+  if (isLoopbackIp(remote)) return true
+  const local = normalizeIpAddress(req?.socket?.localAddress)
+  if (local && remote === local) return true
+  return isLocalInterfaceIp(remote)
+}
+
+function formatUrlHost(rawHost) {
+  if (typeof rawHost !== 'string') return '127.0.0.1'
+  const trimmed = rawHost.trim()
+  if (!trimmed || trimmed === '0.0.0.0') return '127.0.0.1'
+  if (trimmed === '::') return '[::1]'
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) return trimmed
+  const zoneAt = trimmed.indexOf('%')
+  const bare = zoneAt === -1 ? trimmed : trimmed.slice(0, zoneAt)
+  const normalized = normalizeIpAddress(bare)
+  if (isLoopbackIp(normalized)) return normalized === '::1' ? '[::1]' : normalized
+  if (zoneAt !== -1) return null
+  return isIP(bare) === 6 ? `[${bare}]` : bare
+}
+
+function appendNoProxyHost(existing, host) {
+  const entries = typeof existing === 'string'
+    ? existing.split(',').map(item => item.trim()).filter(Boolean)
+    : []
+  const bare = host.replace(/^\[|\]$/gu, '').toLowerCase()
+  if (entries.some(item => item.replace(/^\[|\]$/gu, '').toLowerCase() === bare)) {
+    return entries.join(',')
+  }
+  return [...entries, bare].join(',')
+}
 
 function sanitizeAgentName(raw) {
   if (typeof raw !== 'string') return undefined
@@ -229,13 +296,51 @@ export class DelegationHub {
 
   endpointUrl(serverName = MCP_SERVER_NAME) {
     const web = this.ctx.get('webServer')
-    const port = web?.port
-    if (!port) return null
-    const host = web.host === '::1' ? '[::1]' : '127.0.0.1'
-    const proto = web.tls ? 'https' : 'http'
-    const base = `${proto}://${host}:${port}/acp-workbench/mcp`
+    if (!web) return null
+    let origin = null
+    if (typeof web.getOrigin === 'function') {
+      try {
+        origin = web.getOrigin()
+      } catch {
+        origin = null
+      }
+    }
+    if (!origin) {
+      const port = web.port
+      if (!port) return null
+      const host = formatUrlHost(web.host)
+      if (!host) return null
+      const proto = typeof web.protocol === 'string' && web.protocol
+        ? web.protocol.replace(/:$/u, '')
+        : (web.tls ? 'https' : 'http')
+      origin = `${proto}://${host}:${port}`
+    }
+    const base = `${origin.replace(/\/+$/u, '')}/acp-workbench/mcp`
     if (!serverName || serverName === MCP_SERVER_NAME) return base
     return `${base}/${encodeURIComponent(serverName)}`
+  }
+
+  spawnEnv() {
+    const url = this.endpointUrl(MCP_SERVER_NAME)
+    if (!url) return undefined
+    let host = ''
+    try {
+      host = normalizeIpAddress(new URL(url).hostname)
+    } catch {
+      return undefined
+    }
+    if (!host || isLoopbackIp(host)) return undefined
+    const hasProxy = Boolean(
+      process.env.HTTP_PROXY || process.env.http_proxy
+      || process.env.HTTPS_PROXY || process.env.https_proxy
+      || process.env.ALL_PROXY || process.env.all_proxy
+      || process.env.NO_PROXY || process.env.no_proxy,
+    )
+    if (!hasProxy) return undefined
+    return {
+      NO_PROXY: appendNoProxyHost(process.env.NO_PROXY ?? process.env.no_proxy, host),
+      no_proxy: appendNoProxyHost(process.env.no_proxy ?? process.env.NO_PROXY, host),
+    }
   }
 
   mcpEntry(name, url, token, supportsHttp) {
@@ -254,6 +359,7 @@ export class DelegationHub {
       env: [
         { name: 'DSH_ACP_MCP_URL', value: url },
         { name: 'DSH_ACP_MCP_TOKEN', value: token },
+        { name: 'NODE_USE_ENV_PROXY', value: '0' },
       ],
     }
   }
@@ -739,8 +845,7 @@ export class DelegationHub {
   }
 
   async handleMcpRequest(req, res) {
-    const remote = req.socket?.remoteAddress ?? ''
-    if (!LOOPBACK.has(remote)) {
+    if (!isLocalPeer(req)) {
       res.statusCode = 403
       res.end()
       return

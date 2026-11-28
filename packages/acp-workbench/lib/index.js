@@ -82,6 +82,7 @@ export async function apply(ctx, config = {}) {
     log: message => ctx.logger.warn(message),
     autoApprove: (session, params) => bridge.native?.autoApprove(session, params) ?? null,
     mcpServersFor: (session, adapter) => bridge.native?.mcpServersFor(session, adapter) ?? [],
+    spawnEnvFor: () => bridge.native?.spawnEnv?.(),
     hostBridgePromptFor: (session, adapter) => bridge.native?.hostBridgePromptFor(session, adapter) ?? '',
     onInteractionOpen: payload => ctx.emit('acp-workbench/interaction-open', payload),
     onInteractionClose: payload => ctx.emit('acp-workbench/interaction-close', payload),

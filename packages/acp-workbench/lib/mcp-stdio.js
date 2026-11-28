@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { realpathSync } from 'node:fs'
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest } from 'node:https'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
@@ -49,13 +51,78 @@ export function buildForwardHeaders(parsed, { token, protocolVersion, sessionId 
   return headers
 }
 
+function directFetch(rawUrl, { method = 'POST', headers = {}, body = '', signal } = {}) {
+  const target = new URL(rawUrl)
+  if (target.protocol !== 'http:' && target.protocol !== 'https:') {
+    return Promise.reject(new Error(`Unsupported MCP bridge protocol: ${target.protocol}`))
+  }
+  const send = target.protocol === 'https:' ? httpsRequest : httpRequest
+  const payload = typeof body === 'string'
+    ? Buffer.from(body, 'utf8')
+    : Buffer.isBuffer(body)
+      ? body
+      : Buffer.from(String(body ?? ''), 'utf8')
+  const reqHeaders = {
+    'accept-encoding': 'identity',
+    'content-length': String(payload.byteLength),
+    ...headers,
+  }
+  return new Promise((resolvePromise, rejectPromise) => {
+    let settled = false
+    const done = (fn, value) => {
+      if (settled) return
+      settled = true
+      fn(value)
+    }
+    const req = send(target, { method, headers: reqHeaders, agent: false, signal }, res => {
+      const chunks = []
+      res.on('data', chunk => { chunks.push(chunk) })
+      res.on('error', err => done(rejectPromise, err))
+      res.on('close', () => {
+        if (!res.complete) done(rejectPromise, new Error('MCP bridge response closed prematurely'))
+      })
+      res.on('end', () => {
+        const textBody = Buffer.concat(chunks).toString('utf8')
+        const status = res.statusCode ?? 0
+        const responseHeaders = res.headers ?? {}
+        done(resolvePromise, {
+          ok: status >= 200 && status < 300,
+          status,
+          headers: {
+            get(name) {
+              const value = responseHeaders[String(name).toLowerCase()]
+              return Array.isArray(value) ? value.join(', ') : (value ?? null)
+            },
+          },
+          async text() {
+            return textBody
+          },
+        })
+      })
+    })
+    req.on('error', err => done(rejectPromise, err))
+    req.end(payload)
+  })
+}
+
+function formatBridgeError(error) {
+  const base = error?.message || error?.errors?.[0]?.message || String(error)
+  const cause = error?.cause
+  if (cause && cause !== error) {
+    const detail = cause?.message || cause?.errors?.[0]?.message || (typeof cause === 'string' ? cause : '')
+    if (detail && !base.includes(detail)) return `${base}: ${detail}`
+    if (cause?.code && !base.includes(cause.code)) return `${base} (${cause.code})`
+  }
+  return base
+}
+
 export function createStdioBridge({
   url,
   token,
   input = process.stdin,
   output = process.stdout,
   stderr = process.stderr,
-  fetchImpl = fetch,
+  fetchImpl = directFetch,
   onExit = code => { process.exit(code) },
 } = {}) {
   let inFlight = 0
@@ -200,7 +267,7 @@ export function createStdioBridge({
         writeMessage({
           jsonrpc: '2.0',
           id: parsed.id,
-          error: { code: -32603, message: error?.message ?? String(error) },
+          error: { code: -32603, message: formatBridgeError(error) },
         })
       }
     } finally {
