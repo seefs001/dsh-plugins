@@ -21,7 +21,6 @@ window.__ModuleLoader__.load({
     const MENTION_FOLD_LIMIT = 4
     const PR_FOLD_LIMIT = 4
     const ISSUE_FOLD_LIMIT = 4
-    const RUN_FOLD_LIMIT = 3
     // external: mirrors dsh chat selection exclusions so mention ranges align with rendered DOM
     const SKIP_TEXT_NODES = 'script,style,textarea,[contenteditable="true"],[data-composer-seat],.katex-mathml,[data-text-interaction-exclude],.sr-only,[aria-hidden="true"]:not(.katex-html)'
     const FLASH_BLOCKS = 'p,li,pre,td,th,blockquote,h1,h2,h3,h4,h5,h6,dd,dt,figcaption,[data-message-bubble]'
@@ -42,8 +41,6 @@ window.__ModuleLoader__.load({
 .ghp-icon-closed{color:var(--dsw-alias-state-error-primary)}
 .ghp-icon-warn{color:var(--dsw-alias-state-warn-primary)}
 .ghp-quiet{padding:4px 6px;color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
-.ghp-indicator{background:var(--dsw-alias-state-error-primary)}
-.ghp-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .ghp-cfg{display:flex;flex-direction:column;gap:12px;padding:4px 0;color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13)}
 .ghp-cfg h4{margin:0;font:var(--dsw-font-sm-14);font-weight:500}
 .ghp-cfg textarea{width:100%;min-height:76px;padding:8px 10px;box-sizing:border-box;border-radius:var(--dsw-radius-sm,8px);border:.5px solid var(--dsw-alias-border-l3);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-module-platform));color:inherit;font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:1.6;resize:vertical}
@@ -67,7 +64,6 @@ window.__ModuleLoader__.load({
         openOnGitHub: 'Open on GitHub',
         openPrs: 'Open Pull Requests on GitHub',
         openIssues: 'Open Issues on GitHub',
-        openActions: 'Open Actions on GitHub',
         openReleases: 'Open Releases on GitHub',
         refresh: 'Refresh GitHub',
         copyUrl: 'Copy URL',
@@ -77,9 +73,6 @@ window.__ModuleLoader__.load({
         cite: 'Add to composer',
         cited: 'Added reference to composer',
         citeBusy: 'Composer is busy; try again when editable',
-        rerunFailed: 'Rerun failed jobs',
-        rerunSent: 'Requested rerun of failed jobs',
-        rerunFailedErr: 'Could not rerun failed jobs',
         retry: 'Retry',
         loadFailed: 'Could not load GitHub data',
         signInTitle: 'Sign in to {host}',
@@ -94,23 +87,19 @@ window.__ModuleLoader__.load({
         mentioned: 'Mentioned in chat',
         pullRequests: 'Pull Requests',
         issues: 'Issues',
-        actions: 'Actions',
         latestRelease: 'Latest release',
         draft: 'Draft',
         open: 'Open',
         closed: 'Closed',
         merged: 'Merged',
         assignees: 'Assignees',
-        emptySection: 'No open PRs, issues, or recent runs',
+        emptySection: 'No open PRs or issues',
         showMore: 'Show {n} more',
         showLess: 'Show less',
         foldName: '{label} in {group}',
-        ciFailedIndicator: 'GitHub Actions failed',
         statusSuccess: 'Passed',
         statusFailure: 'Failed',
         statusRunning: 'Running',
-        statusCancelled: 'Cancelled',
-        statusNeutral: 'Neutral',
         updated: 'Updated {ago}',
         published: 'Published {ago}',
         justNow: 'just now',
@@ -132,10 +121,8 @@ window.__ModuleLoader__.load({
         undo: 'Undo',
         askAgentPr: 'Ask Agent to review',
         askAgentIssue: 'Ask Agent to investigate',
-        askAgentRun: 'Ask Agent to diagnose',
         promptPr: 'Please review PR {ref} ({title}) for key changes, risks, and suggestions:\n{url}',
         promptIssue: 'Please analyze Issue {ref} ({title}) and propose a fix:\n{url}',
-        promptRun: 'Please diagnose the failed GitHub Actions run "{name}" ({title}):\n{url}',
         cfgTitle: 'GitHub hosts',
         cfgHint: 'Enter allowed GitHub hostnames (one per line or comma-separated). Applies immediately.',
         cfgSave: 'Save hosts',
@@ -148,7 +135,6 @@ window.__ModuleLoader__.load({
         openOnGitHub: '在 GitHub 中打开',
         openPrs: '在 GitHub 中打开 PR 列表',
         openIssues: '在 GitHub 中打开 Issues',
-        openActions: '在 GitHub 中打开 Actions',
         openReleases: '在 GitHub 中打开 Releases',
         refresh: '刷新 GitHub 状态',
         copyUrl: '复制链接',
@@ -158,9 +144,6 @@ window.__ModuleLoader__.load({
         cite: '引用到输入框',
         cited: '已添加到输入框（未发送）',
         citeBusy: '输入框当前不可编辑，请稍后重试',
-        rerunFailed: '重跑失败任务',
-        rerunSent: '已触发重跑失败任务',
-        rerunFailedErr: '重跑失败任务出错',
         retry: '重试',
         loadFailed: '读取 GitHub 数据失败',
         signInTitle: '登录 {host}',
@@ -175,23 +158,19 @@ window.__ModuleLoader__.load({
         mentioned: '对话提及',
         pullRequests: 'Pull Requests',
         issues: 'Issues',
-        actions: 'Actions',
         latestRelease: '最新发布',
         draft: '草稿',
         open: '打开',
         closed: '已关闭',
         merged: '已合并',
         assignees: '负责人',
-        emptySection: '暂无打开的 PR、Issue 或近期构建',
+        emptySection: '暂无打开的 PR 或 Issue',
         showMore: '显示其余 {n} 项',
         showLess: '收起',
         foldName: '{group}：{label}',
-        ciFailedIndicator: 'GitHub Actions 失败',
         statusSuccess: '已通过',
         statusFailure: '失败',
         statusRunning: '运行中',
-        statusCancelled: '已取消',
-        statusNeutral: '其他',
         updated: '更新于 {ago}',
         published: '发布于 {ago}',
         justNow: '刚刚',
@@ -213,10 +192,8 @@ window.__ModuleLoader__.load({
         undo: '撤销',
         askAgentPr: '让 Agent 审查',
         askAgentIssue: '让 Agent 排查',
-        askAgentRun: '让 Agent 诊断',
         promptPr: '请帮我审查 PR {ref}（{title}）的关键改动、风险点与改进建议：\n{url}',
         promptIssue: '请帮我分析 Issue {ref}（{title}）的原因并给出修复方案：\n{url}',
-        promptRun: '请帮我排查 GitHub Actions 失败运行「{name}」（{title}）的根因：\n{url}',
         cfgTitle: 'GitHub 主机列表',
         cfgHint: '填写允许的 GitHub 主机名（每行一个或逗号分隔），保存后立即生效。',
         cfgSave: '保存主机',
@@ -495,24 +472,6 @@ window.__ModuleLoader__.load({
       return fmt(t('daysAgo'), { n: days })
     }
 
-    function dotStateForRun(status, conclusion) {
-      const s = String(status || '').toLowerCase()
-      const c = String(conclusion || '').toLowerCase()
-      if (s === 'in_progress' || s === 'queued' || s === 'waiting' || s === 'pending' || s === 'requested') return 'ongoing'
-      if (c === 'success') return 'completed'
-      if (c === 'failure' || c === 'timed_out' || c === 'startup_failure' || c === 'action_required') return 'failed'
-      return 'idle'
-    }
-
-    function statusLabelForRun(status, conclusion, t) {
-      const dot = dotStateForRun(status, conclusion)
-      if (dot === 'ongoing') return t('statusRunning')
-      if (dot === 'completed') return t('statusSuccess')
-      if (dot === 'failed') return t('statusFailure')
-      if (String(conclusion || '').toLowerCase() === 'cancelled') return t('statusCancelled')
-      return t('statusNeutral')
-    }
-
     function dotStateForCheck(state) {
       const s = String(state || '').toUpperCase()
       if (s === 'SUCCESS') return 'completed'
@@ -540,9 +499,6 @@ window.__ModuleLoader__.load({
     }
 
     function itemStatusInfo(item, t) {
-      if (item.kind === 'run') {
-        return { state: dotStateForRun(item.status, item.conclusion), label: statusLabelForRun(item.status, item.conclusion, t) }
-      }
       if (item.kind === 'pr') {
         if (item.state === 'MERGED') return { state: 'completed', label: t('merged') }
         if (item.state === 'CLOSED') return { state: 'failed', label: t('closed') }
@@ -557,14 +513,6 @@ window.__ModuleLoader__.load({
     function openExternal(url) {
       if (typeof url !== 'string' || !/^https?:\/\//.test(url)) return
       window.open(url, '_blank', 'noopener,noreferrer')
-    }
-
-    function latestBranchRunFailed(data) {
-      if (!data?.linked || data.authState !== 'ready' || !Array.isArray(data.runs) || data.runs.length === 0) return false
-      const branch = data.remote?.branch || data.repo?.defaultBranch
-      const matched = branch ? data.runs.find(run => run.headBranch === branch) : data.runs[0]
-      if (!matched) return false
-      return dotStateForRun(matched.status, matched.conclusion) === 'failed'
     }
 
     function createStoreRegistry() {
@@ -673,12 +621,10 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function useOverview(registry, sessionId, cwdHint, activityKey, options) {
-      const disabled = Boolean(options?.disabled)
-      const deferMs = options?.deferMs ?? 0
+    function useOverview(registry, sessionId, cwdHint, activityKey) {
       const store = React.useMemo(
-        () => (!disabled && sessionId ? registry.ensureStore(sessionId) : null),
-        [registry, sessionId, disabled],
+        () => (sessionId ? registry.ensureStore(sessionId) : null),
+        [registry, sessionId],
       )
       const empty = React.useRef({ loading: false, loaded: false, data: null, error: null, fetchedAt: 0 }).current
       const snap = React.useSyncExternalStore(
@@ -688,33 +634,15 @@ window.__ModuleLoader__.load({
       )
       React.useEffect(() => {
         if (!store) return undefined
-        let idleId = 0
-        let timerId = 0
-        if (deferMs > 0) {
-          const trigger = () => {
-            idleId = 0
-            timerId = 0
-            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
-            store.ensure(cwdHint)
-          }
-          if (typeof requestIdleCallback === 'function') {
-            idleId = requestIdleCallback(trigger, { timeout: deferMs })
-          } else {
-            timerId = setTimeout(trigger, deferMs)
-          }
-        } else {
-          store.ensure(cwdHint)
-        }
+        store.ensure(cwdHint)
         const onWake = () => store.maybeRefreshStale()
         window.addEventListener('focus', onWake)
         document.addEventListener('visibilitychange', onWake)
         return () => {
-          if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId)
-          if (timerId) clearTimeout(timerId)
           window.removeEventListener('focus', onWake)
           document.removeEventListener('visibilitychange', onWake)
         }
-      }, [store, cwdHint, deferMs])
+      }, [store, cwdHint])
 
       const prevActivity = React.useRef(activityKey)
       React.useEffect(() => {
@@ -771,7 +699,7 @@ window.__ModuleLoader__.load({
     }
 
     function mentionKeyOf(item) {
-      return item.kind === 'run' ? `run:${item.fullName}:${item.id}` : `${item.kind}:${item.fullName}:${item.number}`
+      return `${item.kind}:${item.fullName}:${item.number}`
     }
 
     function readHiddenMentions(sessionId) {
@@ -795,8 +723,7 @@ window.__ModuleLoader__.load({
 
     function citeTextForMention(item) {
       if (item.kind === 'pr') return `PR ${item.fullName}#${item.number}: ${item.title} (${item.url})`
-      if (item.kind === 'issue') return `Issue ${item.fullName}#${item.number}: ${item.title} (${item.url})`
-      return `GitHub Actions "${item.name}" (${item.displayTitle}): ${item.url}`
+      return `Issue ${item.fullName}#${item.number}: ${item.title} (${item.url})`
     }
 
     function agentPromptFor(kind, item, defaultFullName, t) {
@@ -808,15 +735,9 @@ window.__ModuleLoader__.load({
           text: fmt(t('promptPr'), { ref: `${repoRef}#${item.number}`, title: item.title, url: item.url }),
         }
       }
-      if (kind === 'issue') {
-        return {
-          label: t('askAgentIssue'),
-          text: fmt(t('promptIssue'), { ref: `${repoRef}#${item.number}`, title: item.title, url: item.url }),
-        }
-      }
       return {
-        label: t('askAgentRun'),
-        text: fmt(t('promptRun'), { name: item.name || 'Actions', title: item.displayTitle, url: item.url }),
+        label: t('askAgentIssue'),
+        text: fmt(t('promptIssue'), { ref: `${repoRef}#${item.number}`, title: item.title, url: item.url }),
       }
     }
 
@@ -920,30 +841,6 @@ window.__ModuleLoader__.load({
           notify(t(ok ? 'cited' : 'citeBusy'), ok)
         }
 
-        async function triggerRerun(sessionId, runId, target, store, t) {
-          try {
-            const payload = { sessionId, action: 'rerun-failed', runId }
-            if (target?.owner && target?.repo) {
-              payload.host = target.host || 'github.com'
-              payload.owner = target.owner
-              payload.repo = target.repo
-            }
-            const response = await fetch('github-panel/action', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(payload),
-            })
-            const json = await response.json().catch(() => null)
-            if (!response.ok || !json?.ok) throw new Error(json?.message || `HTTP ${response.status}`)
-            notify(t('rerunSent'), true)
-            void store?.refresh(true)
-            return true
-          } catch (err) {
-            notify(`${t('rerunFailedErr')}: ${err instanceof Error ? err.message : String(err)}`, false)
-            return false
-          }
-        }
-
         function GitHubSection({ sessionId, useProjection, useConversation, useSession, inputActions, dismissOverlay, renderFactorySlot, t }) {
           const useStyleEffect = React.useLayoutEffect ?? React.useEffect
           useStyleEffect(ensureStyles, [])
@@ -954,7 +851,6 @@ window.__ModuleLoader__.load({
           const [hiddenKeys, setHiddenKeys] = React.useState(() => readHiddenMentions(sessionId))
           const [prsExpanded, setPrsExpanded] = React.useState(false)
           const [issuesExpanded, setIssuesExpanded] = React.useState(false)
-          const [runsExpanded, setRunsExpanded] = React.useState(false)
           const mentionCursorRef = React.useRef(new Map())
 
           React.useEffect(() => {
@@ -1003,7 +899,6 @@ window.__ModuleLoader__.load({
           const repoUrl = repo?.url || remote?.url || ''
           const prs = data.pullRequests ?? []
           const issues = data.issues ?? []
-          const runs = data.runs ?? []
           const latestRelease = data.latestRelease
 
           const renderDetails = details => renderFactorySlot('conversation.session.panel.details', details)
@@ -1033,7 +928,6 @@ window.__ModuleLoader__.load({
                   { item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(repoUrl) },
                   { item: { id: 'prs', label: t('openPrs'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(`${repoUrl}/pulls`) },
                   { item: { id: 'issues', label: t('openIssues'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(`${repoUrl}/issues`) },
-                  { item: { id: 'actions', label: t('openActions'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(`${repoUrl}/actions`) },
                   { item: { id: 'releases', label: t('openReleases'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(`${repoUrl}/releases`) },
                   { separator: true, id: 'sep-util' },
                   { item: { id: 'refresh', label: t('refresh'), icon: h(IconRefreshOutlineRegular, { size: 14 }) }, run: () => void store?.refresh(true) },
@@ -1077,10 +971,7 @@ window.__ModuleLoader__.load({
           const issueFoldable = issues.length > ISSUE_FOLD_LIMIT + 1
           const shownIssues = issueFoldable && !issuesExpanded ? issues.slice(0, ISSUE_FOLD_LIMIT) : issues
 
-          const runFoldable = runs.length > RUN_FOLD_LIMIT + 1
-          const shownRuns = runFoldable && !runsExpanded ? runs.slice(0, RUN_FOLD_LIMIT) : runs
-
-          const hasAnyContent = mentions.length > 0 || prs.length > 0 || issues.length > 0 || runs.length > 0 || Boolean(latestRelease)
+          const hasAnyContent = mentions.length > 0 || prs.length > 0 || issues.length > 0 || Boolean(latestRelease)
 
           return h('div', { className: 'ghp-section', 'data-github-panel': '' },
             h(HoverCardGroup, null,
@@ -1096,21 +987,15 @@ window.__ModuleLoader__.load({
                   h('span', null, t('mentioned')),
                   h('span', { className: 'ghp-count' }, mentions.length)),
                 ...shownMentions.map(item => {
-                  const key = item.kind === 'run' ? `m-run-${item.fullName}-${item.id}` : `m-${item.kind}-${item.fullName}-${item.number}`
+                  const key = `m-${item.kind}-${item.fullName}-${item.number}`
                   const crossRepo = !linked || item.fullName.toLowerCase() !== fullName.toLowerCase()
-                  const title = item.kind === 'run' ? item.displayTitle : item.title
-                  const trailingText = item.kind === 'run'
-                    ? formatAgo(item.updatedAt || item.createdAt, t)
-                    : `#${item.number}`
+                  const title = item.title
+                  const trailingText = `#${item.number}`
                   const iconEl = item.kind === 'pr'
                     ? h(IconPullRequest, { size: 16, className: prIconClassFor(item) })
-                    : item.kind === 'issue'
-                      ? h(IconIssue, { size: 16, className: issueIconClassFor(item) })
-                      : h(StateDot, { state: dotStateForRun(item.status, item.conclusion), size: 8 })
+                    : h(IconIssue, { size: 16, className: issueIconClassFor(item) })
                   const checkDot = item.kind === 'pr' && item.state === 'OPEN' && item.checksState ? dotStateForCheck(item.checksState) : null
-                  const subDetail = crossRepo
-                    ? item.fullName
-                    : (item.kind === 'run' ? [item.name, item.headBranch].filter(Boolean).join(' · ') : '')
+                  const subDetail = crossRepo ? item.fullName : ''
                   const prompt = agentPromptFor(item.kind, item, fullName, t)
                   const occurrences = Array.isArray(item.occurrences) ? item.occurrences : []
                   const locateLabel = occurrences.length > 1
@@ -1147,10 +1032,6 @@ window.__ModuleLoader__.load({
                       entries: [
                         ...(occurrences.length > 0 ? [{ item: { id: 'locate', label: locateLabel, icon: h(IconLocate, { size: 14 }) }, run: () => locateMention(key, item) }] : []),
                         ...(item.url ? [{ item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(item.url) }] : []),
-                        ...(item.kind === 'run' && dotStateForRun(item.status, item.conclusion) === 'failed' ? [{
-                          item: { id: 'rerun', label: t('rerunFailed'), icon: h(IconRefreshOutlineRegular, { size: 14 }) },
-                          run: () => void triggerRerun(sessionId, item.id, item, store, t),
-                        }] : []),
                         ...(prompt && inputActions ? [{ item: { id: 'ask', label: prompt.label, icon: h(IconPrompt, { size: 14 }) }, run: () => insertReference(inputActions, prompt.text, t) }] : []),
                         ...(inputActions ? [{ item: { id: 'cite', label: t('cite'), icon: h(IconQuote, { size: 14 }) }, run: () => insertReference(inputActions, citeTextForMention(item), t) }] : []),
                         ...(item.url ? [{ item: { id: 'copy', label: t('copyUrl'), icon: h(IconCopyOutlineRegular, { size: 14 }) }, run: () => void copyText(item.url, t) }] : []),
@@ -1163,10 +1044,8 @@ window.__ModuleLoader__.load({
                   if (item.kind === 'pr') {
                     hoverLines.push(`${item.fullName}#${item.number}${item.author ? ` · @${item.author}` : ''}${item.headRefName ? ` · ${item.headRefName} → ${item.baseRefName}` : ''}`)
                     if (item.updatedAt) hoverLines.push(`+${item.additions ?? 0} −${item.deletions ?? 0} · ${fmt(t('updated'), { ago: formatAgo(item.updatedAt, t) })}`)
-                  } else if (item.kind === 'issue') {
-                    hoverLines.push(`${item.fullName}#${item.number}${item.author ? ` · @${item.author}` : ''}${item.updatedAt ? ` · ${fmt(t('updated'), { ago: formatAgo(item.updatedAt, t) })}` : ''}`)
                   } else {
-                    hoverLines.push([item.fullName, item.name, item.headBranch && `@${item.headBranch}`].filter(Boolean).join(' · '))
+                    hoverLines.push(`${item.fullName}#${item.number}${item.author ? ` · @${item.author}` : ''}${item.updatedAt ? ` · ${fmt(t('updated'), { ago: formatAgo(item.updatedAt, t) })}` : ''}`)
                   }
                   if (item.labels?.length) hoverLines.push(item.labels.map(l => l.name).join(', '))
                   if (occurrences.length > 0) {
@@ -1308,65 +1187,6 @@ window.__ModuleLoader__.load({
                   onToggle: () => setIssuesExpanded(v => !v),
                 })),
 
-              linked && data.authState === 'ready' && runs.length > 0 && h('div', { className: 'ghp-group' },
-                h('div', { className: 'ghp-group-head' },
-                  h('button', {
-                    type: 'button',
-                    className: 'ghp-group-btn',
-                    title: t('openActions'),
-                    onClick: () => openExternal(`${repoUrl}/actions`),
-                  }, t('actions')),
-                  h('span', { className: 'ghp-count' }, runs.length)),
-                ...shownRuns.map(run => {
-                  const dot = dotStateForRun(run.status, run.conclusion)
-                  const isFailed = dot === 'failed'
-                  const prompt = agentPromptFor('run', run, fullName, t)
-                  const rowEl = h('div', { key: `run-${run.id}`, 'data-session-panel-row': '' },
-                    h('button', {
-                      type: 'button',
-                      'data-row-part': 'body',
-                      onClick: () => openExternal(run.url),
-                    },
-                    h('span', { 'data-row-part': 'icon', 'aria-hidden': true }, h(StateDot, { state: dot, size: 8 })),
-                    h('span', { 'data-row-part': 'lines' },
-                      h('span', { 'data-row-part': 'content' }, run.displayTitle),
-                      h('span', { 'data-row-part': 'detail' }, [run.name, run.headBranch].filter(Boolean).join(' · ')))),
-                    h('span', { 'data-row-part': 'trailing', className: 'ghp-num' }, formatAgo(run.updatedAt || run.createdAt, t)),
-                    h('span', { 'data-row-part': 'menu' }, h(RowMenu, {
-                      label: fmt(t('moreActions'), { name: run.displayTitle }),
-                      entries: [
-                        ...(run.url ? [{ item: { id: 'open', label: t('openOnGitHub'), icon: h(IconRightUpOutlineRegular, { size: 14 }) }, run: () => openExternal(run.url) }] : []),
-                        ...(isFailed ? [{ item: { id: 'rerun', label: t('rerunFailed'), icon: h(IconRefreshOutlineRegular, { size: 14 }) }, run: () => void triggerRerun(sessionId, run.id, null, store, t) }] : []),
-                        ...(prompt && inputActions ? [{ item: { id: 'ask', label: prompt.label, icon: h(IconPrompt, { size: 14 }) }, run: () => insertReference(inputActions, prompt.text, t) }] : []),
-                        ...(inputActions ? [{ item: { id: 'cite', label: t('cite'), icon: h(IconQuote, { size: 14 }) }, run: () => insertReference(inputActions, `GitHub Actions "${run.name}" (${run.displayTitle}): ${run.url}`, t) }] : []),
-                        ...(run.url ? [{ item: { id: 'copy', label: t('copyUrl'), icon: h(IconCopyOutlineRegular, { size: 14 }) }, run: () => void copyText(run.url, t) }] : []),
-                      ],
-                    })))
-                  const runLines = [
-                    [run.name, run.headBranch && `@${run.headBranch}`, run.event].filter(Boolean).join(' · '),
-                    [run.actor && `@${run.actor}`, run.headSha, formatAgo(run.updatedAt || run.createdAt, t)].filter(Boolean).join(' · '),
-                  ]
-                  return h(HoverCard, {
-                    key: `run-hc-${run.id}`,
-                    grouped: true,
-                    anchor: rowEl,
-                    content: renderDetails({
-                      title: run.displayTitle,
-                      lines: runLines,
-                      status: { state: dot, label: statusLabelForRun(run.status, run.conclusion, t) },
-                    }),
-                  })
-                }),
-                runFoldable && renderFactorySlot('conversation.session.panel.fold', {
-                  expanded: runsExpanded,
-                  label: runsExpanded ? t('showLess') : fmt(t('showMore'), { n: runs.length - RUN_FOLD_LIMIT }),
-                  name: fmt(t('foldName'), {
-                    group: t('actions'),
-                    label: runsExpanded ? t('showLess') : fmt(t('showMore'), { n: runs.length - RUN_FOLD_LIMIT }),
-                  }),
-                  onToggle: () => setRunsExpanded(v => !v),
-                })),
-
               linked && data.authState === 'ready' && latestRelease && h('div', { className: 'ghp-group' },
                 h('div', { className: 'ghp-group-head' },
                   h('button', {
@@ -1428,16 +1248,6 @@ window.__ModuleLoader__.load({
           }
           if (parts.length === 0) return null
           return h('span', { className: 'ghp-count' }, parts.join(' · '))
-        }
-
-        function GitHubIndicator({ sessionId, panelShown, t }) {
-          const { snap } = useOverview(registry, sessionId, undefined, undefined, { disabled: panelShown, deferMs: 1500 })
-          const failed = !panelShown && latestBranchRunFailed(snap.data)
-          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
-          useStyleEffect(() => { if (failed) ensureStyles() }, [failed])
-          if (!failed) return null
-          return h('span', { className: 'ghp-indicator' },
-            h('span', { className: 'ghp-sr' }, t('ciFailedIndicator')))
         }
 
         function ConfigPanel({ t }) {
@@ -1506,13 +1316,6 @@ window.__ModuleLoader__.load({
             locale: NS,
           }, GitHubSectionActions)
         })
-
-        ctx.slots.inject('conversation.session.panel.indicator', () => ctx.slots.register({
-          name: 'conversation.session.panel.indicator',
-          id: 'github.ci',
-          order: 50,
-          locale: NS,
-        }, GitHubIndicator))
       },
     }
   },

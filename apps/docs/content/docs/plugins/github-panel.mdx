@@ -1,11 +1,11 @@
 ---
 title: GitHub 面板
-description: 会话目录关联 GitHub 仓库或提及 GitHub 链接时，在右侧会话面板展示仓库概览、PR、Issue、Actions 与最新发布，点击直接在新标签页打开 GitHub。
+description: 会话目录关联 GitHub 仓库或提及 GitHub 链接时，在右侧会话面板展示仓库概览、PR、Issue 与最新发布，点击直接在新标签页打开 GitHub。
 ---
 
 <PluginFacts slug="github-panel" />
 
-当会话的工作目录属于一个关联了 GitHub 远端的 Git 仓库时，在右侧会话面板自动添加 **GitHub** 分栏，展示仓库基本信息、打开中的 Pull Requests、Issues、近期 GitHub Actions 工作流运行和 Latest Release；非 GitHub 仓库或非 Git 目录自动隐藏。
+当会话的工作目录属于一个关联了 GitHub 远端的 Git 仓库时，在右侧会话面板自动添加 **GitHub** 分栏，展示仓库基本信息、打开中的 Pull Requests、Issues 和 Latest Release；非 GitHub 仓库或非 Git 目录自动隐藏。
 
 <Callout type="info" title="依赖本机 GitHub CLI">
 Host 端通过已登录的 `gh` CLI 读取数据（不依赖 Forge 套件，支持私有仓库与 GitHub Enterprise）。未登录时面板会提示 `gh auth login` 命令并支持点击复制。
@@ -17,10 +17,9 @@ Host 端通过已登录的 `gh` CLI 读取数据（不依赖 Forge 套件，支�
 
 ## 主要功能
 
-- **对话提及自动归集与原文定位**：识别对话中出现的 GitHub 链接（Issue / PR / Actions Run）、`owner/repo#123` 及同仓库 `#123` / `PR #123` / `Issue #123`，批量解析实时状态（含已关闭和已合并项）并置顶显示在 **对话提及** 分组；悬停可预览提及上下文，点击定位按钮直接滚动并高亮对话中对应的消息（支持多处提及循环定位与历史轮次按需加载），并支持从此会话隐藏与撤销。
-- **右侧会话面板分栏**：按原生行样式显示仓库概览、对话提及、打开中的 PR（含草稿与检查状态）、Issue、近期 Actions 运行（含状态点与分支）及最新发布，支持悬停详情卡与长列表折叠；点击任意条目或分组标题直接在新标签页打开对应 GitHub 页面。
-- **行内快捷操作**：通过每行右侧 `…` 菜单让 Agent 审查 PR / 排查 Issue / 诊断失败 Actions、引用到输入框（不自动发送）、复制链接，或重跑失败的 Actions 任务。
-- **状态提醒**：当前分支最新 Actions 失败且面板收起时，会话标题栏面板开关显示红点提醒。
+- **对话提及自动归集与原文定位**：识别对话中出现的 GitHub 链接（Issue / PR）、`owner/repo#123` 及同仓库 `#123` / `PR #123` / `Issue #123`，批量解析实时状态（含已关闭和已合并项）并置顶显示在 **对话提及** 分组；悬停可预览提及上下文，点击定位按钮直接滚动并高亮对话中对应的消息（支持多处提及循环定位与历史轮次按需加载），并支持从此会话隐藏与撤销。
+- **右侧会话面板分栏**：按原生行样式显示仓库概览、对话提及、打开中的 PR（含草稿与检查状态）、Issue 及最新发布，支持悬停详情卡与长列表折叠；点击任意条目或分组标题直接在新标签页打开对应 GitHub 页面。
+- **行内快捷操作**：通过每行右侧 `…` 菜单让 Agent 审查 PR / 排查 Issue、引用到输入框（不自动发送）或复制链接。
 
 ## 配置（可选）
 

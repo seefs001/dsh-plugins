@@ -1,7 +1,7 @@
 {
   "name": "dsh-github-panel",
   "version": "0.1.0",
-  "description": "Show GitHub repository overview, conversation mentions, open pull requests, issues, Actions workflow runs, and releases in the DSH right session panel.",
+  "description": "Show GitHub repository overview, conversation mentions, open pull requests, issues, and releases in the DSH right session panel.",
   "keywords": [
     "dsh-plugin",
     "dsh",

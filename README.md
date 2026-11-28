@@ -44,7 +44,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | [`dsh-open-in-default`](packages/open-in-default) | Add a session-header split button that opens the workspace in your remembered editor, while its arrow switches defaults without launching. | Web |
 | [`dsh-branch-switcher`](packages/branch-switcher) | Switch local Git branches from the New Session page before the first message. Requires Forge worktrees. | Host + Web |
 | [`dsh-git-changes`](packages/git-changes) | Show current branch and uncommitted stats below the composer; click to open local diffs. Requires Forge worktrees. | Web |
-| [`dsh-github-panel`](packages/github-panel) | Show linked GitHub repo overview, chat mentions, open PRs, issues, Actions runs, and releases in the right session panel and open items directly on GitHub. Requires GitHub CLI (`gh`). | Host + Web |
+| [`dsh-github-panel`](packages/github-panel) | Show linked GitHub repo overview, chat mentions, open PRs, issues, and releases in the right session panel and open items directly on GitHub. Requires GitHub CLI (`gh`). | Host + Web |
 | [`dsh-keep-awake`](packages/keep-awake) | Prevent macOS idle sleep while the DSH Host runs. | Host |
 
 ### Reading conversations

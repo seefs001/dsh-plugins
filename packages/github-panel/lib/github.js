@@ -10,7 +10,6 @@ const GIT_TIMEOUT_MS = 5_000
 const GH_TIMEOUT_MS = 15_000
 const MAX_BUFFER = 2 * 1024 * 1024
 const MAX_MENTIONS = 20
-const MAX_MENTION_RUNS = 5
 const MAX_OCCURRENCES = 10
 const SNIPPET_BEFORE = 36
 const SNIPPET_AFTER = 48
@@ -749,25 +748,6 @@ function mapIssue(node) {
   }
 }
 
-function mapRun(run) {
-  return {
-    id: run.id,
-    name: run.name ?? '',
-    displayTitle: run.display_title || run.name || `#${run.run_number ?? run.id}`,
-    runNumber: run.run_number ?? null,
-    headBranch: run.head_branch ?? null,
-    headSha: typeof run.head_sha === 'string' ? run.head_sha.slice(0, 7) : null,
-    event: run.event ?? null,
-    status: run.status ?? null,
-    conclusion: run.conclusion ?? null,
-    url: run.html_url ?? null,
-    actor: run.actor?.login ?? null,
-    createdAt: run.created_at ?? null,
-    updatedAt: run.updated_at ?? null,
-    startedAt: run.run_started_at ?? null,
-  }
-}
-
 function stripFencedCodeBlocks(text) {
   return String(text || '').replace(/```[\s\S]*?```/g, match => ' '.repeat(match.length))
 }
@@ -975,7 +955,7 @@ export async function resolveGitHubMentions(refs, signal) {
   if (!Array.isArray(refs) || refs.length === 0) return []
 
   const itemRefs = refs.filter(ref => ref.kind !== 'run')
-  const runRefs = refs.filter(ref => ref.kind === 'run').slice(0, MAX_MENTION_RUNS)
+  if (itemRefs.length === 0) return []
 
   const resolvedByKey = new Map()
 
@@ -1044,43 +1024,10 @@ export async function resolveGitHubMentions(refs, signal) {
     }
   })
 
-  const runTasks = runRefs.map(async ref => {
-    try {
-      const runData = await runGhJson([
-        'api', '--hostname', ref.host,
-        `repos/${ref.owner}/${ref.repo}/actions/runs/${ref.runId}`,
-      ], signal)
-      resolvedByKey.set(ref.key, {
-        kind: 'run',
-        host: ref.host,
-        owner: ref.owner,
-        repo: ref.repo,
-        fullName: ref.fullName,
-        ...mapRun(runData),
-      })
-    } catch {
-      resolvedByKey.set(ref.key, {
-        kind: 'run',
-        host: ref.host,
-        owner: ref.owner,
-        repo: ref.repo,
-        fullName: ref.fullName,
-        id: Number(ref.runId),
-        name: 'Actions',
-        displayTitle: `Run #${ref.runId}`,
-        url: ref.url,
-        status: null,
-        conclusion: null,
-        updatedAt: null,
-        unresolved: true,
-      })
-    }
-  })
-
-  await Promise.allSettled([...hostTasks, ...runTasks])
+  await Promise.allSettled(hostTasks)
 
   const ordered = []
-  for (const ref of refs) {
+  for (const ref of itemRefs) {
     const resolved = resolvedByKey.get(ref.key)
     if (resolved) ordered.push({ ...resolved, refKey: ref.key })
   }
@@ -1095,19 +1042,12 @@ export async function fetchGitHubOverview(target, signal) {
     '-F', `name=${target.repo}`,
     '-f', `query=${OVERVIEW_QUERY}`,
   ]
-  const runsArgs = [
-    'api',
-    '--hostname', target.host,
-    `repos/${target.owner}/${target.repo}/actions/runs?per_page=10`,
-  ]
 
-  const [gqlRes, runsRes] = await Promise.allSettled([
-    runGhJson(gqlArgs, signal),
-    runGhJson(runsArgs, signal),
-  ])
-
-  if (gqlRes.status !== 'fulfilled') {
-    const failure = classifyGhError(gqlRes.reason, target.host)
+  let payload
+  try {
+    payload = await runGhJson(gqlArgs, signal)
+  } catch (reason) {
+    const failure = classifyGhError(reason, target.host)
     return {
       linked: true,
       authState: failure.authState,
@@ -1120,12 +1060,10 @@ export async function fetchGitHubOverview(target, signal) {
       pullRequestsTotal: 0,
       issues: [],
       issuesTotal: 0,
-      runs: [],
       latestRelease: null,
     }
   }
 
-  const payload = gqlRes.value
   const repoNode = payload?.data?.repository
   if (!repoNode) {
     const msg = payload?.errors?.[0]?.message || 'Repository not found.'
@@ -1142,14 +1080,9 @@ export async function fetchGitHubOverview(target, signal) {
       pullRequestsTotal: 0,
       issues: [],
       issuesTotal: 0,
-      runs: [],
       latestRelease: null,
     }
   }
-
-  const runs = runsRes.status === 'fulfilled' && Array.isArray(runsRes.value?.workflow_runs)
-    ? runsRes.value.workflow_runs.slice(0, 10).map(mapRun)
-    : []
 
   const pullRequests = (repoNode.openPrs?.nodes ?? []).filter(Boolean).map(mapPullRequest)
   const issues = (repoNode.openIssues?.nodes ?? []).filter(Boolean).map(mapIssue)
@@ -1178,18 +1111,6 @@ export async function fetchGitHubOverview(target, signal) {
     pullRequestsTotal: repoNode.openPrs?.totalCount ?? pullRequests.length,
     issues,
     issuesTotal: repoNode.openIssues?.totalCount ?? issues.length,
-    runs,
     latestRelease: repoNode.latestRelease ?? null,
   }
-}
-
-export async function rerunFailedJobs(target, runId, signal) {
-  const cleanId = String(runId).trim()
-  if (!/^\d+$/.test(cleanId)) throw new Error('Invalid workflow run id')
-  await runGh([
-    'api', '--hostname', target.host,
-    '-X', 'POST',
-    `repos/${target.owner}/${target.repo}/actions/runs/${cleanId}/rerun-failed-jobs`,
-  ], signal)
-  return { ok: true, runId: cleanId }
 }

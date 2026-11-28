@@ -34,7 +34,7 @@ const entries: Entry[] = [
   { slug: 'open-in-default', category: 'sessions', surface: 'Web', summary: '在会话顶栏提供记忆默认编辑器的双半区按钮，点击主按钮直接打开目录，下拉箭头仅切换默认项。', requires: ['@deepseek-ai/dsh-host-open-in-app'] },
   { slug: 'branch-switcher', category: 'sessions', surface: 'Host + Web', summary: '在新会话发送第一条消息前直接切换已有本地 Git 分支。', requires: ['Change requests & worktrees'] },
   { slug: 'git-changes', category: 'sessions', surface: 'Web', summary: '在输入框下方显示当前分支和未提交改动统计，点击打开右侧 diff。', requires: ['Change requests & worktrees'] },
-  { slug: 'github-panel', category: 'sessions', surface: 'Host + Web', summary: '会话关联 GitHub 仓库或提及链接时，在右侧会话面板展示概览、PR、Issue、Actions 与发布，点击直接新标签打开 GitHub。', requires: ['已登录的 GitHub CLI (gh)'] },
+  { slug: 'github-panel', category: 'sessions', surface: 'Host + Web', summary: '会话关联 GitHub 仓库或提及链接时，在右侧会话面板展示概览、PR、Issue 与发布，点击直接新标签打开 GitHub。', requires: ['已登录的 GitHub CLI (gh)'] },
   { slug: 'keep-awake', category: 'sessions', surface: 'Host', summary: 'DSH Host 运行期间阻止 macOS 闲置休眠。', requires: ['macOS'] },
   { slug: 'diagram-preview', category: 'conversation', surface: 'Web', summary: '在对话中渲染 Mermaid、Graphviz、ECharts 和 SVG 图表，支持放大、导出 PNG/SVG 与切回源码。' },
   { slug: 'canvas', category: 'conversation', surface: 'Host + Web', summary: '沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.svg），支持本地活数据订阅、TypeScript 诊断、持久化状态与版本对比。', requires: ['@deepseek-ai/dsh-storage-domain'] },

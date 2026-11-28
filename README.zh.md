@@ -44,7 +44,7 @@
 | [`dsh-open-in-default`](packages/open-in-default) | 在会话顶栏放置记忆默认编辑器的双半区按钮：点击主按钮直接打开目录，下拉箭头仅切换默认编辑器不立即打开。 | Web |
 | [`dsh-branch-switcher`](packages/branch-switcher) | 新会话发第一条消息前直接切换已有本地分支。需要 Change requests & worktrees。 | Host + Web |
 | [`dsh-git-changes`](packages/git-changes) | 在输入框下方显示当前分支和未提交改动统计，点击打开右侧 diff。需要 Change requests & worktrees。 | Web |
-| [`dsh-github-panel`](packages/github-panel) | 会话关联 GitHub 仓库或提及链接时，在右侧会话面板展示概览、PR、Issue、Actions 与发布，点击直接在新标签页打开 GitHub。需要 `gh` CLI。 | Host + Web |
+| [`dsh-github-panel`](packages/github-panel) | 会话关联 GitHub 仓库或提及链接时，在右侧会话面板展示概览、PR、Issue 与发布，点击直接在新标签页打开 GitHub。需要 `gh` CLI。 | Host + Web |
 | [`dsh-keep-awake`](packages/keep-awake) | DSH Host 运行期间阻止 macOS 闲置休眠。 | Host |
 
 ### 对话阅读

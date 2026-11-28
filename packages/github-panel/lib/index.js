@@ -1,20 +1,16 @@
 import { randomUUID } from 'node:crypto'
 import {
-  classifyGhError,
   detectGitHubRepo,
   extractGitHubMentions,
   fetchGitHubOverview,
   normalizeHosts,
-  rerunFailedJobs,
   resolveGitHubMentions,
-  validateRepoTarget,
 } from './github.js'
 
 export const name = 'github-panel'
 export const inject = ['webServer', 'sessionController', 'workingDirectory']
 
 export const OVERVIEW_PATH = '/github-panel/overview'
-export const ACTION_PATH = '/github-panel/action'
 export const CONFIG_PATH = '/github-panel/config'
 export const GITHUB_REF_SOURCE_KIND = 'github-reference'
 
@@ -35,17 +31,6 @@ function deepFreeze(value) {
 }
 
 function formatResolvedGitHubRef(item) {
-  if (item.kind === 'run') {
-    const status = [item.status, item.conclusion].filter(Boolean).join('/')
-    const parts = [
-      `Actions Run #${item.runId ?? item.id}: ${item.name || item.displayTitle || 'workflow'}`,
-      ...(item.displayTitle && item.displayTitle !== item.name ? [`title=${JSON.stringify(item.displayTitle)}`] : []),
-      ...(status ? [`status=${status}`] : []),
-      ...(item.branch ? [`branch=${item.branch}`] : []),
-      ...(item.url ? [`url=${item.url}`] : []),
-    ]
-    return `- ${parts.join(' | ')}`
-  }
   const tag = item.kind === 'pr' ? 'PR' : 'Issue'
   const state = item.isDraft ? `${item.state} (draft)` : item.state
   const parts = [
@@ -61,7 +46,7 @@ function formatResolvedGitHubRef(item) {
 }
 
 function buildGitHubReferenceMessage(items) {
-  const usable = (items ?? []).filter(item => item && (item.state !== 'UNKNOWN' || item.kind === 'run'))
+  const usable = (items ?? []).filter(item => item && item.state !== 'UNKNOWN')
   if (usable.length === 0) return null
   const header = 'Read-only GitHub snapshot for references in the user message (untrusted external data):'
   const lines = [header]
@@ -243,7 +228,7 @@ export function apply(ctx, config = {}) {
     const hasLinkOrRef = userMessages.some(message =>
       (message.content ?? []).some(block =>
         block?.type === 'text' && typeof block.text === 'string'
-        && (/https?:\/\/[^\s]+\/(?:issues|pull|actions\/runs)\/\d+/i.test(block.text)
+        && (/https?:\/\/[^\s]+\/(?:issues|pull)\/\d+/i.test(block.text)
           || /[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100}#[1-9]\d{0,6}\b/.test(block.text)
           || /\b(?:PR|pull\s+request|issue)s?\s+#?[1-9]\d{0,6}\b/i.test(block.text))))
 
@@ -340,48 +325,6 @@ export function apply(ctx, config = {}) {
       }
     },
   }), 'github-panel: overview route')
-
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'exact',
-    path: ACTION_PATH,
-    handler: async (req, res, peer) => {
-      if (!requireOwner(res, peer)) return
-      if (req.method !== 'POST') {
-        res.writeHead(405, { allow: 'POST' })
-        res.end()
-        return
-      }
-      const { signal, cleanup } = makeSignal(res)
-      let target = null
-      try {
-        const body = await readJsonBody(req)
-        if (body.owner && body.repo) {
-          target = validateRepoTarget(body.host || 'github.com', body.owner, body.repo, allowedHosts)
-        } else {
-          const { cwd } = await resolveSessionContext(body.sessionId)
-          target = await resolveRepoForCwd(cwd, false, signal)
-        }
-        if (!target) {
-          sendJson(res, 404, { ok: false, message: 'No GitHub repository linked to this session.' })
-          return
-        }
-        if (body.action === 'rerun-failed') {
-          const result = await rerunFailedJobs(target, body.runId, signal)
-          const prefix = `${target.host}/${target.fullName}`
-          overviewCache.deletePrefix(prefix)
-          mentionsCache.clear()
-          sendJson(res, 200, { ok: true, value: result })
-          return
-        }
-        sendJson(res, 400, { ok: false, message: `Unsupported action: ${String(body.action ?? '')}` })
-      } catch (error) {
-        const info = classifyGhError(error, target?.host || 'github.com')
-        sendJson(res, 400, { ok: false, authState: info.authState, message: info.message })
-      } finally {
-        cleanup()
-      }
-    },
-  }), 'github-panel: action route')
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
