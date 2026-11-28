@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-36 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
+37 standalone plugins for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH): model selection, session organization, conversation reading, and tool integrations.
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [Documentation (中文)](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -55,6 +55,7 @@ Each plugin lives in `packages/<name>` and installs, enables, disables, or remov
 | [`dsh-canvas`](packages/canvas) | Interactive sandboxed Canvas artifacts (`.canvas.tsx`, `.canvas.html`, `.canvas.svg`) in sessions, with live file subscriptions, TypeScript checking, persistent state, revision diffs, and allowlisted host actions. | Host + Web |
 | [`dsh-side-chat`](packages/side-chat) | Open a separate chat in the sidebar with the main session's agent preset and bring its reference back to your draft. | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | Turn quotes in user messages into clickable blocks that jump to and highlight the source. | Web |
+| [`dsh-annotations`](packages/annotations) | Annotate Git diffs, AI replies, and your own messages, manage them in a composer tray, and implicitly inject pending annotations on the next turn via `agent/pre-step`. | Host + Web |
 | [`dsh-tool-lens`](packages/tool-lens) | Open skill files, full spill outputs, search hits, links, and subagent chats directly from tool-call rows. | Web |
 | [`dsh-subagent-peek`](packages/subagent-peek) | Show a compact subagent count pill in the session header with live status marks and a tree popover to jump to any descendant. | Web |
 | [`dsh-message-actions`](packages/message-actions) | Add **Wait, what?** beside replies to explain them in an isolated model call. | Host + Web |

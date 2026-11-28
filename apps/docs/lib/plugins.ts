@@ -40,6 +40,7 @@ const entries: Entry[] = [
   { slug: 'canvas', category: 'conversation', surface: 'Host + Web', summary: '沙箱隔离的交互画布（.canvas.tsx / .canvas.html / .canvas.svg），支持本地活数据订阅、TypeScript 诊断、持久化状态与版本对比。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'side-chat', category: 'conversation', surface: 'Web', summary: '在右栏用相同预设独立追问，将会话引用带回主聊草稿。' },
   { slug: 'quote-jump', category: 'conversation', surface: 'Web', summary: '把用户消息中的引用渲染为可点击块，点击跳回原文并高亮。' },
+  { slug: 'annotations', category: 'conversation', surface: 'Host + Web', summary: '给 Git 改动、AI 回复和自己的消息做标注，在输入框上方托盘管理并在下一轮通过 agent/pre-step 自动隐式注入上下文。', requires: ['@deepseek-ai/dsh-storage-domain'] },
   { slug: 'tool-lens', category: 'conversation', surface: 'Web', summary: '在工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理会话。' },
   { slug: 'subagent-peek', category: 'conversation', surface: 'Web', summary: '在主会话顶栏显示子代理计数胶囊与实时状态，点击弹出派生树速览并一键跳转或侧栏打开。' },
   { slug: 'message-actions', category: 'conversation', surface: 'Host + Web', summary: '在回复旁点 Wait, what?，用独立模型调用解释回复内容。', requires: ['@deepseek-ai/dsh-storage-domain', '已配置的模型 provider'] },

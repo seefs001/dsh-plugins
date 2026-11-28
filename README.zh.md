@@ -2,7 +2,7 @@
 
 # dsh-plugins
 
-36 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
+37 个独立的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）插件，覆盖模型选择、会话管理、对话阅读与工具集成。
 
 [![CI](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/seefs001/dsh-plugins/actions/workflows/ci.yml)
 [在线文档](https://seefs001.github.io/dsh-plugins/) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -55,6 +55,7 @@
 | [`dsh-canvas`](packages/canvas) | 沙箱隔离的交互画布（`.canvas.tsx` / `.canvas.html` / `.canvas.svg`），支持 0 token 本地活数据订阅、TypeScript 诊断、持久化状态、版本对比与白名单宿主联动。 | Host + Web |
 | [`dsh-side-chat`](packages/side-chat) | 在右栏沿用主聊预设独立追问，按需将引用带回主聊草稿。 | Web |
 | [`dsh-quote-jump`](packages/quote-jump) | 把用户消息中的引用渲染为可点击块，点击跳回原文并高亮。 | Web |
+| [`dsh-annotations`](packages/annotations) | 给 Git 改动、AI 回复和自己的消息做标注，在输入框上方托盘管理并在下一轮通过 `agent/pre-step` 自动隐式注入上下文。 | Host + Web |
 | [`dsh-tool-lens`](packages/tool-lens) | 在工具调用行直接打开技能文件、完整输出、搜索命中文件和子代理对话。 | Web |
 | [`dsh-subagent-peek`](packages/subagent-peek) | 在主会话顶栏显示子代理计数与实时运行/待处理状态胶囊，点击弹出派生树速览并一键跳转或侧栏打开。 | Web |
 | [`dsh-message-actions`](packages/message-actions) | 回复旁的 **Wait, what?** 用独立模型调用解释回复内容。 | Host + Web |
