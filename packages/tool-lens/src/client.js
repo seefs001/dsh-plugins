@@ -661,6 +661,64 @@ window.__ModuleLoader__.load({
       return []
     }
 
+    function editedFiles(toolName, block) {
+      if (!('kind' in block) || block.isError) return []
+      if (toolName === 'edit' || toolName === 'write') {
+        const metaPath = metaOf(block)?.path
+        if (typeof metaPath === 'string' && metaPath.trim() !== '') return [{ path: firstLine(metaPath).trim() }]
+        const { args } = parseArgs(block)
+        const obj = args && !Array.isArray(args) ? args : null
+        const rawPath = nonEmptyText(
+          obj?.file_path, obj?.path, obj?.Path, obj?.filePath, obj?.target_file, obj?.TargetFile, obj?.AbsolutePath,
+          fallbackArgText(block, ['file_path', 'path', 'Path', 'filePath']),
+        )
+        return rawPath ? [{ path: firstLine(rawPath).trim() }] : []
+      }
+      if (toolName === 'apply_patch') {
+        const { args } = parseArgs(block)
+        const obj = args && !Array.isArray(args) ? args : null
+        const patch = nonEmptyText(obj?.input, fallbackArgText(block, ['input']))
+        if (!patch) return []
+        const targets = []
+        for (const line of patch.split(/\r?\n/u)) {
+          const header = /^\*\*\* (?:Update|Add|Delete) File:\s*(.+)$/u.exec(line)
+          if (header) {
+            const path = header[1].trim()
+            if (path) targets.push({ path })
+            continue
+          }
+          const move = /^\*\*\* Move to:\s*(.+)$/u.exec(line)
+          if (move && targets.length > 0) {
+            const nextPath = move[1].trim()
+            if (nextPath) targets[targets.length - 1] = { path: nextPath }
+          }
+        }
+        const seen = new Set()
+        const unique = []
+        for (const item of targets) {
+          const norm = item.path.replace(/\\/g, '/')
+          if (seen.has(norm)) continue
+          seen.add(norm)
+          unique.push(item)
+        }
+        return unique
+      }
+      return []
+    }
+
+    function repoRelativePath(absPath, root) {
+      if (typeof absPath !== 'string' || !absPath || typeof root !== 'string' || !root) return null
+      const normPath = absPath.replace(/\\/g, '/')
+      const normRoot = root.replace(/\\/g, '/').replace(/\/+$/, '')
+      if (!normRoot) return null
+      const prefix = `${normRoot}/`
+      if (normPath.startsWith(prefix)) return normPath.slice(prefix.length) || null
+      if (/^[A-Za-z]:\//.test(normRoot) && normPath.toLowerCase().startsWith(prefix.toLowerCase())) {
+        return normPath.slice(prefix.length) || null
+      }
+      return null
+    }
+
     const IconOutput = () => svg('0 0 16 16', [
       h('path', { key: 1, d: 'M3.5 2.5h6l3 3v8h-9z', stroke: 'currentColor', strokeWidth: 1.1, strokeLinejoin: 'round' }),
       h('path', { key: 2, d: 'M5.5 8h5M5.5 10.5h3.5', stroke: 'currentColor', strokeWidth: 1.1, strokeLinecap: 'round' }),
@@ -672,13 +730,62 @@ window.__ModuleLoader__.load({
       h('path', { key: 1, d: 'M5 2.5h5l2.5 2.5v6.5H5z', stroke: 'currentColor', strokeWidth: 1.1, strokeLinejoin: 'round' }),
       h('path', { key: 2, d: 'M3.5 5v8.5h6.5', stroke: 'currentColor', strokeWidth: 1.1, strokeLinejoin: 'round' }),
     ])
+    const IconGitDiff = () => svg('0 0 16 16', [
+      h('path', { key: 1, d: 'M3.5 2.5h6l3 3v8h-9z', stroke: 'currentColor', strokeWidth: 1.1, strokeLinejoin: 'round' }),
+      h('path', { key: 2, d: 'M6 7.5h4M8 5.5v4M6 11h4', stroke: 'currentColor', strokeWidth: 1.1, strokeLinecap: 'round' }),
+    ])
     const IconGlobe = () => h(IconGlobeOutlineRegular, { size: 12 })
 
     const fill = (text, n) => text.replace('{n}', String(n))
     const tail = path => path.replace(/\\/g, '/').split('/').filter(Boolean).slice(-2).join('/') || path
     const hostOf = url => { try { return new URL(url).host } catch { return url } }
 
-    function createAugmentLens(ctx) {
+    const MAX_CHECKOUT_CACHE = 32
+    const CHECKOUT_PROBE_MS = 1500
+
+    function createCheckoutResolver(ctx) {
+      const cache = new Map()
+      const remember = (key, entry) => {
+        cache.delete(key)
+        cache.set(key, entry)
+        if (cache.size > MAX_CHECKOUT_CACHE) {
+          const oldest = cache.keys().next().value
+          if (oldest !== undefined) cache.delete(oldest)
+        }
+      }
+      const probe = async (sessionId, cwd) => {
+        const key = `${sessionId}\n${cwd ?? ''}`
+        if (cache.has(key)) return cache.get(key)
+        const forgePanel = ctx.get?.('remote.forgePanel') ?? ctx.remote?.['forgePanel']
+        if (typeof forgePanel?.follow !== 'function') {
+          return cwd ? { ready: true, root: cwd } : { ready: false, root: null }
+        }
+        const controller = new AbortController()
+        let stream
+        const timer = setTimeout(() => controller.abort(), CHECKOUT_PROBE_MS)
+        try {
+          stream = forgePanel.follow(sessionId, controller.signal)
+          for await (const frame of stream) {
+            const checkout = frame?.checkout
+            if (!checkout || checkout.state === 'pending') continue
+            const entry = checkout.state === 'ready' && typeof checkout.checkout?.root === 'string' && checkout.checkout.root
+              ? { ready: true, root: checkout.checkout.root }
+              : { ready: false, root: null }
+            remember(key, entry)
+            return entry
+          }
+        } catch {} finally {
+          clearTimeout(timer)
+          controller.abort()
+          try { stream?.dispose?.() } catch {}
+        }
+        return cwd ? { ready: true, root: cwd } : { ready: false, root: null }
+      }
+      const clear = () => cache.clear()
+      return { probe, clear }
+    }
+
+    function createAugmentLens(ctx, checkoutResolver) {
       const tt = ctx.locale.bind(NS)
       const subscribeLocale = fn => ctx.locale.subscribe(fn)
       const localeSnapshot = () => ctx.locale.getSnapshot()
@@ -704,6 +811,32 @@ window.__ModuleLoader__.load({
           })
         } catch (error) {
           console.error('[dsh-tool-lens] open subagent failed:', error)
+        }
+      }
+
+      const openGitChange = async (sessionId, cwd, rawPath) => {
+        const forgeChanges = ctx.get?.('forgeChanges')
+        if (!forgeChanges || !sessionId || !rawPath) return false
+        const absPath = resolveFilePathFor(cwd, rawPath)
+        const checkout = await checkoutResolver.probe(sessionId, cwd)
+        if (!checkout.ready || !checkout.root) return false
+        const relPath = repoRelativePath(absPath, checkout.root)
+        if (!relPath) return false
+        const target = { sessionId, source: { kind: 'local' } }
+        try {
+          forgeChanges.open(target, { path: relPath })
+          return true
+        } catch {
+          try {
+            const address = typeof forgeChanges.address === 'function'
+              ? forgeChanges.address(target)
+              : `dsh-resource://forge-changes/${encodeURIComponent(sessionId)}/local`
+            ctx.sidebarRight.openResource(address, { params: { path: relPath } })
+            return true
+          } catch (error) {
+            console.error('[dsh-tool-lens] open git changes failed:', error)
+            return false
+          }
         }
       }
 
@@ -785,6 +918,12 @@ window.__ModuleLoader__.load({
         const { toolName, block, phase, cwd, home, openFile, sessionId, useContextMenu } = props
         const { getTriggerProps } = useContextMenu()
         const [list, setList] = React.useState(null)
+        const [diffOutside, setDiffOutside] = React.useState(false)
+        React.useEffect(() => {
+          if (!diffOutside) return undefined
+          const timer = setTimeout(() => setDiffOutside(false), MISSING_MS)
+          return () => clearTimeout(timer)
+        }, [diffOutside])
         const isNativeFailure = phase === 'result'
           && 'kind' in block
           && block.isError === true
@@ -822,6 +961,14 @@ window.__ModuleLoader__.load({
           : toolName === 'lsp' ? lspLocations(block) : []
         const links = toolName === 'web_search' || toolName === 'web_fetch' || toolName === 'grok_search' || toolName === 'openai_search'
           ? webLinks(toolName, block) : []
+        const hasForge = sessionId !== undefined && Boolean(ctx.get?.('forgeChanges'))
+        const edits = hasForge && (toolName === 'edit' || toolName === 'write' || toolName === 'apply_patch')
+          ? editedFiles(toolName, block) : []
+        const triggerGitChange = rawPath => {
+          openGitChange(sessionId, cwd, rawPath).then(ok => {
+            if (!ok) setDiffOutside(true)
+          })
+        }
         const actions = []
         if (spill !== undefined) {
           actions.push(h(Action, {
@@ -831,6 +978,27 @@ window.__ModuleLoader__.load({
             title: tt('lens.spillTitle'),
             contextProps: getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: spill } })),
             onClick: () => openFile(spill),
+          }))
+        }
+        if (edits.length === 1) {
+          const targetPath = edits[0].path
+          const resolved = resolveFilePathFor(cwd, targetPath)
+          actions.push(h(Action, {
+            key: 'diff',
+            icon: IconGitDiff,
+            label: tt('lens.diff'),
+            title: tt('lens.diffTitle'),
+            contextProps: resolved ? getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: resolved } })) : undefined,
+            onClick: () => triggerGitChange(targetPath),
+          }))
+        } else if (edits.length > 1) {
+          actions.push(h(Action, {
+            key: 'diffs',
+            icon: IconGitDiff,
+            label: fill(tt('lens.diffs'), edits.length),
+            title: tt('lens.diffsTitle'),
+            pressed: list === 'diffs',
+            onClick: () => setList(v => (v === 'diffs' ? null : 'diffs')),
           }))
         }
         if (child !== undefined && child !== 'lead' && sessionId !== undefined) {
@@ -867,7 +1035,22 @@ window.__ModuleLoader__.load({
         if (actions.length === 0) return inner
 
         let panel = null
-        if (list === 'files' && files.length > 0) {
+        if (list === 'diffs' && edits.length > 0) {
+          panel = h(ItemList, {
+            items: edits.slice(0, LIST_CAP).map(file => {
+              const resolved = resolveFilePathFor(cwd, file.path)
+              return {
+                key: file.path,
+                icon: h(FileTypeIcon, { path: file.path, size: 14 }),
+                primary: displayPath(file.path, cwd, home) || file.path,
+                title: tt('lens.diffTitle'),
+                contextProps: resolved ? getTriggerProps(() => ({ kind: 'file', value: { sessionId, path: resolved } })) : undefined,
+                onClick: () => triggerGitChange(file.path),
+              }
+            }),
+            more: edits.length - LIST_CAP,
+          })
+        } else if (list === 'files' && files.length > 0) {
           panel = h(ItemList, {
             items: files.slice(0, LIST_CAP).map(file => ({
               key: file.path,
@@ -896,9 +1079,11 @@ window.__ModuleLoader__.load({
           })
         }
 
-        return h('div', { className: 'dtl-wrap', 'data-tool-lens': toolName, 'data-open': list !== null || undefined },
+        return h('div', { className: 'dtl-wrap', 'data-tool-lens': toolName, 'data-open': list !== null || diffOutside || undefined },
           inner,
-          h('div', { className: 'dtl-float', role: 'toolbar', 'aria-label': tt('lens.actions') }, ...actions),
+          h('div', { className: 'dtl-float', role: 'toolbar', 'aria-label': tt('lens.actions') },
+            ...actions,
+            diffOutside ? h('span', { key: 'diff-hint', className: 'dtl-hint', role: 'status' }, tt('lens.diffOutside')) : null),
           panel)
       }
 
@@ -952,6 +1137,11 @@ window.__ModuleLoader__.load({
         'lens.sources': '{n} sources',
         'lens.browse': 'Browse',
         'lens.browseTitle': 'Open in the side-panel browser (Cmd/Ctrl-click for a new tab)',
+        'lens.diff': 'Git diff',
+        'lens.diffTitle': 'Open and expand this file in the Git changes side panel',
+        'lens.diffs': '{n} diffs',
+        'lens.diffsTitle': 'List edited files; click one to expand it in the Git changes side panel',
+        'lens.diffOutside': 'Outside Git repo',
         'lens.more': '{n} more not shown',
       },
       zh: {
@@ -975,6 +1165,11 @@ window.__ModuleLoader__.load({
         'lens.sources': '{n} 个来源',
         'lens.browse': '侧栏浏览',
         'lens.browseTitle': '在右侧浏览器打开（Cmd/Ctrl 点击用新标签页）',
+        'lens.diff': '查看变更',
+        'lens.diffTitle': '在右侧 Git 变更面板展开查看此文件',
+        'lens.diffs': '{n} 个变更',
+        'lens.diffsTitle': '列出编辑的文件，点击在右侧 Git 变更面板展开',
+        'lens.diffOutside': '不在 Git 仓库内',
         'lens.more': '还有 {n} 个未列出',
       },
     }
@@ -995,7 +1190,11 @@ window.__ModuleLoader__.load({
         }, 'tool-lens: styles')
 
         const resolver = createSkillResolver(ctx)
-        ctx.on('connection/reset', resolver.clear)
+        const checkoutResolver = createCheckoutResolver(ctx)
+        ctx.on('connection/reset', () => {
+          resolver.clear()
+          checkoutResolver.clear()
+        })
         ctx.effect(() => {
           const offs = [
             ctx.remote.$on?.('agent-preset/selected', resolver.clear),
@@ -1004,6 +1203,7 @@ window.__ModuleLoader__.load({
           return () => {
             for (const off of offs) { try { off?.() } catch {} }
             resolver.clear()
+            checkoutResolver.clear()
           }
         }, 'tool-lens: skill catalog')
 
@@ -1050,7 +1250,7 @@ window.__ModuleLoader__.load({
           resolveFilePath: path => resolveFilePathFor(sessionDir(sessionId), path),
         })
 
-        const AugmentedRow = createAugmentLens(ctx)
+        const AugmentedRow = createAugmentLens(ctx, checkoutResolver)
         for (const key of AUGMENTED) {
           ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
             name: 'tool.call.toolview',
@@ -1064,8 +1264,10 @@ window.__ModuleLoader__.load({
       _internal: {
         AUGMENTED,
         baseDirectory,
+        editedFiles,
         failedToolSummary,
         fileAddressFor,
+        repoRelativePath,
         spillPath,
         subagentChild,
         resolveSubagentAddress,

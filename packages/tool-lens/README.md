@@ -13,6 +13,7 @@ dsh plugin --profile web add "github:seefs001/dsh-plugins#main&path:/packages/to
 | 工具 | 快捷操作 |
 | --- | --- |
 | `skill` | 点击技能名在右侧文件侧栏打开对应 `SKILL.md`，点击行展开指令正文 |
+| `edit` / `write` / `apply_patch` | 启用 Forge 时，行尾显示 **查看变更**（多文件补丁显示文件列表），点击在右侧 Git 变更面板定位并展开对应文件 |
 | `grep` / `glob` | 行尾显示命中文件按钮或列表，点击打开文件并定位到首个命中行 |
 | `web_search` / `web_fetch` | 行尾显示来源链接或列表，默认在右侧 Browser 面板打开（`Cmd`/`Ctrl` 点击在新标签页打开） |
 | `subagent` / `send_message` / `interrupt_agent` | 点击在右侧面板打开对应子代理对话（不含 `external` 外部子代理） |
