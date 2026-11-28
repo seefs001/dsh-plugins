@@ -6,26 +6,38 @@
 packages/<name>/
 ├── package.json        # name = dsh-<name>, dsh.bundle, optional dsh.client
 ├── cordis.patch.yml    # bundle patch; inserts at least the dsh-<name> row
-├── lib/index.js        # Host half (Cordis plugin, ESM)
-├── lib/client.js       # optional browser half (window.__ModuleLoader__ bundle)
+├── lib/index.js        # Host half (Cordis plugin, plain ESM)
+├── src/client.js       # readable browser source (plus optional src/client.<chunk>.js)
+├── lib/client.js       # generated minified browser bundle (built from src/client.js)
 ├── locale/{en,zh}.json # meta.title / meta.description shown on the Plugins page
 ├── icon.svg
 ├── test/*.test.js      # node:test, where a package has tests
 └── README.md
 ```
 
-Most packages are plain ES modules with no build step. Four packages build artifacts:
+### Client bundle build workflow
 
-- `canvas`: rebuild the sandbox runtime chunk with `pnpm --filter dsh-canvas build` (`prepack` runs it automatically).
+Host halves (`lib/*.js`) are plain ES modules with no build step. Browser halves keep readable source in `packages/<name>/src/client.js` (and optional lazy chunks such as `src/client.page.js` loaded with `require.async('./client.page.js')`) and ship deterministic minified bundles at the `exports["./client"]` path (`lib/client*.js`, or `client.js` for `pi-tools`):
+
+```bash
+pnpm run build:clients        # rebuild all minified client bundles via esbuild (scripts/build-clients.mjs)
+pnpm run build:clients:check  # verify every committed bundle matches src/client*.js byte-for-byte
+```
+
+GitHub Actions CI (`.github/workflows/ci.yml`) and `pnpm run check` run `pnpm run build:clients:check` on every push and pull request so committed bundles always match their readable source.
+
+Additional package-specific builds:
+
+- `canvas`: rebuild the sandbox runtime chunk (`lib/client.runtime.js`) with `pnpm --filter dsh-canvas build` (`prepack` runs it automatically).
 - `diagram-preview`: rebuild lazy renderer chunks with `pnpm --filter dsh-diagram-preview build` after updating diagram dependencies.
-- `pi-tools`: browser half lives at `client.js`; rebuild Go runners with `pnpm --filter dsh-pi-tools build:runner:all` after changing `runner/` or Pi dependencies.
-- `message-actions`: build `lib/client.js` from `src/client.js` with `pnpm --filter dsh-message-actions build` (`prepack` runs it automatically).
+- `pi-tools`: browser output lives at `client.js` (built from `src/client.js` by `pnpm run build:clients`); rebuild Go runners with `pnpm --filter dsh-pi-tools build:runner:all` after changing `runner/` or Pi dependencies.
+- `message-actions`: builds `lib/client.js` and `lib/client.markdown.js` from `src/` with `pnpm --filter dsh-message-actions build` (`prepack` runs it automatically).
 
 ## Lint and validation
 
 ```bash
 pnpm install
-pnpm run check      # oxlint + validate.mjs + node:test
+pnpm run check      # build:clients:check + oxlint + validate.mjs + node:test
 ```
 
 `pnpm run lint` runs Oxlint with `.oxlintrc.json` and `scripts/oxlint-plugin.mjs` (`--deny-warnings`):

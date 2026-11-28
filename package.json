@@ -14,8 +14,9 @@
     "node": "^24.22.3 || >=26.13.1"
   },
   "scripts": {
-    "check": "pnpm run lint && pnpm run validate && pnpm run test",
+    "check": "pnpm run build:clients:check && pnpm run lint && pnpm run validate && pnpm run test",
     "build:clients": "node scripts/build-clients.mjs",
+    "build:clients:check": "node scripts/build-clients.mjs --check",
     "lint": "oxlint --deny-warnings packages scripts test-utils apps/docs/app apps/docs/components apps/docs/lib",
     "validate": "node scripts/validate.mjs",
     "test": "node --test \"packages/*/test/*.test.js\"",

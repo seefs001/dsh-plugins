@@ -37,6 +37,7 @@ let totalOut = 0
 let totalSrcGz = 0
 let totalOutGz = 0
 let builtFiles = 0
+const staleFiles = []
 
 for (const dir of dirs) {
   if (SKIP.has(dir)) continue
@@ -61,13 +62,12 @@ for (const dir of dirs) {
     const outPath = resolveOutPath(pkgDir, pkg, fileName)
     if (CHECK_ONLY) {
       const current = existsSync(outPath) ? readFileSync(outPath, 'utf8') : null
-      if (current !== outText) {
-        throw new Error(`${dir}/${fileName}: built output is out of date (run pnpm run build:clients)`)
-      }
-    } else {
-      mkdirSync(dirname(outPath), { recursive: true })
-      writeFileSync(outPath, outText, 'utf8')
+      if (current !== outText) staleFiles.push(`${dir}/${fileName}`)
+      builtFiles++
+      continue
     }
+    mkdirSync(dirname(outPath), { recursive: true })
+    writeFileSync(outPath, outText, 'utf8')
 
     const srcBuf = Buffer.from(srcText, 'utf8')
     const outBuf = Buffer.from(outText, 'utf8')
@@ -85,9 +85,18 @@ for (const dir of dirs) {
   }
 }
 
-console.log(
-  `\nBuilt ${builtFiles} client files: ${(totalSrc / 1024).toFixed(1)}K -> ${(totalOut / 1024).toFixed(1)}K`
-  + ` (-${(((totalSrc - totalOut) / Math.max(1, totalSrc)) * 100).toFixed(1)}%)`
-  + ` | gz1 ${(totalSrcGz / 1024).toFixed(1)}K -> ${(totalOutGz / 1024).toFixed(1)}K`
-  + ` (-${(((totalSrcGz - totalOutGz) / Math.max(1, totalSrcGz)) * 100).toFixed(1)}%)`,
-)
+if (CHECK_ONLY) {
+  if (staleFiles.length > 0) {
+    console.error(`✖ ${staleFiles.length} built client file(s) out of sync with src/client*.js (run pnpm run build:clients):`)
+    for (const item of staleFiles) console.error(`  - ${item}`)
+    process.exit(1)
+  }
+  console.log(`✔ ${builtFiles} built client files match src/client*.js`)
+} else {
+  console.log(
+    `\nBuilt ${builtFiles} client files: ${(totalSrc / 1024).toFixed(1)}K -> ${(totalOut / 1024).toFixed(1)}K`
+    + ` (-${(((totalSrc - totalOut) / Math.max(1, totalSrc)) * 100).toFixed(1)}%)`
+    + ` | gz1 ${(totalSrcGz / 1024).toFixed(1)}K -> ${(totalOutGz / 1024).toFixed(1)}K`
+    + ` (-${(((totalSrcGz - totalOutGz) / Math.max(1, totalSrcGz)) * 100).toFixed(1)}%)`,
+  )
+}

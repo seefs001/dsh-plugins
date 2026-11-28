@@ -117,12 +117,16 @@ pnpm run docs:build      # 静态导出到 apps/docs/out
 
 ## 本地开发
 
+浏览器端完整可读源码统一位于 `packages/<name>/src/client.js`（以及按需懒分包 `src/client.page.js`）。仓库中的运行产物（`lib/client*.js`，`pi-tools` 为 `client.js`）由 `scripts/build-clients.mjs` 调用 `esbuild` 确定性压缩生成，并由 CI（`.github/workflows/ci.yml`）逐字节核对与源码一致：
+
 ```bash
 pnpm install
-pnpm run check   # oxlint + 清单与文档校验 + node:test
+pnpm run build:clients        # 从 src/client*.js 重新生成压缩后的客户端产物
+pnpm run build:clients:check  # 校验已提交的压缩产物与 src/client*.js 完全一致
+pnpm run check                # build:clients:check + oxlint + 清单与文档校验 + node:test
 ```
 
-目录结构、构建例外与 lint 规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+目录结构、专用构建步骤与 lint 规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 许可证
 

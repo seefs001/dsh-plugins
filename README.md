@@ -117,12 +117,16 @@ pnpm run docs:build      # static export to apps/docs/out
 
 ## Development
 
+Browser-side readable sources live under `packages/<name>/src/client.js` (and optional lazy chunks `src/client.page.js`). Committed runtime bundles (`lib/client*.js`, or `packages/pi-tools/client.js`) are deterministically minified via `esbuild` and verified byte-for-byte in CI (`.github/workflows/ci.yml`):
+
 ```bash
 pnpm install
-pnpm run check   # oxlint + manifest/docs validation + node:test
+pnpm run build:clients        # build minified client bundles from src/client*.js
+pnpm run build:clients:check  # verify bundles match src/client*.js byte-for-byte
+pnpm run check                # build:clients:check + oxlint + manifest/docs validation + node:test
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for package layout, lint rules, and build exceptions.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for package layout, lint rules, and package-specific builds.
 
 ## License
 

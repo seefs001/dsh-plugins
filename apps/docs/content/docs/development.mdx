@@ -17,20 +17,32 @@ pnpm install
 packages/<name>/
 ├── package.json        # name = dsh-<name>, dsh.bundle, 可选 dsh.client
 ├── cordis.patch.yml    # bundle patch，至少插入 dsh-<name> 行
-├── lib/index.js        # Host 入口（ESM）
-├── lib/client.js       # 可选浏览器入口（window.__ModuleLoader__.load）
+├── lib/index.js        # Host 入口（纯 ESM，无需构建）
+├── src/client.js       # 浏览器端可读源码（可选懒分包 src/client.<chunk>.js）
+├── lib/client.js       # 浏览器端压缩产物（由 src/client.js 确定性生成）
 ├── locale/{en,zh}.json # Plugins 页面展示的 meta.title 与 meta.description
 ├── icon.svg
 ├── test/*.test.js      # node:test 单元测试
 └── README.md
 ```
 
-绝大多数插件是无需构建的原生 ES 模块。四个例外：
+## 客户端源码与构建工作流
+
+Host 端代码（`lib/*.js`）为无需构建的原生 ES 模块。浏览器端完整可读源码统一保存在 `packages/<name>/src/client.js`（以及通过 `require.async('./client.page.js')` 按需加载的 `src/client.page.js`），提交到仓库的 `lib/client*.js`（`pi-tools` 为根目录 `client.js`）由 `scripts/build-clients.mjs` 调用仓库锁定的 `esbuild`（`minify: true, target: 'es2022', legalComments: 'none'`）确定性压缩生成：
+
+```bash
+pnpm run build:clients        # 从所有包的 src/client*.js 重新生成压缩后的客户端产物
+pnpm run build:clients:check  # 逐字节核对压缩产物与 src/client*.js 是否完全一致
+```
+
+本地 `pnpm run check` 与 GitHub Actions CI（`.github/workflows/ci.yml`）都会强制执行 `pnpm run build:clients:check`，确保仓库中的压缩产物始终可由开源 `src/client*.js` 精确重现，不存在与源码脱节的产物。修改浏览器端代码时，请编辑 `src/client*.js`，再运行 `pnpm run build:clients` 刷新页面生效。
+
+以下 4 个包还包含额外的专用构建步骤：
 
 - `canvas`：修改 `src/` 下画布运行时代码后运行 `pnpm --filter dsh-canvas build` 重新打包 `lib/client.runtime.js`。
 - `diagram-preview`：升级图表库后运行 `pnpm --filter dsh-diagram-preview build` 重新生成懒加载渲染器分片。
-- `pi-tools`：浏览器入口在根目录 `client.js`；改动 Go runner 或 Pi 依赖后运行 `pnpm --filter dsh-pi-tools build:runner:all`。
-- `message-actions`：浏览器源码在 `src/client.js`，运行 `pnpm --filter dsh-message-actions build` 生成 `lib/client.js`。
+- `pi-tools`：浏览器端压缩产物在根目录 `client.js`（由 `pnpm run build:clients` 从 `src/client.js` 生成）；改动 Go runner 或 Pi 依赖后运行 `pnpm --filter dsh-pi-tools build:runner:all`。
+- `message-actions`：由自身构建脚本打包 `src/` 生成 `lib/client.js` 与 `lib/client.markdown.js`，运行 `pnpm --filter dsh-message-actions build`。
 
 ## 本地链接调试
 
@@ -41,7 +53,7 @@ dsh plugin --profile web add "link:$PWD/packages/model-reference"
 ## 静态检查与测试
 
 ```bash
-pnpm run check     # oxlint + validate.mjs + node:test
+pnpm run check     # build:clients:check + oxlint + validate.mjs + node:test
 pnpm run pack:dry  # 演练所有包的 npm pack
 ```
 

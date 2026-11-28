@@ -46,11 +46,11 @@
 - **组件与主题**：复用 `@deepseek-ai/dsh-client-ui-primitives` 组件，自定义样式统一使用 `--dsw-*` 语义令牌并兼顾浅色模式；跨插件共享前端入口（如 `#` 菜单）通过 `window.__DSH_*__` 轻量总线协作。
 - **会话内工具视图（`tool.call.toolview`）**：对齐原生 `ToolRow` / `DisclosureRow`（24px 单行披露、4px 展开缩进、双列 `IN`/`OUT` 卡片、分隔点加 `data-shimmer-decoration`、`Inspect` 默认隐藏且 hover/focus 显现并用 `--dsw-alias-border-l3` 边框），不做大块重边框卡片。
 - **0.2.3 宿主契约细节**：会话流客户端插件需核对 `facets` 声明；会话日志只追加，`surfaceOp: 'replace'` 不会自动隐藏旧界面节点也不会触发续写；`ctx.theme` 通过 `getTheme()` 读快照（`active.colorScheme`）并监听 `theme/change`；`ctx.layout` 切主面板用 `selectPanel(id)`。注册到 `sidebar.panellist` 等启动期槽位的 `label: () => ...` 会在 `@deepseek-ai/dsh-client-ui-sidebar` 激活执行 `syncPanels()` 时同步求值，抛错会导致整个 Web 启动失败。写 `client.js` 前务必查实对应 `@deepseek-ai/dsh-client-*` 源码。
-- **查源码与本机联调**：优先使用 `cordis_inspect`，其次直读 `/Users/seefs/.bun/install/global/node_modules/@deepseek-ai/` 对应包（部分包无 `src/`，先看包顶层目录）。本机 `web` profile 通过 `link:` 软链直连本仓并禁用 `hmr`/`client-hmr`：改 `cordis.patch.yml`、`package.json` 或服务端 `lib/*.js` 需重启 `dsh --profile web`；改浏览器端 `client.js` 后刷新页面生效。
+- **查源码与本机联调**：优先使用 `cordis_inspect`，其次直读 `/Users/seefs/.bun/install/global/node_modules/@deepseek-ai/` 对应包（部分包无 `src/`，先看包顶层目录）。本机 `web` profile 通过 `link:` 软链直连本仓并禁用 `hmr`/`client-hmr`：改 `cordis.patch.yml`、`package.json` 或服务端 `lib/*.js` 需重启 `dsh --profile web`；改浏览器端 `src/client*.js` 后运行 `pnpm run build:clients` 再刷新页面生效。
 
 ## 构建与验证（cwd: `/Users/seefs/work/dsh-plugins`）
 
-大多数包为纯 ESM，无需构建；仅以下 4 个包在改动对应源码后需构建：
+Host 端（`lib/*.js`）为纯 ESM，无需构建。浏览器端源码位于 `packages/<name>/src/client*.js`，改动后需运行 `pnpm run build:clients`（`scripts/build-clients.mjs` 使用 `esbuild` 确定性压缩至 `lib/client*.js`，`pi-tools` 为 `client.js`；CI 与 `pnpm run check` 通过 `pnpm run build:clients:check` 强制校验一致性）。此外以下 4 个包在改动对应源码后需运行专用构建：
 
 - `canvas`：`pnpm --filter dsh-canvas build`
 - `diagram-preview`：`pnpm --filter dsh-diagram-preview build`
@@ -60,7 +60,8 @@
 常规验证（新增或大改含 `client.js` 的插件时补齐 `test/client.test.js`，按真实 DSH 运行时接口构造最小 stub 覆盖 `plugin.apply(ctx)`、槽位 `label()` 求值与组件首屏渲染）：
 
 ```bash
-pnpm run check                           # oxlint + scripts/validate.mjs + node --test
+pnpm run build:clients                   # 从 src/client*.js 构建压缩后的客户端产物
+pnpm run check                           # build:clients:check + oxlint + scripts/validate.mjs + node --test
 node --test packages/<name>/test/*.test.js
 pnpm run docs:typecheck                  # 改动 apps/docs 时运行
 ```
