@@ -2,39 +2,37 @@ window.__ModuleLoader__.load({
   id: 'dsh-quote-jump',
   factory(require) {
     const React = require('react')
-    const { IconCheckOutlineRegular, IconCopyOutlineRegular } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const {
+      QuotePreview,
+      Tooltip,
+      IconCheckOutlineRegular,
+      IconCopyOutlineRegular,
+    } = require('@deepseek-ai/dsh-client-ui-primitives')
     const h = React.createElement
     const NS = 'quoteJump'
     const HIGHLIGHT = 'dsh-quote-jump'
-    const HIGHLIGHT_MS = 2400
+    const HIGHLIGHT_MS = 1800
     const PREFIX = 48
     // external: mirrors dsh chat selection exclusions so quoted text aligns with rendered DOM
     const SKIP = '[data-quote-jump],script,style,textarea,[contenteditable="true"],[data-composer-seat],.katex-mathml,[data-text-interaction-exclude],.sr-only,[aria-hidden="true"]:not(.katex-html),button:not(code button)'
 
     const CSS_TEXT = `
-.dqj-quote{display:block;position:relative;margin:2px 0 6px;padding:5px 32px 5px 14px;border-radius:var(--dsw-radius-md,8px);
-  background:color-mix(in srgb,var(--dsw-alias-label-primary) 5%,transparent);color:var(--dsw-alias-label-secondary);
-  font-size:.93em;line-height:1.55;text-align:left;cursor:pointer;transition:background-color .12s}
-.dqj-quote::before{content:"";position:absolute;left:5px;top:7px;bottom:7px;width:2.5px;border-radius:2px;
-  background:var(--dsw-alias-brand-primary);opacity:.75}
-.dqj-copy{position:absolute;top:5px;right:5px;display:inline-flex;align-items:center;justify-content:center;
-  width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;
-  color:var(--dsw-alias-label-tertiary);cursor:pointer;opacity:0;transition:opacity .12s,background-color .12s,color .12s}
-.dqj-quote:hover .dqj-copy,.dqj-quote:focus-within .dqj-copy,.dqj-copy[data-copied="true"]{opacity:1}
+.dqj-wrap{display:inline-flex;align-items:center;gap:4px;max-width:100%;vertical-align:middle}
+.dqj-trigger{display:inline-flex;align-items:center;min-width:0;max-width:100%;border-radius:var(--dsw-radius-sm);cursor:pointer;transition:opacity .12s}
+@media (hover:hover){.dqj-trigger:hover [data-quote-preview]{background:var(--dsw-alias-interactive-bg-hover)}}
+.dqj-trigger:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.dqj-copy{display:inline-flex;flex:none;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:999px;corner-shape:round;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;opacity:0;transition:opacity .12s,background-color .12s,color .12s}
+.dqj-wrap:hover .dqj-copy,.dqj-wrap:focus-within .dqj-copy,.dqj-copy[data-copied="true"]{opacity:1}
 .dqj-copy[data-copied="true"]{color:var(--dsw-alias-state-success-primary)}
 @media (hover:hover){.dqj-copy:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
 @media (hover:none){.dqj-copy{opacity:.85}}
 .dqj-copy:focus-visible{opacity:1;outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
-.dqj-text{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
-.dqj-hint{display:block;margin-top:2px;font-size:12px;color:var(--dsw-alias-state-error-primary)}
-.dqj-quote[data-state=missing]::before{background:var(--dsw-alias-state-error-primary)}
-@media (hover:hover){.dqj-quote:hover{background:color-mix(in srgb,var(--dsw-alias-label-primary) 9%,transparent)}}
-.dqj-quote:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.dqj-hint{display:inline-block;margin-left:6px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-error-primary)}
 .dqj-inline{color:var(--dsw-alias-label-secondary)}
-::highlight(${HIGHLIGHT}){background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 30%,transparent)}
-[data-dqj-flash]{border-radius:6px;animation:dqj-flash ${HIGHLIGHT_MS}ms ease-out forwards}
-@keyframes dqj-flash{0%,60%{box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-brand-primary) 55%,transparent);background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 10%,transparent)}100%{box-shadow:0 0 0 3px transparent;background-color:transparent}}
-@media (prefers-reduced-motion:reduce){[data-dqj-flash]{animation:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--dsw-alias-brand-primary) 55%,transparent)}}
+::highlight(${HIGHLIGHT}){background-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 22%,transparent);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 45%,transparent);text-decoration-thickness:1.5px;text-underline-offset:2px}
+[data-dqj-flash]{border-radius:var(--dsw-radius-xs,4px);animation:dqj-flash ${HIGHLIGHT_MS}ms cubic-bezier(.22,1,.36,1) forwards}
+@keyframes dqj-flash{0%,28%{background-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 7%,transparent);box-shadow:0 0 0 6px color-mix(in srgb,var(--dsw-alias-state-business-primary) 7%,transparent)}100%{background-color:transparent;box-shadow:0 0 0 6px transparent}}
+@media (prefers-reduced-motion:reduce){[data-dqj-flash]{animation:none;background-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 7%,transparent);box-shadow:0 0 0 6px color-mix(in srgb,var(--dsw-alias-state-business-primary) 7%,transparent)}}
 `
 
     const isSpace = c => c === 32 || c === 160 || (c >= 9 && c <= 13) || c === 0x2028 || c === 0x2029 || c === 0x3000 || c === 0xFEFF || (c >= 0x2000 && c <= 0x200B)
@@ -230,15 +228,24 @@ window.__ModuleLoader__.load({
         }), 'quote-jump: zh')
         const t = ctx.locale.bind(NS)
 
-        ctx.effect(() => {
-          const style = document.createElement('style')
-          style.dataset.plugin = 'dsh-quote-jump'
-          style.textContent = CSS_TEXT
-          document.head.appendChild(style)
-          return () => { style.remove(); clearHighlight() }
+        let styleEl = null
+        const ensureStyles = () => {
+          if (styleEl || typeof document === 'undefined' || !document.head) return
+          styleEl = document.createElement('style')
+          styleEl.dataset.plugin = 'dsh-quote-jump'
+          styleEl.textContent = CSS_TEXT
+          document.head.appendChild(styleEl)
+        }
+        ctx.effect(() => () => {
+          styleEl?.remove()
+          styleEl = null
+          clearHighlight()
         }, 'quote-jump: styles')
 
+        const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+
         function QuoteJump({ node, interactive }) {
+          useStyleEffect(ensureStyles, [])
           React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
           const ref = React.useRef(null)
           const [missing, setMissing] = React.useState(false)
@@ -263,7 +270,13 @@ window.__ModuleLoader__.load({
             if (selection && !selection.isCollapsed && ref.current?.contains(selection.anchorNode)) return
             if (ref.current === null) return
             const ok = jumpTo(ref.current, text)
-            setMissing(!ok)
+            if (!ok) {
+              const menus = ctx.get?.('contextMenus')
+              if (typeof menus?.notify === 'function') menus.notify(t('notFound'), false)
+              else setMissing(true)
+            } else {
+              setMissing(false)
+            }
           }
           const onCopy = event => {
             event.preventDefault()
@@ -272,33 +285,34 @@ window.__ModuleLoader__.load({
             if (!body) return
             void copyText(body).then(ok => { if (ok) setCopied(true) })
           }
-          return h('span', {
-            ref,
-            className: 'dqj-quote',
-            'data-quote-jump': '',
-            'data-state': missing ? 'missing' : undefined,
-            role: 'button',
-            tabIndex: 0,
-            title: t('jump'),
-            'aria-label': t('jump'),
-            onClick: activate,
-            onKeyDown: event => {
-              if (event.target !== event.currentTarget) return
-              if (event.key !== 'Enter' && event.key !== ' ') return
-              event.preventDefault()
-              activate(event)
-            },
-          },
-          h('span', { className: 'dqj-text' }, text),
-          h('button', {
+          const copyBtn = h('button', {
             type: 'button',
             className: 'dqj-copy',
             'data-copied': copied ? 'true' : undefined,
-            title: copied ? t('copied') : t('copy'),
             'aria-label': copied ? t('copied') : t('copy'),
             onClick: onCopy,
-          }, h(copied ? IconCheckOutlineRegular : IconCopyOutlineRegular, { size: 13 })),
-          missing ? h('span', { className: 'dqj-hint', role: 'status' }, t('notFound')) : null)
+          }, h(copied ? IconCheckOutlineRegular : IconCopyOutlineRegular, { size: 13 }))
+
+          return h('span', { className: 'dqj-wrap', 'data-quote-jump': '' },
+            h('span', {
+              ref,
+              className: 'dqj-trigger',
+              role: 'button',
+              tabIndex: 0,
+              title: t('jump'),
+              'aria-label': t('jump'),
+              onClick: activate,
+              onKeyDown: event => {
+                if (event.target !== event.currentTarget) return
+                if (event.key !== 'Enter' && event.key !== ' ') return
+                event.preventDefault()
+                activate(event)
+              },
+            }, QuotePreview ? h(QuotePreview, { text }) : h('span', { className: 'dqj-inline' }, `❝ ${oneLine(text)}`)),
+            Tooltip
+              ? h(Tooltip, { portal: true, label: copied ? t('copied') : t('copy'), side: 'top', delayMs: 400 }, copyBtn)
+              : copyBtn,
+            missing ? h('span', { className: 'dqj-hint', role: 'status' }, t('notFound')) : null)
         }
 
         ctx.slots.inject('conversation.user.text.node', () => ctx.slots.register({

@@ -3,6 +3,8 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const ReactDOM = require('react-dom')
+    let primitives = null
+    try { primitives = require('@deepseek-ai/dsh-client-ui-primitives') } catch {}
     const h = React.createElement
 
     const NS = 'annotations'
@@ -11,13 +13,12 @@ window.__ModuleLoader__.load({
     const CHANNEL_NAME = 'dsh-annotations'
     const FORGE_SOURCE_ID = 'dsh-annotations'
     const HL_DRAFT = 'dsh-ann-draft'
-    const HL_CONSUMED = 'dsh-ann-consumed'
     const HL_JUMP = 'dsh-ann-jump'
-    const JUMP_MS = 2200
+    const JUMP_MS = 1800
     const WAKE_COOLDOWN_MS = 10_000
     const AFFIX_CHARS = 48
     const PREFIX_FALLBACK = 44
-    const INTENTS = ['note', 'fix', 'question', 'revise', 'constraint']
+    const QUICK_INTENTS = ['note', 'fix', 'question']
     // external: mirrors dsh chat selection exclusions so ranges align with rendered DOM
     const SKIP = '[data-quote-jump],[data-dann-ui],script,style,textarea,[contenteditable="true"],[data-composer-seat],.katex-mathml,[data-text-interaction-exclude],.sr-only,[aria-hidden="true"]:not(.katex-html),button:not(code button)'
     const BLOCKS = 'p,li,pre,td,th,blockquote,h1,h2,h3,h4,h5,h6,dd,dt,figcaption,[data-message-bubble]'
@@ -30,28 +31,20 @@ window.__ModuleLoader__.load({
         addToAnnotations: 'Annotate',
         modalTitleNew: 'Add annotation',
         modalTitleEdit: 'Edit annotation',
-        notePlaceholder: 'Write your annotation note…',
+        notePlaceholder: 'Write a note, attached automatically to your next message…',
         noteLabel: 'Annotation note',
         save: 'Save',
-        add: 'Add annotation',
+        add: 'Add',
         cancel: 'Cancel',
         close: 'Close',
-        dockPending: '{n} pending',
-        dockPendingShort: '{n}',
+        dockPending: '{n} annotations attached to next message',
         dockTitle: 'Annotations',
         dockExpand: 'Expand annotations',
         dockCollapse: 'Collapse annotations',
         dockSendNow: 'Send',
-        dockSendHint: 'Send pending annotations with a default prompt',
+        dockSendHint: 'Send annotations now without extra text',
         dockDefaultPrompt: 'Please address the attached annotations.',
-        dockClear: 'Clear pending',
-        tabPending: 'Pending ({n})',
-        tabSent: 'Sent ({n})',
-        emptyPending: 'No pending annotations.',
-        emptySent: 'No sent annotations yet.',
-        sourceDiff: 'Diff',
-        sourceAi: 'AI',
-        sourceUser: 'Me',
+        dockClear: 'Clear all',
         intentNote: 'Note',
         intentFix: 'Fix',
         intentQuestion: 'Question',
@@ -59,12 +52,10 @@ window.__ModuleLoader__.load({
         intentConstraint: 'Rule',
         statusDraft: 'Pending',
         statusConsumed: 'Sent',
-        statusOutdated: 'Outdated',
         sentTurn: 'Turn {n}',
-        toggleInclude: 'Include in next turn',
         jump: 'Jump to target',
         edit: 'Edit',
-        requeue: 'Re-queue',
+        requeue: 'Add again',
         remove: 'Delete',
         notFound: 'Target is not in the loaded view',
         toolbarLabel: 'Annotations ({n})',
@@ -77,41 +68,31 @@ window.__ModuleLoader__.load({
         addToAnnotations: '加入标注',
         modalTitleNew: '添加标注',
         modalTitleEdit: '编辑标注',
-        notePlaceholder: '写下你的标注说明…',
+        notePlaceholder: '写下批注，下次发送消息时自动附带…',
         noteLabel: '标注内容',
         save: '保存',
-        add: '加入标注',
+        add: '添加',
         cancel: '取消',
         close: '关闭',
-        dockPending: '{n} 条待注入',
-        dockPendingShort: '{n}',
+        dockPending: '下条消息附带 {n} 条标注',
         dockTitle: '标注',
         dockExpand: '展开标注列表',
         dockCollapse: '收起标注列表',
         dockSendNow: '直接发送',
-        dockSendHint: '使用默认提示词立即发送待注入标注',
+        dockSendHint: '不写补充说明，直接把待发标注发给 Agent',
         dockDefaultPrompt: '请处理附带的标注。',
-        dockClear: '清空待注入',
-        tabPending: '待注入 ({n})',
-        tabSent: '已发送 ({n})',
-        emptyPending: '暂无待注入标注。',
-        emptySent: '暂无已发送标注。',
-        sourceDiff: 'Diff',
-        sourceAi: 'AI',
-        sourceUser: '我',
-        intentNote: '备注',
+        dockClear: '清空',
+        intentNote: '说明',
         intentFix: '修改',
         intentQuestion: '追问',
         intentRevise: '修订',
         intentConstraint: '约束',
-        statusDraft: '待注入',
+        statusDraft: '待发送',
         statusConsumed: '已发送',
-        statusOutdated: '已过时',
         sentTurn: '第 {n} 轮',
-        toggleInclude: '本轮附带注入',
         jump: '定位原文',
         edit: '编辑',
-        requeue: '重新加入',
+        requeue: '再次加入',
         remove: '删除',
         notFound: '原文不在当前已加载视图中',
         toolbarLabel: '标注 ({n})',
@@ -120,84 +101,148 @@ window.__ModuleLoader__.load({
     }
 
     const CSS_TEXT = `
-.dann-selbar{display:inline-flex;align-items:center;gap:2px;padding:2px;border-radius:999px;background:var(--dsw-alias-button-floating-fill);--dsw-elevation-stroke-color:var(--dsw-alias-border-l3);box-shadow:var(--dsw-elevation-panel)}
-.dann-selbtn{border:none;border-radius:999px;padding:4px 10px;background:transparent;color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13,500 13px/18px inherit);cursor:pointer;white-space:nowrap}
-.dann-selbtn[data-accent="true"]{color:var(--dsw-alias-brand-primary)}
-.dann-selbtn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
-@media (hover:hover){.dann-selbtn:hover{background:var(--dsw-alias-button-floating-hover,var(--dsw-alias-interactive-bg-hover))}}
-.dann-seldiv{width:1px;height:14px;background:var(--dsw-alias-border-l2);flex:none}
-.dann-pop{position:fixed;z-index:10050;width:min(368px,calc(100vw - 24px));border-radius:var(--dsw-radius-lg,12px);border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-elevated,var(--dsw-alias-bg-primary));color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-elevation-panel,0 10px 30px rgba(0,0,0,.22));padding:10px 12px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box}
-.dann-pop-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.dann-pop-title{display:inline-flex;align-items:center;gap:6px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;font-weight:600}
-.dann-excerpt{margin:0;padding:6px 8px;border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-secondary);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
-.dann-excerpt[data-code="true"]{font-family:var(--dsw-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11.5px}
-.dann-intents{display:flex;flex-wrap:wrap;gap:4px}
-.dann-intent{border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 8px;background:transparent;color:var(--dsw-alias-label-secondary);font-size:11.5px;line-height:16px;cursor:pointer}
-.dann-intent[data-active="true"]{border-color:var(--dsw-alias-brand-primary);background:color-mix(in srgb,var(--dsw-alias-brand-primary) 12%,transparent);color:var(--dsw-alias-brand-primary);font-weight:500}
-.dann-textarea{width:100%;min-height:66px;max-height:160px;resize:vertical;box-sizing:border-box;padding:7px 9px;border-radius:var(--dsw-radius-md,8px);border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-primary);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:1.45;outline:none}
-.dann-textarea:focus{border-color:var(--dsw-alias-brand-primary)}
-.dann-pop-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.dann-pop-err{font-size:11.5px;color:var(--dsw-alias-state-error-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dann-pop-acts{display:inline-flex;align-items:center;gap:6px;margin-left:auto}
-.dann-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm,6px);padding:4px 10px;background:transparent;color:var(--dsw-alias-label-primary);font-size:12px;line-height:16px;cursor:pointer;white-space:nowrap}
-.dann-btn[data-primary="true"]{border-color:transparent;background:var(--dsw-alias-brand-primary);color:#fff}
-.dann-btn[data-ghost="true"]{border-color:transparent;padding:3px 6px;color:var(--dsw-alias-label-secondary)}
-.dann-btn[data-danger="true"]{color:var(--dsw-alias-state-error-primary)}
-.dann-btn:disabled{opacity:.45;cursor:default}
-@media (hover:hover){.dann-btn:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover)}.dann-btn[data-primary="true"]:not(:disabled):hover{filter:brightness(1.06)}}
-.dann-dock{width:100%;box-sizing:border-box;border-radius:var(--dsw-radius-md,10px);border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-secondary);color:var(--dsw-alias-label-primary);font-size:12px;margin-bottom:6px;overflow:hidden}
-.dann-dock-bar{display:flex;align-items:center;gap:6px;padding:5px 8px;min-height:30px}
-.dann-dock-toggle{display:inline-flex;align-items:center;gap:5px;border:none;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-weight:500;padding:2px 4px;border-radius:var(--dsw-radius-sm,6px);cursor:pointer;white-space:nowrap;flex:none}
-@media (hover:hover){.dann-dock-toggle:hover{background:var(--dsw-alias-interactive-bg-hover)}}
-.dann-chips{display:flex;align-items:center;gap:4px;flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}
-.dann-chips::-webkit-scrollbar{display:none}
-.dann-chip{display:inline-flex;align-items:center;gap:4px;max-width:170px;min-width:0;overflow:hidden;white-space:nowrap;padding:2px 7px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-primary);color:var(--dsw-alias-label-secondary);font-size:11.5px;line-height:16px;cursor:pointer;flex:none}
-.dann-chip[data-disabled="true"]{opacity:.48;text-decoration:line-through}
-.dann-chip-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dann-id{font-weight:600;color:var(--dsw-alias-brand-primary);font-variant-numeric:tabular-nums}
+.dann-selbar{display:inline-flex;align-items:center;overflow:hidden;padding:0;border-radius:999px;corner-shape:round;background:var(--dsw-alias-button-floating-fill);--dsw-elevation-stroke-color:var(--dsw-alias-border-l3);box-shadow:var(--dsw-elevation-panel)}
+.dann-selbtn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:none;background:transparent;color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);cursor:pointer;white-space:nowrap}
+.dann-selbtn[data-accent="true"]{color:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary))}
+.dann-selbtn:focus-visible{background:var(--dsw-alias-button-floating-hover);outline:none}
+@media (hover:hover){.dann-selbtn:hover{background:var(--dsw-alias-button-floating-hover)}}
+.dann-seldiv{width:.5px;height:14px;background:var(--dsw-alias-border-l2);flex:none}
+
+.dann-pop{position:fixed;z-index:10050;width:min(368px,calc(100vw - 24px));padding:10px 12px 12px;box-sizing:border-box;border:0;border-radius:var(--dsw-radius-lg);--dsw-elevation-stroke-color:var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);font-family:Inter,var(--dsw-font-family);box-shadow:var(--dsw-elevation-prominent);display:flex;flex-direction:column;gap:8px}
+.dann-pop-top{display:flex;align-items:flex-start;gap:8px}
+.dann-excerpt{flex:1 1 auto;min-width:0;margin:0;padding:4px 8px;border-left:2px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-xs);background:var(--dsw-alias-markdown-code-block,var(--dsw-alias-bg-module-platform));color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xxs-12);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
+.dann-excerpt[data-code="true"]{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;line-height:1.45}
+.dann-textarea{display:block;box-sizing:border-box;width:100%;min-height:72px;max-height:172px;padding:8px 10px;resize:vertical;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-md);outline:none;background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-base));color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);font-family:Inter,var(--dsw-font-family)}
+.dann-textarea::placeholder{color:var(--dsw-alias-label-dimmed)}
+.dann-textarea:focus{border-color:var(--dsw-alias-state-business-primary)}
+.dann-pop-err{color:var(--dsw-alias-state-error-primary);font:var(--dsw-font-xxs-12);overflow-wrap:anywhere}
+.dann-pop-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:2px}
+.dann-intent-group{display:inline-flex;align-items:center;gap:2px;padding:2px;border-radius:var(--dsw-radius-sm);background:var(--dsw-alias-bg-module-platform,var(--dsw-alias-bg-base))}
+.dann-intent-pill{height:22px;padding:0 7px;border:none;border-radius:var(--dsw-radius-xs);background:transparent;color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12);cursor:pointer;transition:background-color .12s,color .12s}
+.dann-intent-pill:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-1px}
+@media (hover:hover){.dann-intent-pill:hover{color:var(--dsw-alias-label-primary)}}
+.dann-intent-pill[data-active="true"]{background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-base));color:var(--dsw-alias-label-primary);font-weight:500;box-shadow:0 .5px 1px rgba(0,0,0,.08)}
+.dann-pop-acts{display:inline-flex;align-items:center;gap:6px;flex:none;margin-left:auto}
+
+.dann-hover{position:fixed;z-index:10040;max-width:min(320px,calc(100vw - 24px));min-width:140px;padding:8px 10px;box-sizing:border-box;border:0;border-radius:var(--dsw-radius-md);--dsw-elevation-stroke-color:var(--dsw-alias-border-l3);background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);font-family:Inter,var(--dsw-font-family);box-shadow:var(--dsw-elevation-prominent);display:flex;align-items:flex-start;gap:8px;animation:dann-hover-in .12s ease-out}
+@keyframes dann-hover-in{from{opacity:0}to{opacity:1}}
+.dann-hover-body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}
+.dann-hover-note{max-height:132px;overflow-y:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dsw-alias-label-primary)}
+.dann-hover-acts{display:inline-flex;align-items:center;gap:2px;flex:none;margin:-2px -4px 0 0}
+
+.dann-dock{box-sizing:border-box;flex:none;width:calc(100% - var(--dsh-composer-side-clearance,0px) * 2 - var(--dsh-composer-dock-inset,0px) * 2);max-width:calc(var(--dsh-composer-card-max-width,760px) - var(--dsh-composer-dock-inset,0px) * 2);margin:0 auto;padding:0 var(--dsh-composer-dock-inset,0px)}
+.dann-dock-panel{position:relative;isolation:isolate;overflow:hidden;width:100%;border:0;border-radius:var(--dsw-radius-lg);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);background:var(--dsw-specific-menu);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter);backdrop-filter:var(--dsw-menu-backdrop-filter);box-shadow:var(--dsw-elevation-panel);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);font-family:Inter,var(--dsw-font-family);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}
+@media (max-width:768px),(pointer:coarse){.dann-dock-panel{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base));backdrop-filter:none;-webkit-backdrop-filter:none}}
+.dann-dock-bar{box-sizing:border-box;display:flex;align-items:center;gap:8px;min-height:36px;padding:4px 8px 4px 12px}
+.dann-dock-header-btn{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;padding:2px 0;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-weight:500;text-align:left;cursor:pointer;overflow:hidden;white-space:nowrap}
+.dann-dock-header-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}
+.dann-lead{display:grid;flex:none;place-items:center;width:16px;height:16px;color:var(--dsw-alias-label-tertiary)}
+.dann-dock-single{display:flex;align-items:center;gap:6px;flex:1 1 auto;min-width:0}
+.dann-single-quote{flex:0 1 42%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:1px 6px;border-radius:var(--dsw-radius-xs);border:none;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12);cursor:pointer;text-align:left}
+@media (hover:hover){.dann-single-quote:hover{color:var(--dsw-alias-state-business-primary)}}
+.dann-single-quote:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.dann-single-note{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 0;border:none;background:transparent;color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);text-align:left;cursor:pointer}
+@media (hover:hover){.dann-single-note:hover{color:var(--dsw-alias-state-business-primary)}}
+.dann-single-note:focus-visible{border-radius:var(--dsw-radius-xs);outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .dann-dock-right{display:inline-flex;align-items:center;gap:4px;flex:none;margin-left:auto}
-.dann-drawer{border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-primary);display:flex;flex-direction:column}
-.dann-tabs{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 8px;border-bottom:1px solid var(--dsw-alias-border-l1)}
-.dann-tab-row{display:inline-flex;gap:4px}
-.dann-tab{border:none;border-radius:var(--dsw-radius-sm,6px);padding:2px 8px;background:transparent;color:var(--dsw-alias-label-tertiary);font-size:11.5px;cursor:pointer}
-.dann-tab[aria-selected="true"]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);font-weight:500}
-.dann-list{max-height:220px;overflow-y:auto;padding:4px 6px;display:flex;flex-direction:column;gap:4px}
-.dann-empty{padding:10px 8px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px}
-.dann-row{display:flex;align-items:flex-start;gap:6px;padding:6px 7px;border-radius:var(--dsw-radius-sm,8px);border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-secondary)}
-.dann-row[data-disabled="true"]{opacity:.55}
-.dann-row-chk{margin-top:2px;flex:none;cursor:pointer}
-.dann-row-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
-.dann-row-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:11px;color:var(--dsw-alias-label-tertiary)}
-.dann-badge{display:inline-flex;align-items:center;padding:0 5px;border-radius:4px;font-size:10.5px;line-height:16px;font-weight:500;background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}
-.dann-badge[data-tone="diff"]{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 14%,transparent);color:var(--dsw-alias-state-success-primary)}
-.dann-badge[data-tone="ai"]{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 14%,transparent);color:var(--dsw-alias-brand-primary)}
-.dann-badge[data-tone="user"]{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 16%,transparent);color:var(--dsw-alias-state-warn-primary)}
-.dann-row-target{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:11.5px;cursor:pointer;border:none;background:transparent;padding:0;text-align:left;max-width:100%}
-.dann-row-note{font-size:12.5px;line-height:1.4;color:var(--dsw-alias-label-primary);white-space:pre-wrap;overflow-wrap:anywhere}
+.dann-icon-btn{display:grid;flex:none;place-items:center;width:26px;height:26px;padding:0;border:none;border-radius:999px;corner-shape:round;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;transition:background-color .12s,color .12s}
+@media (hover:hover){.dann-icon-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.dann-icon-btn[data-danger="true"]:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}}
+.dann-icon-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+.dann-icon-btn:disabled{opacity:.45;cursor:default}
+
+.dann-drawer{border-top:.5px solid var(--dsw-alias-border-l1);display:flex;flex-direction:column}
+.dann-list{max-height:208px;overflow-y:auto;margin:0;padding:0;list-style:none}
+.dann-row{box-sizing:border-box;display:flex;align-items:flex-start;gap:8px;width:100%;padding:7px 8px 7px 12px}
+.dann-row + .dann-row{box-shadow:inset 0 1px 0 var(--dsw-alias-border-l1)}
+.dann-row-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dann-row-top{display:flex;align-items:center;gap:6px;min-width:0}
+.dann-row-target{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0;border:none;background:transparent;color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12);text-align:left;cursor:pointer}
+@media (hover:hover){.dann-row-target:hover{color:var(--dsw-alias-state-business-primary)}}
+.dann-row-target:focus-visible{border-radius:var(--dsw-radius-xs);outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+.dann-row-note{padding:0;border:none;background:transparent;color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;cursor:pointer}
+@media (hover:hover){.dann-row-note:hover{color:var(--dsw-alias-state-business-primary)}}
+.dann-row-note:focus-visible{border-radius:var(--dsw-radius-xs);outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
 .dann-row-acts{display:inline-flex;align-items:center;gap:2px;flex:none}
-.dann-notice{padding:4px 8px;font-size:11.5px;color:var(--dsw-alias-state-error-primary);border-top:1px solid var(--dsw-alias-border-l1)}
-.dann-forge-card{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:6px 8px;font-size:12px;line-height:1.45;color:var(--dsw-alias-label-primary)}
-.dann-forge-body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
-.dann-forge-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:11px;color:var(--dsw-alias-label-tertiary)}
-.dann-forge-note{white-space:pre-wrap;overflow-wrap:anywhere}
-.dann-forge-acts{display:inline-flex;align-items:center;gap:2px;flex:none}
-.dann-toolbar-btn{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;border:none;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-secondary);font-size:12px;cursor:pointer;white-space:nowrap}
-@media (hover:hover){.dann-toolbar-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
-::highlight(${HL_DRAFT}){background-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 24%,transparent);text-decoration:underline;text-decoration-color:var(--dsw-alias-state-warn-primary);text-decoration-thickness:1.5px}
-::highlight(${HL_CONSUMED}){background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 11%,transparent)}
-::highlight(${HL_JUMP}){background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 34%,transparent)}
-[data-dann-flash]{border-radius:6px;animation:dann-flash ${JUMP_MS}ms ease-out forwards}
-@keyframes dann-flash{0%,55%{box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-brand-primary) 55%,transparent);background-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 10%,transparent)}100%{box-shadow:0 0 0 3px transparent;background-color:transparent}}
-@media (prefers-reduced-motion:reduce){[data-dann-flash]{animation:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--dsw-alias-brand-primary) 55%,transparent)}}
-@media (max-width:600px){.dann-dock-bar{padding:4px 6px;gap:4px}.dann-chip{max-width:118px;padding:1px 6px}.dann-hide-sm{display:none}}
+.dann-drawer-foot{display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:4px 8px;border-top:.5px solid var(--dsw-alias-border-l1)}
+.dann-notice{padding:6px 12px;border-top:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-state-error-primary);font:var(--dsw-font-xxs-12)}
+
+.dann-forge-card{padding:10px 12px;color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);font-family:Inter,var(--dsw-font-family)}
+.dann-forge-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
+.dann-forge-meta{display:flex;flex:1 1 auto;flex-wrap:wrap;align-items:center;gap:6px;min-width:0;min-height:20px}
+.dann-forge-note{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dsw-alias-label-primary)}
+.dann-forge-acts{display:inline-flex;align-items:center;gap:2px;flex:none;margin:-4px -4px 0 0}
+
+.dann-toolbar-btn{display:inline-flex;flex:none;align-items:center;gap:6px;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);white-space:nowrap;cursor:pointer}
+@media (hover:hover){.dann-toolbar-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}}
+.dann-toolbar-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+.dann-toolbar-count{padding:0 5px;border-radius:var(--dsw-radius-xs);background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;font-variant-numeric:tabular-nums}
+
+.dann-fb-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);cursor:pointer;white-space:nowrap}
+.dann-fb-btn[data-variant="primary"]{border-color:transparent;background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground,var(--dsw-alias-label-on-color))}
+.dann-fb-btn[data-variant="ghost"]{border-color:transparent;color:var(--dsw-alias-label-secondary)}
+.dann-fb-btn:disabled{opacity:.45;cursor:default}
+.dann-fb-tag{display:inline-flex;align-items:center;padding:0 6px;border-radius:var(--dsw-radius-xs);background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xxs-12)}
+
+::highlight(${HL_DRAFT}){background-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 18%,transparent);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 65%,transparent);text-decoration-thickness:1.5px;text-underline-offset:2px}
+::highlight(${HL_JUMP}){background-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 22%,transparent);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 45%,transparent);text-decoration-thickness:1.5px;text-underline-offset:2px}
+[data-dann-flash]{border-radius:var(--dsw-radius-xs,4px);animation:dann-flash ${JUMP_MS}ms cubic-bezier(.22,1,.36,1) forwards}
+@keyframes dann-flash{0%,28%{background-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 7%,transparent);box-shadow:0 0 0 6px color-mix(in srgb,var(--dsw-alias-state-business-primary) 7%,transparent)}100%{background-color:transparent;box-shadow:0 0 0 6px transparent}}
+@media (prefers-reduced-motion:reduce){[data-dann-flash]{animation:none;background-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 7%,transparent);box-shadow:0 0 0 6px color-mix(in srgb,var(--dsw-alias-state-business-primary) 7%,transparent)}}
+@media (pointer:coarse){.dann-textarea{font-size:16px}}
+@media (max-width:600px){.dann-pop{left:12px!important;right:12px!important;bottom:max(12px,env(safe-area-inset-bottom))!important;top:auto!important;width:auto}.dann-dock-bar{padding:4px 6px 4px 10px;gap:6px}.dann-single-quote{max-width:42%}}
 `
 
-    const IconPin = () => h('svg', { viewBox: '0 0 16 16', width: 13, height: 13, fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+    const IconPin = ({ size = 14 }) => h('svg', { viewBox: '0 0 16 16', width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
       h('path', { d: 'M3.5 3.5h9v7.5H7l-3.5 2.5V3.5Z' }),
       h('path', { d: 'M6 6.5h4M6 8.8h2.5' }))
 
-    const IconChevron = ({ open }) => h('svg', { viewBox: '0 0 16 16', width: 12, height: 12, fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, style: { transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .12s' } },
-      h('path', { d: 'M6 4l4 4-4 4' }))
+    const FallbackChevronDown = ({ size = 14 }) => h('svg', { viewBox: '0 0 16 16', width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+      h('path', { d: 'M4 6l4 4 4-4' }))
+
+    const FallbackChevronUp = ({ size = 14 }) => h('svg', { viewBox: '0 0 16 16', width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+      h('path', { d: 'M4 10l4-4 4 4' }))
+
+    const FallbackClose = ({ size = 14 }) => h('svg', { viewBox: '0 0 16 16', width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', 'aria-hidden': true },
+      h('path', { d: 'M4.5 4.5l7 7M11.5 4.5l-7 7' }))
+
+    const FallbackEdit = ({ size = 14 }) => h('svg', { viewBox: '0 0 16 16', width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+      h('path', { d: 'M11.2 2.8a1.4 1.4 0 0 1 2 2L6 12l-2.8.8.8-2.8 7.2-7.2Z' }))
+
+    const FallbackRefresh = ({ size = 14 }) => h('svg', { viewBox: '0 0 16 16', width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+      h('path', { d: 'M12.5 8a4.5 4.5 0 1 1-1.2-3.1M12.5 3v2.5H10' }))
+
+    const FallbackTrash = ({ size = 14 }) => h('svg', { viewBox: '0 0 16 16', width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+      h('path', { d: 'M3.5 4.5h9M6 4.5V3.2h4v1.3M5 4.5l.5 8h5l.5-8' }))
+
+    const Button = primitives?.Button ?? function FallbackButton({ variant, icon, children, ...rest }) {
+      return h('button', { type: 'button', className: 'dann-fb-btn', 'data-variant': variant, ...rest }, icon, children)
+    }
+
+    const Tag = primitives?.Tag ?? function FallbackTag({ children }) {
+      return h('span', { className: 'dann-fb-tag' }, children)
+    }
+
+    const Tooltip = primitives?.Tooltip ?? function FallbackTooltip({ children }) {
+      return children
+    }
+
+    const MenuItemButton = primitives?.MenuItemButton ?? function FallbackMenuItem({ icon, onSelect, children, ...rest }) {
+      return h('button', {
+        type: 'button',
+        role: 'menuitem',
+        className: 'dann-fb-btn',
+        'data-variant': 'ghost',
+        onClick: onSelect,
+        ...rest,
+      }, icon, children)
+    }
+
+    const IconChevronDown = primitives?.IconChevronDownOutlineRegular ?? FallbackChevronDown
+    const IconChevronUp = primitives?.IconChevronUpOutlineRegular ?? FallbackChevronUp
+    const IconClose = primitives?.IconCloseOutlineRegular ?? FallbackClose
+    const IconEdit = primitives?.IconEditOutlineRegular ?? FallbackEdit
+    const IconRefresh = primitives?.IconRefreshOutlineRegular ?? FallbackRefresh
+    const IconTrash = primitives?.IconTrashOutlineRegular ?? FallbackTrash
 
     const isSpace = c => c === 32 || c === 160 || (c >= 9 && c <= 13) || c === 0x2028 || c === 0x2029 || c === 0x3000 || c === 0xFEFF || (c >= 0x2000 && c <= 0x200B)
 
@@ -366,6 +411,7 @@ window.__ModuleLoader__.load({
 
     let jumpTimer = null
     let flashedEl = null
+    let activeDraftRanges = []
 
     function clearJumpHighlight() {
       if (jumpTimer !== null) { clearTimeout(jumpTimer); jumpTimer = null }
@@ -391,28 +437,44 @@ window.__ModuleLoader__.load({
       return true
     }
 
-    function syncChatHighlights(items) {
-      if (!globalThis.Highlight || !globalThis.CSS?.highlights) return
+    function syncChatHighlights(drafts) {
+      const nextEntries = []
       const draftRanges = []
-      const consumedRanges = []
-      for (const item of items) {
-        if (item.anchor?.kind !== 'message-text' || item.status === 'resolved') continue
+      for (const item of drafts) {
+        if (item.anchor?.kind !== 'message-text') continue
         const found = locateAnchorRange(item.anchor)
         if (!found) continue
-        if (item.status === 'draft') draftRanges.push(found.range)
-        else consumedRanges.push(found.range)
+        draftRanges.push(found.range)
+        nextEntries.push({ item, range: found.range })
       }
+      activeDraftRanges = nextEntries
+      if (!globalThis.Highlight || !globalThis.CSS?.highlights) return
       if (draftRanges.length > 0) CSS.highlights.set(HL_DRAFT, new Highlight(...draftRanges))
       else CSS.highlights.delete(HL_DRAFT)
-      if (consumedRanges.length > 0) CSS.highlights.set(HL_CONSUMED, new Highlight(...consumedRanges))
-      else CSS.highlights.delete(HL_CONSUMED)
+    }
+
+    function hitDraftHighlight(x, y) {
+      for (const entry of activeDraftRanges) {
+        if (!entry.range.startContainer?.isConnected) continue
+        const rects = entry.range.getClientRects?.()
+        if (!rects) continue
+        for (const r of rects) {
+          if (x >= r.left - 2 && x <= r.right + 2 && y >= r.top - 2 && y <= r.bottom + 2) {
+            return {
+              item: entry.item,
+              rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+            }
+          }
+        }
+      }
+      return null
     }
 
     function clearChatHighlights() {
       clearJumpHighlight()
+      activeDraftRanges = []
       if (!globalThis.CSS?.highlights) return
       CSS.highlights.delete(HL_DRAFT)
-      CSS.highlights.delete(HL_CONSUMED)
     }
 
     function shortTargetText(anchor) {
@@ -441,7 +503,7 @@ window.__ModuleLoader__.load({
       const vw = window.innerWidth || 800
       const vh = window.innerHeight || 600
       const w = Math.min(368, vw - 24)
-      const estH = 260
+      const estH = 224
       if (!rect) return { top: Math.max(16, Math.round((vh - estH) / 2)), left: Math.max(12, Math.round((vw - w) / 2)) }
       const left = Math.max(12, Math.min(vw - w - 12, Math.round(rect.left)))
       const below = rect.bottom + 10
@@ -449,6 +511,17 @@ window.__ModuleLoader__.load({
         ? Math.round(below)
         : Math.max(12, Math.round(rect.top - estH - 10))
       return { top, left }
+    }
+
+    function computeHoverStyle(rect) {
+      if (typeof window === 'undefined' || !rect) return { top: 60, left: 16 }
+      const vw = window.innerWidth || 800
+      const maxW = Math.min(320, vw - 24)
+      const left = Math.max(12, Math.min(vw - maxW - 12, Math.round(rect.left)))
+      if (rect.top >= 110) {
+        return { top: Math.round(rect.top - 8), left, transform: 'translateY(-100%)' }
+      }
+      return { top: Math.round(rect.bottom + 8), left }
     }
 
     function buildForgeMap(items, targetSource) {
@@ -587,15 +660,20 @@ window.__ModuleLoader__.load({
       return { get, load, operate, subscribe, connect }
     }
 
-    function createComposerBus() {
+    function createUiBus() {
       let draft = null
+      let revealSeq = 0
+      let revealTarget = null
       const listeners = new Set()
       const emit = () => { for (const fn of listeners) fn() }
       return {
         get: () => draft,
+        getReveal: () => revealSeq,
+        getRevealTarget: () => revealTarget,
         subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn) },
         open: next => { draft = next; emit() },
         close: () => { if (draft !== null) { draft = null; emit() } },
+        revealDock: sessionId => { revealTarget = sessionId; revealSeq += 1; emit() },
       }
     }
 
@@ -607,21 +685,25 @@ window.__ModuleLoader__.load({
         const bindT = () => ctx.locale.bind(NS)
 
         const store = createStore()
-        const composerBus = createComposerBus()
+        const uiBus = createUiBus()
 
         ctx.effect(() => store.connect(), 'annotations: broadcast channel')
 
-        ctx.effect(() => {
-          if (typeof document === 'undefined') return () => {}
-          const style = document.createElement('style')
-          style.dataset.plugin = 'dsh-annotations'
-          style.textContent = CSS_TEXT
-          document.head.appendChild(style)
-          return () => {
-            style.remove()
-            clearChatHighlights()
-          }
+        let styleEl = null
+        const ensureStyles = () => {
+          if (styleEl || typeof document === 'undefined' || !document.head) return
+          styleEl = document.createElement('style')
+          styleEl.dataset.plugin = 'dsh-annotations'
+          styleEl.textContent = CSS_TEXT
+          document.head.appendChild(styleEl)
+        }
+        ctx.effect(() => () => {
+          styleEl?.remove()
+          styleEl = null
+          clearChatHighlights()
         }, 'annotations: styles')
+
+        const useStyleEffect = React.useLayoutEffect ?? React.useEffect
 
         const useLocaleT = () => {
           const rev = React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot()?.revision ?? 0)
@@ -649,10 +731,13 @@ window.__ModuleLoader__.load({
           }
         }
 
-        const sourceBadge = (t, anchor) => {
-          if (anchor.kind === 'git-diff') return { text: t('sourceDiff'), tone: 'diff' }
-          if (anchor.speaker === 'user') return { text: t('sourceUser'), tone: 'user' }
-          return { text: t('sourceAi'), tone: 'ai' }
+        const notifyUser = (text, ok = false) => {
+          const menus = ctx.get?.('contextMenus')
+          if (typeof menus?.notify === 'function') {
+            menus.notify(text, ok)
+            return true
+          }
+          return false
         }
 
         const openDiffTarget = (sessionId, anchor) => {
@@ -670,11 +755,11 @@ window.__ModuleLoader__.load({
         }
 
         function AnnotationComposer({ request, onClose }) {
+          useStyleEffect(ensureStyles, [])
           const t = useLocaleT()
           const [note, setNote] = React.useState(request.initialNote ?? '')
           const [intent, setIntent] = React.useState(request.initialIntent ?? (
-            request.anchor.kind === 'git-diff' ? 'fix'
-              : request.anchor.speaker === 'user' ? 'revise' : 'note'
+            request.anchor.kind === 'git-diff' ? 'fix' : 'note'
           ))
           const [busy, setBusy] = React.useState(false)
           const [err, setErr] = React.useState('')
@@ -722,11 +807,23 @@ window.__ModuleLoader__.load({
             }
           }
 
-          const badge = sourceBadge(t, request.anchor)
+          const removeItem = async () => {
+            if (!request.itemId || busy) return
+            setBusy(true)
+            try {
+              await store.operate({ sessionId: request.sessionId, action: 'remove', id: request.itemId })
+              onClose()
+            } catch (error) {
+              setErr(error?.message || t('saveFailed'))
+              setBusy(false)
+            }
+          }
+
           const excerpt = request.anchor.kind === 'git-diff'
             ? (request.anchor.snippet || formatDiffPlace(request.anchor))
             : request.anchor.quote
           const pos = React.useMemo(() => computePopoverStyle(request.rect), [request.rect])
+          const intentOptions = QUICK_INTENTS.includes(intent) ? QUICK_INTENTS : [...QUICK_INTENTS, intent]
 
           const card = h('div', {
             ref: popRef,
@@ -736,20 +833,14 @@ window.__ModuleLoader__.load({
             'aria-label': request.mode === 'edit' ? t('modalTitleEdit') : t('modalTitleNew'),
             style: pos,
           },
-          h('div', { className: 'dann-pop-head' },
-            h('span', { className: 'dann-pop-title' },
-              h('span', { className: 'dann-badge', 'data-tone': badge.tone }, badge.text),
-              h('span', null, request.mode === 'edit' ? t('modalTitleEdit') : t('modalTitleNew'))),
-            h('button', { type: 'button', className: 'dann-btn', 'data-ghost': 'true', onClick: onClose, 'aria-label': t('close') }, '×')),
-          h('p', { className: 'dann-excerpt', 'data-code': request.anchor.kind === 'git-diff' ? 'true' : undefined }, excerpt),
-          h('div', { className: 'dann-intents', role: 'group' },
-            INTENTS.map(code => h('button', {
-              key: code,
+          h('div', { className: 'dann-pop-top' },
+            h('p', { className: 'dann-excerpt', 'data-code': request.anchor.kind === 'git-diff' ? 'true' : undefined }, excerpt),
+            h('button', {
               type: 'button',
-              className: 'dann-intent',
-              'data-active': intent === code ? 'true' : undefined,
-              onClick: () => setIntent(code),
-            }, intentLabel(t, code)))),
+              className: 'dann-icon-btn',
+              onClick: onClose,
+              'aria-label': t('close'),
+            }, h(IconClose, { size: 14 }))),
           h('textarea', {
             ref: inputRef,
             className: 'dann-textarea',
@@ -765,11 +856,31 @@ window.__ModuleLoader__.load({
               }
             },
           }),
+          err ? h('div', { className: 'dann-pop-err', role: 'alert' }, err) : null,
           h('div', { className: 'dann-pop-foot' },
-            err ? h('span', { className: 'dann-pop-err', role: 'alert' }, err) : null,
+            h('div', { className: 'dann-intent-group', role: 'group' },
+              intentOptions.map(code => h('button', {
+                key: code,
+                type: 'button',
+                className: 'dann-intent-pill',
+                'aria-pressed': intent === code,
+                'data-active': intent === code ? 'true' : undefined,
+                onClick: () => setIntent(code),
+              }, intentLabel(t, code)))),
             h('div', { className: 'dann-pop-acts' },
-              h('button', { type: 'button', className: 'dann-btn', disabled: busy, onClick: onClose }, t('cancel')),
-              h('button', { type: 'button', className: 'dann-btn', 'data-primary': 'true', disabled: busy || !note.trim(), onClick: () => void submit() },
+              request.mode === 'edit' && request.itemId
+                ? h(Tooltip, { portal: true, label: t('remove'), side: 'top', delayMs: 500 },
+                  h('button', {
+                    type: 'button',
+                    className: 'dann-icon-btn',
+                    'data-danger': 'true',
+                    'aria-label': t('remove'),
+                    disabled: busy,
+                    onClick: () => void removeItem(),
+                  }, h(IconTrash, { size: 14 })))
+                : null,
+              h(Button, { size: 'sm', variant: 'ghost', disabled: busy, onClick: onClose }, t('cancel')),
+              h(Button, { size: 'sm', variant: 'primary', disabled: busy || !note.trim(), onClick: () => void submit() },
                 request.mode === 'edit' ? t('save') : t('add')))))
 
           if (typeof document !== 'undefined' && ReactDOM?.createPortal && document.body) {
@@ -779,6 +890,7 @@ window.__ModuleLoader__.load({
         }
 
         function SelectionActionBar({ sessionId, dismiss, readText, clearSelection, inputActions, useSession }) {
+          useStyleEffect(ensureStyles, [])
           const t = useLocaleT()
           const enabled = useSession
             ? useSession(s => !s.removed && (s.subagent === null || s.subagent.address.mode === 'continuable'))
@@ -805,7 +917,7 @@ window.__ModuleLoader__.load({
             if (!captured) { dismiss(); return }
             clearSelection()
             dismiss()
-            composerBus.open({
+            uiBus.open({
               mode: 'create',
               sessionId,
               anchor: captured.anchor,
@@ -829,17 +941,46 @@ window.__ModuleLoader__.load({
               'aria-label': t('annotate'),
               onPointerDown: event => { event.preventDefault() },
               onClick: onAnnotate,
-            }, t('annotate')))
+            }, h(IconPin, { size: 13 }), t('annotate')))
         }
 
         function InputDock({ sessionId, inputState, inputActions }) {
           const t = useLocaleT()
           const snap = useSessionAnnotations(sessionId)
-          const activeComposer = React.useSyncExternalStore(composerBus.subscribe, composerBus.get)
+          const activeComposer = React.useSyncExternalStore(uiBus.subscribe, uiBus.get)
+          const revealSeq = React.useSyncExternalStore(uiBus.subscribe, uiBus.getReveal)
           const [expanded, setExpanded] = React.useState(false)
-          const [tab, setTab] = React.useState('draft')
           const [notice, setNotice] = React.useState('')
+          const [hoverCard, setHoverCard] = React.useState(null)
           const prevPhaseRef = React.useRef(inputState?.phase)
+          const prevRevealRef = React.useRef(revealSeq)
+          const dockRef = React.useRef(null)
+          const overCardRef = React.useRef(false)
+          const hoverTimersRef = React.useRef({ open: null, close: null })
+
+          const drafts = React.useMemo(() => snap.items.filter(item => item.status === 'draft'), [snap.items])
+          const hasDrafts = Boolean(sessionId && drafts.length > 0)
+
+          React.useEffect(() => {
+            if (!hasDrafts || activeComposer) {
+              setHoverCard(null)
+              overCardRef.current = false
+            }
+          }, [hasDrafts, activeComposer])
+
+          React.useEffect(() => {
+            if (drafts.length <= 1 && expanded) setExpanded(false)
+          }, [drafts.length, expanded])
+
+          React.useEffect(() => {
+            if (revealSeq !== prevRevealRef.current) {
+              prevRevealRef.current = revealSeq
+              if (uiBus.getRevealTarget() === sessionId) {
+                if (drafts.length > 1) setExpanded(true)
+                dockRef.current?.scrollIntoView?.({ block: 'nearest' })
+              }
+            }
+          }, [revealSeq, sessionId, drafts.length])
 
           React.useEffect(() => {
             if (!notice) return undefined
@@ -853,8 +994,8 @@ window.__ModuleLoader__.load({
             const prev = prevPhaseRef.current
             prevPhaseRef.current = phase
             if (prev === 'sending' && phase !== 'sending') {
-              const hasDraft = store.get(sessionId).items.some(item => item.status === 'draft' && item.enabled)
-              if (hasDraft) {
+              const hasPending = store.get(sessionId).items.some(item => item.status === 'draft')
+              if (hasPending) {
                 void store.load(sessionId, true)
                 const timer = setTimeout(() => { void store.load(sessionId, true) }, 700)
                 return () => clearTimeout(timer)
@@ -881,7 +1022,7 @@ window.__ModuleLoader__.load({
               if (!captured) return
               event.preventDefault()
               sel.removeAllRanges?.()
-              composerBus.open({ mode: 'create', sessionId, anchor: captured.anchor, rect: captured.rect })
+              uiBus.open({ mode: 'create', sessionId, anchor: captured.anchor, rect: captured.rect })
             }
             window.addEventListener('focus', onWake)
             document.addEventListener('visibilitychange', onWake)
@@ -894,158 +1035,326 @@ window.__ModuleLoader__.load({
           }, [sessionId])
 
           React.useEffect(() => {
-            syncChatHighlights(snap.items)
+            syncChatHighlights(drafts)
             return () => { clearChatHighlights() }
-          }, [snap.items])
+          }, [drafts])
 
-          const drafts = React.useMemo(() => snap.items.filter(item => item.status === 'draft'), [snap.items])
-          const sent = React.useMemo(() => snap.items.filter(item => item.status !== 'draft'), [snap.items])
-          const activeDraftCount = React.useMemo(() => drafts.filter(item => item.enabled).length, [drafts])
+          React.useEffect(() => {
+            if (!hasDrafts || typeof document === 'undefined') return undefined
+            const clearTimers = () => {
+              if (hoverTimersRef.current.open !== null) { clearTimeout(hoverTimersRef.current.open); hoverTimersRef.current.open = null }
+              if (hoverTimersRef.current.close !== null) { clearTimeout(hoverTimersRef.current.close); hoverTimersRef.current.close = null }
+            }
+            const scheduleClose = () => {
+              if (hoverTimersRef.current.open !== null) { clearTimeout(hoverTimersRef.current.open); hoverTimersRef.current.open = null }
+              if (hoverTimersRef.current.close !== null) return
+              hoverTimersRef.current.close = setTimeout(() => {
+                hoverTimersRef.current.close = null
+                if (!overCardRef.current) setHoverCard(null)
+              }, 160)
+            }
+            let rafId = 0
+            let pendingX = 0
+            let pendingY = 0
+            let pendingTarget = null
+            const flushMove = () => {
+              rafId = 0
+              if (uiBus.get() !== null) return
+              if (overCardRef.current) return
+              const target = pendingTarget
+              if (!target || typeof target.closest !== 'function' || !target.closest('[data-conversation-scroll]')) {
+                scheduleClose()
+                return
+              }
+              if (target.closest('[data-dann-ui]')) return
+              const hit = hitDraftHighlight(pendingX, pendingY)
+              if (!hit) {
+                scheduleClose()
+                return
+              }
+              if (hoverTimersRef.current.close !== null) {
+                clearTimeout(hoverTimersRef.current.close)
+                hoverTimersRef.current.close = null
+              }
+              setHoverCard(prev => {
+                if (prev && prev.item.id === hit.item.id) return prev
+                if (hoverTimersRef.current.open !== null) clearTimeout(hoverTimersRef.current.open)
+                hoverTimersRef.current.open = setTimeout(() => {
+                  hoverTimersRef.current.open = null
+                  setHoverCard({ item: hit.item, rect: hit.rect })
+                }, prev ? 0 : 120)
+                return prev
+              })
+            }
+            const onPointerMove = event => {
+              if (event.pointerType === 'touch') return
+              pendingX = event.clientX
+              pendingY = event.clientY
+              pendingTarget = event.target
+              if (!rafId) rafId = requestAnimationFrame(flushMove)
+            }
+            const onScroll = () => {
+              clearTimers()
+              overCardRef.current = false
+              setHoverCard(null)
+            }
+            const onChatClick = event => {
+              if (event.defaultPrevented || event.button !== 0) return
+              const target = event.target
+              if (!target || typeof target.closest !== 'function') return
+              if (!target.closest('[data-conversation-scroll]')) return
+              if (target.closest('[data-dann-ui],[data-quote-jump],a,button,input,textarea,summary')) return
+              const sel = window.getSelection?.()
+              if (sel && !sel.isCollapsed) return
+              const hit = hitDraftHighlight(event.clientX, event.clientY)
+              if (!hit) return
+              clearTimers()
+              setHoverCard(null)
+              uiBus.open({
+                mode: 'edit',
+                sessionId,
+                itemId: hit.item.id,
+                anchor: hit.item.anchor,
+                initialNote: hit.item.note,
+                initialIntent: hit.item.intent,
+                rect: hit.rect,
+              })
+            }
+            document.addEventListener('pointermove', onPointerMove, { passive: true })
+            document.addEventListener('scroll', onScroll, true)
+            document.addEventListener('click', onChatClick)
+            return () => {
+              if (rafId) cancelAnimationFrame(rafId)
+              clearTimers()
+              document.removeEventListener('pointermove', onPointerMove)
+              document.removeEventListener('scroll', onScroll, true)
+              document.removeEventListener('click', onChatClick)
+            }
+          }, [hasDrafts, sessionId])
+
+          useStyleEffect(() => {
+            if (hasDrafts) ensureStyles()
+          }, [hasDrafts])
 
           const composerNode = activeComposer && activeComposer.sessionId === sessionId
-            ? h(AnnotationComposer, { request: activeComposer, onClose: composerBus.close })
+            ? h(AnnotationComposer, { request: activeComposer, onClose: uiBus.close })
             : null
 
-          if (!sessionId || (drafts.length === 0 && sent.length === 0)) return composerNode
+          if (!hasDrafts) return composerNode
+
+          const reportNotFound = () => {
+            if (!notifyUser(t('notFound'), false)) setNotice(t('notFound'))
+          }
 
           const handleJump = item => {
             if (item.anchor.kind === 'git-diff') {
-              if (!openDiffTarget(sessionId, item.anchor)) setNotice(t('notFound'))
+              if (!openDiffTarget(sessionId, item.anchor)) reportNotFound()
               return
             }
-            if (!jumpToMessageAnchor(item.anchor)) setNotice(t('notFound'))
+            if (!jumpToMessageAnchor(item.anchor)) reportNotFound()
           }
 
+          const openEdit = item => {
+            uiBus.open({
+              mode: 'edit',
+              sessionId,
+              itemId: item.id,
+              anchor: item.anchor,
+              initialNote: item.note,
+              initialIntent: item.intent,
+            })
+          }
+
+          const composerEmpty = typeof inputState?.draft !== 'string' || inputState.draft.trim() === ''
           const handleSendNow = () => {
-            if (!inputActions || activeDraftCount === 0) return
-            const currentDraft = typeof inputState?.draft === 'string' ? inputState.draft.trim() : ''
-            if (!currentDraft && typeof inputActions.setDraft === 'function') {
+            if (!inputActions) return
+            if (composerEmpty && typeof inputActions.setDraft === 'function') {
               inputActions.setDraft(t('dockDefaultPrompt'))
             }
             inputActions.submit?.()
           }
 
-          const visibleList = tab === 'draft' ? drafts : sent
+          const single = drafts.length === 1 ? drafts[0] : null
+          const liveHovered = hoverCard && !activeComposer
+            ? drafts.find(item => item.id === hoverCard.item.id) ?? null
+            : null
+          const hoverEl = liveHovered
+            ? h('div', {
+              className: 'dann-hover',
+              'data-dann-ui': '',
+              role: 'tooltip',
+              style: computeHoverStyle(hoverCard.rect),
+              onPointerEnter: () => {
+                overCardRef.current = true
+                if (hoverTimersRef.current.close !== null) {
+                  clearTimeout(hoverTimersRef.current.close)
+                  hoverTimersRef.current.close = null
+                }
+              },
+              onPointerLeave: () => {
+                overCardRef.current = false
+                if (hoverTimersRef.current.close !== null) clearTimeout(hoverTimersRef.current.close)
+                hoverTimersRef.current.close = setTimeout(() => {
+                  hoverTimersRef.current.close = null
+                  if (!overCardRef.current) setHoverCard(null)
+                }, 140)
+              },
+            },
+            h('div', { className: 'dann-hover-body' },
+              liveHovered.intent !== 'note' ? h('div', null, h(Tag, { tone: 'neutral' }, intentLabel(t, liveHovered.intent))) : null,
+              h('div', { className: 'dann-hover-note' }, liveHovered.note)),
+            h('div', { className: 'dann-hover-acts' },
+              h(Tooltip, { portal: true, label: t('edit'), side: 'top', delayMs: 400 },
+                h('button', {
+                  type: 'button',
+                  className: 'dann-icon-btn',
+                  'aria-label': t('edit'),
+                  onClick: () => {
+                    const rect = hoverCard.rect
+                    overCardRef.current = false
+                    setHoverCard(null)
+                    uiBus.open({
+                      mode: 'edit',
+                      sessionId,
+                      itemId: liveHovered.id,
+                      anchor: liveHovered.anchor,
+                      initialNote: liveHovered.note,
+                      initialIntent: liveHovered.intent,
+                      rect,
+                    })
+                  },
+                }, h(IconEdit, { size: 13 }))),
+              h(Tooltip, { portal: true, label: t('remove'), side: 'top', delayMs: 400 },
+                h('button', {
+                  type: 'button',
+                  className: 'dann-icon-btn',
+                  'data-danger': 'true',
+                  'aria-label': t('remove'),
+                  onClick: () => {
+                    overCardRef.current = false
+                    setHoverCard(null)
+                    void store.operate({ sessionId, action: 'remove', id: liveHovered.id })
+                  },
+                }, h(IconTrash, { size: 13 })))))
+            : null
+          const hoverNode = hoverEl && typeof document !== 'undefined' && ReactDOM?.createPortal && document.body
+            ? ReactDOM.createPortal(hoverEl, document.body)
+            : hoverEl
 
           return h(React.Fragment, null,
             composerNode,
-            h('div', { className: 'dann-dock', 'data-dann-ui': '' },
-              h('div', { className: 'dann-dock-bar' },
-                h('button', {
-                  type: 'button',
-                  className: 'dann-dock-toggle',
-                  'aria-expanded': expanded,
-                  'aria-label': expanded ? t('dockCollapse') : t('dockExpand'),
-                  onClick: () => setExpanded(v => !v),
-                },
-                h(IconChevron, { open: expanded }),
-                h(IconPin),
-                h('span', { className: 'dann-hide-sm' }, drafts.length > 0 ? t('dockPending', { n: activeDraftCount }) : t('dockTitle')),
-                h('span', { className: 'dann-id' }, drafts.length > 0 ? `(${activeDraftCount})` : `(${sent.length})`)),
-                h('div', { className: 'dann-chips' },
-                  drafts.slice(0, 6).map(item => h('button', {
-                    key: item.id,
-                    type: 'button',
-                    className: 'dann-chip',
-                    'data-disabled': item.enabled ? undefined : 'true',
-                    title: `${item.shortId}: ${item.note}`,
-                    onClick: () => handleJump(item),
-                  },
-                  h('span', { className: 'dann-id' }, item.shortId),
-                  h('span', { className: 'dann-chip-label' }, shortTargetText(item.anchor))))),
-                h('div', { className: 'dann-dock-right' },
-                  activeDraftCount > 0 && inputActions
-                    ? h('button', {
-                      type: 'button',
-                      className: 'dann-btn',
-                      'data-primary': 'true',
-                      title: t('dockSendHint'),
-                      onClick: handleSendNow,
-                    }, t('dockSendNow'))
-                    : null,
-                  drafts.length > 0
-                    ? h('button', {
-                      type: 'button',
-                      className: 'dann-btn dann-hide-sm',
-                      'data-ghost': 'true',
-                      disabled: snap.saving,
-                      onClick: () => void store.operate({ sessionId, action: 'clear', scope: 'draft' }),
-                    }, t('dockClear'))
-                    : null)),
-              expanded
-                ? h('div', { className: 'dann-drawer' },
-                  h('div', { className: 'dann-tabs', role: 'tablist' },
-                    h('div', { className: 'dann-tab-row' },
-                      h('button', { type: 'button', role: 'tab', className: 'dann-tab', 'aria-selected': tab === 'draft', onClick: () => setTab('draft') }, t('tabPending', { n: drafts.length })),
-                      h('button', { type: 'button', role: 'tab', className: 'dann-tab', 'aria-selected': tab === 'sent', onClick: () => setTab('sent') }, t('tabSent', { n: sent.length }))),
-                    tab === 'draft' && drafts.length > 0
-                      ? h('button', { type: 'button', className: 'dann-btn', 'data-ghost': 'true', onClick: () => void store.operate({ sessionId, action: 'clear', scope: 'draft' }) }, t('dockClear'))
-                      : null),
-                  h('div', { className: 'dann-list' },
-                    visibleList.length === 0
-                      ? h('div', { className: 'dann-empty' }, tab === 'draft' ? t('emptyPending') : t('emptySent'))
-                      : visibleList.map(item => {
-                        const badge = sourceBadge(t, item.anchor)
-                        const isDraft = item.status === 'draft'
-                        return h('div', { key: item.id, className: 'dann-row', 'data-disabled': isDraft && !item.enabled ? 'true' : undefined },
-                          isDraft
-                            ? h('input', {
-                              type: 'checkbox',
-                              className: 'dann-row-chk',
-                              checked: item.enabled,
-                              'aria-label': t('toggleInclude'),
-                              onChange: () => void store.operate({ sessionId, action: 'toggle', id: item.id }),
-                            })
-                            : null,
-                          h('div', { className: 'dann-row-main' },
-                            h('div', { className: 'dann-row-meta' },
-                              h('span', { className: 'dann-id' }, item.shortId),
-                              h('span', { className: 'dann-badge', 'data-tone': badge.tone }, badge.text),
-                              item.intent !== 'note' ? h('span', { className: 'dann-badge' }, intentLabel(t, item.intent)) : null,
-                              !isDraft ? h('span', { className: 'dann-badge' }, item.consumedAtTurn ? t('sentTurn', { n: item.consumedAtTurn }) : t('statusConsumed')) : null),
-                            h('button', {
-                              type: 'button',
-                              className: 'dann-row-target',
-                              title: t('jump'),
-                              onClick: () => handleJump(item),
-                            }, item.anchor.kind === 'git-diff' ? formatDiffPlace(item.anchor) : `“${oneLine(item.anchor.quote)}”`),
-                            h('div', { className: 'dann-row-note' }, item.note)),
-                          h('div', { className: 'dann-row-acts' },
-                            h('button', {
-                              type: 'button',
-                              className: 'dann-btn',
-                              'data-ghost': 'true',
-                              title: t('edit'),
-                              onClick: () => composerBus.open({
-                                mode: 'edit',
-                                sessionId,
-                                itemId: item.id,
-                                anchor: item.anchor,
-                                initialNote: item.note,
-                                initialIntent: item.intent,
-                              }),
-                            }, t('edit')),
-                            !isDraft
-                              ? h('button', {
+            hoverNode,
+            h('div', { ref: dockRef, className: 'dann-dock', 'data-dann-ui': '' },
+              h('div', { className: 'dann-dock-panel' },
+                single
+                  ? h('div', { className: 'dann-dock-bar' },
+                    h('span', { className: 'dann-lead', 'aria-hidden': true }, h(IconPin, { size: 15 })),
+                    h('div', { className: 'dann-dock-single' },
+                      h('button', {
+                        type: 'button',
+                        className: 'dann-single-quote',
+                        title: t('jump'),
+                        onClick: () => handleJump(single),
+                      }, shortTargetText(single.anchor)),
+                      single.intent !== 'note' ? h(Tag, { tone: 'neutral' }, intentLabel(t, single.intent)) : null,
+                      h('button', {
+                        type: 'button',
+                        className: 'dann-single-note',
+                        title: t('edit'),
+                        onClick: () => openEdit(single),
+                      }, oneLine(single.note))),
+                    h('div', { className: 'dann-dock-right' },
+                      composerEmpty && inputActions
+                        ? h(Tooltip, { portal: true, label: t('dockSendHint'), side: 'top', delayMs: 500 },
+                          h(Button, { size: 'sm', variant: 'outline', onClick: handleSendNow }, t('dockSendNow')))
+                        : null,
+                      h(Tooltip, { portal: true, label: t('edit'), side: 'top', delayMs: 500 },
+                        h('button', {
+                          type: 'button',
+                          className: 'dann-icon-btn',
+                          'aria-label': t('edit'),
+                          onClick: () => openEdit(single),
+                        }, h(IconEdit, { size: 14 }))),
+                      h(Tooltip, { portal: true, label: t('remove'), side: 'top', delayMs: 500 },
+                        h('button', {
+                          type: 'button',
+                          className: 'dann-icon-btn',
+                          'data-danger': 'true',
+                          'aria-label': t('remove'),
+                          onClick: () => void store.operate({ sessionId, action: 'remove', id: single.id }),
+                        }, h(IconClose, { size: 14 })))))
+                  : h(React.Fragment, null,
+                    h('div', { className: 'dann-dock-bar' },
+                      h('button', {
+                        type: 'button',
+                        className: 'dann-dock-header-btn',
+                        'aria-expanded': expanded,
+                        'aria-label': expanded ? t('dockCollapse') : t('dockExpand'),
+                        onClick: () => setExpanded(v => !v),
+                      },
+                      h('span', { className: 'dann-lead', 'aria-hidden': true }, h(IconPin, { size: 15 })),
+                      h('span', null, t('dockPending', { n: drafts.length }))),
+                      h('div', { className: 'dann-dock-right' },
+                        composerEmpty && inputActions
+                          ? h(Tooltip, { portal: true, label: t('dockSendHint'), side: 'top', delayMs: 500 },
+                            h(Button, { size: 'sm', variant: 'outline', onClick: handleSendNow }, t('dockSendNow')))
+                          : null,
+                        h(Tooltip, { portal: true, label: expanded ? t('dockCollapse') : t('dockExpand'), side: 'top', delayMs: 500 },
+                          h('button', {
+                            type: 'button',
+                            className: 'dann-icon-btn',
+                            'aria-expanded': expanded,
+                            'aria-label': expanded ? t('dockCollapse') : t('dockExpand'),
+                            onClick: () => setExpanded(v => !v),
+                          }, expanded ? h(IconChevronDown, { size: 14 }) : h(IconChevronUp, { size: 14 }))))),
+                    expanded
+                      ? h('div', { className: 'dann-drawer' },
+                        h('ul', { className: 'dann-list' },
+                          drafts.map(item => h('li', { key: item.id, className: 'dann-row' },
+                            h('div', { className: 'dann-row-main' },
+                              h('div', { className: 'dann-row-top' },
+                                item.intent !== 'note' ? h(Tag, { tone: 'neutral' }, intentLabel(t, item.intent)) : null,
+                                h('button', {
+                                  type: 'button',
+                                  className: 'dann-row-target',
+                                  title: t('jump'),
+                                  onClick: () => handleJump(item),
+                                }, item.anchor.kind === 'git-diff' ? formatDiffPlace(item.anchor) : `“${oneLine(item.anchor.quote)}”`)),
+                              h('button', {
                                 type: 'button',
-                                className: 'dann-btn',
-                                'data-ghost': 'true',
-                                onClick: () => void store.operate({ sessionId, action: 'requeue', id: item.id }),
-                              }, t('requeue'))
-                              : null,
-                            h('button', {
-                              type: 'button',
-                              className: 'dann-btn',
-                              'data-ghost': 'true',
-                              'data-danger': 'true',
-                              onClick: () => void store.operate({ sessionId, action: 'remove', id: item.id }),
-                            }, t('remove'))))
-                      })))
-                : null,
-              notice ? h('div', { className: 'dann-notice', role: 'status' }, notice) : null))
+                                className: 'dann-row-note',
+                                title: t('edit'),
+                                onClick: () => openEdit(item),
+                              }, item.note)),
+                            h('div', { className: 'dann-row-acts' },
+                              h(Tooltip, { portal: true, label: t('edit'), side: 'bottom', delayMs: 500 },
+                                h('button', {
+                                  type: 'button',
+                                  className: 'dann-icon-btn',
+                                  'aria-label': t('edit'),
+                                  onClick: () => openEdit(item),
+                                }, h(IconEdit, { size: 14 }))),
+                              h(Tooltip, { portal: true, label: t('remove'), side: 'bottom', delayMs: 500 },
+                                h('button', {
+                                  type: 'button',
+                                  className: 'dann-icon-btn',
+                                  'data-danger': 'true',
+                                  'aria-label': t('remove'),
+                                  onClick: () => void store.operate({ sessionId, action: 'remove', id: item.id }),
+                                }, h(IconTrash, { size: 14 }))))))),
+                        h('div', { className: 'dann-drawer-foot' },
+                          h(Button, {
+                            size: 'sm',
+                            variant: 'ghost',
+                            disabled: snap.saving,
+                            onClick: () => void store.operate({ sessionId, action: 'clear', scope: 'draft' }),
+                          }, t('dockClear'))))
+                      : null),
+                notice ? h('div', { className: 'dann-notice', role: 'status' }, notice) : null)))
         }
 
         function ForgeCommentAction({ target, selection, empty, busy, send }) {
+          useStyleEffect(ensureStyles, [])
           const t = useLocaleT()
           const onClick = () => {
             send(async body => {
@@ -1073,69 +1382,69 @@ window.__ModuleLoader__.load({
               }
             })
           }
-          return h('button', {
-            type: 'button',
-            className: 'dann-btn',
-            'data-primary': 'true',
+          return h(Button, {
+            size: 'sm',
+            variant: 'outline',
             disabled: empty || busy,
             onClick,
           }, t('addToAnnotations'))
         }
 
         function ForgeLineAnnotationCard({ target, annotation }) {
+          useStyleEffect(ensureStyles, [])
           const t = useLocaleT()
           const snap = useSessionAnnotations(target?.sessionId)
           const item = snap.items.find(entry => entry.id === annotation?.key)
           if (!item) return null
           const isDraft = item.status === 'draft'
           return h('div', { className: 'dann-forge-card', 'data-dann-ui': '' },
-            h('div', { className: 'dann-forge-body' },
+            h('div', { className: 'dann-forge-head' },
               h('div', { className: 'dann-forge-meta' },
-                h('span', { className: 'dann-id' }, item.shortId),
-                h('span', { className: 'dann-badge', 'data-tone': 'diff' }, intentLabel(t, item.intent)),
-                h('span', { className: 'dann-badge' }, isDraft ? t('statusDraft') : (item.consumedAtTurn ? t('sentTurn', { n: item.consumedAtTurn }) : t('statusConsumed')))),
-              h('div', { className: 'dann-forge-note' }, item.note)),
-            h('div', { className: 'dann-forge-acts' },
-              h('button', {
-                type: 'button',
-                className: 'dann-btn',
-                'data-ghost': 'true',
-                onClick: () => composerBus.open({
-                  mode: 'edit',
-                  sessionId: target.sessionId,
-                  itemId: item.id,
-                  anchor: item.anchor,
-                  initialNote: item.note,
-                  initialIntent: item.intent,
-                }),
-              }, t('edit')),
-              !isDraft
-                ? h('button', {
-                  type: 'button',
-                  className: 'dann-btn',
-                  'data-ghost': 'true',
-                  onClick: () => void store.operate({ sessionId: target.sessionId, action: 'requeue', id: item.id }),
-                }, t('requeue'))
-                : null,
-              h('button', {
-                type: 'button',
-                className: 'dann-btn',
-                'data-ghost': 'true',
-                'data-danger': 'true',
-                onClick: () => void store.operate({ sessionId: target.sessionId, action: 'remove', id: item.id }),
-              }, t('remove'))))
+                item.intent !== 'note' ? h(Tag, { tone: 'neutral' }, intentLabel(t, item.intent)) : null,
+                h(Tag, { tone: isDraft ? 'warning' : 'neutral' }, isDraft ? t('statusDraft') : (item.consumedAtTurn ? t('sentTurn', { n: item.consumedAtTurn }) : t('statusConsumed')))),
+              h('div', { className: 'dann-forge-acts' },
+                h(Tooltip, { portal: true, label: t('edit'), side: 'bottom', delayMs: 500 },
+                  h('button', {
+                    type: 'button',
+                    className: 'dann-icon-btn',
+                    'aria-label': t('edit'),
+                    onClick: () => uiBus.open({
+                      mode: 'edit',
+                      sessionId: target.sessionId,
+                      itemId: item.id,
+                      anchor: item.anchor,
+                      initialNote: item.note,
+                      initialIntent: item.intent,
+                    }),
+                  }, h(IconEdit, { size: 14 }))),
+                !isDraft
+                  ? h(Tooltip, { portal: true, label: t('requeue'), side: 'bottom', delayMs: 500 },
+                    h('button', {
+                      type: 'button',
+                      className: 'dann-icon-btn',
+                      'aria-label': t('requeue'),
+                      onClick: () => void store.operate({ sessionId: target.sessionId, action: 'requeue', id: item.id }),
+                    }, h(IconRefresh, { size: 14 })))
+                  : null,
+                h(Tooltip, { portal: true, label: t('remove'), side: 'bottom', delayMs: 500 },
+                  h('button', {
+                    type: 'button',
+                    className: 'dann-icon-btn',
+                    'data-danger': 'true',
+                    'aria-label': t('remove'),
+                    onClick: () => void store.operate({ sessionId: target.sessionId, action: 'remove', id: item.id }),
+                  }, h(IconTrash, { size: 14 }))))),
+            h('div', { className: 'dann-forge-note' }, item.note))
         }
 
         function ForgeFileMenuAction({ target, file, dismiss }) {
+          useStyleEffect(ensureStyles, [])
           const t = useLocaleT()
-          return h('button', {
-            type: 'button',
-            className: 'dann-btn',
-            'data-ghost': 'true',
-            style: { width: '100%', justifyContent: 'flex-start', padding: '6px 10px' },
-            onClick: () => {
+          return h(MenuItemButton, {
+            icon: h(IconPin, { size: 14 }),
+            onSelect: () => {
               dismiss?.()
-              composerBus.open({
+              uiBus.open({
                 mode: 'create',
                 sessionId: target.sessionId,
                 anchor: {
@@ -1152,24 +1461,33 @@ window.__ModuleLoader__.load({
         }
 
         function ForgeToolbarBadge({ target, form, close }) {
+          useStyleEffect(ensureStyles, [])
           const t = useLocaleT()
           const snap = useSessionAnnotations(target?.sessionId)
           const count = React.useMemo(() => {
             const expected = target?.source?.kind === 'change' ? 'cr' : 'local'
-            return snap.items.filter(item => item.status === 'draft' && item.enabled && item.anchor?.kind === 'git-diff' && item.anchor.source === expected).length
+            return snap.items.filter(item => item.status === 'draft' && item.anchor?.kind === 'git-diff' && item.anchor.source === expected).length
           }, [snap.items, target?.source?.kind])
           if (count === 0) return null
+          const onReveal = () => {
+            close?.()
+            uiBus.revealDock(target?.sessionId)
+          }
+          if (form === 'menu') {
+            return h(MenuItemButton, {
+              icon: h(IconPin, { size: 14 }),
+              onSelect: onReveal,
+            }, t('toolbarLabel', { n: count }))
+          }
           return h('button', {
             type: 'button',
-            className: form === 'menu' ? 'dann-btn' : 'dann-toolbar-btn',
-            'data-ghost': form === 'menu' ? 'true' : undefined,
-            onClick: () => {
-              close?.()
-              if (typeof document !== 'undefined') {
-                document.querySelector?.('.dann-dock')?.scrollIntoView?.({ block: 'nearest' })
-              }
-            },
-          }, h(IconPin), h('span', null, t('toolbarLabel', { n: count })))
+            className: 'dann-toolbar-btn',
+            'aria-label': t('toolbarLabel', { n: count }),
+            onClick: onReveal,
+          },
+          h(IconPin, { size: 14 }),
+          h('span', null, t('dockTitle')),
+          h('span', { className: 'dann-toolbar-count' }, count))
         }
 
         ctx.slots.inject('conversation.chat.text-interaction', () => ctx.slots.register({
