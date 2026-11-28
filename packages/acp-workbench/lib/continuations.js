@@ -25,9 +25,52 @@ function latestAssistantReply(session) {
   return ''
 }
 
+const DEFERRABLE_NEXT_STEP_KINDS = new Set([
+  'user',
+  'retry',
+  'user-question-reply',
+  'agent-message',
+  'subagent-settled',
+  'acp-delivery',
+])
+
 function isSubagentDelivery(message) {
   const kind = message?.source?.kind
   return kind === 'agent-message' || kind === 'subagent-settled'
+}
+
+function isDeferrableNextStep(message) {
+  const kind = message?.source?.kind
+  return typeof kind === 'string' && DEFERRABLE_NEXT_STEP_KINDS.has(kind)
+}
+
+function filterContextDecision(native, agent, turn, provider, decision) {
+  if (!Array.isArray(decision.messages) || decision.messages.length === 0) return decision
+  const policy = typeof native.contextPolicyFor === 'function'
+    ? native.contextPolicyFor(provider)
+    : { agentInstructions: true, timeContext: true, nowledgeContext: true }
+  const kept = []
+  const dropped = []
+  for (const message of decision.messages) {
+    const kind = message?.source?.kind
+    if (kind === 'skill-catalog') {
+      dropped.push({ kind, action: 'dropped', reason: 'host-only', chars: messageChars(message), stage: 'pre-step' })
+      continue
+    }
+    if (kind === 'agent-instructions' && policy.agentInstructions === false) {
+      const label = contextLabelOf(message)
+      dropped.push({ kind, ...(label ? { label } : {}), action: 'dropped', reason: 'policy-off', chars: messageChars(message), stage: 'pre-step' })
+      continue
+    }
+    if (kind === 'time-context' && policy.timeContext === false) {
+      dropped.push({ kind, action: 'dropped', reason: 'policy-off', chars: messageChars(message), stage: 'pre-step' })
+      continue
+    }
+    kept.push(message)
+  }
+  if (!dropped.length || !kept.length) return decision
+  native.noteSuppressedContext?.(agent.id, turn, dropped)
+  return { ...decision, messages: kept }
 }
 
 function messageChars(message) {
@@ -201,23 +244,14 @@ export function installContinuations(native, isRoute) {
     }
   }))
 
-  // external: DSH send_message and subagent settlements target the next step, while an open ACP request only drains output there.
+  // external: coalesce concurrent subagent settlements before starting a fresh ACP turn.
   disposers.push(ctx.on('agent/pre-step', async ({ agent, turn, modelSelection, signal, messages }, next) => {
     const decision = await next()
     if (decision.kind !== 'enter' || !isRoute(modelSelection.provider)) return decision
 
     const active = native.active.get(agent.id)
-    if (active && active.turn === turn && active.provider === modelSelection.provider) {
-      const claimed = new Set(messages.filter(isSubagentDelivery).map(message => message.id))
-      if (!claimed.size) return decision
-      signal.throwIfAborted()
-      const current = []
-      for (const message of decision.messages) {
-        if (claimed.has(message.id)) agent.followup(message)
-        else current.push(message)
-      }
-      return { ...decision, messages: current }
-    }
+    if (active && active.turn === turn && active.provider === modelSelection.provider) return decision
+    if (native.isFinishedTurn?.(agent.id, turn, modelSelection.provider)) return decision
 
     if (!active && messages.length > 0 && messages.every(isSubagentDelivery) && !messages.some(m => coalescedIds.has(m.id)) && native.hasRunningChildren(agent)) {
       const sawMore = await waitQuietBatch(ctx, native, agent, signal)
@@ -261,36 +295,36 @@ export function installContinuations(native, isRoute) {
     return decision
   }))
 
-  // external: DSH built-in context plugins (dsh-time-context, dsh-agent-instructions, dsh-tool-skill) append to decision.messages after next(), so prepend runs outermost after all of them.
-  disposers.push(ctx.on('agent/pre-step', async ({ agent, turn, modelSelection }, next) => {
+  // external: DSH steering, send_message, and subagent settlements target the next step, while an open or just-settled ACP turn cannot send new input there; prepend runs outermost after built-in context plugins so deferring a post-turn step leaves decision.messages truly empty.
+  disposers.push(ctx.on('agent/pre-step', async ({ agent, turn, modelSelection, signal, messages }, next) => {
     const decision = await next()
     if (decision.kind !== 'enter' || !isRoute(modelSelection.provider)) return decision
-    if (!Array.isArray(decision.messages) || decision.messages.length === 0) return decision
-    const policy = typeof native.contextPolicyFor === 'function'
-      ? native.contextPolicyFor(modelSelection.provider)
-      : { agentInstructions: true, timeContext: true, nowledgeContext: true }
-    const kept = []
-    const dropped = []
-    for (const message of decision.messages) {
-      const kind = message?.source?.kind
-      if (kind === 'skill-catalog') {
-        dropped.push({ kind, action: 'dropped', reason: 'host-only', chars: messageChars(message), stage: 'pre-step' })
-        continue
+
+    const active = native.active.get(agent.id)
+    if (active && active.turn === turn && active.provider === modelSelection.provider) {
+      const claimed = new Set((messages ?? []).filter(isDeferrableNextStep).map(message => message.id))
+      if (!claimed.size) return filterContextDecision(native, agent, turn, modelSelection.provider, decision)
+      signal.throwIfAborted()
+      const current = []
+      for (const message of decision.messages) {
+        if (claimed.has(message.id)) agent.followup(message)
+        else current.push(message)
       }
-      if (kind === 'agent-instructions' && policy.agentInstructions === false) {
-        const label = contextLabelOf(message)
-        dropped.push({ kind, ...(label ? { label } : {}), action: 'dropped', reason: 'policy-off', chars: messageChars(message), stage: 'pre-step' })
-        continue
-      }
-      if (kind === 'time-context' && policy.timeContext === false) {
-        dropped.push({ kind, action: 'dropped', reason: 'policy-off', chars: messageChars(message), stage: 'pre-step' })
-        continue
-      }
-      kept.push(message)
+      return filterContextDecision(native, agent, turn, modelSelection.provider, { ...decision, messages: current })
     }
-    if (!dropped.length || !kept.length) return decision
-    native.noteSuppressedContext?.(agent.id, turn, dropped)
-    return { ...decision, messages: kept }
+
+    if (!active && native.isFinishedTurn?.(agent.id, turn, modelSelection.provider)) {
+      const claimed = new Set((messages ?? []).filter(isDeferrableNextStep).map(message => message.id))
+      if (claimed.size) {
+        signal.throwIfAborted()
+        for (const message of decision.messages) {
+          if (claimed.has(message.id)) agent.followup(message)
+        }
+        return { ...decision, messages: [] }
+      }
+    }
+
+    return filterContextDecision(native, agent, turn, modelSelection.provider, decision)
   }, { prepend: true }))
 
   const receipts = new WeakMap()

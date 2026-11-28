@@ -1031,6 +1031,7 @@ class AcpTurn {
   async finalizeTurn() {
     if (this.finalized) return
     this.finalized = true
+    this.native.noteFinishedTurn(this.agent.id, this.turn, this.provider)
     this.settleOpenSubCalls({ interrupted: this.result?.stopReason === 'cancelled' })
     if (this.run && this.session) {
       delete this.run.currentTool
@@ -1458,7 +1459,29 @@ export class NativeAcp {
     this.traces = new Map()
     this.sessionOptions = new Map()
     this.suppressedContext = new Map()
+    this.finishedTurns = new Map()
     this.delegation = new DelegationHub(this, isRoute)
+  }
+
+  noteFinishedTurn(sessionId, turn, provider) {
+    if (!sessionId || !Number.isInteger(turn) || !provider) return
+    this.finishedTurns.set(sessionId, { turn, provider })
+    if (this.finishedTurns.size > 128) this.finishedTurns.delete(this.finishedTurns.keys().next().value)
+  }
+
+  isFinishedTurn(sessionId, turn, provider) {
+    const entry = this.finishedTurns.get(sessionId)
+    return !!entry && entry.turn === turn && entry.provider === provider
+  }
+
+  clearFinishedTurn(sessionId, turn) {
+    if (!sessionId) return
+    if (!Number.isInteger(turn)) {
+      this.finishedTurns.delete(sessionId)
+      return
+    }
+    const entry = this.finishedTurns.get(sessionId)
+    if (entry && entry.turn === turn) this.finishedTurns.delete(sessionId)
   }
 
   contextPolicyFor(routeOrProviderId) {
@@ -1728,6 +1751,7 @@ export class NativeAcp {
       if (event.type === 'model/selection') this.manager.changed(undefined, dshSession.id)
       if (event.type === 'turn/end') {
         this.clearSuppressedContext(dshSession.id, event.data.turn)
+        this.clearFinishedTurn(dshSession.id, event.data.turn)
         const current = this.active.get(dshSession.id)
         if (current && current.turn === event.data.turn) void current.cleanup()
         return
@@ -1761,6 +1785,7 @@ export class NativeAcp {
       this.delegation.revokeSession(sessionId)
       this.clearSessionOptions(sessionId)
       this.clearSuppressedContext(sessionId)
+      this.clearFinishedTurn(sessionId)
       await Promise.all(this.sessions(sessionId, false).map(s => this.manager.disconnect(s, 'native-session-archived').catch(error => this.manager.log?.(error.message))))
       this.manager.changed()
     }))
@@ -1771,6 +1796,7 @@ export class NativeAcp {
       this.delegation.revokeSession(agent.id)
       this.clearSessionOptions(agent.id)
       this.clearSuppressedContext(agent.id)
+      this.clearFinishedTurn(agent.id)
       const current = this.active.get(agent.id)
       if (current) {
         current.controller.abort(new Error('Native DSH agent disposed'))
@@ -2771,6 +2797,7 @@ export class NativeAcp {
     for (const dispose of this.children.values()) await dispose()
     this.children.clear()
     this.traces.clear()
+    this.finishedTurns.clear()
     await this.registration?.()
   }
 }
