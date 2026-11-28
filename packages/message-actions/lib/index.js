@@ -46,7 +46,7 @@ export function sourceOf(events, messageId) {
   let user = ''
   let config = {}
   for (const event of events) {
-    if (event.type === 'user/message') user = blocksText(event.data.content)
+    if (event.type === 'user/message' && event.data?.source?.kind === 'user') user = blocksText(event.data.content)
     if (event.type === 'request/header') config = event.data.header.config
     if (event.type !== 'assistant/message' || event.data.message.id !== messageId) continue
     if (event.data.interrupted) throw new Error('The reply was interrupted; select a completed reply')

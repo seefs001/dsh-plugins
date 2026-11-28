@@ -285,12 +285,11 @@ Canvas renders live interactive artifacts beside a DSH conversation.
 - Offline utility classes are also available in \`className\` (\`flex\`, \`flex-col\`, \`grid\`, \`gap-2..6\`, \`p-2..6\`, \`rounded\`, \`rounded-lg\`, \`border\`, \`bg-surface\`, \`text-sm\`, \`text-muted\`, \`font-mono\`, \`w-full\`, \`items-center\`, \`justify-between\`, \`truncate\`).
 `
 
-export function buildSystemPromptSection(cwd) {
-  const location = cwd ? `${cwd}/.dsh/canvases/<name>.canvas.tsx` : '.dsh/canvases/<name>.canvas.tsx'
+export function buildSystemPromptSection() {
   return [
     '## Canvas Mode',
     'Canvas mode is enabled for this session. Use `canvas_write` (and `canvas_check` / `canvas_state`) to create or update live interactive artifacts beside the chat.',
-    `- Workspace artifacts default to \`${location}\` (supports \`.canvas.tsx\`, \`.canvas.html\`, \`.canvas.svg\`).`,
+    '- Workspace artifacts default to `.dsh/canvases/<name>.canvas.tsx` relative to the session working directory (supports `.canvas.tsx`, `.canvas.html`, `.canvas.svg`).',
     '- React canvases may import from `dsh/canvas`, `react`, and `lucide-react`, and can subscribe to live data via `useCanvasFile`, `useCanvasGlob`, and `useHostData`.',
     '- Load the `canvas` skill before authoring a complex artifact to review all components, live data hooks, and host actions.',
   ].join('\n')

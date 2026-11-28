@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 
 export const name = 'branch-switcher'
@@ -5,6 +6,44 @@ export const inject = ['agents', 'commands', 'tools', 'subprocess', 'sandbox', '
 export const OP_PATH = '/branch-switcher/op'
 
 const COMMAND = 'branch-switcher'
+const SOURCE_KIND = 'branch-switcher'
+const CONTEXT_SUMMARY_MAX_CHARS = 120
+
+function deepFreeze(value) {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value
+  Object.freeze(value)
+  for (const child of Object.values(value)) deepFreeze(child)
+  return value
+}
+
+function boundSummary(summary) {
+  const clean = String(summary ?? '').replace(/\s+/gu, ' ').trim()
+  return clean.length <= CONTEXT_SUMMARY_MAX_CHARS
+    ? clean
+    : `${clean.slice(0, CONTEXT_SUMMARY_MAX_CHARS - 1)}…`
+}
+
+function injectBranchSwitchNotice(agent, previous, current, root) {
+  if (!agent || previous === current) return
+  const fromLabel = previous ? `"${previous}"` : 'detached HEAD'
+  const toLabel = current ? `"${current}"` : 'detached HEAD'
+  const summary = boundSummary(`Switched branch ${previous ?? 'detached HEAD'} -> ${current ?? 'detached HEAD'}`)
+  const message = deepFreeze({
+    id: randomUUID(),
+    role: 'user',
+    content: [{ type: 'text', text: `The local Git branch changed from ${fromLabel} to ${toLabel} in ${root}.` }],
+    source: { kind: SOURCE_KIND, form: 'notice', summary, previous, current },
+  })
+  const pending = Array.isArray(agent.inbox?.nextStep)
+    ? agent.inbox.nextStep.filter(item => item?.source?.kind === SOURCE_KIND)
+    : []
+  if (pending.length > 0 && typeof agent.inbox?.replace === 'function') {
+    agent.inbox.replace(pending[0].id, message)
+    for (const extra of pending.slice(1)) agent.inbox.remove?.(extra.id)
+  } else if (typeof agent.inject === 'function') {
+    agent.inject(message)
+  }
+}
 const MAX_OUTPUT = 1024 * 1024
 const MAX_BODY = 64 * 1024
 const MAX_EXEC_CACHE = 16
@@ -226,7 +265,9 @@ export class BranchSwitcher {
           maintenanceSignal.throwIfAborted()
           await git(['switch', '--no-guess', '--', args.branch])
         }
-        return { root, cwd, previous: args.current, current: await current() }
+        const nextCurrent = await current()
+        if (nextCurrent !== args.current) injectBranchSwitchNotice(agent, args.current, nextCurrent, root)
+        return { root, cwd, previous: args.current, current: nextCurrent }
       } finally {
         maintenanceSignal.removeEventListener('abort', abort)
       }

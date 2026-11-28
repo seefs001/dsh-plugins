@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { dirname, isAbsolute, resolve } from 'node:path'
+import { dirname, isAbsolute, relative, resolve } from 'node:path'
 import { compileArtifact, formatDiagnosticsSummary, getSdkDeclarations } from './compiler.js'
 import {
   createDataDirectoryWatcher,
@@ -42,6 +42,41 @@ export const PROVIDER_NAME = 'dsh-canvas'
 
 const MAX_BODY_BYTES = 512 * 1024
 const HEARTBEAT_MS = 25_000
+const CONTEXT_SUMMARY_MAX_CHARS = 120
+const MAX_CONTEXT_STATE_CHARS = 1600
+const CANVAS_SOURCE_KIND = 'canvas'
+
+function deepFreeze(value) {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value
+  Object.freeze(value)
+  for (const child of Object.values(value)) deepFreeze(child)
+  return value
+}
+
+function boundSummary(summary) {
+  const clean = String(summary ?? '').replace(/\s+/gu, ' ').trim()
+  return clean.length <= CONTEXT_SUMMARY_MAX_CHARS
+    ? clean
+    : `${clean.slice(0, CONTEXT_SUMMARY_MAX_CHARS - 1)}…`
+}
+
+function compactStatePreview(values) {
+  if (!values || typeof values !== 'object') return ''
+  const keys = Object.keys(values)
+  if (keys.length === 0) return ''
+  const raw = JSON.stringify(values)
+  if (!raw || raw === '{}') return ''
+  return raw.length <= MAX_CONTEXT_STATE_CHARS
+    ? raw
+    : `${raw.slice(0, MAX_CONTEXT_STATE_CHARS)}… (${raw.length} chars)`
+}
+
+function relativeDisplayPath(cwd, fullPath) {
+  if (!fullPath) return ''
+  if (!cwd) return fullPath
+  const rel = relative(cwd, fullPath)
+  return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : fullPath
+}
 
 export class OpError extends Error {
   constructor(message) {
@@ -609,14 +644,68 @@ export function apply(ctx) {
     }, 'canvas: agent hooks')
   })
 
+  function injectCanvasNotice(sessionId, summary, text) {
+    const bound = boundSummary(summary)
+    if (!bound || !text) return
+    const message = deepFreeze({
+      id: randomUUID(),
+      role: 'user',
+      content: [{ type: 'text', text }],
+      source: { kind: CANVAS_SOURCE_KIND, form: 'notice', summary: bound },
+    })
+    for (const agent of agentHandles.keys()) {
+      if (agent.session?.id !== sessionId) continue
+      const pending = Array.isArray(agent.inbox?.nextStep)
+        ? agent.inbox.nextStep.filter(item => item?.source?.kind === CANVAS_SOURCE_KIND)
+        : []
+      if (pending.length > 0 && typeof agent.inbox?.replace === 'function') {
+        agent.inbox.replace(pending[0].id, message)
+        for (const extra of pending.slice(1)) agent.inbox.remove?.(extra.id)
+      } else if (typeof agent.inject === 'function') {
+        agent.inject(message)
+      }
+    }
+  }
+
+  function renderCanvasRuntimeContext(session, agent) {
+    if (!session || !isEnabled(session.id)) return ''
+    const entry = sessionMap.get(session.id)
+    const cwd = agentCwd(agent) || resolveSessionCwd(session.id)
+    const activePath = entry?.activePath ?? ''
+    const lines = []
+    if (activePath) {
+      const displayPath = relativeDisplayPath(cwd, activePath)
+      lines.push(`Active canvas: ${displayPath}`)
+      const cacheKey = `${activePath}::${getArtifactKind(activePath)}`
+      const cached = compileCache.get(cacheKey)
+      const errors = cached?.result?.diagnostics?.filter(d => d.severity === 'error').length ?? 0
+      if (errors > 0) lines.push(`Active canvas compile errors: ${errors}`)
+      const preview = compactStatePreview(stateMap.get(activePath)?.values)
+      if (preview) lines.push(`Active canvas state: ${preview}`)
+    }
+    return lines.join('\n')
+  }
+
   ctx.systemPrompt.section({
     name: 'canvas:session',
     order: 65,
     interpolate: false,
+    replacement: '',
+    retirement: 'Canvas mode is disabled for this session. Do not call canvas tools unless Canvas mode is enabled again.',
     text: ({ agent, scope }) => {
       const session = (agent ?? scope)?.session
       if (!session || !isEnabled(session.id)) return ''
-      return buildSystemPromptSection(agentCwd(agent) || resolveSessionCwd(session.id))
+      return buildSystemPromptSection()
+    },
+  })
+
+  ctx.systemPrompt.context?.({
+    name: 'canvas:runtime',
+    order: 225,
+    interpolate: false,
+    text: ({ agent, scope }) => {
+      const target = agent ?? scope
+      return renderCanvasRuntimeContext(target?.session, target)
     },
   })
 
@@ -686,8 +775,15 @@ export function apply(ctx) {
 
       if (op.action === 'toggle') {
         const enabled = Boolean(op.enabled)
+        const wasEnabled = isEnabled(sessionId)
         await saveSessionEntry(sessionId, { enabled, ...(cwd ? { cwd } : {}) })
         syncSessionAgents(sessionId)
+        if (enabled !== wasEnabled) {
+          const text = enabled
+            ? 'The user enabled Canvas mode for this session.'
+            : 'The user disabled Canvas mode for this session.'
+          injectCanvasNotice(sessionId, text, text)
+        }
         await broadcastSession(sessionId)
         return snapshotForSession(sessionId, cwd)
       }
@@ -734,8 +830,15 @@ export function apply(ctx) {
         if (typeof op.source !== 'string') throw new OpError('source must be a string')
         const saved = await writeCanvasFile(cwd, op.path, op.source)
         clearCompileCache(saved.path)
-        await buildCanvasRecord(cwd, saved.path, op.reason ?? 'Edited in Canvas')
+        const record = await buildCanvasRecord(cwd, saved.path, op.reason ?? 'Edited in Canvas')
         await saveSessionEntry(sessionId, { cwd, activePath: saved.path })
+        const rel = relativeDisplayPath(cwd, saved.path)
+        const summary = `User edited canvas ${rel}${record.errorCount > 0 ? ` (${record.errorCount} compile errors)` : ''}`
+        injectCanvasNotice(
+          sessionId,
+          summary,
+          `The user edited canvas "${rel}" directly in the Canvas panel (revision ${record.revision}, compile errors: ${record.errorCount}). Read it before making further edits.`,
+        )
         await broadcastSession(sessionId)
         return snapshotForSession(sessionId, cwd)
       }
@@ -750,6 +853,9 @@ export function apply(ctx) {
         await writeCanvasFile(cwd, full, target.source)
         clearCompileCache(full)
         await buildCanvasRecord(cwd, full, `Restored revision ${revNum}`)
+        const rel = relativeDisplayPath(cwd, full)
+        const summary = `User restored canvas ${rel} to revision ${revNum}`
+        injectCanvasNotice(sessionId, summary, `The user restored canvas "${rel}" to revision ${revNum}.`)
         await broadcastSession(sessionId)
         return snapshotForSession(sessionId, cwd)
       }
@@ -777,6 +883,14 @@ export function apply(ctx) {
         const prev = stateMap.get(full)?.values ?? {}
         const nextValues = { ...prev, [op.key]: op.value }
         await saveStateEntry(full, nextValues)
+        const rel = relativeDisplayPath(cwd, full)
+        const preview = compactStatePreview(nextValues)
+        const summary = `User updated canvas state ${rel} (${op.key})`
+        injectCanvasNotice(
+          sessionId,
+          summary,
+          `The user updated interactive state "${op.key}" in canvas "${rel}". Current state: ${preview || '{}'}`,
+        )
         await broadcastSession(sessionId)
         return { path: full, values: nextValues }
       }
@@ -787,6 +901,9 @@ export function apply(ctx) {
         const domain = await ready
         await domain.table('states').delete(full)
         stateMap.delete(full)
+        const rel = relativeDisplayPath(cwd, full)
+        const summary = `User reset canvas state for ${rel}`
+        injectCanvasNotice(sessionId, summary, `The user reset interactive state for canvas "${rel}".`)
         await broadcastSession(sessionId)
         return snapshotForSession(sessionId, cwd)
       }

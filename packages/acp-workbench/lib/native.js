@@ -192,25 +192,38 @@ function messageTextChars(message) {
 function contextLabelOf(message) {
   const source = message?.source
   if (!source || typeof source !== 'object') return ''
-  if (source.kind === 'agent-instructions' && Array.isArray(source.changes)) {
+  if (typeof source.summary === 'string' && source.summary.trim()) {
+    return source.summary.trim().slice(0, 120)
+  }
+  if ((source.kind === 'agent-instructions' || source.form === 'instructions') && Array.isArray(source.changes)) {
     const paths = []
     for (const entry of source.changes) {
       if (typeof entry?.path === 'string' && entry.path && !paths.includes(entry.path)) paths.push(entry.path)
     }
     return paths.join(', ').slice(0, 120)
   }
-  if (source.kind === 'session-reference' && Array.isArray(source.references)) {
+  if ((source.kind === 'session-reference' || source.form === 'recall') && Array.isArray(source.references)) {
     const labels = []
     for (const entry of source.references) {
       if (typeof entry?.label === 'string' && entry.label && !labels.includes(entry.label)) labels.push(entry.label)
     }
     return labels.join(', ').slice(0, 120)
   }
+  if (source.form === 'snapshot' && Array.isArray(source.sections)) {
+    const names = []
+    for (const entry of source.sections) {
+      if (typeof entry?.name === 'string' && entry.name && !names.includes(entry.name)) names.push(entry.name)
+    }
+    return names.join(', ').slice(0, 120)
+  }
+  if (source.form === 'catalog' && Array.isArray(source.entries)) {
+    return `${source.entries.length} entries`
+  }
+  if (source.form === 'relay' && typeof source.senderSessionId === 'string' && source.senderSessionId) {
+    return source.senderSessionId.slice(0, 120)
+  }
   if (source.kind === 'skill-invocation' && typeof source.name === 'string') {
     return source.name.slice(0, 120)
-  }
-  if (typeof source.summary === 'string' && source.summary.trim()) {
-    return source.summary.trim().slice(0, 120)
   }
   return ''
 }
@@ -2543,8 +2556,10 @@ export class NativeAcp {
       }
       if (message.role === 'user') {
         const kind = message.source?.kind
-        if (kind === 'runtime-context' || kind === 'skill-catalog') {
-          pushItem({ kind, action: 'dropped', reason: 'host-only', chars: messageTextChars(message) })
+        const form = message.source?.form
+        if (kind === 'runtime-context' || kind === 'skill-catalog' || form === 'catalog') {
+          const label = contextLabelOf(message)
+          pushItem({ kind: kind || 'catalog', ...(label ? { label } : {}), action: 'dropped', reason: 'host-only', chars: messageTextChars(message) })
           continue
         }
         if (kind === 'agent-instructions' && policy.agentInstructions === false) {

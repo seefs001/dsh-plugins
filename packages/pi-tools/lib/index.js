@@ -1,5 +1,5 @@
 import { createCodemodeToolDefinition } from './codemode-budget.js'
-import { createDefinitions, createToolSearchToolDefinition, jsonValue, PI_VERSION, prepareArguments, resolveToCwd, schemaOf, toolPrompt } from './pi.js'
+import { createDefinitions, createToolSearchToolDefinition, jsonValue, mcpServersContext, PI_VERSION, prepareArguments, resolveToCwd, schemaOf, toolPrompt } from './pi.js'
 import { createOperations } from './operations.js'
 import { Config, normalizeConfig } from './harness.js'
 import { STATE_META, stateDefinition } from './state.js'
@@ -257,13 +257,20 @@ export async function apply(ctx, rawConfig = {}) {
     complete: true,
     text: ({ scope }) => {
       const selected = definitions.filter(tool => loadout.enabled(tool.name, scope))
+      return toolPrompt(selected)
+    },
+    interpolate: false,
+  })
+  ctx.systemPrompt.context({
+    name: 'pi-tools:mcp-servers',
+    order: 215,
+    interpolate: false,
+    text: ({ scope }) => {
       const servers = [...new Set([...loadout.bridges.keys()]
         .filter(toolName => loadout.enabled(toolName, scope))
         .map(toolName => loadout.serverOf(toolName))
         .filter(server => server !== undefined))].toSorted()
-      const cwd = scope?.session ? ctx.workingDirectory.get(scope.session) : ctx.workingDirectory.defaultDirectory
-      return toolPrompt(selected, { cwd, mcpServers: servers, mcpExposure: config.mcpExposure })
+      return mcpServersContext(servers, config.mcpExposure)
     },
-    interpolate: false,
   })
 }

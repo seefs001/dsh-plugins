@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+import { isAbsolute, resolve as resolvePath } from 'node:path'
 import {
   DOMAIN_SPEC,
   OpError,
@@ -18,6 +20,43 @@ export const OP_PATH = '/annotations/op'
 export const SOURCE_KIND = 'annotations'
 
 const MAX_BODY_BYTES = 128 * 1024
+const MAX_STALE_CHECK_BYTES = 512 * 1024
+
+async function annotateOutdatedItems(items, cwd, signal) {
+  if (!cwd || !Array.isArray(items) || items.length === 0) return items
+  const cache = new Map()
+  const out = []
+  for (const item of items) {
+    if (signal?.aborted) return out.concat(items.slice(out.length))
+    const anchor = item?.anchor
+    if (anchor?.kind !== 'git-diff' || anchor.source !== 'local' || anchor.side !== 'R' || !anchor.path || !anchor.snippet) {
+      out.push(item)
+      continue
+    }
+    const snippet = anchor.snippet.trim()
+    if (!snippet) {
+      out.push(item)
+      continue
+    }
+    const target = isAbsolute(anchor.path) ? anchor.path : resolvePath(cwd, anchor.path)
+    let text = cache.get(target)
+    if (text === undefined) {
+      try {
+        const buf = await readFile(target)
+        text = buf.byteLength <= MAX_STALE_CHECK_BYTES ? buf.toString('utf8').replace(/\r\n?/g, '\n') : null
+      } catch {
+        text = null
+      }
+      cache.set(target, text)
+    }
+    if (text !== null && !text.includes(snippet)) {
+      out.push({ ...item, status: 'outdated' })
+    } else {
+      out.push(item)
+    }
+  }
+  return out
+}
 
 function deepFreeze(value) {
   if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value
@@ -128,9 +167,9 @@ export function apply(ctx) {
     void consumeIds(sessionId, source.annotationIds, source.turn)
   }, { global: true })
 
-  ctx.on('agent/pre-step', async ({ agent, turn, step, signal }, next) => {
+  ctx.on('agent/pre-step', async ({ agent, turn, signal }, next) => {
     const decision = await next()
-    if (decision.kind === 'reject' || signal?.aborted || step !== 1) return decision
+    if (decision.kind === 'reject' || signal?.aborted) return decision
     if (!Array.isArray(decision.messages) || decision.messages.length === 0) return decision
     if (decision.messages.some(message => message?.source?.kind === SOURCE_KIND)) return decision
     const firstUserIndex = decision.messages.findIndex(message => message?.source?.kind === 'user')
@@ -152,7 +191,11 @@ export function apply(ctx) {
     }
     if (pending.length === 0) return decision
 
-    const formatted = formatAnnotationsContext(pending, turn)
+    const cwd = ctx.get?.('workingDirectory')?.get?.(agent?.session) ?? agent?.session?.header?.cwd ?? ''
+    const checked = await annotateOutdatedItems(pending, cwd, signal)
+    if (closed || signal?.aborted) return decision
+
+    const formatted = formatAnnotationsContext(checked, turn)
     if (!formatted) return decision
     const injected = buildInjectedMessage(formatted, turn)
     const messages = [

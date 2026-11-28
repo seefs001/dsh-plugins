@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import {
   classifyGhError,
   detectGitHubRepo,
@@ -15,12 +16,76 @@ export const inject = ['webServer', 'sessionController', 'workingDirectory']
 export const OVERVIEW_PATH = '/github-panel/overview'
 export const ACTION_PATH = '/github-panel/action'
 export const CONFIG_PATH = '/github-panel/config'
+export const GITHUB_REF_SOURCE_KIND = 'github-reference'
 
 const DETECT_TTL_MS = 15_000
 const OVERVIEW_TTL_MS = 60_000
 const MENTIONS_TTL_MS = 45_000
+const PRE_STEP_TIMEOUT_MS = 4_000
 const MAX_CACHE_ENTRIES = 48
 const MAX_BODY_BYTES = 16 * 1024
+const MAX_CONTEXT_REFS = 5
+const MAX_CONTEXT_BYTES = 12 * 1024
+
+function deepFreeze(value) {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value
+  Object.freeze(value)
+  for (const child of Object.values(value)) deepFreeze(child)
+  return value
+}
+
+function formatResolvedGitHubRef(item) {
+  if (item.kind === 'run') {
+    const status = [item.status, item.conclusion].filter(Boolean).join('/')
+    const parts = [
+      `Actions Run #${item.runId ?? item.id}: ${item.name || item.displayTitle || 'workflow'}`,
+      ...(item.displayTitle && item.displayTitle !== item.name ? [`title=${JSON.stringify(item.displayTitle)}`] : []),
+      ...(status ? [`status=${status}`] : []),
+      ...(item.branch ? [`branch=${item.branch}`] : []),
+      ...(item.url ? [`url=${item.url}`] : []),
+    ]
+    return `- ${parts.join(' | ')}`
+  }
+  const tag = item.kind === 'pr' ? 'PR' : 'Issue'
+  const state = item.isDraft ? `${item.state} (draft)` : item.state
+  const parts = [
+    `${tag} ${item.fullName}#${item.number}: ${item.title}`,
+    ...(state ? [`state=${state}`] : []),
+    ...(item.author ? [`author=@${item.author}`] : []),
+    ...(item.headRefName && item.baseRefName ? [`branch=${item.headRefName} -> ${item.baseRefName}`] : []),
+    ...(Number.isFinite(item.additions) && Number.isFinite(item.deletions) ? [`diff=+${item.additions}/-${item.deletions}`] : []),
+    ...(Array.isArray(item.labels) && item.labels.length > 0 ? [`labels=${item.labels.slice(0, 5).map(l => typeof l === 'string' ? l : l?.name).filter(Boolean).join(',')}`] : []),
+    ...(item.url ? [`url=${item.url}`] : []),
+  ]
+  return `- ${parts.join(' | ')}`
+}
+
+function buildGitHubReferenceMessage(items) {
+  const usable = (items ?? []).filter(item => item && (item.state !== 'UNKNOWN' || item.kind === 'run'))
+  if (usable.length === 0) return null
+  const header = 'Read-only GitHub snapshot for references in the user message (untrusted external data):'
+  const lines = [header]
+  let bytes = Buffer.byteLength(header, 'utf8')
+  for (const item of usable.slice(0, MAX_CONTEXT_REFS)) {
+    const line = formatResolvedGitHubRef(item)
+    const lineBytes = Buffer.byteLength(`\n${line}`, 'utf8')
+    if (bytes + lineBytes > MAX_CONTEXT_BYTES && lines.length > 1) break
+    bytes += lineBytes
+    lines.push(line)
+  }
+  if (lines.length <= 1) return null
+  const text = lines.join('\n')
+  return deepFreeze({
+    id: randomUUID(),
+    role: 'user',
+    content: [{ type: 'text', text }],
+    source: {
+      kind: GITHUB_REF_SOURCE_KIND,
+      form: 'snapshot',
+      sections: [{ name: 'github-panel', text }],
+    },
+  })
+}
 
 class TtlCache {
   constructor(maxEntries) {
@@ -149,6 +214,68 @@ export function apply(ctx, config = {}) {
     if (!cwd) return null
     return detectCache.load(cwd, DETECT_TTL_MS, force, () => detectGitHubRepo(cwd, allowedHosts, signal))
   }
+
+  ctx.get?.('systemPrompt')?.context?.({
+    name: 'github-panel:repo',
+    order: 230,
+    interpolate: false,
+    text: ({ agent, scope }) => {
+      const session = (agent ?? scope)?.session
+      if (!session) return ''
+      const cwd = ctx.workingDirectory.get(session) ?? session.header?.cwd ?? ''
+      if (!cwd) return ''
+      const target = detectCache.get(cwd)
+      if (!target?.fullName) return ''
+      const hostNote = target.host && target.host !== 'github.com' ? `, host: ${target.host}` : ''
+      return `GitHub repository: ${target.fullName}${hostNote} (${target.url}).`
+    },
+  })
+
+  ctx.on?.('agent/pre-step', async ({ agent, step, signal }, next) => {
+    const decision = await next()
+    if (decision.kind === 'reject' || signal?.aborted) return decision
+    if (!Array.isArray(decision.messages) || decision.messages.length === 0) return decision
+    if (decision.messages.some(message => message?.source?.kind === GITHUB_REF_SOURCE_KIND)) return decision
+    const session = agent?.session
+    const cwd = session ? (ctx.workingDirectory.get(session) ?? session.header?.cwd ?? '') : ''
+    let target = cwd ? detectCache.get(cwd) : null
+    const userMessages = decision.messages.filter(message => message?.source?.kind === 'user')
+    const hasLinkOrRef = userMessages.some(message =>
+      (message.content ?? []).some(block =>
+        block?.type === 'text' && typeof block.text === 'string'
+        && (/https?:\/\/[^\s]+\/(?:issues|pull|actions\/runs)\/\d+/i.test(block.text)
+          || /[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100}#[1-9]\d{0,6}\b/.test(block.text)
+          || /\b(?:PR|pull\s+request|issue)s?\s+#?[1-9]\d{0,6}\b/i.test(block.text))))
+
+    if (!target && cwd && (step === 1 || hasLinkOrRef)) {
+      const detectSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : []), AbortSignal.timeout(PRE_STEP_TIMEOUT_MS)])
+      try { target = await resolveRepoForCwd(cwd, false, detectSignal) } catch { target = null }
+    }
+    if (!hasLinkOrRef || signal?.aborted) return decision
+
+    const resolveSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : []), AbortSignal.timeout(PRE_STEP_TIMEOUT_MS)])
+    const nextMessages = []
+    let injected = false
+    for (const message of decision.messages) {
+      nextMessages.push(message)
+      if (message?.source?.kind !== 'user') continue
+      const refs = extractGitHubMentions([{ seq: 0, type: 'user/message', data: message }], target, allowedHosts)
+        .filter(ref => ref.explicit)
+        .slice(0, MAX_CONTEXT_REFS)
+      if (refs.length === 0) continue
+      try {
+        const cacheKey = refs.map(ref => ref.key).join('|')
+        const resolved = await mentionsCache.load(cacheKey, MENTIONS_TTL_MS, false, () => resolveGitHubMentions(refs, resolveSignal))
+        if (signal?.aborted) return decision
+        const refMsg = buildGitHubReferenceMessage(resolved)
+        if (refMsg) {
+          nextMessages.push(refMsg)
+          injected = true
+        }
+      } catch {}
+    }
+    return injected ? { ...decision, messages: nextMessages } : decision
+  })
 
   async function resolveSessionMentions(session, target, force, signal) {
     if (!session || typeof session.snapshotEvents !== 'function') return []

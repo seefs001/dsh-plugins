@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { BUILTIN_ROLES } from './builtin.js'
 
 export const name = 'roles'
@@ -18,7 +19,102 @@ const LIMITS = { name: 60, icon: 8, description: 300, prompt: 40_000, skillDescr
 const HEARTBEAT_MS = 25_000
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const ROLE_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/
+const ROLE_REF_RE = /#role\(id=([a-z0-9][a-z0-9_-]{0,63})(?:,\s*name=([^()\r\n]+?))?\)/gu
 const SKILL_RANK = 250
+const CONTEXT_SUMMARY_MAX_CHARS = 120
+const MAX_REF_INJECT_BYTES = 48 * 1024
+const ROLE_SWITCH_SOURCE_KIND = 'roles'
+const ROLE_REF_SOURCE_KIND = 'role-reference'
+
+function deepFreeze(value) {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value
+  Object.freeze(value)
+  for (const child of Object.values(value)) deepFreeze(child)
+  return value
+}
+
+function boundSummary(summary) {
+  const clean = String(summary ?? '').replace(/\s+/gu, ' ').trim()
+  return clean.length <= CONTEXT_SUMMARY_MAX_CHARS
+    ? clean
+    : `${clean.slice(0, CONTEXT_SUMMARY_MAX_CHARS - 1)}…`
+}
+
+export function extractRoleReferenceIds(message) {
+  if (message?.source?.kind !== 'user') return []
+  const ids = []
+  const seen = new Set()
+  for (const block of message.content ?? []) {
+    if (block?.type !== 'text' || typeof block.text !== 'string' || !block.text.includes('#role(')) continue
+    for (const match of block.text.matchAll(ROLE_REF_RE)) {
+      const roleId = match[1]
+      if (!seen.has(roleId)) {
+        seen.add(roleId)
+        ids.push(roleId)
+      }
+    }
+  }
+  return ids
+}
+
+export function buildRoleReferenceMessage(roleIds, libraryRoles) {
+  if (!Array.isArray(roleIds) || roleIds.length === 0) return null
+  const byId = new Map((libraryRoles ?? []).map(r => [r.id, r]))
+  const sections = []
+  const names = []
+  const includedIds = []
+  let usedBytes = 0
+  const header = 'Referenced roles from the user message (does not switch the current session role):'
+  usedBytes += Buffer.byteLength(header, 'utf8')
+
+  for (const roleId of roleIds) {
+    const role = byId.get(roleId)
+    let block
+    if (!role) {
+      block = `## Referenced role: ${roleId}\nThis role id was not found in the roles library.`
+      names.push(roleId)
+    } else {
+      const title = `${role.icon ? `${role.icon} ` : ''}${role.name}`
+      names.push(role.name)
+      const lines = [
+        `## Referenced role: ${title} (id=${role.id})`,
+        role.prompt.trim(),
+      ]
+      if (role.skills.length > 0) {
+        lines.push('', `Inline skills: ${role.skills.map(s => `${s.name} (${s.description})`).join('; ')}. Call the \`roles\` tool with \`{ action: "get", roleId: "${role.id}" }\` if you need their full skill content.`)
+      }
+      if (role.localSkills?.length) {
+        lines.push('', `Local skill references: ${role.localSkills.join(', ')} (load with the native \`skill\` tool when relevant).`)
+      }
+      block = lines.join('\n')
+    }
+    const bytes = Buffer.byteLength(`\n\n${block}`, 'utf8')
+    if (usedBytes + bytes > MAX_REF_INJECT_BYTES && sections.length > 0) break
+    if (usedBytes + bytes > MAX_REF_INJECT_BYTES) {
+      const room = Math.max(200, MAX_REF_INJECT_BYTES - usedBytes - 32)
+      sections.push(`${block.slice(0, room)}… [truncated]`)
+      includedIds.push(roleId)
+      break
+    }
+    usedBytes += bytes
+    sections.push(block)
+    includedIds.push(roleId)
+  }
+
+  if (sections.length === 0) return null
+  const summary = boundSummary(`Referenced role${names.length === 1 ? '' : 's'}: ${names.join(', ')}`)
+  return deepFreeze({
+    id: randomUUID(),
+    role: 'user',
+    content: [{ type: 'text', text: `${header}\n\n${sections.join('\n\n')}` }],
+    source: {
+      kind: ROLE_REF_SOURCE_KIND,
+      form: 'notice',
+      summary,
+      roleIds: includedIds,
+    },
+  })
+}
 
 export class OpError extends Error {
   constructor(message) {
@@ -365,22 +461,65 @@ export function apply(ctx) {
     scope.effect(() => () => { for (const agent of providers.keys()) uninstall(agent) }, 'roles: skill providers')
   })
 
+  const injectRoleNotice = (sessionId, role) => {
+    const agent = ctx.get?.('agents')?.get?.(sessionId)
+    if (!agent) return
+    const text = role
+      ? `The user switched this session's active role to "${role.name}" (id=${role.id}).`
+      : 'The user cleared the active role for this session.'
+    const summary = boundSummary(role ? `Switched role to ${role.name}` : 'Cleared active role')
+    const message = deepFreeze({
+      id: randomUUID(),
+      role: 'user',
+      content: [{ type: 'text', text }],
+      source: { kind: ROLE_SWITCH_SOURCE_KIND, form: 'notice', summary, roleId: role?.id ?? null },
+    })
+    const pending = Array.isArray(agent.inbox?.nextStep)
+      ? agent.inbox.nextStep.filter(item => item?.source?.kind === ROLE_SWITCH_SOURCE_KIND)
+      : []
+    if (pending.length > 0 && typeof agent.inbox?.replace === 'function') {
+      agent.inbox.replace(pending[0].id, message)
+      for (const extra of pending.slice(1)) agent.inbox.remove?.(extra.id)
+    } else if (typeof agent.inject === 'function') {
+      agent.inject(message)
+    }
+  }
+
   ctx.systemPrompt.section({
     name: 'roles:active-role',
     // external: DSH deployment persona section uses order 0
     order: 5,
     interpolate: false,
+    replacement: 'The active session role changed. Follow the updated role instructions below.',
+    retirement: 'No active session role is selected. Earlier role instructions no longer apply.',
     text: ({ agent, scope }) => {
       const sessionId = (agent ?? scope)?.session?.id
       return typeof sessionId === 'string' ? renderRolePrompt(roleOfSession(sessionId)) : ''
     },
   })
 
-  ctx.systemPrompt.section({
-    name: 'roles:reference-hint',
-    order: 6,
-    interpolate: false,
-    text: () => ROLE_REFERENCE_HINT,
+  ctx.on('agent/pre-step', async ({ signal }, next) => {
+    const decision = await next()
+    if (decision.kind === 'reject' || signal?.aborted) return decision
+    if (!Array.isArray(decision.messages) || decision.messages.length === 0) return decision
+    if (decision.messages.some(message => message?.source?.kind === ROLE_REF_SOURCE_KIND)) return decision
+    const hasCandidate = decision.messages.some(message => extractRoleReferenceIds(message).length > 0)
+    if (!hasCandidate) return decision
+    try { await ready } catch { return decision }
+    if (closed || signal?.aborted) return decision
+    const nextMessages = []
+    let injected = false
+    for (const message of decision.messages) {
+      nextMessages.push(message)
+      const ids = extractRoleReferenceIds(message)
+      if (ids.length === 0) continue
+      const refMsg = buildRoleReferenceMessage(ids, library.roles)
+      if (refMsg) {
+        nextMessages.push(refMsg)
+        injected = true
+      }
+    }
+    return injected ? { ...decision, messages: nextMessages } : decision
   })
 
   const streams = new Set()
@@ -420,11 +559,13 @@ export function apply(ctx) {
         changed = true
       }
       const table = domain.table('sessions')
+      let roleSwitched = null
       if (select) {
         const previous = table.get(select.sessionId)?.roleId ?? null
         if (previous !== select.roleId) {
           if (select.roleId === null) await table.delete(select.sessionId)
           else await table.put(select.sessionId, { roleId: select.roleId, at: Date.now() })
+          roleSwitched = select
           changed = true
         }
       }
@@ -439,6 +580,10 @@ export function apply(ctx) {
       if (changed) {
         sessions = new Map(table.entries())
         refreshSkills()
+        if (roleSwitched && !fromTool) {
+          const nextRole = roleSwitched.roleId === null ? null : library.roles.find(r => r.id === roleSwitched.roleId) ?? null
+          injectRoleNotice(roleSwitched.sessionId, nextRole)
+        }
         broadcast()
       }
       if (op?.action === 'list' && fromTool) {

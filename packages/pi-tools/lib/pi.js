@@ -48,17 +48,24 @@ export const { sliceHead, sliceTail, truncateHead, truncateLine, formatSize, DEF
 export const detectImageMimeType = mime.detectSupportedImageMimeType
 export const getShellConfig = shell.getShellConfig
 
-export function toolPrompt(definitions, { cwd = '.', mcpServers = [], mcpExposure = 'codemode' } = {}) {
-  const servers = mcpPrompt.renderServersSection(mcpServers.map(name => ({
+export function mcpServersContext(mcpServers = [], mcpExposure = 'codemode') {
+  if (!Array.isArray(mcpServers) || mcpServers.length === 0) return ''
+  return mcpPrompt.renderServersSection(mcpServers.map(name => ({
     entry: { name, config: { exposure: mcpExposure } },
   })))
-  return prompt.buildSystemPrompt({
+}
+
+export function toolPrompt(definitions, { cwd = '.', mcpServers = [], mcpExposure = 'codemode', includeDynamicContext = false } = {}) {
+  const servers = includeDynamicContext ? mcpServersContext(mcpServers, mcpExposure) : ''
+  const sections = prompt.buildSystemPromptSections({
     cwd,
     selectedTools: definitions.map(tool => tool.name),
     toolSnippets: Object.fromEntries(definitions.map(tool => [tool.name, tool.promptSnippet])),
     toolGuidelines: Object.fromEntries(definitions.map(tool => [tool.name, tool.promptGuidelines ?? []])),
     sections: servers ? { mcp_servers: servers } : {},
   })
+  if (!includeDynamicContext) delete sections.cwd
+  return Object.values(sections).filter(Boolean).join('\n\n')
 }
 
 export function createDefinitions(cwd, operations, names = Object.keys(factories)) {
