@@ -660,12 +660,23 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'layout', 'inputTriggers', 'sessions', 'uiConversation'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'roles: dictionaries')
+        let pageStyleEl = null
+        const ensurePageStyles = () => {
+          if (pageStyleEl || typeof document === 'undefined' || !document.head) return
+          pageStyleEl = document.createElement('style')
+          pageStyleEl.textContent = PAGE_CSS
+          document.head.append(pageStyleEl)
+        }
         ctx.effect(() => {
           if (typeof document === 'undefined') return undefined
           const style = document.createElement('style')
-          style.textContent = MENU_CSS + PAGE_CSS
+          style.textContent = MENU_CSS
           document.head.append(style)
-          return () => style.remove()
+          return () => {
+            style.remove()
+            pageStyleEl?.remove()
+            pageStyleEl = null
+          }
         }, 'roles: styles')
         const t = ctx.locale.bind(NS)
         const useLocale = () => React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
@@ -1545,6 +1556,8 @@ window.__ModuleLoader__.load({
 
         function RolesPage() {
           useLocale()
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensurePageStyles, [])
           const { status, roles, sessions, error, limits, builtinMissing, builtinModified } = useRoles()
           const { selected, drafts, query, filter } = useUi()
           const navSeq = React.useSyncExternalStore(navStore.subscribe, navStore.get)

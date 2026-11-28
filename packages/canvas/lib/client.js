@@ -173,14 +173,7 @@ window.__ModuleLoader__.load({
       '.overflow-auto{overflow:auto}.space-y-2>*+*{margin-top:8px}.space-y-3>*+*{margin-top:12px}.space-y-4>*+*{margin-top:16px}',
     ].join('')
 
-    const CSS = `
-.cv{box-sizing:border-box;min-width:0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
-:where(.cv) *,:where(.cv) *::before,:where(.cv) *::after{box-sizing:border-box}
-:where(.cv) :is(button,select,input,textarea){font:inherit;color:inherit;margin:0}
-:where(.cv) button{cursor:pointer;background:transparent;border:0;padding:0;text-align:left}
-.cv :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
-.cv-ellipsis{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-
+    const TRIGGER_CSS = `
 .cv-anchor{display:inline-flex;min-width:0;max-width:100%;overflow:hidden;font-size:calc(var(--dsh-content-font-size-secondary,13px) - 1px);line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px))}
 .cv-trigger{box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;max-width:100%;overflow:hidden;margin:0;padding:1px 8px;border:0;border-radius:var(--dsw-radius-sm,8px);
   background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-variant-numeric:tabular-nums;line-height:inherit;white-space:nowrap;cursor:pointer}
@@ -192,6 +185,15 @@ window.__ModuleLoader__.load({
 .cv-dot{flex:none;width:6px;height:6px;border-radius:50%;corner-shape:round;background:var(--dsw-alias-state-success-primary)}
 .cv-count{color:var(--dsw-alias-label-tertiary);font-size:11px;font-weight:400;font-variant-numeric:tabular-nums}
 .cv-tab-icon{flex:none;color:var(--dsw-alias-label-tertiary)}
+`
+
+    const CSS = `
+.cv{box-sizing:border-box;min-width:0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+:where(.cv) *,:where(.cv) *::before,:where(.cv) *::after{box-sizing:border-box}
+:where(.cv) :is(button,select,input,textarea){font:inherit;color:inherit;margin:0}
+:where(.cv) button{cursor:pointer;background:transparent;border:0;padding:0;text-align:left}
+.cv :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+.cv-ellipsis{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 
 .cv-dock{container-type:inline-size;flex:none;margin:0 auto;
   width:calc(100% - 2 * var(--dsh-composer-side-clearance,16px) - 4 * var(--dsh-composer-dock-inset,8px));
@@ -669,11 +671,22 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'theme', 'sidebarRight', 'sidebarRightTabs'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, DICTS), 'canvas: locale')
+        let detailStyleEl = null
+        const ensureDetailStyles = () => {
+          if (detailStyleEl || typeof document === 'undefined' || !document.head) return
+          detailStyleEl = document.createElement('style')
+          detailStyleEl.textContent = CSS
+          document.head.append(detailStyleEl)
+        }
         ctx.effect(() => {
           const style = document.createElement('style')
-          style.textContent = CSS
+          style.textContent = TRIGGER_CSS
           document.head.append(style)
-          return () => style.remove()
+          return () => {
+            style.remove()
+            detailStyleEl?.remove()
+            detailStyleEl = null
+          }
         }, 'canvas: styles')
 
         const translate = ctx.locale.bind(NS)
@@ -884,7 +897,10 @@ window.__ModuleLoader__.load({
           const t = useLocale()
           const cwd = useSessions ? (useSessions(s => s.byId?.[sessionId]?.cwd ?? '') ?? '') : ''
           const { snapshot } = useCanvasSession(sessionId, cwd)
-          if (!sessionId || !snapshot.enabled || snapshot.canvases.length === 0) return null
+          const activeDock = Boolean(sessionId && snapshot.enabled && snapshot.canvases.length > 0)
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(() => { if (activeDock) ensureDetailStyles() }, [activeDock])
+          if (!activeDock) return null
           const active = snapshot.canvases.find(c => c.path === snapshot.activePath) ?? snapshot.canvases[0]
           return h('div', { className: 'cv cv-dock' },
             h('div', { className: 'cv-dock-card' },
@@ -898,6 +914,8 @@ window.__ModuleLoader__.load({
         }
 
         function CanvasToolCard({ phase, block, inspect, useDisclosure }) {
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensureDetailStyles, [])
           const t = useLocale()
           const [localExpanded, setLocalExpanded] = React.useState(false)
           const disclosure = typeof useDisclosure === 'function' ? useDisclosure() : null
@@ -986,6 +1004,8 @@ window.__ModuleLoader__.load({
         }
 
         function CanvasWorkspace({ sessionId, cwd, tab, inputActions }) {
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensureDetailStyles, [])
           const t = useLocale()
           const scheme = useScheme()
           const { snapshot, op } = useCanvasSession(sessionId, cwd)

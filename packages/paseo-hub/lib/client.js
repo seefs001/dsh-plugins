@@ -761,11 +761,16 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, 'en', EN), 'paseo-hub: en')
         ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'paseo-hub: zh')
-        ctx.effect(() => {
-          const style = document.createElement('style')
-          style.textContent = CSS
-          document.head.append(style)
-          return () => style.remove()
+        let styleEl = null
+        const ensureStyles = () => {
+          if (styleEl || typeof document === 'undefined' || !document.head) return
+          styleEl = document.createElement('style')
+          styleEl.textContent = CSS
+          document.head.append(styleEl)
+        }
+        ctx.effect(() => () => {
+          styleEl?.remove()
+          styleEl = null
         }, 'paseo-hub: styles')
         const t = ctx.locale.bind(NS)
         const tf = (key, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, String(v)), t(key))
@@ -1634,6 +1639,8 @@ window.__ModuleLoader__.load({
 
         function HubPage() {
           useLocale()
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensureStyles, [])
           const [nonce, setNonce] = React.useState(0)
           const [fast, setFast] = React.useState(false)
           const state = useResource('paseo-hub/state', { n: nonce }, fast)
@@ -1766,6 +1773,8 @@ window.__ModuleLoader__.load({
         }
 
         function HubToolRow({ toolName, phase, block, inspect, useDisclosure }) {
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensureStyles, [])
           const { expanded, toggle } = useDisclosure()
           const parsed = parseHubCall(phase, block)
           const running = parsed.state === 'preparing' || parsed.state === 'running'

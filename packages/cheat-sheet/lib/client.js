@@ -148,10 +148,15 @@ window.__ModuleLoader__.load({
       },
     }
 
-    const CSS = `
-.dcs-trigger,.dcs-button,.dcs-icon-button,.dcs-seg button{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;cursor:pointer}
-.dcs-trigger{height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;transition:background-color .15s,color .15s}
+    const TRIGGER_CSS = `
+.dcs-trigger{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;cursor:pointer;height:28px;padding:0 8px;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px;font-weight:500;white-space:nowrap;transition:background-color .15s,color .15s}
 .dcs-trigger svg{flex:none;width:14px;height:14px}
+.dcs-trigger:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
+@media(hover:hover){.dcs-trigger:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}
+@media(max-width:480px){.dcs-trigger span{display:none}}
+`
+    const CSS = `
+.dcs-button,.dcs-icon-button,.dcs-seg button{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;cursor:pointer}
 .dcs-button svg,.dcs-icon-button svg{flex:none;width:16px;height:16px}
 .dcs-button{min-height:30px;padding:4px 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:20px;white-space:nowrap}
 .dcs-button[data-primary]{border-color:transparent;border-radius:999px;corner-shape:round;padding:4px 14px;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}
@@ -645,7 +650,7 @@ window.__ModuleLoader__.load({
       return h(React.Fragment, null,
         h('button', {
           type: 'button', className: 'dcs-trigger', title: props.t('title'), 'aria-haspopup': 'dialog',
-          onClick: () => setOpen(true),
+          onClick: () => { props.ensureDetailStyles?.(); setOpen(true) },
         }, h(SheetIcon), h('span', null, props.t('title'))),
         open ? h(Sheet, { ...props, key: props.sessionId, onDismiss: () => setOpen(false) }) : null)
     }
@@ -656,13 +661,26 @@ window.__ModuleLoader__.load({
         for (const [lang, dict] of Object.entries(DICTS)) {
           ctx.effect(() => ctx.locale.register(NS, lang, dict), `cheat-sheet: ${lang}`)
         }
+        let detailStyleEl = null
+        const ensureDetailStyles = () => {
+          if (detailStyleEl || typeof document === 'undefined' || !document.head) return
+          detailStyleEl = document.createElement('style')
+          detailStyleEl.textContent = CSS
+          document.head.append(detailStyleEl)
+        }
         ctx.effect(() => {
           const style = document.createElement('style')
-          style.textContent = CSS
+          style.textContent = TRIGGER_CSS
           document.head.append(style)
-          return () => style.remove()
+          return () => {
+            style.remove()
+            detailStyleEl?.remove()
+            detailStyleEl = null
+          }
         }, 'cheat-sheet: styles')
         function CheatSheetToolRow({ phase, block, inspect, useDisclosure, t }) {
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensureDetailStyles, [])
           const { expanded, toggle } = useDisclosure()
           const settled = phase === 'result' && block && 'kind' in block
           const call = settled ? block.call : block
@@ -730,7 +748,7 @@ window.__ModuleLoader__.load({
         const listSkills = (sessionId, signal) => ctx.remote.skills.list({ sessionId }, signal)
         ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
           name: 'conversation.input.left', id: 'cheat-sheet', order: 80, locale: NS,
-          inject: () => ({ listSkills }),
+          inject: () => ({ listSkills, ensureDetailStyles }),
         }, Trigger))
       },
     }

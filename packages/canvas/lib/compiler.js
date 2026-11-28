@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import ts from 'typescript'
 
 export const ALLOWED_IMPORT = 'dsh/canvas'
 export const ALLOWED_IMPORTS = new Set(['dsh/canvas', 'react', 'lucide-react'])
@@ -26,29 +25,38 @@ const SDK_PATH = fileURLToPath(new URL('./sdk.d.ts', import.meta.url))
 const VIRTUAL_ENTRY = '/__dsh_canvas__/canvas.tsx'
 const VIRTUAL_SDK = '/__dsh_canvas__/sdk.d.ts'
 
-const COMPILER_OPTIONS = {
-  target: ts.ScriptTarget.ES2022,
-  module: ts.ModuleKind.CommonJS,
-  jsx: ts.JsxEmit.React,
-  strict: true,
-  noImplicitAny: true,
-  strictNullChecks: true,
-  esModuleInterop: true,
-  skipLibCheck: true,
-  noEmit: true,
-  isolatedModules: true,
-  lib: ['lib.es2022.d.ts', 'lib.dom.d.ts'],
-}
-
 const require = createRequire(import.meta.url)
-const TS_LIB_DIR = dirname(require.resolve('typescript'))
+
+let tsRuntime = null
+function getTsRuntime() {
+  if (tsRuntime) return tsRuntime
+  const ts = require('typescript')
+  tsRuntime = {
+    ts,
+    libDir: dirname(require.resolve('typescript')),
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.CommonJS,
+      jsx: ts.JsxEmit.React,
+      strict: true,
+      noImplicitAny: true,
+      strictNullChecks: true,
+      esModuleInterop: true,
+      skipLibCheck: true,
+      noEmit: true,
+      isolatedModules: true,
+      lib: ['lib.es2022.d.ts', 'lib.dom.d.ts'],
+    },
+  }
+  return tsRuntime
+}
 
 const libSourceCache = new Map()
 let cachedSdkSourceFile = null
 let cachedSdkRaw = null
 let previousProgram
 
-function getSdkSourceFile() {
+function getSdkSourceFile(ts) {
   const text = readFileSync(SDK_PATH, 'utf8')
   if (!cachedSdkSourceFile || cachedSdkRaw !== text) {
     cachedSdkRaw = text
@@ -58,8 +66,8 @@ function getSdkSourceFile() {
   return cachedSdkSourceFile
 }
 
-function getLibSourceFile(fileName) {
-  const key = fileName.startsWith(TS_LIB_DIR) ? fileName : join(TS_LIB_DIR, fileName)
+function getLibSourceFile(ts, libDir, fileName) {
+  const key = fileName.startsWith(libDir) ? fileName : join(libDir, fileName)
   if (libSourceCache.has(key)) return libSourceCache.get(key)
   try {
     const content = readFileSync(key, 'utf8')
@@ -77,7 +85,7 @@ function positionOf(sourceFile, pos) {
   return { line: line + 1, column: character + 1 }
 }
 
-function isPropertyAccessTarget(node) {
+function isPropertyAccessTarget(ts, node) {
   const parent = node.parent
   if (!parent) return false
   if (ts.isPropertyAccessExpression(parent) && parent.name === node) return true
@@ -95,7 +103,7 @@ function isPropertyAccessTarget(node) {
   return false
 }
 
-function validatePolicy(sourceFile) {
+function validatePolicy(ts, sourceFile) {
   const errors = []
   let hasDefaultExport = false
   const report = (node, code, message) => {
@@ -150,7 +158,7 @@ function validatePolicy(sourceFile) {
       } else if (targetText === 'navigator' && FORBIDDEN_NAVIGATOR_PROPS.has(prop)) {
         report(node, 'CANVAS_FORBIDDEN_API', `Access to navigator.${prop} is forbidden in the Canvas sandbox.`)
       }
-    } else if (ts.isIdentifier(node) && FORBIDDEN_GLOBALS.has(node.text) && !isPropertyAccessTarget(node)) {
+    } else if (ts.isIdentifier(node) && FORBIDDEN_GLOBALS.has(node.text) && !isPropertyAccessTarget(ts, node)) {
       report(node, 'CANVAS_FORBIDDEN_API', `Use of "${node.text}" is forbidden in the Canvas sandbox.`)
     }
     ts.forEachChild(node, visit)
@@ -169,13 +177,14 @@ function validatePolicy(sourceFile) {
   return errors
 }
 
-function typeCheck(entrySourceFile) {
-  const sdkSourceFile = getSdkSourceFile()
+function typeCheck(runtime, entrySourceFile) {
+  const { ts, libDir, compilerOptions } = runtime
+  const sdkSourceFile = getSdkSourceFile(ts)
   const host = {
     getSourceFile(fileName) {
       if (fileName === VIRTUAL_ENTRY) return entrySourceFile
       if (fileName === VIRTUAL_SDK) return sdkSourceFile
-      return getLibSourceFile(fileName)
+      return getLibSourceFile(ts, libDir, fileName)
     },
     writeFile() {},
     getDefaultLibFileName: () => 'lib.es2022.d.ts',
@@ -185,7 +194,7 @@ function typeCheck(entrySourceFile) {
     getNewLine: () => '\n',
     fileExists(fileName) {
       if (fileName === VIRTUAL_ENTRY || fileName === VIRTUAL_SDK) return true
-      return getLibSourceFile(fileName) !== undefined
+      return getLibSourceFile(ts, libDir, fileName) !== undefined
     },
     readFile() {
       return undefined
@@ -194,7 +203,7 @@ function typeCheck(entrySourceFile) {
     getDirectories: () => [],
   }
 
-  const program = ts.createProgram([VIRTUAL_SDK, VIRTUAL_ENTRY], COMPILER_OPTIONS, host, previousProgram)
+  const program = ts.createProgram([VIRTUAL_SDK, VIRTUAL_ENTRY], compilerOptions, host, previousProgram)
   previousProgram = program
 
   const raw = [
@@ -232,9 +241,11 @@ export function compileCanvas(source) {
     }
   }
 
+  const runtime = getTsRuntime()
+  const { ts } = runtime
   const entrySourceFile = ts.createSourceFile(VIRTUAL_ENTRY, source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX)
-  const policyDiagnostics = validatePolicy(entrySourceFile)
-  const tsDiagnostics = typeCheck(entrySourceFile)
+  const policyDiagnostics = validatePolicy(ts, entrySourceFile)
+  const tsDiagnostics = typeCheck(runtime, entrySourceFile)
   const diagnostics = [...policyDiagnostics, ...tsDiagnostics]
   const hasErrors = diagnostics.some(d => d.severity === 'error')
 

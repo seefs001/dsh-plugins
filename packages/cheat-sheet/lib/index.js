@@ -1,19 +1,27 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { DOMAIN_SPEC, InputError, explicitSkill, isSkillName, loadedSkill, recordUse, setPinned } from './state.js'
 
 const DESCRIPTIONS_PATH = join(homedir(), '.agents', 'skills', 'short-descriptions.zh.json')
+const OBSERVE_FLUSH_DEBOUNCE_MS = 500
+let descriptionsCache = null
 
 async function readDescriptions() {
   try {
+    const info = await stat(DESCRIPTIONS_PATH)
+    const stamp = `${info.mtimeMs}:${info.size}`
+    if (descriptionsCache && descriptionsCache.stamp === stamp) return descriptionsCache.value
     const descriptions = JSON.parse(await readFile(DESCRIPTIONS_PATH, 'utf8'))
     if (!descriptions || typeof descriptions !== 'object' || Array.isArray(descriptions)
       || Object.entries(descriptions).some(([key, value]) => !isSkillName(key) || typeof value !== 'string' || !value.trim())) {
       throw new Error('Expected skill names mapped to nonempty Chinese descriptions')
     }
-    return { descriptions, descriptionsAvailable: true }
+    const value = { descriptions, descriptionsAvailable: true }
+    descriptionsCache = { stamp, value }
+    return value
   } catch {
+    descriptionsCache = null
     return { descriptions: {}, descriptionsAvailable: false }
   }
 }
@@ -65,24 +73,46 @@ export async function apply(ctx) {
     tail = result.catch(() => {})
     return result
   }
+  const pendingUses = []
+  let observeTimer = null
+  const flushUses = () => {
+    if (observeTimer !== null) {
+      clearTimeout(observeTimer)
+      observeTimer = null
+    }
+    if (pendingUses.length === 0) return tail
+    const batch = pendingUses.splice(0, pendingUses.length)
+    return write(state => batch.reduce((acc, skillName) => recordUse(acc, skillName), state))
+  }
   ctx.effect(() => async () => {
+    await flushUses().catch(() => {})
     await tail
     await domain.close()
   }, 'cheat-sheet: storage')
 
   const operate = async op => {
     if (op?.action === 'state') {
-      await tail
+      await flushUses()
       return domain.global.get()
     }
-    if (op?.action === 'pin') return write(state => setPinned(state, op.name, op.pinned))
+    if (op?.action === 'pin') {
+      await flushUses()
+      return write(state => setPinned(state, op.name, op.pinned))
+    }
     throw new InputError('action must be state or pin')
   }
   const observe = skillName => {
     if (skillName === undefined) return
-    write(state => recordUse(state, skillName)).catch(error => {
-      ctx.logger.warn(`cheat-sheet: could not save skill usage: ${error.message}`)
-    })
+    pendingUses.push(skillName)
+    if (observeTimer === null) {
+      observeTimer = setTimeout(() => {
+        observeTimer = null
+        flushUses().catch(error => {
+          ctx.logger.warn(`cheat-sheet: could not save skill usage: ${error.message}`)
+        })
+      }, OBSERVE_FLUSH_DEBOUNCE_MS)
+      observeTimer.unref?.()
+    }
   }
   ctx.on('session/event', (_session, event) => { observe(explicitSkill(event)) })
   ctx.on('tools/result', (exec, result) => { observe(loadedSkill(exec, result)) })

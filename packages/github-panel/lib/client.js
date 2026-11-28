@@ -673,10 +673,12 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function useOverview(registry, sessionId, cwdHint, activityKey) {
+    function useOverview(registry, sessionId, cwdHint, activityKey, options) {
+      const disabled = Boolean(options?.disabled)
+      const deferMs = options?.deferMs ?? 0
       const store = React.useMemo(
-        () => (sessionId ? registry.ensureStore(sessionId) : null),
-        [registry, sessionId],
+        () => (!disabled && sessionId ? registry.ensureStore(sessionId) : null),
+        [registry, sessionId, disabled],
       )
       const empty = React.useRef({ loading: false, loaded: false, data: null, error: null, fetchedAt: 0 }).current
       const snap = React.useSyncExternalStore(
@@ -686,15 +688,33 @@ window.__ModuleLoader__.load({
       )
       React.useEffect(() => {
         if (!store) return undefined
-        store.ensure(cwdHint)
+        let idleId = 0
+        let timerId = 0
+        if (deferMs > 0) {
+          const trigger = () => {
+            idleId = 0
+            timerId = 0
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+            store.ensure(cwdHint)
+          }
+          if (typeof requestIdleCallback === 'function') {
+            idleId = requestIdleCallback(trigger, { timeout: deferMs })
+          } else {
+            timerId = setTimeout(trigger, deferMs)
+          }
+        } else {
+          store.ensure(cwdHint)
+        }
         const onWake = () => store.maybeRefreshStale()
         window.addEventListener('focus', onWake)
         document.addEventListener('visibilitychange', onWake)
         return () => {
+          if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId)
+          if (timerId) clearTimeout(timerId)
           window.removeEventListener('focus', onWake)
           document.removeEventListener('visibilitychange', onWake)
         }
-      }, [store, cwdHint])
+      }, [store, cwdHint, deferMs])
 
       const prevActivity = React.useRef(activityKey)
       React.useEffect(() => {
@@ -808,12 +828,17 @@ window.__ModuleLoader__.load({
         }
         const translate = ctx.locale.bind(NS)
 
-        ctx.effect(() => {
-          const style = document.createElement('style')
-          style.dataset.plugin = 'dsh-github-panel'
-          style.textContent = CSS_TEXT
-          document.head.appendChild(style)
-          return () => style.remove()
+        let styleEl = null
+        const ensureStyles = () => {
+          if (styleEl || typeof document === 'undefined' || !document.head) return
+          styleEl = document.createElement('style')
+          styleEl.dataset.plugin = 'dsh-github-panel'
+          styleEl.textContent = CSS_TEXT
+          document.head.appendChild(styleEl)
+        }
+        ctx.effect(() => () => {
+          styleEl?.remove()
+          styleEl = null
         }, 'github-panel: styles')
 
         const registry = createStoreRegistry()
@@ -920,6 +945,8 @@ window.__ModuleLoader__.load({
         }
 
         function GitHubSection({ sessionId, useProjection, useConversation, useSession, inputActions, dismissOverlay, renderFactorySlot, t }) {
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensureStyles, [])
           const cwd = typeof useProjection === 'function' ? useProjection('workingDirectory') : undefined
           const activityKey = readActivityKey(useConversation, useSession)
           const { snap, store } = useOverview(registry, sessionId, cwd, activityKey)
@@ -1380,6 +1407,8 @@ window.__ModuleLoader__.load({
         }
 
         function GitHubSectionActions({ sessionId }) {
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensureStyles, [])
           const { snap } = useOverview(registry, sessionId)
           const data = snap.data
           if (!snap.loaded || !data) return null
@@ -1402,14 +1431,18 @@ window.__ModuleLoader__.load({
         }
 
         function GitHubIndicator({ sessionId, panelShown, t }) {
-          const { snap } = useOverview(registry, sessionId)
-          if (panelShown) return null
-          if (!latestBranchRunFailed(snap.data)) return null
+          const { snap } = useOverview(registry, sessionId, undefined, undefined, { disabled: panelShown, deferMs: 1500 })
+          const failed = !panelShown && latestBranchRunFailed(snap.data)
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(() => { if (failed) ensureStyles() }, [failed])
+          if (!failed) return null
           return h('span', { className: 'ghp-indicator' },
             h('span', { className: 'ghp-sr' }, t('ciFailedIndicator')))
         }
 
         function ConfigPanel({ t }) {
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensureStyles, [])
           const [text, setText] = React.useState('github.com')
           const [busy, setBusy] = React.useState(false)
           const [status, setStatus] = React.useState({ tone: '', text: '' })

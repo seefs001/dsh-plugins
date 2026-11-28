@@ -219,10 +219,6 @@ window.__ModuleLoader__.load({
 .wm-confirm-paths li+li{margin-top:4px;padding-top:4px;border-top:.5px solid var(--dsw-alias-border-l1)}
 .wm-confirm-paths li{overflow-wrap:anywhere}
 .wm-toast{position:sticky;bottom:14px;align-self:center;padding:5px 12px;border-radius:999px;background:var(--dsw-alias-toast-bg,var(--dsw-alias-label-primary));color:var(--dsw-alias-toast-label,var(--dsw-alias-bg-base));font-size:12px;line-height:18px;box-shadow:var(--dsw-elevation-panel);pointer-events:none}
-.wm-foot-btn{display:flex;align-items:center;gap:var(--dsh-sidebar-label-gap,8px);width:100%;min-height:32px;margin:0;padding:5px calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));box-sizing:border-box;border:0;border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;border-radius:var(--dsw-radius-md,8px);background:transparent;background-clip:padding-box;color:var(--dsw-alias-label-primary);font:inherit;line-height:22px;cursor:pointer;text-align:left}
-.wm-foot-btn[data-wide=false]{width:36px;height:36px;min-height:36px;padding:0;border-inline:0;background-clip:border-box;justify-content:center;margin:0}
-.wm-foot-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
-@media (hover:hover){.wm-foot-btn:hover{background-color:var(--dsw-alias-interactive-bg-hover)}}
 .wm-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .wm-cu{display:flex;flex-direction:column;gap:12px;min-width:0}
 .wm-cu :focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:1px}
@@ -247,17 +243,34 @@ window.__ModuleLoader__.load({
 @container (max-width:560px){.wm-row{align-items:flex-start;flex-wrap:wrap}.wm-row-actions{width:100%;justify-content:flex-end;padding-top:4px}}
 @media (pointer:coarse){.wm-select{font-size:16px;height:36px;min-height:36px}}
 `
+    const FOOT_CSS = `
+.wm-foot-btn{display:flex;align-items:center;gap:var(--dsh-sidebar-label-gap,8px);width:100%;min-height:32px;margin:0;padding:5px calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));box-sizing:border-box;border:0;border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;border-radius:var(--dsw-radius-md,8px);background:transparent;background-clip:padding-box;color:var(--dsw-alias-label-primary);font:inherit;line-height:22px;cursor:pointer;text-align:left}
+.wm-foot-btn[data-wide=false]{width:36px;height:36px;min-height:36px;padding:0;border-inline:0;background-clip:border-box;justify-content:center;margin:0}
+.wm-foot-btn:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-2px}
+@media (hover:hover){.wm-foot-btn:hover{background-color:var(--dsw-alias-interactive-bg-hover)}}
+`
 
     return {
       inject: ['slots', 'locale', 'workspaces'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, 'en', EN), 'workspace-manager: en')
         ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'workspace-manager: zh')
+        let pageStyleEl = null
+        const ensurePageStyles = () => {
+          if (pageStyleEl || typeof document === 'undefined' || !document.head) return
+          pageStyleEl = document.createElement('style')
+          pageStyleEl.textContent = CSS
+          document.head.append(pageStyleEl)
+        }
         ctx.effect(() => {
           const style = document.createElement('style')
-          style.textContent = CSS
+          style.textContent = FOOT_CSS
           document.head.append(style)
-          return () => style.remove()
+          return () => {
+            style.remove()
+            pageStyleEl?.remove()
+            pageStyleEl = null
+          }
         }, 'workspace-manager: styles')
         const t = ctx.locale.bind(NS)
         const tf = (key, vars) => t(key).replace(/\{(\w+)\}/g, (match, field) => String(vars[field] ?? match))
@@ -520,6 +533,8 @@ window.__ModuleLoader__.load({
 
         function WorkspacesPage() {
           useSource(ctx.locale)
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensurePageStyles, [])
           const list = useSource(ctx.workspaces.list)
           const view = useSource(store)
           const [query, setQuery] = React.useState('')
@@ -852,6 +867,8 @@ window.__ModuleLoader__.load({
         function CleanupOverlay() {
           useSource(ctx.locale)
           const cu = useSource(cleanupStore)
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(() => { if (cu.open || cu.notice) ensurePageStyles() }, [cu.open, Boolean(cu.notice)])
           const [openInvalid, setOpenInvalid] = React.useState(true)
           const [openWorktrees, setOpenWorktrees] = React.useState(true)
           const { invalidWorkspaces, idleJobs, cleanWorktrees } = cu.data

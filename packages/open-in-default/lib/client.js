@@ -150,11 +150,16 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'sessions', 'workspaces'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, COPY), `${NS}: dictionaries`)
-        ctx.effect(() => {
-          const style = document.createElement('style')
-          style.textContent = CSS
-          document.head.append(style)
-          return () => style.remove()
+        let styleEl = null
+        const ensureStyles = () => {
+          if (styleEl || typeof document === 'undefined' || !document.head) return
+          styleEl = document.createElement('style')
+          styleEl.textContent = CSS
+          document.head.append(styleEl)
+        }
+        ctx.effect(() => () => {
+          styleEl?.remove()
+          styleEl = null
         }, `${NS}: styles`)
 
         const t = ctx.locale.bind(NS)
@@ -172,8 +177,11 @@ window.__ModuleLoader__.load({
         }
 
         let alive = true
+        let appsRequested = false
         const controller = new AbortController()
         const loadApps = async () => {
+          if (appsRequested) return
+          appsRequested = true
           try {
             const res = await fetch(APPS_ROUTE, { headers: { accept: 'application/json' }, signal: controller.signal })
             if (!res.ok) { update({ apps: [] }); return }
@@ -184,7 +192,6 @@ window.__ModuleLoader__.load({
             if (alive) update({ apps: [] })
           }
         }
-        void loadApps()
 
         ctx.effect(() => {
           const onStorage = event => {
@@ -250,6 +257,12 @@ window.__ModuleLoader__.load({
           const anchorRef = React.useRef(null)
           const arrowRef = React.useRef(null)
           const menuRef = React.useRef(null)
+
+          React.useEffect(() => {
+            if (!path) return
+            ensureStyles()
+            void loadApps()
+          }, [Boolean(path)])
 
           React.useEffect(() => {
             if (!menuRect) return undefined

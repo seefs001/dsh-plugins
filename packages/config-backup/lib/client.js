@@ -367,11 +367,16 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { en: EN, zh: ZH }), 'config-backup: locale')
-        ctx.effect(() => {
-          const style = document.createElement('style')
-          style.textContent = CSS
-          document.head.appendChild(style)
-          return () => style.remove()
+        let styleEl = null
+        const ensureStyles = () => {
+          if (styleEl || typeof document === 'undefined' || !document.head) return
+          styleEl = document.createElement('style')
+          styleEl.textContent = CSS
+          document.head.appendChild(styleEl)
+        }
+        ctx.effect(() => () => {
+          styleEl?.remove()
+          styleEl = null
         }, 'config-backup: styles')
 
         const t = ctx.locale.bind(NS)
@@ -394,6 +399,8 @@ window.__ModuleLoader__.load({
 
         function ConfigBackupPage() {
           useSource(ctx.locale)
+          const useStyleEffect = React.useLayoutEffect ?? React.useEffect
+          useStyleEffect(ensureStyles, [])
           const [tab, setTab] = React.useState('export')
 
           const [inventory, setInventory] = React.useState(null)

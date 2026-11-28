@@ -1705,12 +1705,22 @@ button.aw-child-trigger:focus-visible{outline:none}
         function useT() { React.useSyncExternalStore(subscribeLocale, localeSnapshot); return t }
         const stateText = state => t(`state.${state}`)
 
-        ctx.effect(() => {
-          const style = document.createElement('style')
-          style.setAttribute('data-acp-workbench', '')
-          style.textContent = CSS
-          document.head.append(style)
-          return () => style.remove()
+        let styleEl = null
+        const ensureStyles = () => {
+          if (styleEl || typeof document === 'undefined' || !document.head) return
+          styleEl = document.createElement('style')
+          styleEl.setAttribute('data-acp-workbench', '')
+          styleEl.textContent = CSS
+          document.head.append(styleEl)
+        }
+        const withStyles = Component => function StyledAcpSlot(props) {
+          const out = Component(props)
+          if (out !== null && out !== undefined && out !== false) ensureStyles()
+          return out
+        }
+        ctx.effect(() => () => {
+          styleEl?.remove()
+          styleEl = null
         }, 'acp-workbench: styles')
 
         const confirmStore = { current: null, resolve: null, listeners: new Set() }
@@ -5969,31 +5979,31 @@ button.aw-child-trigger:focus-visible{outline:none}
               inspect ? h('button', { type: 'button', className: 'aw-tv-inspect', onClick: inspect }, h(IconInspectOutlineRegular), tt('tool.inspect')) : null) : null))
         }
 
-        ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, CliMenuOption))
-        ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({ name: 'conversation.input.overlay', id: 'acp-settings', order: 40 }, CliSettingsOverlay))
-        ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'acp-permission-guard', order: -100 }, NativePermissionGuard))
-        ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-model-controls', order: 900 }, NativeModelControls))
-        ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-context-ring', order: 2500 }, NativeContextRing))
-        ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'acp-native', order: 40 }, NativeDock))
-        ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', id: 'acp-child-archive', order: 6, locale: NS }, ChildSubagentHeaderAction))
-        ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'acp-workbench.confirm', locale: NS }, ConfirmModal))
+        ctx.slots.inject('conversation.input.model.options', () => ctx.slots.register({ name: 'conversation.input.model.options', id: 'acp-settings', order: 40 }, withStyles(CliMenuOption)))
+        ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({ name: 'conversation.input.overlay', id: 'acp-settings', order: 40 }, withStyles(CliSettingsOverlay)))
+        ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'acp-permission-guard', order: -100 }, withStyles(NativePermissionGuard)))
+        ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-model-controls', order: 900 }, withStyles(NativeModelControls)))
+        ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'acp-context-ring', order: 2500 }, withStyles(NativeContextRing)))
+        ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'acp-native', order: 40 }, withStyles(NativeDock)))
+        ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', id: 'acp-child-archive', order: 6, locale: NS }, withStyles(ChildSubagentHeaderAction)))
+        ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'acp-workbench.confirm', locale: NS }, withStyles(ConfirmModal)))
         ctx.slots.inject('conversation.session.panel.section', function* () {
-          yield ctx.slots.register({ name: 'conversation.session.panel.section', id: 'subagents', priority: -10, order: 200, label: () => t('headerSubagents'), locale: NS }, UnifiedSubagentsPanelSection)
-          yield ctx.slots.register({ name: 'conversation.session.panel.section.actions', key: 'subagents', priority: -10, locale: NS }, UnifiedSubagentsPanelProgress)
-          yield ctx.slots.register({ name: 'conversation.session.panel.section', id: 'acp-background-tasks', order: 305, label: () => t('bgTasks'), locale: NS }, AcpBackgroundTasksPanelSection)
-          yield ctx.slots.register({ name: 'conversation.session.panel.section.actions', key: 'acp-background-tasks', locale: NS }, AcpBackgroundTasksPanelProgress)
+          yield ctx.slots.register({ name: 'conversation.session.panel.section', id: 'subagents', priority: -10, order: 200, label: () => t('headerSubagents'), locale: NS }, withStyles(UnifiedSubagentsPanelSection))
+          yield ctx.slots.register({ name: 'conversation.session.panel.section.actions', key: 'subagents', priority: -10, locale: NS }, withStyles(UnifiedSubagentsPanelProgress))
+          yield ctx.slots.register({ name: 'conversation.session.panel.section', id: 'acp-background-tasks', order: 305, label: () => t('bgTasks'), locale: NS }, withStyles(AcpBackgroundTasksPanelSection))
+          yield ctx.slots.register({ name: 'conversation.session.panel.section.actions', key: 'acp-background-tasks', locale: NS }, withStyles(AcpBackgroundTasksPanelProgress))
         })
         ctx.slots.inject('conversation.session.panel.indicator', function* () {
-          yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'subagents.running', priority: -10, order: 10, locale: NS }, UnifiedSubagentsRunningIndicator)
-          yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'acp-subagents.attention', order: 90, locale: NS }, AcpAttentionIndicator)
-          yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'acp-background-tasks.running', order: 25, locale: NS }, AcpBackgroundTasksIndicator)
+          yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'subagents.running', priority: -10, order: 10, locale: NS }, withStyles(UnifiedSubagentsRunningIndicator))
+          yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'acp-subagents.attention', order: 90, locale: NS }, withStyles(AcpAttentionIndicator))
+          yield ctx.slots.register({ name: 'conversation.session.panel.indicator', id: 'acp-background-tasks.running', order: 25, locale: NS }, withStyles(AcpBackgroundTasksIndicator))
         })
-        ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, NativeNode))
-        ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-wait' }, AcpWaitNode))
-        ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, AcpTurnReplyToggle))
-        ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key: 'grep', priority: GREP_PATHS_PRIORITY, locale: 'conversation' }, GrepPathsRow))
+        ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-run' }, withStyles(NativeNode)))
+        ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({ name: 'conversation.chat.node', key: 'acp-wait' }, withStyles(AcpWaitNode)))
+        ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'acp-reply-collapse', order: 10, locale: NS, inject: sessionId => ({ sessionId }) }, withStyles(AcpTurnReplyToggle)))
+        ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key: 'grep', priority: GREP_PATHS_PRIORITY, locale: 'conversation' }, withStyles(GrepPathsRow)))
         for (const key of Object.keys(ACP_TOOLVIEW_SPECS)) {
-          ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key, priority: -5, locale: NS }, AcpCustomToolRow))
+          ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key, priority: -5, locale: NS }, withStyles(AcpCustomToolRow)))
         }
 
         function useWorkbench() {
@@ -6822,7 +6832,7 @@ button.aw-child-trigger:focus-visible{outline:none}
               })))
         }
 
-        ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: NS, locale: NS }, Page))
+        ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: NS, locale: NS }, withStyles(Page)))
         function Icon({ size = 16 }) {
           return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
             h('rect', { x: 3, y: 4, width: 18, height: 13, rx: 2 }), h('path', { d: 'm7 8 3 2.5L7 13m6 0h4M8 21h8m-4-4v4' }))
