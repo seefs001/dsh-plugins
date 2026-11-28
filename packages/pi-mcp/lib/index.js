@@ -204,21 +204,27 @@ export async function apply(ctx, config = {}) {
     return entries
   }
 
+  let reconciling = false
   const reconcile = async () => {
     if (disposed) return
-    let entries
+    reconciling = true
     try {
-      entries = await read()
-    } catch (error) {
-      logger.warn(`pi-mcp: cannot read ${file}; keeping current servers: ${errorMessage(error)}`)
-      return
+      let entries
+      try {
+        entries = await read()
+      } catch (error) {
+        logger.warn(`pi-mcp: cannot read ${file}; keeping current servers: ${errorMessage(error)}`)
+        return
+      }
+      if (disposed) return
+      await reconcileServers(active, entries, {
+        register: (server, entry) => ctx.mcpManager.register(server, entry),
+        logger,
+        isDisposed: () => disposed,
+      })
+    } finally {
+      reconciling = false
     }
-    if (disposed) return
-    await reconcileServers(active, entries, {
-      register: (server, entry) => ctx.mcpManager.register(server, entry),
-      logger,
-      isDisposed: () => disposed,
-    })
   }
 
   const enqueue = () => {
@@ -226,20 +232,53 @@ export async function apply(ctx, config = {}) {
     return running
   }
 
-  const statePayload = () => ({
-    ...lastSnapshot,
-    disabledServers: configDisabled,
-    servers: lastSnapshot.servers.map(item => ({
-      ...item,
-      active: active.has(item.name),
-    })),
-  })
+  const statePayload = (overrideDisabled = null) => {
+    if (overrideDisabled !== null) {
+      const disabledSet = new Set(overrideDisabled)
+      return {
+        ...lastSnapshot,
+        disabledServers: overrideDisabled,
+        servers: lastSnapshot.servers.map(item => {
+          const disabledByConfig = disabledSet.has(item.name)
+          const enabled = !disabledByConfig && !item.disabledByEnv && !item.disabledInFile && !item.skippedReason
+          return {
+            ...item,
+            disabledByConfig,
+            enabled,
+            active: enabled,
+          }
+        }),
+      }
+    }
+    return {
+      ...lastSnapshot,
+      disabledServers: configDisabled,
+      servers: lastSnapshot.servers.map(item => ({
+        ...item,
+        active: active.has(item.name),
+      })),
+    }
+  }
 
   const schedule = () => {
     clearTimeout(timer)
     timer = setTimeout(() => {
       void enqueue()
     }, RELOAD_DELAY_MS)
+  }
+
+  const disposeActive = async () => {
+    const pending = []
+    for (const [server, record] of active) {
+      active.delete(server)
+      try {
+        const res = record.dispose?.()
+        if (res && typeof res.then === 'function') pending.push(res)
+      } catch (error) {
+        logger?.warn?.(`pi-mcp: cannot dispose "${server}": ${errorMessage(error)}`)
+      }
+    }
+    if (pending.length > 0) await Promise.allSettled(pending)
   }
 
   ctx.effect(() => {
@@ -253,18 +292,16 @@ export async function apply(ctx, config = {}) {
     } catch (error) {
       logger.warn(`pi-mcp: cannot watch ${file}; changes need a plugin reload: ${error.message}`)
     }
-    return () => {
+    return async () => {
       disposed = true
       clearTimeout(timer)
       watcher?.close()
-      for (const [server, record] of active) {
-        active.delete(server)
-        try {
-          record.dispose?.()
-        } catch (error) {
-          logger?.warn?.(`pi-mcp: cannot dispose "${server}": ${errorMessage(error)}`)
-        }
+      if (!reconciling) {
+        await disposeActive()
+        return
       }
+      await running.catch(() => {})
+      await disposeActive()
     }
   }, 'pi-mcp: watch mcp.json')
 
@@ -306,11 +343,15 @@ export async function apply(ctx, config = {}) {
         try {
           const body = await readJsonBody(req)
           const nextDisabled = normalizeDisabledList(body.disabledServers)
-          configDisabled = nextDisabled
           const entry = ctx.fiber?.entry
           const editor = ctx.get('configEditor')
           if (entry && editor) {
             await editor.edit(entry, current => ({ ...current, disabledServers: nextDisabled }))
+          }
+          configDisabled = nextDisabled
+          if (disposed) {
+            sendJson(res, 200, statePayload(nextDisabled))
+            return
           }
           clearTimeout(timer)
           await enqueue()

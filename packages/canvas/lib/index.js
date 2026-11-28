@@ -1,14 +1,17 @@
 import { randomUUID } from 'node:crypto'
-import { dirname, isAbsolute, relative, resolve } from 'node:path'
+import { stat } from 'node:fs/promises'
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { compileArtifact, formatDiagnosticsSummary, getSdkDeclarations } from './compiler.js'
 import {
   createDataDirectoryWatcher,
   getBotsRootDir,
   globCanvasData,
+  isWithinOrEqual,
   parseDataUri,
   patchCanvasDataFile,
   readCanvasDataFile,
   readGitHostData,
+  staticPrefixOfGlob,
 } from './data.js'
 import {
   buildSystemPromptSection,
@@ -45,6 +48,19 @@ const HEARTBEAT_MS = 25_000
 const CONTEXT_SUMMARY_MAX_CHARS = 120
 const MAX_CONTEXT_STATE_CHARS = 1600
 const CANVAS_SOURCE_KIND = 'canvas'
+const MAX_SESSIONS = 200
+const MAX_STATES = 200
+const MAX_REVISIONS = 120
+const MAX_DIFF_CACHE = 128
+
+async function deleteTableKeys(table, keys) {
+  if (keys.length === 0) return
+  if (typeof table.deleteMany === 'function') {
+    await table.deleteMany(keys)
+    return
+  }
+  for (const key of keys) await table.delete(key)
+}
 
 function deepFreeze(value) {
   if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value
@@ -132,6 +148,7 @@ export function apply(ctx) {
   const stateMap = new Map()
   const revisionMap = new Map()
   const compileCache = new Map()
+  const diffCache = new Map()
   const watchers = new Map()
   const streams = new Set()
   const agentHandles = new Map()
@@ -169,8 +186,14 @@ export function apply(ctx) {
     if (closed) return
     const payload = `event: data\ndata: ${JSON.stringify({ dataTick })}\n\n`
     for (const stream of streams) {
-      if (!stream.res.destroyed) {
-        try { stream.res.write(payload) } catch {}
+      if (stream.res.destroyed || stream.res.writableEnded) {
+        streams.delete(stream)
+        continue
+      }
+      try {
+        stream.res.write(payload)
+      } catch {
+        streams.delete(stream)
       }
     }
   }
@@ -179,6 +202,41 @@ export function apply(ctx) {
     if (!dir || closed) return
     watchedDataDirs.add(dir)
     dataWatcher.sync([...watchedDataDirs])
+  }
+
+  function pruneIdleWatchers() {
+    if (streams.size === 0) {
+      for (const entry of watchers.values()) entry.watcher.close()
+      watchers.clear()
+      if (watchedDataDirs.size > 0) {
+        watchedDataDirs.clear()
+        dataWatcher.sync([])
+      }
+      return
+    }
+    const activeCwds = new Set()
+    for (const stream of streams) {
+      const c = resolveSessionCwd(stream.sessionId, stream.cwd)
+      if (c) activeCwds.add(c)
+    }
+    for (const [cwd, entry] of watchers) {
+      if (!activeCwds.has(cwd)) {
+        entry.watcher.close()
+        watchers.delete(cwd)
+      }
+    }
+  }
+
+  async function pruneMapTable(map, table, maxEntries) {
+    if (map.size <= maxEntries) return
+    const sorted = [...map.entries()].toSorted((a, b) => (a[1]?.updatedAt ?? 0) - (b[1]?.updatedAt ?? 0))
+    const excess = sorted.slice(0, map.size - maxEntries)
+    const keys = []
+    for (const [k] of excess) {
+      map.delete(k)
+      keys.push(storageKeyOf(k))
+    }
+    await deleteTableKeys(table, keys)
   }
 
   async function saveSessionEntry(sessionId, patch) {
@@ -193,6 +251,7 @@ export function apply(ctx) {
     }
     await domain.table('sessions').put(storageKeyOf(sessionId), next)
     sessionMap.set(sessionId, next)
+    await pruneMapTable(sessionMap, domain.table('sessions'), MAX_SESSIONS)
     return next
   }
 
@@ -206,6 +265,7 @@ export function apply(ctx) {
     const next = { path: filePath, values, updatedAt: Date.now() }
     await domain.table('states').put(storageKeyOf(filePath), next)
     stateMap.set(filePath, next)
+    await pruneMapTable(stateMap, domain.table('states'), MAX_STATES)
     return next
   }
 
@@ -214,9 +274,10 @@ export function apply(ctx) {
     const existing = revisionMap.get(filePath)
     const { changed, entry } = appendRevision(existing, { source, reason, errorCount })
     if (changed) {
-      const stored = { ...entry, path: filePath }
+      const stored = { ...entry, path: filePath, updatedAt: Date.now() }
       await domain.table('revisions').put(storageKeyOf(filePath), stored)
       revisionMap.set(filePath, stored)
+      await pruneMapTable(revisionMap, domain.table('revisions'), MAX_REVISIONS)
       return stored
     }
     return entry
@@ -248,6 +309,38 @@ export function apply(ctx) {
     }
   }
 
+  function cachedRevisionSummaries(filePath, entries) {
+    const first = entries[0]?.revision ?? 0
+    const last = entries[entries.length - 1]
+    const cacheKey = `${filePath}::${first}::${last?.revision ?? 0}::${last?.time ?? 0}::${entries.length}`
+    const cached = diffCache.get(cacheKey)
+    if (cached) {
+      diffCache.delete(cacheKey)
+      diffCache.set(cacheKey, cached)
+      return cached
+    }
+    const revisions = entries.map((entry, idx) => ({
+      revision: entry.revision,
+      time: entry.time,
+      reason: entry.reason,
+      errorCount: entry.errorCount,
+      diff: computeLineDiff(idx > 0 ? entries[idx - 1].source : '', entry.source),
+    }))
+    diffCache.set(cacheKey, revisions)
+    if (diffCache.size > MAX_DIFF_CACHE) {
+      const oldest = diffCache.keys().next().value
+      if (oldest !== undefined) diffCache.delete(oldest)
+    }
+    return revisions
+  }
+
+  function clearDiffCache(filePath) {
+    const prefix = `${filePath}::`
+    for (const key of diffCache.keys()) {
+      if (key.startsWith(prefix)) diffCache.delete(key)
+    }
+  }
+
   async function buildCanvasRecord(cwd, filePath, reason) {
     const file = await readCanvasFile(cwd, filePath)
     const kind = file.kind ?? getArtifactKind(file.path)
@@ -255,13 +348,7 @@ export function apply(ctx) {
     const errorCount = compiled.diagnostics.filter(d => d.severity === 'error').length
     const revEntry = await recordRevision(file.path, file.source, reason ?? 'Disk sync', errorCount)
     const state = stateMap.get(file.path)?.values ?? {}
-    const revisions = revEntry.entries.map((entry, idx) => ({
-      revision: entry.revision,
-      time: entry.time,
-      reason: entry.reason,
-      errorCount: entry.errorCount,
-      diff: computeLineDiff(idx > 0 ? revEntry.entries[idx - 1].source : '', entry.source),
-    }))
+    const revisions = cachedRevisionSummaries(file.path, revEntry.entries)
     return {
       path: file.path,
       relativePath: file.relativePath,
@@ -323,13 +410,30 @@ export function apply(ctx) {
     }
   }
 
-  async function broadcastSession(sessionId) {
+  async function broadcastSession(sessionId, precomputed = null) {
+    const byCwd = new Map()
+    if (precomputed) byCwd.set(precomputed.cwd ?? '', precomputed)
     for (const stream of streams) {
       if (stream.sessionId !== sessionId) continue
+      if (stream.res.destroyed || stream.res.writableEnded) {
+        streams.delete(stream)
+        continue
+      }
       try {
-        const snap = await snapshotForSession(stream.sessionId, stream.cwd)
-        if (!stream.res.destroyed) stream.res.write(`data: ${JSON.stringify(snap)}\n\n`)
-      } catch {}
+        const targetCwd = resolveSessionCwd(stream.sessionId, stream.cwd)
+        let snap = byCwd.get(targetCwd)
+        if (!snap) {
+          snap = await snapshotForSession(stream.sessionId, stream.cwd)
+          byCwd.set(targetCwd, snap)
+        }
+        if (stream.res.destroyed || stream.res.writableEnded) {
+          streams.delete(stream)
+          continue
+        }
+        stream.res.write(`data: ${JSON.stringify(snap)}\n\n`)
+      } catch {
+        streams.delete(stream)
+      }
     }
   }
 
@@ -428,8 +532,17 @@ export function apply(ctx) {
       if (!spec || typeof spec.pattern !== 'string') continue
       const res = await globCanvasData(spec.pattern, { cwd, parse: spec.parse ?? 'auto', limit: spec.limit })
       globsOut[key] = res
-      if (spec.pattern.startsWith('bots://')) registerWatchedDir(getBotsRootDir())
-      else if (spec.pattern.startsWith('workspace://') && cwd) registerWatchedDir(resolve(cwd))
+      if (spec.pattern.startsWith('bots://')) {
+        registerWatchedDir(getBotsRootDir())
+      } else if (spec.pattern.startsWith('workspace://') && cwd) {
+        const root = resolve(cwd)
+        const relPattern = spec.pattern.slice('workspace://'.length).replace(/^\/+/, '')
+        const prefix = staticPrefixOfGlob(relPattern)
+        const narrowed = prefix ? resolve(root, prefix) : root
+        const useNarrowed = prefix && isWithinOrEqual(root, narrowed)
+          && await stat(narrowed).then(info => info.isDirectory()).catch(() => false)
+        registerWatchedDir(useNarrowed ? narrowed : root)
+      }
     }
 
     const hostSpecs = subscriptions?.host && typeof subscriptions.host === 'object' ? subscriptions.host : {}
@@ -787,27 +900,31 @@ export function apply(ctx) {
             : 'The user disabled Canvas mode for this session.'
           injectCanvasNotice(sessionId, text, text)
         }
-        await broadcastSession(sessionId)
-        return snapshotForSession(sessionId, cwd)
+        const snap = await snapshotForSession(sessionId, cwd)
+        await broadcastSession(sessionId, snap)
+        return snap
       }
 
       if (op.action === 'select') {
         const nextPath = typeof op.path === 'string' ? op.path : ''
         await saveSessionEntry(sessionId, { activePath: nextPath, ...(cwd ? { cwd } : {}) })
-        await broadcastSession(sessionId)
-        return snapshotForSession(sessionId, cwd)
+        const snap = await snapshotForSession(sessionId, cwd)
+        await broadcastSession(sessionId, snap)
+        return snap
       }
 
       if (op.action === 'refresh') {
         if (cwd) {
+          const prefix = cwd.endsWith(sep) ? cwd : `${cwd}${sep}`
           for (const key of compileCache.keys()) {
-            if (key.startsWith(cwd)) compileCache.delete(key)
+            if (key.startsWith(prefix) || key.startsWith(`${cwd}::`)) compileCache.delete(key)
           }
         }
         dataTick += 1
         broadcastDataTick()
-        await broadcastSession(sessionId)
-        return snapshotForSession(sessionId, cwd)
+        const snap = await snapshotForSession(sessionId, cwd)
+        await broadcastSession(sessionId, snap)
+        return snap
       }
 
       if (op.action === 'create') {
@@ -824,8 +941,9 @@ export function apply(ctx) {
         clearCompileCache(saved.path)
         const record = await buildCanvasRecord(cwd, saved.path, 'Created')
         await saveSessionEntry(sessionId, { cwd, activePath: saved.path })
-        await broadcastSession(sessionId)
-        return { ...(await snapshotForSession(sessionId, cwd)), created: record.path }
+        const snap = await snapshotForSession(sessionId, cwd)
+        await broadcastSession(sessionId, snap)
+        return { ...snap, created: record.path }
       }
 
       if (op.action === 'save') {
@@ -842,8 +960,9 @@ export function apply(ctx) {
           summary,
           `The user edited canvas "${rel}" directly in the Canvas panel (revision ${record.revision}, compile errors: ${record.errorCount}). Read it before making further edits.`,
         )
-        await broadcastSession(sessionId)
-        return snapshotForSession(sessionId, cwd)
+        const snap = await snapshotForSession(sessionId, cwd)
+        await broadcastSession(sessionId, snap)
+        return snap
       }
 
       if (op.action === 'restore') {
@@ -859,14 +978,16 @@ export function apply(ctx) {
         const rel = relativeDisplayPath(cwd, full)
         const summary = `User restored canvas ${rel} to revision ${revNum}`
         injectCanvasNotice(sessionId, summary, `The user restored canvas "${rel}" to revision ${revNum}.`)
-        await broadcastSession(sessionId)
-        return snapshotForSession(sessionId, cwd)
+        const snap = await snapshotForSession(sessionId, cwd)
+        await broadcastSession(sessionId, snap)
+        return snap
       }
 
       if (op.action === 'delete') {
         if (!cwd) throw new OpError('Session workspace directory (cwd) is unavailable.')
         const full = await deleteCanvasFile(cwd, op.path)
         clearCompileCache(full)
+        clearDiffCache(full)
         const domain = await ready
         await domain.table('states').delete(storageKeyOf(full))
         await domain.table('revisions').delete(storageKeyOf(full))
@@ -875,8 +996,9 @@ export function apply(ctx) {
         if (sessionMap.get(sessionId)?.activePath === full) {
           await saveSessionEntry(sessionId, { activePath: '' })
         }
-        await broadcastSession(sessionId)
-        return snapshotForSession(sessionId, cwd)
+        const snap = await snapshotForSession(sessionId, cwd)
+        await broadcastSession(sessionId, snap)
+        return snap
       }
 
       if (op.action === 'setState') {
@@ -907,8 +1029,9 @@ export function apply(ctx) {
         const rel = relativeDisplayPath(cwd, full)
         const summary = `User reset canvas state for ${rel}`
         injectCanvasNotice(sessionId, summary, `The user reset interactive state for canvas "${rel}".`)
-        await broadcastSession(sessionId)
-        return snapshotForSession(sessionId, cwd)
+        const snap = await snapshotForSession(sessionId, cwd)
+        await broadcastSession(sessionId, snap)
+        return snap
       }
 
       throw new OpError(`Unknown action: ${String(op.action)}`)
@@ -980,7 +1103,7 @@ export function apply(ctx) {
       } catch (error) {
         return sendJson(res, 503, { message: `storage unavailable: ${error?.message ?? error}` })
       }
-      if (res.destroyed || closed) return res.end()
+      if (res.destroyed || res.writableEnded || closed) return res.end()
       res.writeHead(200, {
         'content-type': 'text/event-stream; charset=utf-8',
         'cache-control': 'no-store',
@@ -988,24 +1111,44 @@ export function apply(ctx) {
         'x-accel-buffering': 'no',
       })
       const stream = { sessionId, cwd, res }
+      let streamClosed = false
+      let heartbeat = null
+      const drop = () => {
+        if (streamClosed) return
+        streamClosed = true
+        if (heartbeat) {
+          clearInterval(heartbeat)
+          heartbeat = null
+        }
+        streams.delete(stream)
+        pruneIdleWatchers()
+      }
+      res.once('close', drop)
       streams.add(stream)
       try {
         const initial = await snapshotForSession(sessionId, cwd)
-        if (!res.destroyed) res.write(`retry: 3000\ndata: ${JSON.stringify(initial)}\n\n`)
-      } catch {}
-      const heartbeat = setInterval(() => {
-        if (res.destroyed || res.writableEnded) {
-          clearInterval(heartbeat)
-          streams.delete(stream)
+        if (streamClosed || closed || res.destroyed || res.writableEnded) {
+          drop()
           return
         }
-        res.write(': ping\n\n')
+        res.write(`retry: 3000\ndata: ${JSON.stringify(initial)}\n\n`)
+      } catch {}
+      if (streamClosed || closed || res.destroyed || res.writableEnded) {
+        drop()
+        return
+      }
+      heartbeat = setInterval(() => {
+        if (streamClosed || closed || res.destroyed || res.writableEnded) {
+          drop()
+          return
+        }
+        try {
+          res.write(': ping\n\n')
+        } catch {
+          drop()
+        }
       }, HEARTBEAT_MS)
       heartbeat.unref?.()
-      res.once('close', () => {
-        clearInterval(heartbeat)
-        streams.delete(stream)
-      })
     },
   }), `canvas: GET ${EVENTS_PATH}`)
 

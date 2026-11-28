@@ -186,6 +186,7 @@ export class WorkbenchStore {
     this.nativeByRoot = new Map()
     this.dirty = new Map()
     this.chunks = new Map()
+    this.chunkBytes = new Map()
     this.tail = Promise.resolve()
     this.failure = null
     for (const session of this.sessions.values()) this.indexNativeSession(session)
@@ -222,9 +223,12 @@ export class WorkbenchStore {
   }
 
   enqueue(operation) {
-    this.assertWritable()
-    const task = this.tail.then(() => { this.assertWritable(); return operation() })
-    this.tail = task.catch(error => {
+    const task = this.tail.then(async () => {
+      const value = await operation()
+      this.failure = null
+      return value
+    })
+    this.tail = task.then(() => {}, error => {
       this.failure = error
       this.onError?.(error)
     })
@@ -266,14 +270,14 @@ export class WorkbenchStore {
     if (own) {
       for (const id of own) {
         const session = this.sessions.get(id)
-        if (session?.native) { seen.add(id); result.push(session) }
+        if (session?.native?.sessionId === sessionId) { seen.add(id); result.push(session) }
       }
     }
     if (rooted) {
       for (const id of rooted) {
         if (seen.has(id)) continue
         const session = this.sessions.get(id)
-        if (session?.native) { seen.add(id); result.push(session) }
+        if (session?.native?.rootSessionId === sessionId) { seen.add(id); result.push(session) }
       }
     }
     return result
@@ -321,15 +325,26 @@ export class WorkbenchStore {
     clearTimeout(this.timer)
     this.timer = undefined
     if (this.dirty.size === 0) return this.tail
-    const chunks = [...this.dirty].map(([key, chunk]) => [key, { sessionId: chunk.sessionId, events: chunk.events.slice() }])
+    const pendingDirty = [...this.dirty]
+    const chunks = pendingDirty.map(([key, chunk]) => [key, { sessionId: chunk.sessionId, events: chunk.events.slice() }])
     this.dirty.clear()
     const sessions = [...new Set(chunks.map(([, c]) => c.sessionId))].map(id => structuredClone(this.sessions.get(id))).filter(Boolean)
     return this.enqueue(async () => {
-      for (const [key, chunk] of chunks) await this.domain.table('chunks').put(key, chunk)
-      for (const session of sessions) {
-        await this.domain.table('sessions').put(session.id, session)
-        const live = this.sessions.get(session.id)
-        if (live) this.indexNativeSession(live)
+      try {
+        for (const [key, chunk] of chunks) {
+          await this.domain.table('chunks').put(key, chunk)
+          this.chunkBytes.set(key, Buffer.byteLength(JSON.stringify(chunk), 'utf8'))
+        }
+        for (const session of sessions) {
+          await this.domain.table('sessions').put(session.id, session)
+          const live = this.sessions.get(session.id)
+          if (live) this.indexNativeSession(live)
+        }
+      } catch (error) {
+        for (const [key, chunk] of pendingDirty) {
+          if (!this.dirty.has(key)) this.dirty.set(key, chunk)
+        }
+        throw error
       }
       for (const [key, chunk] of chunks) {
         if (this.dirty.has(key)) continue
@@ -337,6 +352,13 @@ export class WorkbenchStore {
         if (key !== `${chunk.sessionId}_${Math.floor(Math.max(0, seq - 1) / CHUNK_SIZE)}`) this.chunks.delete(key)
       }
     })
+  }
+
+  evictSessionCache(sessionId) {
+    const prefix = `${sessionId}_`
+    for (const key of this.chunks.keys()) {
+      if (key.startsWith(prefix) && !this.dirty.has(key)) this.chunks.delete(key)
+    }
   }
 
   events(session, after = 0, limit = 80) {
@@ -359,6 +381,7 @@ export class WorkbenchStore {
     for (const key of keys) {
       this.dirty.delete(key)
       this.chunks.delete(key)
+      this.chunkBytes.delete(key)
     }
     const table = this.domain.table('chunks')
     await this.enqueue(async () => {
@@ -400,7 +423,12 @@ export class WorkbenchStore {
         groups.set(sessionId, group)
       }
       group.keys.push(key)
-      group.bytes += Buffer.byteLength(JSON.stringify(chunk), 'utf8')
+      let bytes = this.chunkBytes.get(key)
+      if (bytes === undefined) {
+        bytes = Buffer.byteLength(JSON.stringify(chunk), 'utf8')
+        this.chunkBytes.set(key, bytes)
+      }
+      group.bytes += bytes
     }
     const keysToDelete = []
     let deletedSessions = 0

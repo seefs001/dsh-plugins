@@ -124,9 +124,23 @@ class RunStore {
     await this.table.put(run.key, run)
     this.index.set(run.sessionId, run)
     if (this.table.size > RUNS_KEPT) {
-      const stale = this.list().slice(RUNS_KEPT).filter(old => old.archivedAt !== null)
-      for (const old of stale) this.index.delete(old.sessionId)
-      await this.table.deleteMany(stale.map(old => old.key))
+      const ordered = this.list()
+      const overflow = ordered.slice(RUNS_KEPT)
+      const stale = overflow.filter(old => old.archivedAt != null)
+      const hardCap = RUNS_KEPT * 2
+      if (this.table.size - stale.length > hardCap) {
+        const staleKeys = new Set(stale.map(old => old.key))
+        for (let i = ordered.length - 1; i >= RUNS_KEPT && this.table.size - stale.length > hardCap; i--) {
+          const candidate = ordered[i]
+          if (staleKeys.has(candidate.key)) continue
+          stale.push(candidate)
+          staleKeys.add(candidate.key)
+        }
+      }
+      if (stale.length > 0) {
+        for (const old of stale) this.index.delete(old.sessionId)
+        await this.table.deleteMany(stale.map(old => old.key))
+      }
     }
   }
 
@@ -680,9 +694,16 @@ export function apply(ctx, config) {
   }, { prepend: true })
 
   ctx.effect(() => {
+    let disposed = false
     let restore = () => {}
-    void ready.then(() => { restore = installShellEnv(ctx, store) }).catch(() => {})
-    return () => restore()
+    void ready.then(() => {
+      if (disposed || closing) return
+      restore = installShellEnv(ctx, store)
+    }).catch(() => {})
+    return () => {
+      disposed = true
+      restore()
+    }
   }, 'paseo-hub: shell env')
 
   const owner = (res, peer) => {

@@ -515,6 +515,10 @@ window.__ModuleLoader__.load({
       window.open(url, '_blank', 'noopener,noreferrer')
     }
 
+    const EMPTY_OVERVIEW = Object.freeze({ loading: false, loaded: false, data: null, error: null, fetchedAt: 0 })
+    const noopOverviewSubscribe = () => () => {}
+    const getEmptyOverview = () => EMPTY_OVERVIEW
+
     function createStoreRegistry() {
       const stores = new Map()
       let channel = null
@@ -529,6 +533,7 @@ window.__ModuleLoader__.load({
         let snapshot = { loading: false, loaded: false, data: null, error: null, fetchedAt: 0 }
         let inflight = null
         let lastCwdKey = null
+        let gen = 0
 
         const emit = () => { for (const fn of listeners) fn() }
         const set = patch => {
@@ -539,6 +544,7 @@ window.__ModuleLoader__.load({
         async function fetchOverview(force = false, cwdHint) {
           if (cwdHint !== undefined) lastCwdKey = cwdHint
           if (inflight && !force) return inflight
+          const reqGen = ++gen
           set({ loading: true, error: null })
           const qs = new URLSearchParams({ sessionId })
           if (force) qs.set('refresh', '1')
@@ -549,6 +555,7 @@ window.__ModuleLoader__.load({
               return json.value
             })
             .then(value => {
+              if (reqGen !== gen) return snapshot.data
               set({ loading: false, loaded: true, data: value, error: null, fetchedAt: Date.now() })
               if (force && channel) {
                 try { BroadcastChannel.prototype.postMessage.call(channel, { type: 'refresh', sessionId }) } catch {}
@@ -556,6 +563,7 @@ window.__ModuleLoader__.load({
               return value
             })
             .catch(err => {
+              if (reqGen !== gen) return null
               set({ loading: false, loaded: true, error: err instanceof Error ? err.message : String(err) })
               return null
             })
@@ -626,11 +634,10 @@ window.__ModuleLoader__.load({
         () => (sessionId ? registry.ensureStore(sessionId) : null),
         [registry, sessionId],
       )
-      const empty = React.useRef({ loading: false, loaded: false, data: null, error: null, fetchedAt: 0 }).current
       const snap = React.useSyncExternalStore(
-        store ? store.subscribe : () => () => {},
-        store ? store.getSnapshot : () => empty,
-        () => empty,
+        store ? store.subscribe : noopOverviewSubscribe,
+        store ? store.getSnapshot : getEmptyOverview,
+        getEmptyOverview,
       )
       React.useEffect(() => {
         if (!store) return undefined

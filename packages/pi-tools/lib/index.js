@@ -41,6 +41,39 @@ export function piDefinitions(cwd, config) {
 }
 
 const MAX_META_READ_LINES = 5000
+const MAX_DIFF_CAPTURE_BYTES = 256 * 1024
+const MAX_EDIT_DIFF_BYTES = 2 * 1024 * 1024
+const MAX_DIFF_SNAPSHOT_CHARS = 32 * 1024
+const DIFF_CONTEXT_LINES = 8
+
+function compactDiffEntry(path, oldText, newText) {
+  if (typeof newText !== 'string') return null
+  if (typeof oldText !== 'string') {
+    if (newText.length <= MAX_DIFF_SNAPSHOT_CHARS) return { path, oldText: null, newText }
+    return { path, oldText: null, newText: newText.slice(0, MAX_DIFF_SNAPSHOT_CHARS) }
+  }
+  if (oldText.length <= MAX_DIFF_SNAPSHOT_CHARS && newText.length <= MAX_DIFF_SNAPSHOT_CHARS) {
+    return { path, oldText, newText }
+  }
+  const oldLines = oldText.split('\n')
+  const newLines = newText.split('\n')
+  let prefix = 0
+  const minLen = Math.min(oldLines.length, newLines.length)
+  while (prefix < minLen && oldLines[prefix] === newLines[prefix]) prefix++
+  let suffix = 0
+  while (
+    suffix < minLen - prefix
+    && oldLines[oldLines.length - 1 - suffix] === newLines[newLines.length - 1 - suffix]
+  ) {
+    suffix++
+  }
+  const start = Math.max(0, prefix - DIFF_CONTEXT_LINES)
+  const oldEnd = Math.min(oldLines.length, oldLines.length - suffix + DIFF_CONTEXT_LINES)
+  const newEnd = Math.min(newLines.length, newLines.length - suffix + DIFF_CONTEXT_LINES)
+  const compactOld = oldLines.slice(start, oldEnd).join('\n').slice(0, MAX_DIFF_SNAPSHOT_CHARS)
+  const compactNew = newLines.slice(start, newEnd).join('\n').slice(0, MAX_DIFF_SNAPSHOT_CHARS)
+  return { path, oldText: compactOld, newText: compactNew }
+}
 
 function readLinesMeta(path, text, offset = 1, details) {
   if (typeof text !== 'string') return undefined
@@ -103,12 +136,12 @@ export function createTools(ctx, config = normalizeConfig(), executor) {
             ...operations.edit,
             readFile: async path => {
               const buf = await origRead(path)
-              capturedBefore = buf.toString('utf8')
+              capturedBefore = buf.length <= MAX_EDIT_DIFF_BYTES && !buf.includes(0) ? buf.toString('utf8') : null
               return buf
             },
             writeFile: async (path, text) => {
               await origWrite(path, text)
-              capturedAfter = text
+              capturedAfter = capturedBefore !== null || text.length <= MAX_DIFF_SNAPSHOT_CHARS ? text : null
             },
           }
         } else if (definition.name === 'find') {
@@ -136,7 +169,7 @@ export function createTools(ctx, config = normalizeConfig(), executor) {
           const tool = definition.name === 'grep' ? definition : createDefinitions(cwd, operations, [definition.name])[0]
           const input = prepareArguments(tool, args, exec)
           if (definition.name === 'write' && typeof input.path === 'string') {
-            try { capturedBefore = (await operations.read.readFile(input.path)).toString('utf8') } catch { capturedBefore = null }
+            try { capturedBefore = await operations.read.readTextBounded(input.path, MAX_DIFF_CAPTURE_BYTES) } catch { capturedBefore = null }
           }
           result = definition.name === 'grep'
             ? await runGrep(input, operations.grep)
@@ -144,16 +177,18 @@ export function createTools(ctx, config = normalizeConfig(), executor) {
           if (definition.name === 'edit') {
             const target = resolveToCwd(input.path, cwd)
             file = { path: target, line: result.details?.firstChangedLine ?? 1 }
+            const diff = compactDiffEntry(target, capturedBefore, capturedAfter)
             meta = {
               path: target,
-              ...(capturedAfter !== null ? { diffs: [{ path: target, oldText: capturedBefore, newText: capturedAfter }] } : {}),
+              ...(diff ? { diffs: [diff] } : {}),
             }
           } else if (definition.name === 'write' && typeof input.path === 'string') {
             const target = resolveToCwd(input.path, cwd)
             file = { path: target, line: 1 }
+            const diff = compactDiffEntry(target, capturedBefore, input.content)
             meta = {
               path: target,
-              ...(typeof input.content === 'string' ? { diffs: [{ path: target, oldText: capturedBefore, newText: input.content }] } : {}),
+              ...(diff ? { diffs: [diff] } : {}),
             }
           } else if (definition.name === 'read' && typeof input.path === 'string' && !result.content.some(block => block.type === 'image')) {
             const target = resolveToCwd(input.path, cwd)
@@ -216,10 +251,18 @@ export function codemodeSamplingTransform(codemode = createCodemodeToolDefinitio
 }
 
 async function installRequestTransforms(ctx) {
+  let disposed = false
+  let hook = null
+  ctx.effect(() => () => {
+    disposed = true
+    hook?.remove?.()
+    hook = null
+  }, 'pi-tools: model request compatibility')
   try {
     const sampling = codemodeSamplingTransform()
-    const hook = await addPiAiRequestTransform(request => messagesPrefillTransform(sampling(request)))
-    ctx.effect(() => hook.remove, 'pi-tools: model request compatibility')
+    const installed = await addPiAiRequestTransform(request => messagesPrefillTransform(sampling(request)))
+    if (disposed) installed.remove()
+    else hook = installed
   } catch (error) {
     ctx.logger?.warn?.(`pi-tools: model request compatibility unavailable (${error instanceof Error ? error.message : error})`)
   }

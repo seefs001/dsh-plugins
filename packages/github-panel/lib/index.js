@@ -14,14 +14,28 @@ export const OVERVIEW_PATH = '/github-panel/overview'
 export const CONFIG_PATH = '/github-panel/config'
 export const GITHUB_REF_SOURCE_KIND = 'github-reference'
 
-const DETECT_TTL_MS = 15_000
+const DETECT_TTL_MS = 60_000
 const OVERVIEW_TTL_MS = 60_000
 const MENTIONS_TTL_MS = 45_000
 const PRE_STEP_TIMEOUT_MS = 4_000
+const SHARED_LOAD_TIMEOUT_MS = 30_000
 const MAX_CACHE_ENTRIES = 48
 const MAX_BODY_BYTES = 16 * 1024
 const MAX_CONTEXT_REFS = 5
 const MAX_CONTEXT_BYTES = 12 * 1024
+
+function raceWithSignal(promise, signal) {
+  if (!signal) return promise
+  if (signal.aborted) return Promise.reject(signal.reason ?? new Error('Aborted'))
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(signal.reason ?? new Error('Aborted'))
+    signal.addEventListener('abort', onAbort, { once: true })
+    promise.then(
+      value => { signal.removeEventListener('abort', onAbort); resolve(value) },
+      error => { signal.removeEventListener('abort', onAbort); reject(error) },
+    )
+  })
+}
 
 function deepFreeze(value) {
   if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value
@@ -107,13 +121,13 @@ class TtlCache {
     }
   }
 
-  async load(key, ttlMs, force, loader) {
+  async load(key, ttlMs, force, loader, callerSignal) {
     if (!force) {
       const hit = this.get(key)
       if (hit !== undefined) return hit
     }
     const existing = this.inflight.get(key)
-    if (existing && !force) return existing
+    if (existing && !force) return raceWithSignal(existing, callerSignal)
     const promise = Promise.resolve().then(loader).then(value => {
       this.set(key, value, ttlMs)
       return value
@@ -121,7 +135,7 @@ class TtlCache {
       if (this.inflight.get(key) === promise) this.inflight.delete(key)
     })
     this.inflight.set(key, promise)
-    return promise
+    return raceWithSignal(promise, callerSignal)
   }
 
   clear() {
@@ -172,12 +186,15 @@ export function apply(ctx, config = {}) {
   const detectCache = new TtlCache(MAX_CACHE_ENTRIES)
   const overviewCache = new TtlCache(MAX_CACHE_ENTRIES)
   const mentionsCache = new TtlCache(MAX_CACHE_ENTRIES)
+  const extractCache = new Map()
+  const sharedSignal = () => AbortSignal.any([lifetime.signal, AbortSignal.timeout(SHARED_LOAD_TIMEOUT_MS)])
 
   ctx.effect(() => () => {
     lifetime.abort()
     detectCache.clear()
     overviewCache.clear()
     mentionsCache.clear()
+    extractCache.clear()
   }, 'github-panel: cache and lifetime')
 
   async function resolveSessionContext(sessionId) {
@@ -197,7 +214,7 @@ export function apply(ctx, config = {}) {
 
   async function resolveRepoForCwd(cwd, force, signal) {
     if (!cwd) return null
-    return detectCache.load(cwd, DETECT_TTL_MS, force, () => detectGitHubRepo(cwd, allowedHosts, signal))
+    return detectCache.load(cwd, DETECT_TTL_MS, force, () => detectGitHubRepo(cwd, allowedHosts, sharedSignal()), signal)
   }
 
   ctx.get?.('systemPrompt')?.context?.({
@@ -250,7 +267,7 @@ export function apply(ctx, config = {}) {
       if (refs.length === 0) continue
       try {
         const cacheKey = refs.map(ref => ref.key).join('|')
-        const resolved = await mentionsCache.load(cacheKey, MENTIONS_TTL_MS, false, () => resolveGitHubMentions(refs, resolveSignal))
+        const resolved = await mentionsCache.load(cacheKey, MENTIONS_TTL_MS, false, () => resolveGitHubMentions(refs, sharedSignal()), resolveSignal)
         if (signal?.aborted) return decision
         const refMsg = buildGitHubReferenceMessage(resolved)
         if (refMsg) {
@@ -265,10 +282,22 @@ export function apply(ctx, config = {}) {
   async function resolveSessionMentions(session, target, force, signal) {
     if (!session || typeof session.snapshotEvents !== 'function') return []
     const events = session.snapshotEvents()
-    const refs = extractGitHubMentions(events, target, allowedHosts)
+    const lastSeq = events.length > 0 ? events[events.length - 1]?.seq ?? '' : ''
+    const extractKey = `${session.id ?? ''}::${events.length}::${lastSeq}::${target?.host ?? ''}/${target?.fullName ?? ''}`
+    let refs = force ? undefined : extractCache.get(extractKey)
+    if (refs === undefined) {
+      refs = extractGitHubMentions(events, target, allowedHosts)
+      extractCache.delete(extractKey)
+      extractCache.set(extractKey, refs)
+      while (extractCache.size > MAX_CACHE_ENTRIES) {
+        const oldest = extractCache.keys().next().value
+        if (oldest === undefined) break
+        extractCache.delete(oldest)
+      }
+    }
     if (refs.length === 0) return []
     const cacheKey = refs.map(ref => ref.key).join('|')
-    const resolved = await mentionsCache.load(cacheKey, MENTIONS_TTL_MS, force, () => resolveGitHubMentions(refs, signal))
+    const resolved = await mentionsCache.load(cacheKey, MENTIONS_TTL_MS, force, () => resolveGitHubMentions(refs, sharedSignal()), signal)
     const occByKey = new Map(refs.map(ref => [ref.key, ref.occurrences ?? []]))
     return resolved.map(item => ({ ...item, occurrences: occByKey.get(item.refKey) ?? [] }))
   }
@@ -307,7 +336,8 @@ export function apply(ctx, config = {}) {
               `${target.host}/${target.fullName}`,
               OVERVIEW_TTL_MS,
               force,
-              () => fetchGitHubOverview(target, signal),
+              () => fetchGitHubOverview(target, sharedSignal()),
+              signal,
             )
             : Promise.resolve(null),
           resolveSessionMentions(session, target, force, signal),
@@ -343,16 +373,17 @@ export function apply(ctx, config = {}) {
       try {
         const body = await readJsonBody(req)
         const nextSet = normalizeHosts(body.hosts)
-        allowedHosts = nextSet
         const nextHosts = [...nextSet]
-        detectCache.clear()
-        overviewCache.clear()
-        mentionsCache.clear()
         const entry = ctx.fiber?.entry
         const editor = ctx.get('configEditor')
         if (entry && editor) {
           await editor.edit(entry, current => ({ ...current, hosts: nextHosts }))
         }
+        allowedHosts = nextSet
+        detectCache.clear()
+        overviewCache.clear()
+        mentionsCache.clear()
+        extractCache.clear()
         sendJson(res, 200, { ok: true, value: { hosts: nextHosts } })
       } catch (error) {
         sendJson(res, 400, { ok: false, message: error instanceof Error ? error.message : String(error) })

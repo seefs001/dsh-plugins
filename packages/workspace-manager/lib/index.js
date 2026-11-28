@@ -10,7 +10,32 @@ export const inject = ['workspaceRegistry', 'webServer', 'connection']
 
 const GIT_TIMEOUT_MS = 4000
 const GIT_CACHE_TTL_MS = 60_000
+const MAX_GIT_CACHE = 128
+const SCAN_CONCURRENCY = 4
 const MAX_BODY_BYTES = 64 * 1024
+
+function putGitCache(cache, cwd, entry) {
+  cache.delete(cwd)
+  cache.set(cwd, entry)
+  while (cache.size > MAX_GIT_CACHE) {
+    const oldest = cache.keys().next().value
+    if (oldest === undefined) break
+    cache.delete(oldest)
+  }
+}
+
+async function mapPool(items, concurrency, fn) {
+  const results = Array.from({ length: items.length })
+  let next = 0
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const idx = next++
+      results[idx] = await fn(items[idx], idx)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
 
 export function isLinkedWorktreePaths(gitDir, commonDir, cwd) {
   if (!gitDir || !commonDir) return false
@@ -41,25 +66,28 @@ async function inspect(workspace) {
 async function inspectWorktree(cwd, cache) {
   const now = Date.now()
   const hit = cache.get(cwd)
-  if (hit && now - hit.at < GIT_CACHE_TTL_MS) return hit.value
+  if (hit && now - hit.at < GIT_CACHE_TTL_MS) {
+    putGitCache(cache, cwd, hit)
+    return hit.value
+  }
   try {
     const raw = await runGit(cwd, ['rev-parse', '--git-dir', '--git-common-dir', '--abbrev-ref', 'HEAD'])
     const lines = raw.trim().split(/\r?\n/)
     const [gitDir, commonDir, branch] = lines
     if (!isLinkedWorktreePaths(gitDir, commonDir, cwd)) {
       const value = { linked: false, clean: false, branch: '' }
-      cache.set(cwd, { at: now, value })
+      putGitCache(cache, cwd, { at: now, value })
       return value
     }
     const statusOut = await runGit(cwd, ['status', '--porcelain=v1'])
     const clean = statusOut.trim().length === 0
     const commonAbs = resolve(cwd, commonDir)
     const value = { linked: true, clean, branch: branch || '', mainRoot: dirname(commonAbs) }
-    cache.set(cwd, { at: now, value })
+    putGitCache(cache, cwd, { at: now, value })
     return value
   } catch {
     const value = { linked: false, clean: false, branch: '' }
-    cache.set(cwd, { at: now, value })
+    putGitCache(cache, cwd, { at: now, value })
     return value
   }
 }
@@ -119,6 +147,7 @@ async function collectIdleJobs(ctx, sessions, currentSessionId) {
 
 export function apply(ctx) {
   const gitCache = new Map()
+  ctx.effect(() => () => gitCache.clear(), 'workspace-manager: cache')
   const rejected = (res, peer) => {
     if (peer?.principal?.kind === 'owner') return false
     res.statusCode = peer === undefined ? 401 : 403
@@ -154,18 +183,33 @@ export function apply(ctx) {
         const currentSessionId = url.searchParams.get('currentSessionId') || ''
         const workspaces = ctx.workspaceRegistry.list()
         let sessions = []
+        let sessionsKnown = true
         const controller = ctx.get?.('sessionController')
         if (controller && typeof controller.list === 'function') {
           try {
             const listed = await controller.list({}, AbortSignal.timeout(10_000))
             sessions = Array.isArray(listed?.items) ? listed.items : []
-          } catch {}
+          } catch {
+            sessionsKnown = false
+          }
         }
         const runningSessionIds = new Set(sessions.filter(s => s.running).map(s => s.sessionId))
         const invalidWorkspaces = []
         const cleanWorktrees = []
-        for (const ws of workspaces) {
+        const inspected = await mapPool(workspaces, SCAN_CONCURRENCY, async ws => {
           const check = await inspect(ws)
+          if (check.status === 'missing' || check.status === 'not-directory') {
+            return { ws, check, wt: null }
+          }
+          if (!sessionsKnown || check.status !== 'directory' || ws.id === currentWorkspaceId) {
+            return { ws, check, wt: null }
+          }
+          const wsSessions = Array.isArray(ws.sessionIds) ? ws.sessionIds : []
+          const hasBusy = wsSessions.some(id => id === currentSessionId || runningSessionIds.has(id))
+          if (hasBusy) return { ws, check, wt: null }
+          return { ws, check, wt: await inspectWorktree(ws.path, gitCache) }
+        })
+        for (const { ws, check, wt } of inspected) {
           if (check.status === 'missing' || check.status === 'not-directory') {
             if (ws.id !== currentWorkspaceId) {
               invalidWorkspaces.push({
@@ -178,22 +222,17 @@ export function apply(ctx) {
             }
             continue
           }
-          if (check.status !== 'directory' || ws.id === currentWorkspaceId) continue
-          const wsSessions = Array.isArray(ws.sessionIds) ? ws.sessionIds : []
-          const hasBusy = wsSessions.some(id => id === currentSessionId || runningSessionIds.has(id))
-          if (hasBusy) continue
-          const wt = await inspectWorktree(ws.path, gitCache)
-          if (wt.linked && wt.clean) {
+          if (wt?.linked && wt.clean) {
             cleanWorktrees.push({
               workspaceId: ws.id,
               title: ws.title || ws.path,
               path: ws.path,
               branch: wt.branch,
-              sessionCount: wsSessions.length,
+              sessionCount: Array.isArray(ws.sessionIds) ? ws.sessionIds.length : 0,
             })
           }
         }
-        const idleJobs = await collectIdleJobs(ctx, sessions, currentSessionId)
+        const idleJobs = sessionsKnown ? await collectIdleJobs(ctx, sessions, currentSessionId) : []
         sendJson(res, 200, { invalidWorkspaces, idleJobs, cleanWorktrees })
       } catch (error) {
         sendJson(res, 503, { message: error.message ?? String(error) })
@@ -230,6 +269,38 @@ export function apply(ctx) {
         const targetPath = typeof body.path === 'string' ? body.path : ''
         const listed = ctx.workspaceRegistry.list().find(ws => ws.path === targetPath)
         if (!listed) return sendJson(res, 404, { message: 'Workspace not found' })
+        if (typeof body.currentWorkspaceId === 'string' && body.currentWorkspaceId && listed.id === body.currentWorkspaceId) {
+          return sendJson(res, 409, { message: 'Cannot remove the active workspace' })
+        }
+        const wsSessions = Array.isArray(listed.sessionIds) ? listed.sessionIds : []
+        if (typeof body.currentSessionId === 'string' && body.currentSessionId && wsSessions.includes(body.currentSessionId)) {
+          return sendJson(res, 409, { message: 'Worktree contains the active session; skipped for safety' })
+        }
+        const controller = ctx.get?.('sessionController')
+        if (controller && typeof controller.list === 'function' && wsSessions.length > 0) {
+          let runningIds
+          try {
+            const listedSessions = await controller.list({}, AbortSignal.timeout(10_000))
+            const items = Array.isArray(listedSessions?.items) ? listedSessions.items : []
+            runningIds = new Set(items.filter(s => s.running).map(s => s.sessionId))
+          } catch {
+            return sendJson(res, 503, { message: 'Unable to verify active sessions; skipped for safety' })
+          }
+          if (wsSessions.some(id => runningIds.has(id))) {
+            return sendJson(res, 409, { message: 'Worktree has an active session; skipped for safety' })
+          }
+        }
+        const jobs = ctx.get?.('jobs')
+        if (jobs && typeof jobs.list === 'function' && wsSessions.length > 0) {
+          for (const sid of wsSessions) {
+            try {
+              const rows = jobs.list(sid)
+              if (Array.isArray(rows) && rows.some(job => job?.status === 'running')) {
+                return sendJson(res, 409, { message: 'Worktree has a running background job; skipped for safety' })
+              }
+            } catch {}
+          }
+        }
         gitCache.delete(targetPath)
         const wt = await inspectWorktree(targetPath, gitCache)
         if (!wt.linked) return sendJson(res, 400, { message: 'Directory is not a linked Git worktree' })

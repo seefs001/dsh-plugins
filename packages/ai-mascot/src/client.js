@@ -274,6 +274,9 @@ window.__ModuleLoader__.load({
           return () => style.remove()
         }, 'ai-mascot: styles')
 
+        const subscribeLocale = fn => ctx.locale.subscribe(fn)
+        const getLocaleSnapshot = () => ctx.locale.getSnapshot()
+
         function Observer({ sessionId, useSession, useChat, useSessionStatus, directory }) {
           const token = React.useMemo(() => ({}), [sessionId])
           const running = useSession(session => session.running)
@@ -281,7 +284,9 @@ window.__ModuleLoader__.load({
           const waiting = useSessionStatus(status => Boolean(status.get(sessionId)?.pendingInteraction))
           const activity = useChat(liveActivity)
           const success = useChat(endedWithReply)
-          const selection = React.useSyncExternalStore(directory.subscribe.bind(directory), directory.getSnapshot.bind(directory))?.current
+          const subscribeDir = React.useCallback(fn => directory.subscribe(fn), [directory])
+          const getDirSnapshot = React.useCallback(() => directory.getSnapshot(), [directory])
+          const selection = React.useSyncExternalStore(subscribeDir, getDirSnapshot)?.current
           const character = characterFor(selection)
           React.useEffect(() => () => bridge.release(token), [token])
           React.useEffect(() => {
@@ -291,7 +296,7 @@ window.__ModuleLoader__.load({
         }
 
         function Companion({ usePanelInfo }) {
-          React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
+          React.useSyncExternalStore(subscribeLocale, getLocaleSnapshot)
           const facts = React.useSyncExternalStore(bridge.subscribe, bridge.getSnapshot)
           const panel = usePanelInfo(info => info.activePanelId)
           const [preferences, setPreferences] = React.useState(readPreferences)

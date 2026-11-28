@@ -5,6 +5,7 @@ import { HUB_PROVIDER, providerSnapshotEntry, resolveModes, splitHubModelId, val
 import { getCachedHostMachineKind, isHostMachineKindPrimed, resolveHostname, waitForHostMachineKind } from './machine.js'
 
 export const HUB_SERVER = 'hub'
+const MAX_AGENT_FILE_READ_BYTES = 10 * 1024 * 1024
 const PROTOCOL_FEATURES = {
   hubAgentRpc: true,
   agentRequestReceipts: true,
@@ -522,11 +523,14 @@ export class HubBridge {
       if (inside === '' || inside.startsWith('..') || isAbsolute(inside) || inside.split(sep)[0] === '..') throw new Error('path is outside the agent working directory')
       const info = await stat(target)
       if (!info.isFile()) throw new Error('path is not a file')
-      if (info.size > message.maxBytes) throw new Error(`File ${inside} is larger than ${message.maxBytes} bytes`)
+      const maxBytes = typeof message.maxBytes === 'number' && Number.isFinite(message.maxBytes) && message.maxBytes > 0
+        ? Math.min(Math.floor(message.maxBytes), MAX_AGENT_FILE_READ_BYTES)
+        : MAX_AGENT_FILE_READ_BYTES
+      if (info.size > maxBytes) throw new Error(`File ${inside} is larger than ${maxBytes} bytes`)
       const handle = await open(target, 'r')
       let bytes
       try { bytes = await handle.readFile() } finally { await handle.close() }
-      if (bytes.byteLength > message.maxBytes) throw new Error(`File ${inside} is larger than ${message.maxBytes} bytes`)
+      if (bytes.byteLength > maxBytes) throw new Error(`File ${inside} is larger than ${maxBytes} bytes`)
       this.reply('hub.agent.file.read.response', message.requestId, {
         file: {
           path: inside.split(sep).join('/'),

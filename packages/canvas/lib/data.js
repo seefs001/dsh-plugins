@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process'
 import { watch } from 'node:fs'
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
@@ -42,7 +42,42 @@ export function isWithinOrEqual(rootDir, targetPath) {
   const root = resolve(rootDir)
   const target = resolve(targetPath)
   const rel = relative(root, target)
-  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
+}
+
+async function assertDataRealpathWithin(rootDir, targetPath, { allowMissingLeaf = false } = {}) {
+  let realRoot
+  try {
+    realRoot = await realpath(resolve(rootDir))
+  } catch (error) {
+    if (allowMissingLeaf && error?.code === 'ENOENT') return
+    throw error
+  }
+  if (allowMissingLeaf) {
+    try {
+      const info = await lstat(targetPath)
+      if (info.isSymbolicLink()) {
+        const realTarget = await realpath(targetPath)
+        if (!isWithinOrEqual(realRoot, realTarget)) throw new Error('Data URI escapes allowed directory.')
+        return
+      }
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error
+    }
+  }
+  let cur = targetPath
+  for (;;) {
+    try {
+      const realCur = await realpath(cur)
+      if (isWithinOrEqual(realRoot, realCur)) return
+      throw new Error('Data URI escapes allowed directory.')
+    } catch (error) {
+      if (!allowMissingLeaf || error?.code !== 'ENOENT') throw error
+      const parent = dirname(cur)
+      if (parent === cur) throw error
+      cur = parent
+    }
+  }
 }
 
 export function parseDataUri(uri, cwd = '') {
@@ -151,6 +186,7 @@ export async function readCanvasDataFile(uri, options = {}) {
     return { ok: false, uri, exists: false, data: null, content: '', frontmatter: null, error: error.message }
   }
   try {
+    await assertDataRealpathWithin(resolved.root, resolved.full)
     const info = await stat(resolved.full)
     if (!info.isFile()) {
       return { ok: false, uri, exists: false, data: null, content: '', frontmatter: null, error: 'Target is not a file.' }
@@ -210,7 +246,7 @@ function globToRegExp(glob) {
   return new RegExp(out)
 }
 
-function staticPrefixOfGlob(relPattern) {
+export function staticPrefixOfGlob(relPattern) {
   const parts = relPattern.split('/').filter(Boolean)
   const prefix = []
   for (const part of parts) {
@@ -309,7 +345,9 @@ export async function patchCanvasDataFile(uri, payload, options = {}) {
   }
   const resolved = parseDataUri(uri, cwd)
   const mode = payload?.mode ?? 'merge'
+  await assertDataRealpathWithin(resolved.root, resolved.full, { allowMissingLeaf: true })
   await mkdir(dirname(resolved.full), { recursive: true })
+  await assertDataRealpathWithin(resolved.root, dirname(resolved.full))
 
   if (resolved.full.endsWith('.md')) {
     const content = typeof payload?.content === 'string' ? payload.content : ''
@@ -399,10 +437,23 @@ export async function readGitHostData(cwd) {
   }
 }
 
+function shouldIgnoreWatchedName(filename) {
+  if (typeof filename !== 'string' || !filename) return false
+  const normalized = filename.replaceAll('\\', '/')
+  if (normalized.endsWith('.canvas.tsx') || normalized.endsWith('.canvas.html') || normalized.endsWith('.canvas.svg')) {
+    return true
+  }
+  for (const seg of normalized.split('/')) {
+    if (SKIP_DIRS.has(seg)) return true
+  }
+  return false
+}
+
 export function createDataDirectoryWatcher(onChange) {
   const watched = new Map()
   let timer = null
-  const schedule = () => {
+  const schedule = (_event, filename) => {
+    if (shouldIgnoreWatchedName(filename)) return
     clearTimeout(timer)
     timer = setTimeout(() => {
       timer = null

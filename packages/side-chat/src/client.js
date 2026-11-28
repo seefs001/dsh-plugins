@@ -169,8 +169,8 @@ window.__ModuleLoader__.load({
       const scope = prefix(parentId)
       const hidden = new Set(archived)
       return ids
-        .filter(item => item.startsWith(scope) && !hidden.has(item) && !byId[item].blank)
-        .toSorted((a, b) => (byId[b].updatedAt ?? 0) - (byId[a].updatedAt ?? 0))
+        .filter(item => item.startsWith(scope) && !hidden.has(item) && Boolean(byId[item]) && !byId[item].blank)
+        .toSorted((a, b) => (byId[b]?.updatedAt ?? 0) - (byId[a]?.updatedAt ?? 0))
     }
     const fixedView = props => props.renderSlot('conversation.session', { view: 'chat' })
     const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent)

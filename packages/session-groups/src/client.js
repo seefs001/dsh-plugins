@@ -552,12 +552,16 @@ window.__ModuleLoader__.load({
           ctx.slots.inject('contextMenu.icon', () => ctx.slots.register({ name: 'contextMenu.icon', key }, () => h(Icon, { size: 16 })))
         }
 
-        const useLocale = () => React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot())
+        const subscribeLocale = fn => ctx.locale.subscribe(fn)
+        const getLocaleSnapshot = () => ctx.locale.getSnapshot()
+        const subscribeSessionList = fn => ctx.sessions.list.subscribe(fn)
+        const getSessionListSnapshot = () => ctx.sessions.list.getSnapshot()
+        const subscribePanelInfo = fn => ctx.layout.panelInfo.subscribe(fn)
+        const getConversationActiveSnapshot = () => ctx.layout.panelInfo.getSnapshot().activePanelId == null
+
+        const useLocale = () => React.useSyncExternalStore(subscribeLocale, getLocaleSnapshot)
         const useGroups = () => React.useSyncExternalStore(store.subscribe, store.getSnapshot)
-        const useSessions = () => React.useSyncExternalStore(
-          fn => ctx.sessions.list.subscribe(fn),
-          () => ctx.sessions.list.getSnapshot(),
-        )
+        const useSessions = () => React.useSyncExternalStore(subscribeSessionList, getSessionListSnapshot)
         const useSidebarSessions = (groups, showCurrent) => {
           const tracked = React.useMemo(() => {
             const ids = []
@@ -621,10 +625,7 @@ window.__ModuleLoader__.load({
             cacheRef.current = next
             return next
           }, [tracked, showCurrent])
-          return React.useSyncExternalStore(
-            fn => ctx.sessions.list.subscribe(fn),
-            getSnapshot,
-          )
+          return React.useSyncExternalStore(subscribeSessionList, getSnapshot)
         }
 
         const MEMBER_MIME = 'application/x-dsh-session-group-member'
@@ -1265,8 +1266,8 @@ window.__ModuleLoader__.load({
         }
 
         const useConversationActive = () => React.useSyncExternalStore(
-          fn => ctx.layout.panelInfo.subscribe(fn),
-          () => ctx.layout.panelInfo.getSnapshot().activePanelId == null,
+          subscribePanelInfo,
+          getConversationActiveSnapshot,
         )
 
         function useListArea() {
@@ -1313,12 +1314,12 @@ window.__ModuleLoader__.load({
               }
               if (area) {
                 detachBody()
-                const root = area.parentElement ?? document.body
+                const root = area.closest('aside, nav, [data-sidebar]')?.parentElement ?? area.parentElement ?? document.body
                 if (root !== watchedRoot) {
                   detachRoot()
                   watchedRoot = root
                   rootObserver = new MutationObserver(schedule)
-                  rootObserver.observe(root, { childList: true })
+                  rootObserver.observe(root, { childList: true, subtree: root !== document.body })
                 }
               } else {
                 detachRoot()
@@ -1334,8 +1335,10 @@ window.__ModuleLoader__.load({
             }
             check()
             const offLayout = ctx.layout.panelInfo.subscribe(onPanelChange)
+            if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('resize', onPanelChange, { passive: true })
             return () => {
               offLayout()
+              if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') window.removeEventListener('resize', onPanelChange)
               detachBody()
               detachRoot()
               detachInput()

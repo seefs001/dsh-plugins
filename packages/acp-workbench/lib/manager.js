@@ -1651,14 +1651,14 @@ export class Workbench {
             session.lastContext = { remoteId: session.remoteId, at: event.at, window }
             const currentModelId = session.configOptions?.find(o => o.category === 'model')?.currentValue ?? session.models?.currentModelId
             if (currentModelId && currentModelId !== 'default') {
-              void this.noteModelContextWindow(session.providerId, currentModelId, window.size)
+              void this.noteModelContextWindow(session.providerId, currentModelId, window.size).catch(error => this.log?.(error.message))
             }
             if (window.model && window.model !== currentModelId) {
-              void this.noteModelContextWindow(session.providerId, window.model, window.size)
+              void this.noteModelContextWindow(session.providerId, window.model, window.size).catch(error => this.log?.(error.message))
             }
           }
           if (rateLimit) {
-            void this.noteRateLimit(session.providerId, rateLimit)
+            void this.noteRateLimit(session.providerId, rateLimit).catch(error => this.log?.(error.message))
           }
         }
         break
@@ -2324,6 +2324,7 @@ export class Workbench {
       } finally {
         this.clearStreamNotify(session.id)
         if (this.runtimes.get(session.id) === runtime) this.runtimes.delete(session.id)
+        this.store.evictSessionCache?.(session.id)
         this.changed(session.id, undefined, { workbench: true })
       }
     })()
@@ -2360,6 +2361,7 @@ export class Workbench {
       } finally {
         this.clearStreamNotify(session.id)
         if (this.runtimes.get(session.id) === runtime) this.runtimes.delete(session.id)
+        this.store.evictSessionCache?.(session.id)
         this.changed(session.id, undefined, { workbench: true })
         if (!this.closed && Date.now() - this.lastChunkPruneAt >= CHUNK_PRUNE_INTERVAL_MS) {
           void this.pruneStorageChunks().catch(error => this.log?.(`ACP storage prune: ${error.message}`))

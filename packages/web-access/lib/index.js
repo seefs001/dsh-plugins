@@ -467,6 +467,8 @@ export function apply(ctx, config) {
   }
 
   const restrictions = new Map()
+  const disposedAgents = new WeakSet()
+  const agentTails = new WeakMap()
   let disposed = false
   const restore = agent => {
     restrictions.get(agent)?.()
@@ -477,21 +479,31 @@ export function apply(ctx, config) {
     for (const release of restrictions.values()) release()
     restrictions.clear()
   }, 'web-access: restore native search')
-  ctx.on('agent/disposed', ({ agent }) => restore(agent))
-  const updateRestriction = async ({ agent, signal }) => {
-    let replacesSearch = false
-    for (const { backend, definition } of webSearchTools) {
-      if (ctx.tools.get(definition.name, agent) === definition && await ready(ctx, backend)) {
-        replacesSearch = true
-        break
+  ctx.on('agent/disposed', ({ agent }) => {
+    disposedAgents.add(agent)
+    restore(agent)
+  })
+  const updateRestriction = ({ agent, signal }) => {
+    const prev = agentTails.get(agent) ?? Promise.resolve()
+    const run = async () => {
+      if (disposed || disposedAgents.has(agent)) return
+      let replacesSearch = false
+      for (const { backend, definition } of webSearchTools) {
+        if (ctx.tools.get(definition.name, agent) === definition && await ready(ctx, backend)) {
+          replacesSearch = true
+          break
+        }
+      }
+      signal?.throwIfAborted()
+      if (disposed || disposedAgents.has(agent)) return
+      if (!replacesSearch) restore(agent)
+      else if (!restrictions.has(agent) && ctx.tools.get('web_search', agent) !== undefined) {
+        restrictions.set(agent, agent.ctx.tools.restrict({ deny: ['web_search'] }))
       }
     }
-    signal?.throwIfAborted()
-    if (disposed) return
-    if (!replacesSearch) restore(agent)
-    else if (!restrictions.has(agent) && ctx.tools.get('web_search', agent) !== undefined) {
-      restrictions.set(agent, agent.ctx.tools.restrict({ deny: ['web_search'] }))
-    }
+    const nextTask = prev.then(run, run)
+    agentTails.set(agent, nextTask.catch(() => {}))
+    return nextTask
   }
   // external: dsh agent/pre-step runs after initial tool resolution, so restrict on agent/created too
   ctx.on('agent/created', updateRestriction)

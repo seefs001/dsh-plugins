@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
-import { isAbsolute, resolve as resolvePath } from 'node:path'
+import { readFile, realpath, stat } from 'node:fs/promises'
+import { isAbsolute, relative, resolve as resolvePath, sep } from 'node:path'
 import {
   DOMAIN_SPEC,
   OpError,
@@ -24,6 +24,12 @@ const MAX_STALE_CHECK_BYTES = 512 * 1024
 
 async function annotateOutdatedItems(items, cwd, signal) {
   if (!cwd || !Array.isArray(items) || items.length === 0) return items
+  let realRoot
+  try {
+    realRoot = await realpath(resolvePath(cwd))
+  } catch {
+    return items
+  }
   const cache = new Map()
   const out = []
   for (const item of items) {
@@ -38,12 +44,23 @@ async function annotateOutdatedItems(items, cwd, signal) {
       out.push(item)
       continue
     }
-    const target = isAbsolute(anchor.path) ? anchor.path : resolvePath(cwd, anchor.path)
+    const target = isAbsolute(anchor.path) ? resolvePath(anchor.path) : resolvePath(cwd, anchor.path)
     let text = cache.get(target)
     if (text === undefined) {
       try {
-        const buf = await readFile(target)
-        text = buf.byteLength <= MAX_STALE_CHECK_BYTES ? buf.toString('utf8').replace(/\r\n?/g, '\n') : null
+        const realTarget = await realpath(target)
+        const rel = relative(realRoot, realTarget)
+        if (!rel || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+          text = null
+        } else {
+          const info = await stat(realTarget)
+          if (!info.isFile() || info.size > MAX_STALE_CHECK_BYTES) {
+            text = null
+          } else {
+            const buf = await readFile(realTarget)
+            text = buf.byteLength <= MAX_STALE_CHECK_BYTES ? buf.toString('utf8').replace(/\r\n?/g, '\n') : null
+          }
+        }
       } catch {
         text = null
       }

@@ -27,15 +27,17 @@ export function apply(ctx, config = {}) {
   const onlyAfterTurn = config?.onlyAfterTurn === true
   const staged = new Map()
   let pending = null
-  let saves = 0
+  let saving = false
+  let queued = undefined
   let closed = false
 
-  const remember = next => {
-    const save = saves === 0 && sameSelection(ctx.agentDefaultModel.currentSelection(), next)
-      ? Promise.resolve()
-      : ctx.agentDefaultModel.saveSelection(next)
-    saves++
-    save
+  const flush = () => {
+    if (closed || saving || queued === undefined) return
+    const next = queued
+    queued = undefined
+    if (sameSelection(ctx.agentDefaultModel.currentSelection(), next)) return
+    saving = true
+    ctx.agentDefaultModel.saveSelection(next)
       .then(() => {
         if (closed) return
         if (pending !== null) clearTimeout(pending)
@@ -46,7 +48,15 @@ export function apply(ctx, config = {}) {
         }, REFRESH_DELAY_MS)
       })
       .catch(error => ctx.logger?.warn?.(`remember-model: failed to save default model: ${error?.message ?? error}`))
-      .finally(() => { saves-- })
+      .finally(() => {
+        saving = false
+        if (!closed && queued !== undefined) flush()
+      })
+  }
+
+  const remember = next => {
+    queued = next
+    flush()
   }
 
   ctx.on('session/event', (session, event) => {

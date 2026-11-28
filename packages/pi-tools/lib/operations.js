@@ -25,6 +25,14 @@ export function createOperations(ctx, exec, cwd, config = {}) {
     return Buffer.from(await ctx.fs.readBytes(target, signal, info.size))
   }
 
+  async function readTextBounded(path, maxBytes) {
+    const { target, info } = await file(path)
+    if (!Number.isSafeInteger(info.size) || info.size < 0 || info.size > maxBytes) return null
+    const buf = Buffer.from(await ctx.fs.readBytes(target, signal, info.size))
+    if (buf.includes(0)) return null
+    return buf.toString('utf8')
+  }
+
   async function writeFile(path, content) {
     await ctx.fs.writeText(await resolve(path), content, undefined, signal, policy)
   }
@@ -64,6 +72,7 @@ export function createOperations(ctx, exec, cwd, config = {}) {
     },
     read: {
       readFile,
+      readTextBounded,
       access: async path => { await file(path) },
       detectImageMimeType: async path => detectImageMimeType(await ctx.fs.readByteRange(
         await resolve(path), { offset: 0, length: 4100 }, signal,

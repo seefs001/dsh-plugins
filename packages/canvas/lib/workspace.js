@@ -1,5 +1,5 @@
 import { watch } from 'node:fs'
-import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readdir, readFile, realpath, stat, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 export const CANVAS_EXT = '.canvas.tsx'
@@ -48,7 +48,40 @@ export function isWithinDirectory(rootDir, targetPath) {
   const root = resolve(rootDir)
   const target = resolve(targetPath)
   const rel = relative(root, target)
-  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
+  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)
+}
+
+async function assertRealpathWithin(rootDir, targetPath, { allowMissingLeaf = false, allowEqual = false } = {}) {
+  const realRoot = await realpath(resolve(rootDir))
+  if (allowMissingLeaf) {
+    try {
+      const info = await lstat(targetPath)
+      if (info.isSymbolicLink()) {
+        const realTarget = await realpath(targetPath)
+        if (!isWithinDirectory(realRoot, realTarget)) {
+          throw new Error('Canvas path must stay within the session workspace directory.')
+        }
+        return realTarget
+      }
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error
+    }
+  }
+  let cur = targetPath
+  let equalOk = allowEqual
+  for (;;) {
+    try {
+      const realCur = await realpath(cur)
+      if (isWithinDirectory(realRoot, realCur) || (equalOk && realCur === realRoot)) return realCur
+      throw new Error('Canvas path must stay within the session workspace directory.')
+    } catch (error) {
+      if (!allowMissingLeaf || error?.code !== 'ENOENT') throw error
+      const parent = dirname(cur)
+      if (parent === cur) throw error
+      cur = parent
+      equalOk = true
+    }
+  }
 }
 
 export function normalizeSlug(name) {
@@ -173,6 +206,7 @@ export async function discoverCanvasFiles(cwd) {
 
 export async function readCanvasFile(cwd, filePath) {
   const full = resolveCanvasPath(cwd, filePath)
+  await assertRealpathWithin(cwd, full)
   const [source, info] = await Promise.all([readFile(full, 'utf8'), stat(full)])
   const rel = relative(resolve(cwd), full).split(sep).join('/')
   return {
@@ -189,13 +223,16 @@ export async function readCanvasFile(cwd, filePath) {
 
 export async function writeCanvasFile(cwd, inputPath, source, kind) {
   const full = resolveCanvasPath(cwd, inputPath, kind)
+  await assertRealpathWithin(cwd, full, { allowMissingLeaf: true })
   await mkdir(dirname(full), { recursive: true })
+  await assertRealpathWithin(cwd, dirname(full), { allowEqual: true })
   await writeFile(full, source, 'utf8')
   return readCanvasFile(cwd, full)
 }
 
 export async function deleteCanvasFile(cwd, inputPath) {
   const full = resolveCanvasPath(cwd, inputPath)
+  await assertRealpathWithin(cwd, dirname(full), { allowEqual: true })
   await unlink(full)
   return full
 }

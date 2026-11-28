@@ -4,7 +4,7 @@ export const DOMAIN_RULES = {
     defaultSelected: true,
     includeGlobal: true,
     includeTables: [],
-    restartRecommended: false,
+    restartRecommended: true,
     noteKey: 'rolesLibrary',
   },
   cheat_sheet: {

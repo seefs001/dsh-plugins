@@ -376,6 +376,7 @@ export async function apply(ctx, config) {
     const now = Date.now()
     const prev = recent.get(key)
     if (prev !== undefined && now - prev < DEDUPE_TTL_MS) return true
+    recent.delete(key)
     recent.set(key, now)
     if (recent.size > DEDUPE_MAX) {
       for (const [k, ts] of recent) {
@@ -486,6 +487,8 @@ export async function apply(ctx, config) {
     if (!settings.enabled || !settings.notifyFinished) return
     if (event?.type !== 'turn/end') return
     if (session?.header?.origin === 'subagent') return
+    const reasonKind = event?.data?.reason?.kind
+    if (reasonKind === 'aborted' || reasonKind === 'error') return
     const sid = session?.id ?? ''
     const turn = event?.turn ?? event?.data?.turn
     if (sid && turn !== undefined && erroredTurns.get(sid) === turn) {
@@ -572,23 +575,36 @@ export async function apply(ctx, config) {
         return sendJson(res, 500, { message: 'configuration cannot be saved in this profile' })
       }
 
-      try {
-        if (parsed.clearKey) {
-          await ctx.credentials.deleteRecord(CREDENTIAL_KEY)
-        } else if (parsed.deviceKey !== undefined) {
-          await ctx.credentials.modifyRecord(CREDENTIAL_KEY, async () => ({
-            kind: 'grant',
-            payload: { key: parsed.deviceKey },
-          }))
+      let prevRecord = null
+      let credentialMutated = false
+      if (parsed.clearKey || parsed.deviceKey !== undefined) {
+        try { prevRecord = await ctx.credentials.readRecord(CREDENTIAL_KEY) } catch {}
+        try {
+          if (parsed.clearKey) {
+            await ctx.credentials.deleteRecord(CREDENTIAL_KEY)
+            credentialMutated = true
+          } else if (parsed.deviceKey !== undefined) {
+            await ctx.credentials.modifyRecord(CREDENTIAL_KEY, async () => ({
+              kind: 'grant',
+              payload: { key: parsed.deviceKey },
+            }))
+            credentialMutated = true
+          }
+        } catch (error) {
+          return sendJson(res, 500, { message: `failed to update credential: ${error?.message ?? error}` })
         }
-      } catch (error) {
-        return sendJson(res, 500, { message: `failed to update credential: ${error?.message ?? error}` })
       }
 
       const confirmed = await state(parsed.value)
       try {
         await editor.edit(entry, current => ({ ...current, ...parsed.value }))
       } catch (error) {
+        if (credentialMutated) {
+          try {
+            if (prevRecord) await ctx.credentials.modifyRecord(CREDENTIAL_KEY, async () => prevRecord)
+            else await ctx.credentials.deleteRecord(CREDENTIAL_KEY)
+          } catch {}
+        }
         ctx.logger?.warn?.(`bark-notify: failed to save settings: ${error?.message ?? error}`)
         return sendJson(res, 409, { message: String(error?.message ?? error) })
       }

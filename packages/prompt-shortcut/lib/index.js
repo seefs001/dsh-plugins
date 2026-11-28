@@ -157,12 +157,17 @@ async function openDomain(storageDomain) {
 }
 
 export function apply(ctx) {
-  ctx.inject(['storageDomain', 'webServer'], async scope => {
-    const domain = await openDomain(scope.storageDomain)
+  ctx.inject(['storageDomain', 'webServer'], scope => {
+    let closed = false
     let tail = Promise.resolve()
+    const ready = openDomain(scope.storageDomain)
+    ready.catch(error => ctx.logger?.warn?.(`prompt-shortcut: cannot open storage: ${error?.message ?? error}`))
 
     const write = change => {
       const task = tail.then(async () => {
+        if (closed) throw new Error('prompt-shortcut is unloading')
+        const domain = await ready
+        if (closed) throw new Error('prompt-shortcut is unloading')
         const current = domain.global.get()
         const next = change(current)
         if (next !== current) await domain.global.set(next)
@@ -173,8 +178,10 @@ export function apply(ctx) {
     }
 
     scope.effect(() => async () => {
+      closed = true
       await tail
-      await domain.close()
+      const domain = await ready.catch(() => null)
+      await domain?.close()
     }, 'prompt-shortcut: storage')
 
     scope.effect(() => scope.webServer.register({
@@ -189,8 +196,13 @@ export function apply(ctx) {
           sendJson(res, 405, { message: 'GET only' }, { allow: 'GET' })
           return
         }
-        await tail
-        sendJson(res, 200, domain.global.get())
+        try {
+          const domain = await ready
+          await tail
+          sendJson(res, 200, domain.global.get())
+        } catch (error) {
+          sendJson(res, 503, { message: `storage unavailable: ${error instanceof Error ? error.message : String(error)}` })
+        }
       },
     }), 'prompt-shortcut: state route')
 

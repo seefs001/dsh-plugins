@@ -218,8 +218,19 @@ export function apply(ctx, config) {
 
   const streams = new Map()
   const notify = (sessionId, log) => {
+    const set = streams.get(sessionId)
+    if (!set || set.size === 0) return
     const frame = `data: ${JSON.stringify(log)}\n\n`
-    for (const res of streams.get(sessionId) ?? []) res.write(frame)
+    for (const res of set) {
+      if (res.destroyed || res.writableEnded) { set.delete(res); continue }
+      try {
+        if (res.writableLength > 1024 * 1024) { res.end(); set.delete(res) }
+        else res.write(frame)
+      } catch {
+        set.delete(res)
+      }
+    }
+    if (set.size === 0 && streams.get(sessionId) === set) streams.delete(sessionId)
   }
 
   const serial = task => {
@@ -290,7 +301,7 @@ export function apply(ctx, config) {
       routed: useRoute !== undefined,
     }
     return observeReview(stream, outcome => {
-      append(sessionId, normalizeEntry({ ...base, ms: Date.now() - started, ...outcome }))
+      void append(sessionId, normalizeEntry({ ...base, ms: Date.now() - started, ...outcome })).catch(() => {})
     })
   }, { prepend: true })
 

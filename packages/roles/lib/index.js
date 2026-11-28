@@ -367,9 +367,12 @@ const summaryOf = r => ({ id: r.id, name: r.name, icon: r.icon, description: r.d
 export function apply(ctx) {
   let closed = false
   let tail = Promise.resolve()
+  let openDomainRef = null
   let library = { version: 1, roles: [] }
   let sessions = new Map()
+  const currentLibrary = () => (openDomainRef && !closed ? openDomainRef.global.get() : library)
   const ready = openDomain(ctx).then(domain => {
+    openDomainRef = domain
     library = domain.global.get()
     sessions = new Map(domain.table('sessions').entries())
     return domain
@@ -379,6 +382,7 @@ export function apply(ctx) {
     closed = true
     await tail
     const domain = await ready.catch(() => null)
+    openDomainRef = null
     await domain?.close()
   }, 'roles: storage domain')
 
@@ -386,7 +390,7 @@ export function apply(ctx) {
 
   const roleOfSession = sessionId => {
     const roleId = sessions.get(sessionId)?.roleId
-    return roleId === undefined ? undefined : library.roles.find(r => r.id === roleId)
+    return roleId === undefined ? undefined : currentLibrary().roles.find(r => r.id === roleId)
   }
 
   const providers = new Map()
@@ -509,11 +513,12 @@ export function apply(ctx) {
     if (closed || signal?.aborted) return decision
     const nextMessages = []
     let injected = false
+    const liveRoles = currentLibrary().roles
     for (const message of decision.messages) {
       nextMessages.push(message)
       const ids = extractRoleReferenceIds(message)
       if (ids.length === 0) continue
-      const refMsg = buildRoleReferenceMessage(ids, library.roles)
+      const refMsg = buildRoleReferenceMessage(ids, liveRoles)
       if (refMsg) {
         nextMessages.push(refMsg)
         injected = true
@@ -523,16 +528,28 @@ export function apply(ctx) {
   })
 
   const streams = new Set()
-  const snapshot = () => ({
-    roles: library.roles,
-    sessions: Object.fromEntries([...sessions].map(([id, s]) => [id, s.roleId])),
-    builtinModified: library.roles.filter(r => r.builtin && isModifiedBuiltin(r)).map(r => r.id),
-    builtinMissing: BUILTIN_ROLES.filter(b => !library.roles.some(r => r.id === b.builtin || r.builtin === b.builtin)).length,
-    limits: { ...LIMITS, roles: MAX_ROLES, skills: MAX_SKILLS },
-  })
+  const snapshot = () => {
+    const current = currentLibrary()
+    return {
+      roles: current.roles,
+      sessions: Object.fromEntries([...sessions].map(([id, s]) => [id, s.roleId])),
+      builtinModified: current.roles.filter(r => r.builtin && isModifiedBuiltin(r)).map(r => r.id),
+      builtinMissing: BUILTIN_ROLES.filter(b => !current.roles.some(r => r.id === b.builtin || r.builtin === b.builtin)).length,
+      limits: { ...LIMITS, roles: MAX_ROLES, skills: MAX_SKILLS },
+    }
+  }
   const broadcast = () => {
+    if (streams.size === 0) return
     const frame = `data: ${JSON.stringify(snapshot())}\n\n`
-    for (const res of streams) res.write(frame)
+    for (const res of streams) {
+      if (res.destroyed || res.writableEnded) { streams.delete(res); continue }
+      try {
+        if (res.writableLength > 1024 * 1024) { res.end(); streams.delete(res) }
+        else res.write(frame)
+      } catch {
+        streams.delete(res)
+      }
+    }
   }
 
   const run = async (op, callerSessionId, fromTool = false) => {
@@ -551,6 +568,7 @@ export function apply(ctx) {
       const domain = await ready
       const effective = op?.action === 'select' && op.sessionId === undefined ? { ...op, sessionId: callerSessionId } : op
       const current = domain.global.get()
+      library = current
       const { library: next, result, select } = applyOp(current, effective)
       let changed = false
       if (next !== current) {

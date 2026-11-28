@@ -209,6 +209,7 @@ window.__ModuleLoader__.load({
       const libraryPromises = new Map()
       let host = null
       let nextJobId = 1
+      let disposed = false
 
       const getHost = () => {
         if (host?.isConnected) return host
@@ -258,8 +259,9 @@ window.__ModuleLoader__.load({
         worker.frame?.remove()
       }
 
-      const createWorker = async (engine, timeoutText) => {
+      const createWorker = async (engine, timeoutText, entry) => {
         const library = await loadLibrary(engine)
+        if (disposed || entry.destroyed) throw new Error(timeoutText)
         const frame = document.createElement('iframe')
         frame.sandbox = 'allow-scripts'
         frame.tabIndex = -1
@@ -268,18 +270,20 @@ window.__ModuleLoader__.load({
         const policy = `default-src 'none'; script-src 'nonce-${nonce}' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'`
         frame.srcdoc = `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><body><script nonce="${nonce}">(${startFrame.toString()})();</script>`
         const { port1, port2 } = new MessageChannel()
-        const worker = { frame, port1, port2, queue: Promise.resolve(), destroyed: false }
+        const worker = { frame, port1, port2 }
         await new Promise((resolve, reject) => {
           const timer = setTimeout(() => reject(new Error(timeoutText)), 20_000)
           const onReady = ({ data }) => {
             clearTimeout(timer)
-            if (data?.ready) resolve()
+            if (disposed || entry.destroyed) reject(new Error(timeoutText))
+            else if (data?.ready) resolve()
             else reject(new Error(data?.error || 'Renderer failed to initialize'))
           }
           port1.addEventListener('message', onReady, { once: true })
           port1.start()
           // external: sandboxed srcdoc iframe has opaque origin, so transfer a private MessagePort with '*'
           frame.addEventListener('load', () => {
+            if (disposed || entry.destroyed) { clearTimeout(timer); reject(new Error(timeoutText)); return }
             try { frame.contentWindow.postMessage({ engine, library }, '*', [port2]) }
             catch (err) { clearTimeout(timer); reject(err) }
           }, { once: true })
@@ -296,16 +300,24 @@ window.__ModuleLoader__.load({
       const getWorker = (engine, timeoutText) => {
         let entry = workers.get(engine)
         if (!entry || entry.destroyed) {
-          const promise = createWorker(engine, timeoutText).then(w => {
-            if (workers.get(engine) === entry) workers.set(engine, w)
-            else { w.port1.close(); w.port2.close(); w.frame.remove() }
-            return w
+          entry = { frame: null, port1: null, port2: null, pending: null, queue: Promise.resolve(), destroyed: false }
+          workers.set(engine, entry)
+          entry.pending = createWorker(engine, timeoutText, entry).then(w => {
+            if (disposed || entry.destroyed || workers.get(engine) !== entry) {
+              w.port1.close()
+              w.port2.close()
+              w.frame.remove()
+              throw new Error(timeoutText)
+            }
+            entry.frame = w.frame
+            entry.port1 = w.port1
+            entry.port2 = w.port2
+            entry.pending = null
+            return entry
           }).catch(err => {
             if (workers.get(engine) === entry) workers.delete(engine)
             throw err
           })
-          entry = { pending: promise, queue: Promise.resolve(), destroyed: false }
-          workers.set(engine, entry)
         }
         return entry
       }
@@ -363,6 +375,7 @@ window.__ModuleLoader__.load({
       }
 
       const dispose = () => {
+        disposed = true
         for (const engine of workers.keys()) destroyWorker(engine)
         workers.clear()
         svgCache.clear()
@@ -410,6 +423,7 @@ window.__ModuleLoader__.load({
           const [error, setError] = React.useState('')
           const [attempt, retry] = React.useReducer(n => n + 1, 0)
           React.useEffect(() => {
+            setError('')
             if (engine === 'svg') { setSvgText(code); return undefined }
             const cached = pool.getCached(`${engine}\0${scheme}\0${code}`)
             if (cached !== undefined) { setSvgText(cached); return undefined }
@@ -452,7 +466,7 @@ window.__ModuleLoader__.load({
         function Fence(props) {
           const scheme = React.useSyncExternalStore(subscribe, getScheme)
           if (props.streaming) return props.children
-          return h(Diagram, { ...props, scheme, key: `${scheme}:${props.lang}:${props.code}` })
+          return h(Diagram, { ...props, scheme, key: `${props.lang}:${props.code}` })
         }
         ctx.slots.inject(slot, () => Object.keys(engines).map(key => ctx.slots.register({
           name: slot, key, id: 'dsh-diagram-preview', locale: ns,

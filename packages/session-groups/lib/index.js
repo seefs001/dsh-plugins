@@ -218,8 +218,17 @@ export function apply(ctx) {
 
   const streams = new Set()
   const broadcast = state => {
+    if (streams.size === 0) return
     const frame = `data: ${JSON.stringify(state)}\n\n`
-    for (const res of streams) res.write(frame)
+    for (const res of streams) {
+      if (res.destroyed || res.writableEnded) { streams.delete(res); continue }
+      try {
+        if (res.writableLength > 1024 * 1024) { res.end(); streams.delete(res) }
+        else res.write(frame)
+      } catch {
+        streams.delete(res)
+      }
+    }
   }
 
   const run = op => {

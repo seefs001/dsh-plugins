@@ -246,11 +246,31 @@ window.__ModuleLoader__.load({
           return () => style.remove()
         }, `${NS}: styles`)
 
+        const MAX_SEEN_DONE = 256
         const t = ctx.locale.bind(NS)
         const tf = (key, vars) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{${k}}`, () => String(v)), t(key))
         const seenDoneAt = new Map()
+        ctx.effect(() => () => seenDoneAt.clear(), `${NS}: seen cache`)
+        const markSeenDone = (id, ts) => {
+          seenDoneAt.delete(id)
+          seenDoneAt.set(id, ts)
+          while (seenDoneAt.size > MAX_SEEN_DONE) {
+            const oldest = seenDoneAt.keys().next().value
+            if (oldest === undefined) break
+            seenDoneAt.delete(oldest)
+          }
+        }
         const statusSource = ctx.uiSession.sessionStatus
-        const useSource = source => React.useSyncExternalStore(fn => source.subscribe(fn), () => source.getSnapshot())
+        const subscribeLocale = fn => ctx.locale.subscribe(fn)
+        const getLocaleSnapshot = () => ctx.locale.getSnapshot()
+        const subscribeSubagentSources = onStoreChange => {
+          const offList = ctx.sessions.list.subscribe(onStoreChange)
+          const offStatus = statusSource.subscribe(onStoreChange)
+          return () => {
+            if (typeof offList === 'function') offList()
+            if (typeof offStatus === 'function') offStatus()
+          }
+        }
 
         function useSubagentRows(sessionId, seenVersion) {
           const cacheRef = React.useRef({
@@ -261,14 +281,7 @@ window.__ModuleLoader__.load({
             rows: null,
           })
           return React.useSyncExternalStore(
-            onStoreChange => {
-              const offList = ctx.sessions.list.subscribe(onStoreChange)
-              const offStatus = statusSource.subscribe(onStoreChange)
-              return () => {
-                if (typeof offList === 'function') offList()
-                if (typeof offStatus === 'function') offStatus()
-              }
-            },
+            subscribeSubagentSources,
             () => {
               const list = ctx.sessions.list.getSnapshot()
               const statuses = statusSource.getSnapshot()
@@ -293,7 +306,7 @@ window.__ModuleLoader__.load({
         }
 
         function SubagentPeekControl({ sessionId }) {
-          useSource(ctx.locale)
+          React.useSyncExternalStore(subscribeLocale, getLocaleSnapshot)
           const [seenVersion, markSeen] = React.useReducer(n => n + 1, 0)
           const rows = useSubagentRows(sessionId, seenVersion)
           const [menuRect, setMenuRect] = React.useState(null)
@@ -364,7 +377,7 @@ window.__ModuleLoader__.load({
 
           const openRow = (row, aside = false) => {
             if (row.external) return
-            seenDoneAt.set(row.id, Math.max(Date.now(), row.finishedAt || 0))
+            markSeenDone(row.id, Math.max(Date.now(), row.finishedAt || 0))
             markSeen()
             setMenuRect(null)
             if (aside && typeof sidebarRight?.openResource === 'function') {

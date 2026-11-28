@@ -271,6 +271,7 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
         function useReviewLog(sessionId, enabled, live) {
           const [log, setLog] = React.useState({ status: 'loading', entries: [] })
           React.useEffect(() => {
+            setLog({ status: 'loading', entries: [] })
             if (!enabled || !sessionId) return undefined
             const controller = new AbortController()
             let lastFetchedAt = 0
@@ -302,7 +303,7 @@ button.arm-chip:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(
                   setLog({ status: 'ready', entries: data.entries })
                 }
               })
-              es.addEventListener('error', () => setLog(l => ({ ...l, status: 'unavailable' })))
+              es.addEventListener('error', () => setLog(l => (es.readyState === EventSource.CLOSED || l.status !== 'ready' ? { ...l, status: 'unavailable' } : l)))
               return () => { controller.abort(); es.close() }
             }
             fetchLog(true)

@@ -448,22 +448,39 @@ window.__ModuleLoader__.load({
         nextEntries.push({ item, range: found.range })
       }
       activeDraftRanges = nextEntries
+      draftRectCache = null
       if (!globalThis.Highlight || !globalThis.CSS?.highlights) return
       if (draftRanges.length > 0) CSS.highlights.set(HL_DRAFT, new Highlight(...draftRanges))
       else CSS.highlights.delete(HL_DRAFT)
     }
 
-    function hitDraftHighlight(x, y) {
+    let draftRectCache = null
+    function invalidateDraftRectCache() {
+      draftRectCache = null
+    }
+
+    function getDraftRectEntries() {
+      if (draftRectCache !== null) return draftRectCache
+      const built = []
       for (const entry of activeDraftRanges) {
         if (!entry.range.startContainer?.isConnected) continue
         const rects = entry.range.getClientRects?.()
-        if (!rects) continue
+        if (!rects || rects.length === 0) continue
+        const boxes = []
         for (const r of rects) {
+          boxes.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom })
+        }
+        if (boxes.length > 0) built.push({ item: entry.item, boxes })
+      }
+      draftRectCache = built
+      return built
+    }
+
+    function hitDraftHighlight(x, y) {
+      for (const entry of getDraftRectEntries()) {
+        for (const r of entry.boxes) {
           if (x >= r.left - 2 && x <= r.right + 2 && y >= r.top - 2 && y <= r.bottom + 2) {
-            return {
-              item: entry.item,
-              rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
-            }
+            return { item: entry.item, rect: r }
           }
         }
       }
@@ -473,6 +490,7 @@ window.__ModuleLoader__.load({
     function clearChatHighlights() {
       clearJumpHighlight()
       activeDraftRanges = []
+      draftRectCache = null
       if (!globalThis.CSS?.highlights) return
       CSS.highlights.delete(HL_DRAFT)
     }
@@ -549,15 +567,23 @@ window.__ModuleLoader__.load({
       return byPath
     }
 
+    const MAX_STORED_SESSIONS = 32
     const EMPTY_SESSION = Object.freeze({ items: [], loaded: false, loading: false, saving: false, error: null, fetchedAt: 0 })
 
     function createStore() {
       const sessions = new Map()
       const listeners = new Map()
       const inflight = new Map()
+      const generations = new Map()
       let channel = null
 
       const get = sessionId => (sessionId ? sessions.get(sessionId) ?? EMPTY_SESSION : EMPTY_SESSION)
+
+      const bumpGen = sessionId => {
+        const next = (generations.get(sessionId) ?? 0) + 1
+        generations.set(sessionId, next)
+        return next
+      }
 
       const notify = sessionId => {
         const set = listeners.get(sessionId)
@@ -568,7 +594,16 @@ window.__ModuleLoader__.load({
       const setSession = (sessionId, patch) => {
         const prev = get(sessionId)
         const next = { ...prev, ...patch }
+        sessions.delete(sessionId)
         sessions.set(sessionId, next)
+        if (sessions.size > MAX_STORED_SESSIONS) {
+          for (const id of sessions.keys()) {
+            if (id === sessionId || listeners.has(id) || inflight.has(id)) continue
+            sessions.delete(id)
+            generations.delete(id)
+            if (sessions.size <= MAX_STORED_SESSIONS) break
+          }
+        }
         notify(sessionId)
         return next
       }
@@ -583,7 +618,8 @@ window.__ModuleLoader__.load({
         const current = get(sessionId)
         if (!force && current.loaded) return Promise.resolve(current.items)
         const existing = inflight.get(sessionId)
-        if (existing) return existing
+        if (existing && !force) return existing
+        const gen = bumpGen(sessionId)
         setSession(sessionId, { loading: true, error: null })
         const url = `${STATE_PATH}?sessionId=${encodeURIComponent(sessionId)}`
         const req = fetch(url, { headers: { accept: 'application/json' } })
@@ -591,15 +627,18 @@ window.__ModuleLoader__.load({
             const data = await res.json().catch(() => ({}))
             if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
             const items = Array.isArray(data.items) ? data.items : []
+            if (generations.get(sessionId) !== gen) return get(sessionId).items
             setSession(sessionId, { items, loaded: true, loading: false, error: null, fetchedAt: Date.now() })
             return items
           })
           .catch(error => {
-            setSession(sessionId, { loading: false, error: error?.message ?? String(error) })
+            if (generations.get(sessionId) === gen) {
+              setSession(sessionId, { loading: false, error: error?.message ?? String(error) })
+            }
             return get(sessionId).items
           })
           .finally(() => {
-            inflight.delete(sessionId)
+            if (inflight.get(sessionId) === req) inflight.delete(sessionId)
           })
         inflight.set(sessionId, req)
         return req
@@ -608,6 +647,7 @@ window.__ModuleLoader__.load({
       const operate = async payload => {
         const sessionId = payload?.sessionId
         if (!sessionId) throw new Error('missing sessionId')
+        bumpGen(sessionId)
         setSession(sessionId, { saving: true, error: null })
         try {
           const res = await fetch(OP_PATH, {
@@ -617,6 +657,7 @@ window.__ModuleLoader__.load({
           })
           const data = await res.json().catch(() => ({}))
           if (!res.ok) throw new Error(data.message ?? `HTTP ${res.status}`)
+          bumpGen(sessionId)
           const items = Array.isArray(data.items) ? data.items : get(sessionId).items
           setSession(sessionId, { items, loaded: true, saving: false, error: null, fetchedAt: Date.now() })
           postSync(sessionId, items, data.updatedAt ?? Date.now())
@@ -639,21 +680,27 @@ window.__ModuleLoader__.load({
       }
 
       const connect = () => {
-        if (typeof BroadcastChannel !== 'function') return () => {}
-        try {
-          channel = new BroadcastChannel(CHANNEL_NAME)
-          channel.addEventListener('message', event => {
-            const msg = event?.data
-            if (msg?.type === 'sync' && typeof msg.sessionId === 'string' && Array.isArray(msg.items)) {
-              setSession(msg.sessionId, { items: msg.items, loaded: true, loading: false, error: null, fetchedAt: Date.now() })
-            }
-          })
-        } catch {
-          channel = null
+        if (typeof BroadcastChannel === 'function') {
+          try {
+            channel = new BroadcastChannel(CHANNEL_NAME)
+            channel.addEventListener('message', event => {
+              const msg = event?.data
+              if (msg?.type === 'sync' && typeof msg.sessionId === 'string' && Array.isArray(msg.items)) {
+                bumpGen(msg.sessionId)
+                setSession(msg.sessionId, { items: msg.items, loaded: true, loading: false, error: null, fetchedAt: Date.now() })
+              }
+            })
+          } catch {
+            channel = null
+          }
         }
         return () => {
           try { channel?.close?.() } catch {}
           channel = null
+          sessions.clear()
+          inflight.clear()
+          generations.clear()
+          clearChatHighlights()
         }
       }
 
@@ -952,6 +999,11 @@ window.__ModuleLoader__.load({
           const [expanded, setExpanded] = React.useState(false)
           const [notice, setNotice] = React.useState('')
           const [hoverCard, setHoverCard] = React.useState(null)
+          const hoverItemIdRef = React.useRef(null)
+          const updateHoverCard = React.useCallback(next => {
+            hoverItemIdRef.current = next ? next.item.id : null
+            setHoverCard(next)
+          }, [])
           const prevPhaseRef = React.useRef(inputState?.phase)
           const prevRevealRef = React.useRef(revealSeq)
           const dockRef = React.useRef(null)
@@ -963,10 +1015,10 @@ window.__ModuleLoader__.load({
 
           React.useEffect(() => {
             if (!hasDrafts || activeComposer) {
-              setHoverCard(null)
+              updateHoverCard(null)
               overCardRef.current = false
             }
-          }, [hasDrafts, activeComposer])
+          }, [hasDrafts, activeComposer, updateHoverCard])
 
           React.useEffect(() => {
             if (drafts.length <= 1 && expanded) setExpanded(false)
@@ -1047,10 +1099,10 @@ window.__ModuleLoader__.load({
             }
             const scheduleClose = () => {
               if (hoverTimersRef.current.open !== null) { clearTimeout(hoverTimersRef.current.open); hoverTimersRef.current.open = null }
-              if (hoverTimersRef.current.close !== null) return
+              if (hoverItemIdRef.current === null || hoverTimersRef.current.close !== null) return
               hoverTimersRef.current.close = setTimeout(() => {
                 hoverTimersRef.current.close = null
-                if (!overCardRef.current) setHoverCard(null)
+                if (!overCardRef.current) updateHoverCard(null)
               }, 160)
             }
             let rafId = 0
@@ -1076,15 +1128,13 @@ window.__ModuleLoader__.load({
                 clearTimeout(hoverTimersRef.current.close)
                 hoverTimersRef.current.close = null
               }
-              setHoverCard(prev => {
-                if (prev && prev.item.id === hit.item.id) return prev
-                if (hoverTimersRef.current.open !== null) clearTimeout(hoverTimersRef.current.open)
-                hoverTimersRef.current.open = setTimeout(() => {
-                  hoverTimersRef.current.open = null
-                  setHoverCard({ item: hit.item, rect: hit.rect })
-                }, prev ? 0 : 120)
-                return prev
-              })
+              if (hoverItemIdRef.current === hit.item.id) return
+              if (hoverTimersRef.current.open !== null) clearTimeout(hoverTimersRef.current.open)
+              const delay = hoverItemIdRef.current !== null ? 0 : 120
+              hoverTimersRef.current.open = setTimeout(() => {
+                hoverTimersRef.current.open = null
+                updateHoverCard({ item: hit.item, rect: hit.rect })
+              }, delay)
             }
             const onPointerMove = event => {
               if (event.pointerType === 'touch') return
@@ -1094,9 +1144,13 @@ window.__ModuleLoader__.load({
               if (!rafId) rafId = requestAnimationFrame(flushMove)
             }
             const onScroll = () => {
+              invalidateDraftRectCache()
               clearTimers()
               overCardRef.current = false
-              setHoverCard(null)
+              if (hoverItemIdRef.current !== null) updateHoverCard(null)
+            }
+            const onResize = () => {
+              invalidateDraftRectCache()
             }
             const onChatClick = event => {
               if (event.defaultPrevented || event.button !== 0) return
@@ -1109,7 +1163,7 @@ window.__ModuleLoader__.load({
               const hit = hitDraftHighlight(event.clientX, event.clientY)
               if (!hit) return
               clearTimers()
-              setHoverCard(null)
+              updateHoverCard(null)
               uiBus.open({
                 mode: 'edit',
                 sessionId,
@@ -1122,15 +1176,17 @@ window.__ModuleLoader__.load({
             }
             document.addEventListener('pointermove', onPointerMove, { passive: true })
             document.addEventListener('scroll', onScroll, true)
+            if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('resize', onResize, { passive: true })
             document.addEventListener('click', onChatClick)
             return () => {
               if (rafId) cancelAnimationFrame(rafId)
               clearTimers()
               document.removeEventListener('pointermove', onPointerMove)
               document.removeEventListener('scroll', onScroll, true)
+              if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') window.removeEventListener('resize', onResize)
               document.removeEventListener('click', onChatClick)
             }
-          }, [hasDrafts, sessionId])
+          }, [hasDrafts, sessionId, updateHoverCard])
 
           useStyleEffect(() => {
             if (hasDrafts) ensureStyles()
@@ -1196,7 +1252,7 @@ window.__ModuleLoader__.load({
                 if (hoverTimersRef.current.close !== null) clearTimeout(hoverTimersRef.current.close)
                 hoverTimersRef.current.close = setTimeout(() => {
                   hoverTimersRef.current.close = null
-                  if (!overCardRef.current) setHoverCard(null)
+                  if (!overCardRef.current) updateHoverCard(null)
                 }, 140)
               },
             },
@@ -1212,7 +1268,7 @@ window.__ModuleLoader__.load({
                   onClick: () => {
                     const rect = hoverCard.rect
                     overCardRef.current = false
-                    setHoverCard(null)
+                    updateHoverCard(null)
                     uiBus.open({
                       mode: 'edit',
                       sessionId,
@@ -1232,7 +1288,7 @@ window.__ModuleLoader__.load({
                   'aria-label': t('remove'),
                   onClick: () => {
                     overCardRef.current = false
-                    setHoverCard(null)
+                    updateHoverCard(null)
                     void store.operate({ sessionId, action: 'remove', id: liveHovered.id })
                   },
                 }, h(IconTrash, { size: 13 })))))

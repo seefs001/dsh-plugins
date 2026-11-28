@@ -523,6 +523,21 @@ window.__ModuleLoader__.load({
       return data
     }
 
+    const MAX_SESSION_STORES = 16
+    const EMPTY_SNAPSHOT = Object.freeze({
+      status: 'idle',
+      sessionId: '',
+      enabled: false,
+      cwd: '',
+      activePath: '',
+      canvases: [],
+      dataTick: 0,
+      error: '',
+    })
+    const noopSubscribe = () => () => {}
+    const getEmptySnapshot = () => EMPTY_SNAPSHOT
+    const noopOp = async () => ({})
+
     const sessionStores = new Map()
 
     function createSessionStore(sessionId, initialCwd) {
@@ -603,8 +618,28 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const subscribe = fn => {
+        listeners.add(fn)
+        if (listeners.size === 1) {
+          if (shouldStream(state)) connect()
+          else void fetchState()
+        }
+        return () => {
+          listeners.delete(fn)
+          if (listeners.size === 0) disconnect()
+        }
+      }
+
+      const getSnapshot = () => state
+
       return {
-        getSnapshot: () => state,
+        getSnapshot,
+        subscribe,
+        disconnect,
+        hasListeners: () => listeners.size > 0,
+        wake() {
+          if (listeners.size > 0 && !es && shouldStream(state)) connect()
+        },
         setCwd(nextCwd) {
           if (!nextCwd || nextCwd === cwd) return
           cwd = nextCwd
@@ -613,17 +648,6 @@ window.__ModuleLoader__.load({
           if (listeners.size > 0) {
             if (wasStreaming && shouldStream(state)) connect()
             else void fetchState()
-          }
-        },
-        subscribe(fn) {
-          listeners.add(fn)
-          if (listeners.size === 1) {
-            if (shouldStream(state)) connect()
-            else void fetchState()
-          }
-          return () => {
-            listeners.delete(fn)
-            if (listeners.size === 0) disconnect()
           }
         },
         async op(payload) {
@@ -648,8 +672,18 @@ window.__ModuleLoader__.load({
       if (!store) {
         store = createSessionStore(sessionId, cwd)
         sessionStores.set(sessionId, store)
-      } else if (cwd) {
-        store.setCwd(cwd)
+        if (sessionStores.size > MAX_SESSION_STORES) {
+          for (const [id, candidate] of sessionStores) {
+            if (id === sessionId || candidate.hasListeners()) continue
+            candidate.disconnect()
+            sessionStores.delete(id)
+            if (sessionStores.size <= MAX_SESSION_STORES) break
+          }
+        }
+      } else {
+        sessionStores.delete(sessionId)
+        sessionStores.set(sessionId, store)
+        if (cwd) store.setCwd(cwd)
       }
       return store
     }
@@ -660,10 +694,10 @@ window.__ModuleLoader__.load({
         if (store && cwd) store.setCwd(cwd)
       }, [store, cwd])
       const snapshot = React.useSyncExternalStore(
-        React.useCallback(cb => (store ? store.subscribe(cb) : () => {}), [store]),
-        () => (store ? store.getSnapshot() : { status: 'idle', sessionId: '', enabled: false, cwd: '', activePath: '', canvases: [], dataTick: 0, error: '' }),
+        store ? store.subscribe : noopSubscribe,
+        store ? store.getSnapshot : getEmptySnapshot,
       )
-      return { snapshot, op: store ? store.op : async () => ({}) }
+      return { snapshot, op: store ? store.op : noopOp }
     }
 
     return {
@@ -671,6 +705,20 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'theme', 'sidebarRight', 'sidebarRightTabs'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, DICTS), 'canvas: locale')
+        ctx.effect(() => {
+          const wakeAll = () => {
+            if (typeof document !== 'undefined' && document.hidden) return
+            for (const store of sessionStores.values()) store.wake()
+          }
+          if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('focus', wakeAll)
+          if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') document.addEventListener('visibilitychange', wakeAll)
+          return () => {
+            if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') window.removeEventListener('focus', wakeAll)
+            if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') document.removeEventListener('visibilitychange', wakeAll)
+            for (const store of sessionStores.values()) store.disconnect()
+            sessionStores.clear()
+          }
+        }, 'canvas: stores')
         let detailStyleEl = null
         const ensureDetailStyles = () => {
           if (detailStyleEl || typeof document === 'undefined' || !document.head) return

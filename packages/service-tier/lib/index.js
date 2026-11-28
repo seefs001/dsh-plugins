@@ -92,6 +92,13 @@ export function serviceTierTransform(readTiers) {
 export async function apply(ctx, config) {
   let tiers = normalizeTiers(config?.tiers)
 
+  let disposed = false
+  let hook = null
+  ctx.effect(() => () => {
+    disposed = true
+    hook?.remove?.()
+    hook = null
+  }, 'service-tier: pi-ai request transform')
   const hooked = addPiAiRequestTransform(serviceTierTransform(() => tiers))
   const catalogResponses = catalogProvidersWithApi(RESPONSES_API).catch(error => {
     ctx.logger?.warn?.(`service-tier: cannot read the pi-ai catalog; catalog routes show no toggle (${error instanceof Error ? error.message : error})`)
@@ -150,8 +157,9 @@ export async function apply(ctx, config) {
   }), `service-tier: POST ${SET_PATH}`)
 
   try {
-    const hook = await hooked
-    ctx.effect(() => hook.remove, 'service-tier: pi-ai request transform')
+    const installed = await hooked
+    if (disposed) installed.remove()
+    else hook = installed
   } catch (error) {
     ctx.logger?.warn?.(`service-tier: service tier overrides are unavailable (${error instanceof Error ? error.message : error})`)
   }

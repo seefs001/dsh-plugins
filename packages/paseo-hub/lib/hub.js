@@ -219,7 +219,11 @@ export function openDaemonSocket({
       closedEarly = true
       settled = true
       stop()
-      activeSocket?.close()
+      if (!activeSocket) return
+      try {
+        if (activeSocket.readyState === 0 && typeof activeSocket.terminate === 'function') activeSocket.terminate()
+        else activeSocket.close()
+      } catch {}
     },
   }
 }
